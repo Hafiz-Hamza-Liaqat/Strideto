@@ -91,6 +91,7 @@ export function ResumeDocument({ viewModel, template = 'modern-professional' }) 
       className={`resume-preview bg-white font-sans p-[15mm] ${skin}`}
       style={{ width: '210mm', maxWidth: '210mm', minHeight: '297mm' }}
       data-resume-template={template}
+      data-print-width="210mm"
     >
       <ResumeHeader vm={vm} template={template} showPhoto />
 

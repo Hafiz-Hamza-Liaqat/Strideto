@@ -20,6 +20,7 @@ import {
 } from '@shared/placementRegistry.js';
 import { PLACEMENT_TYPE_LABELS } from '@shared/placementTypes.js';
 import { calculateCtr, formatCtr } from '../../utils/adTracking';
+import { EscapeWhen } from '../../a11y/EscapeWhen';
 
 const STATUSES = ['draft', 'active', 'paused', 'expired'];
 const APP_BASE = (import.meta.env.VITE_APP_URL || window.location.origin).replace(/\/$/, '');
@@ -311,6 +312,7 @@ export default function AdminAdvertisements() {
 
         {formOpen && (
           <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4">
+            <EscapeWhen active onEscape={() => setFormOpen(false)} />
             <div className="max-w-xl mx-auto my-4 rounded-xl bg-white dark:bg-gray-900 p-6 border border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-bold mb-4">{editingId ? t('admin:editAdSlot', { defaultValue: 'Edit ad slot' }) : t('admin:addAdSlot', { defaultValue: 'Add ad slot' })}</h3>
               <div className="grid gap-3 max-h-[70vh] overflow-y-auto">

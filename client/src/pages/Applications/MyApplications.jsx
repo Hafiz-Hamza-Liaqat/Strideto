@@ -17,6 +17,7 @@ import {
   filterApplications,
   sortApplications,
 } from '../../utils/applicationUi';
+import { EmptyState } from '../../components/common/EmptyState';
 
 const VIEWS = ['list', 'kanban', 'table', 'calendar'];
 
@@ -178,12 +179,13 @@ export default function MyApplications() {
         )}
 
         {!loading && visible.length === 0 && (
-          <div className="rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-8 text-center">
-            <p className="text-gray-600 dark:text-gray-400 mb-4">{t('applications:empty')}</p>
-            <Link to={ROUTES.APPLICATIONS_NEW} className="text-primary dark:text-mint hover:underline font-medium">
-              {t('applications:createFirst')}
-            </Link>
-          </div>
+          <EmptyState
+            icon="📋"
+            title="You haven't applied yet"
+            description="Start exploring opportunities today and track every application in one place."
+            actionLabel="Explore Opportunities"
+            actionTo={ROUTES.JOBS}
+          />
         )}
 
         {!loading && visible.length > 0 && view === 'list' && (

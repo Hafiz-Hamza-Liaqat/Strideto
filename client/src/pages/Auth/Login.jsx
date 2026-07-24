@@ -10,6 +10,7 @@ import { SocialAuthButton } from '../../components/auth/SocialAuthButton';
 import { FormField } from '../../components/common/FormField';
 import { Alert } from '../../components/ui/Alerts';
 import { SeoHead } from '../../components/seo';
+import { isOnboardingComplete, markOnboardingPending } from '../../onboarding';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -40,8 +41,11 @@ export default function Login() {
       if (result?.mustChangePassword) {
         navigate(ROUTES.PROFILE, { replace: true, state: { mustChangePassword: true } });
       } else if (from === ROUTES.HOME || from === ROUTES.LOGIN || from === ROUTES.REGISTER) {
-        const seen = typeof window !== 'undefined' && localStorage.getItem('edur_onboarding_done') === '1';
-        navigate(seen ? ROUTES.DASHBOARD : `${ROUTES.TALENT_PROFILE}?onboarding=1`, { replace: true });
+        const uid = result?.user?._id ? String(result.user._id) : null;
+        if (!isOnboardingComplete({ userId: uid, userFlag: result?.user?.onboardingCompleted })) {
+          markOnboardingPending();
+        }
+        navigate(ROUTES.HOME, { replace: true });
       } else {
         navigate(from, { replace: true });
       }

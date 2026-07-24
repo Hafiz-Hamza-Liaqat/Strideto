@@ -16,6 +16,7 @@ import { ResumePreview } from './ResumePreview';
 import { ResumeScore } from './ResumeScore';
 import { ResumeDownload } from './ResumeDownload';
 import { useToast } from '../../context/ToastContext';
+import { EmptyState } from '../../components/common/EmptyState';
 
 export default function ResumeBuilder() {
   const { t } = useTranslation(['resume', 'common']);
@@ -195,11 +196,23 @@ export default function ResumeBuilder() {
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('resume:title')}</h1>
         <p className="text-gray-600 dark:text-gray-400 mb-6">{t('resume:subtitle')}</p>
 
+        {!resumeId && (
+          <div className="mb-6">
+            <EmptyState
+              icon="📄"
+              title="Build a professional resume"
+              description="A professional resume improves your chances of success."
+              actionLabel="Build Resume"
+              actionTo={ROUTES.RESUME_BUILDER}
+            />
+          </div>
+        )}
+
         {optimizeResult && (
           <div className="mb-6 p-4 rounded-xl border border-primary/30 dark:border-mint/30 bg-primary/5 dark:bg-mint/10">
             <h3 className="font-semibold text-gray-900 dark:text-white mb-2">{t('resume:optimizeFor', { jobTitle: optimizeResult.jobTitle })}</h3>
             {optimizeResult.missingKeywords?.length > 0 && (
-              <p className="text-sm text-gray-700 dark:text-gray-300 mb-1">
+              <p className="text-sm text-gray-700 dark:text-gray-300 mb-1 break-words">
                 <strong>{t('resume:considerAdding')}</strong> {optimizeResult.missingKeywords.join(', ')}
               </p>
             )}
@@ -236,7 +249,7 @@ export default function ResumeBuilder() {
                 type="button"
                 onClick={handleSave}
                 disabled={saving || !isAuthenticated}
-                className="px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover disabled:opacity-50 dark:bg-mint dark:text-gray-900 dark:hover:bg-mint/90"
+                className="px-4 py-2.5 min-h-[44px] rounded-lg bg-primary text-white font-medium hover:bg-primary-hover disabled:opacity-50 dark:bg-mint dark:text-gray-900 dark:hover:bg-mint/90"
               >
                 {saving ? t('common:saving') : resumeId ? t('resume:updateResume') : t('resume:saveResume')}
               </button>

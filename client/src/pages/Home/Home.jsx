@@ -9,26 +9,20 @@ import { PROVINCES } from '../../constants/listings';
 import { GlobalSearch } from '../../components/search/GlobalSearch';
 import { trendingApi, jobsApi, scholarshipsApi, admissionsApi, savedApi, recommendationsApi, blogsApi, monetizationApi } from '../../services/listingsService';
 import { useAuth } from '../../context/AuthContext';
-import { HomeJobCard, HomeScholarshipCard, HomeAdmissionCard } from '../../components/listings/HomeListingCard';
-import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
+import { useEmployerAuth } from '../../context/EmployerAuthContext';
 import { AdHost } from '../../components/ads';
 import { ScrollReveal } from '../../components/ui/ScrollReveal';
-import { NewsletterSubscribe } from '../../components/newsletter/NewsletterSubscribe';
-import { formatDate } from '../../utils/formatDate';
 import { useSiteContent } from '../../context/SiteContentContext';
 import { isC61TestMarker } from '../../utils/cmsCorruption';
+import {
+  resolvePersonaBucket,
+} from '../../personalization/layoutPersonalization';
+import { HomePersonalizedBody } from '../../components/home/HomePersonalizedBody';
 
 const TRENDING_JOBS_LIMIT = 8;
 const SCHOLARSHIPS_LIMIT = 6;
 const ADMISSIONS_LIMIT = 6;
 const BLOG_LIMIT = 4;
-const SKELETON_COUNT = 3;
-
-function readingTimeMinutes(content) {
-  if (!content || typeof content !== 'string') return 5;
-  const words = content.trim().split(/\s+/).length;
-  return Math.max(1, Math.ceil(words / 200));
-}
 
 const FOREIGN_STUDY_COUNTRIES = [
   { name: 'Turkey', path: ROUTES.INTL_SCHOLARSHIPS, query: '?country=Turkey' },
@@ -42,7 +36,9 @@ const FOREIGN_STUDY_COUNTRIES = [
 export default function Home() {
   const { t } = useTranslation(['home', 'common', 'navbar']);
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated: isEmployer } = useEmployerAuth();
+  const persona = resolvePersonaBucket(user, isEmployer);
   const { homepage, banners } = useSiteContent();
   const [trendingJobs, setTrendingJobs] = useState([]);
   const [latestScholarships, setLatestScholarships] = useState([]);
@@ -251,15 +247,15 @@ export default function Home() {
       )}
 
       <section
-        className="relative bg-gradient-to-br from-edur-steel via-edur-blue to-edur-steel dark:from-edur-steel dark:via-edur-blue dark:to-edur-steel py-12 sm:py-14 md:py-24 px-4 sm:px-6 overflow-hidden"
-        style={heroBg ? { backgroundImage: `linear-gradient(rgba(49,112,142,0.85), rgba(49,112,142,0.85)), url(${heroBg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+        className="relative bg-gradient-to-br from-primary via-primary-hover to-secondary dark:from-secondary dark:via-primary dark:to-secondary py-12 sm:py-14 md:py-24 px-4 sm:px-6 overflow-hidden"
+        style={heroBg ? { backgroundImage: `linear-gradient(rgba(37,99,235,0.88), rgba(15,23,42,0.88)), url(${heroBg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
       >
-        <div className="absolute inset-0 bg-[#31708E]/10 dark:bg-black/20" aria-hidden />
+        <div className="absolute inset-0 bg-primary/10 dark:bg-black/20" aria-hidden />
         <div className="relative max-w-4xl mx-auto text-center animate-fade-in-up">
-          <h1 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 drop-shadow-sm">
+          <h1 className="font-heading text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 break-words px-1">
             {heroTitle}
           </h1>
-          <p className="text-lg text-edur-sky/95 text-white/95 mb-8 max-w-2xl mx-auto">
+          <p className="text-base sm:text-lg text-white/95 mb-8 max-w-2xl mx-auto break-words px-1">
             {heroSub}
           </p>
           <div className="w-full max-w-3xl mx-auto mb-6 min-w-0">
@@ -301,16 +297,21 @@ export default function Home() {
             )}
           </div>
           {!heroCtas && (
-          <Link to={ROUTES.JOBS} className="inline-flex items-center px-6 py-3 rounded-xl bg-white text-edur-steel font-semibold hover:bg-edur-bg shadow-lg btn-theme">
-            {t('home:startExploring')}
-          </Link>
+          <div className="flex flex-wrap justify-center gap-3">
+            <Link to={ROUTES.JOBS} className="inline-flex items-center px-6 py-3 rounded-xl bg-accent text-white font-semibold hover:bg-accent-hover shadow-lg btn-theme">
+              {t('home:exploreOpportunities')}
+            </Link>
+            <Link to={ROUTES.RESUME_BUILDER} className="inline-flex items-center px-6 py-3 rounded-xl bg-white text-primary font-semibold hover:bg-primary-light shadow-lg btn-theme">
+              {t('home:buildYourResume')}
+            </Link>
+          </div>
           )}
           {cmsStats && (
-            <div className="mt-10 grid grid-cols-2 sm:grid-cols-3 gap-4 max-w-2xl mx-auto">
+            <div className="mt-10 grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 max-w-2xl mx-auto">
               {cmsStats.map((stat, i) => (
-                <div key={i} className="rounded-xl bg-white/10 backdrop-blur border border-white/20 p-4 text-center">
-                  <div className="text-2xl font-bold text-white">{stat.value}</div>
-                  <div className="text-sm text-white/80">{stat.label}</div>
+                <div key={i} className="min-w-0 rounded-xl bg-white/10 backdrop-blur border border-white/20 p-3 sm:p-4 text-center">
+                  <div className="text-xl sm:text-2xl font-bold text-white break-words">{stat.value}</div>
+                  <div className="text-xs sm:text-sm text-white/80 break-words">{stat.label}</div>
                 </div>
               ))}
             </div>
@@ -318,255 +319,43 @@ export default function Home() {
         </div>
       </section>
 
-      <ScrollReveal as="section" className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
+            <ScrollReveal as="section" className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
         <AdHost placementId="home-top" />
       </ScrollReveal>
 
-      {isAuthenticated && (recommended.jobs.length > 0 || recommended.scholarships.length > 0 || recommended.admissions.length > 0) && (
-        <ScrollReveal as="section" className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 border-t border-gray-200 dark:border-gray-700">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{t('home:recommendedForYou')}</h2>
-          {loadingRecommended ? (
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {[...Array(3)].map((_, i) => <ListingCardSkeleton key={i} />)}
-            </div>
-          ) : (
-            <div className="space-y-6">
-              {recommended.jobs.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">{t('navbar:jobs')}</h3>
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {recommended.jobs.slice(0, 3).map((job) => (
-                      <HomeJobCard key={job._id} job={job} saved={savedIds.jobs.has(job._id)} onSaveToggle={handleSaveJob} showBadge />
-                    ))}
-                  </div>
-                  <Link to={ROUTES.JOBS} className="text-sm text-primary dark:text-mint mt-2 inline-block">
-                    {t('home:viewAllWithType', { viewAll: t('home:viewAll'), type: t('navbar:jobs').toLowerCase() })}
-                  </Link>
-                </div>
-              )}
-              {recommended.scholarships.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">{t('navbar:scholarships')}</h3>
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {recommended.scholarships.slice(0, 3).map((item) => (
-                      <HomeScholarshipCard key={item._id} item={item} saved={savedIds.scholarships.has(item._id)} onSaveToggle={handleSaveScholarship} />
-                    ))}
-                  </div>
-                  <Link to={ROUTES.SCHOLARSHIPS} className="text-sm text-primary dark:text-mint mt-2 inline-block">
-                    {t('home:viewAllWithType', { viewAll: t('home:viewAll'), type: t('navbar:scholarships').toLowerCase() })}
-                  </Link>
-                </div>
-              )}
-              {recommended.admissions.length > 0 && (
-                <div>
-                  <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-3">{t('navbar:admissions')}</h3>
-                  <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-                    {recommended.admissions.slice(0, 3).map((item) => (
-                      <HomeAdmissionCard key={item._id} item={item} saved={savedIds.admissions.has(item._id)} onSaveToggle={handleSaveAdmission} />
-                    ))}
-                  </div>
-                  <Link to={ROUTES.ADMISSIONS} className="text-sm text-primary dark:text-mint mt-2 inline-block">
-                    {t('home:viewAllWithType', { viewAll: t('home:viewAll'), type: t('navbar:admissions').toLowerCase() })}
-                  </Link>
-                </div>
-              )}
-            </div>
-          )}
-        </ScrollReveal>
-      )}
-
-      {showJobs && (
-      <ScrollReveal as="section" className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 border-t border-gray-200 dark:border-gray-700">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{homepage?.sections?.featuredJobs?.title || t('home:trendingJobs')}</h2>
-        {loadingTrending ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: SKELETON_COUNT }).map((_, i) => <ListingCardSkeleton key={i} />)}
-          </div>
-        ) : trendingJobs.length > 0 ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {trendingJobs.map((job) => (
-              <HomeJobCard key={job._id} job={job} saved={savedIds.jobs.has(job._id)} onSaveToggle={handleSaveJob} showBadge />
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500 dark:text-gray-400">{t('home:noTrendingJobs')}</p>
-        )}
-        <div className="mt-6 text-center">
-          <Link to={ROUTES.JOBS} className="inline-flex items-center px-5 py-2.5 rounded-xl bg-edur-steel/10 dark:bg-edur-sky/10 text-edur-steel dark:text-edur-sky font-medium hover:bg-edur-steel/20 dark:hover:bg-edur-sky/20 btn-theme">
-            {t('home:viewAllJobs')}
-          </Link>
-        </div>
-      </ScrollReveal>
-      )}
+      <HomePersonalizedBody
+        persona={persona}
+        homepage={homepage}
+        t={t}
+        isAuthenticated={isAuthenticated}
+        recommended={recommended}
+        loadingRecommended={loadingRecommended}
+        loadingTrending={loadingTrending}
+        loadingBlogs={loadingBlogs}
+        trendingJobs={trendingJobs}
+        latestScholarships={latestScholarships}
+        admissionDeadlines={admissionDeadlines}
+        blogs={blogs}
+        savedIds={savedIds}
+        handleSaveJob={handleSaveJob}
+        handleSaveScholarship={handleSaveScholarship}
+        handleSaveAdmission={handleSaveAdmission}
+        showJobs={showJobs}
+        showScholarships={showScholarships}
+        showAdmissions={showAdmissions}
+        foreignStudyCountries={foreignStudyCountries}
+        testimonials={testimonials}
+        partners={partners}
+        studentResources={studentResources}
+        newsletterBlock={newsletterBlock}
+      />
 
       <ScrollReveal><AdHost placementId="home-mid-1" variant="inline" /></ScrollReveal>
-
-      {showScholarships && (
-      <ScrollReveal as="section" className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 border-t border-gray-200 dark:border-gray-700">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{homepage?.sections?.featuredScholarships?.title || t('home:latestScholarships')}</h2>
-        {loadingTrending ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: SKELETON_COUNT }).map((_, i) => <ListingCardSkeleton key={i} />)}
-          </div>
-        ) : latestScholarships.length > 0 ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {latestScholarships.map((item) => (
-              <HomeScholarshipCard key={item._id} item={item} saved={savedIds.scholarships.has(item._id)} onSaveToggle={handleSaveScholarship} />
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500 dark:text-gray-400">{t('home:noScholarships')}</p>
-        )}
-        <div className="mt-6 text-center">
-          <Link to={ROUTES.SCHOLARSHIPS} className="inline-flex items-center px-5 py-2.5 rounded-xl bg-edur-steel/10 dark:bg-edur-sky/10 text-edur-steel dark:text-edur-sky font-medium hover:bg-edur-steel/20 dark:hover:bg-edur-sky/20 btn-theme">
-            {t('home:viewAllScholarships')}
-          </Link>
-        </div>
-      </ScrollReveal>
-      )}
-
-      {showAdmissions && (
-      <ScrollReveal as="section" className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 border-t border-gray-200 dark:border-gray-700">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{homepage?.sections?.featuredAdmissions?.title || t('home:upcomingAdmissions')}</h2>
-        {loadingTrending ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {Array.from({ length: SKELETON_COUNT }).map((_, i) => <ListingCardSkeleton key={i} />)}
-          </div>
-        ) : admissionDeadlines.length > 0 ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {admissionDeadlines.map((item) => (
-              <HomeAdmissionCard key={item._id} item={item} saved={savedIds.admissions.has(item._id)} onSaveToggle={handleSaveAdmission} />
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500 dark:text-gray-400">{t('home:noAdmissions')}</p>
-        )}
-        <div className="mt-6 text-center">
-          <Link to={ROUTES.ADMISSIONS} className="inline-flex items-center px-5 py-2.5 rounded-xl bg-edur-steel/10 dark:bg-edur-sky/10 text-edur-steel dark:text-edur-sky font-medium hover:bg-edur-steel/20 dark:hover:bg-edur-sky/20 btn-theme">
-            {t('home:viewAllAdmissions')}
-          </Link>
-        </div>
-      </ScrollReveal>
-      )}
-
-      {foreignStudyCountries && (
-      <ScrollReveal as="section" className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 border-t border-gray-200 dark:border-gray-700">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{t('home:foreignStudyOpportunities')}</h2>
-        <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-4">
-          {foreignStudyCountries.map(({ name, path, query }) => (
-            <Link
-              key={name}
-              to={`${path}${query || ''}`}
-              className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md hover:border-primary/50 card-hover text-center"
-            >
-              <span className="font-semibold text-gray-900 dark:text-white">{name}</span>
-            </Link>
-          ))}
-        </div>
-        <div className="mt-4 text-center">
-          <Link to={ROUTES.INTL_SCHOLARSHIPS} className="text-primary dark:text-mint font-medium hover:underline">{t('home:viewAllIntlScholarships')}</Link>
-        </div>
-      </ScrollReveal>
-      )}
-
-      {testimonials?.enabled && testimonials.items?.length > 0 && (
-        <ScrollReveal as="section" className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 border-t border-gray-200 dark:border-gray-700">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{testimonials.title || 'Testimonials'}</h2>
-          <div className="grid md:grid-cols-2 gap-4">
-            {testimonials.items.map((item, i) => (
-              <blockquote key={i} className="p-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
-                <p className="text-gray-600 dark:text-gray-300 italic">&ldquo;{item.quote}&rdquo;</p>
-                <footer className="mt-3 text-sm font-medium text-gray-900 dark:text-white">{item.author}{item.role ? ` · ${item.role}` : ''}</footer>
-              </blockquote>
-            ))}
-          </div>
-        </ScrollReveal>
-      )}
-
-      {partners?.enabled && partners.logos?.length > 0 && (
-        <ScrollReveal as="section" className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 border-t border-gray-200 dark:border-gray-700">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{partners.title || 'Partners'}</h2>
-          <div className="flex flex-wrap justify-center gap-6 items-center">
-            {partners.logos.map((logo, i) => (
-              logo.url ? (
-                <a key={i} href={logo.url} target="_blank" rel="noopener noreferrer">
-                  {logo.imageUrl ? <img src={logo.imageUrl} alt={logo.name || 'Partner'} className="h-12 object-contain" /> : <span>{logo.name}</span>}
-                </a>
-              ) : (
-                <span key={i}>{logo.imageUrl ? <img src={logo.imageUrl} alt={logo.name || 'Partner'} className="h-12 object-contain" /> : logo.name}</span>
-              )
-            ))}
-          </div>
-        </ScrollReveal>
-      )}
-
-      {studentResources && (
-      <ScrollReveal as="section" className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 border-t border-gray-200 dark:border-gray-700">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{t('home:studentResources')}</h2>
-        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-          {studentResources.map(({ label, to, icon, description }) => (
-            <Link
-              key={to}
-              to={to}
-              className="p-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-lg hover:border-edur-blue/50 dark:hover:border-edur-sky/50 card-hover text-center transition-all duration-200"
-            >
-              <span className="text-2xl block mb-2" aria-hidden>{icon}</span>
-              <span className="font-semibold text-gray-900 dark:text-white block">{label}</span>
-              {description && <span className="text-sm text-gray-500 dark:text-gray-400 mt-1 block">{description}</span>}
-            </Link>
-          ))}
-        </div>
-      </ScrollReveal>
-      )}
-
-      <ScrollReveal as="section" className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 border-t border-gray-200 dark:border-gray-700">
-        <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{t('home:careerBlogArticles')}</h2>
-        {loadingBlogs ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {Array.from({ length: 4 }).map((_, i) => <ListingCardSkeleton key={i} />)}
-          </div>
-        ) : blogs.length > 0 ? (
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-            {blogs.slice(0, 4).map((post) => (
-              <Link
-                key={post._id}
-                to={`${ROUTES.BLOG}/${post.slug}`}
-                className="block p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-lg hover:border-edur-blue/50 card-hover"
-              >
-                <span className="text-xs font-medium text-edur-steel dark:text-edur-sky">{post.category || t('home:defaultBlogCategory')}</span>
-                <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2 mt-1">{post.title}</h3>
-                <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{post.excerpt}</p>
-                <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                  {t('home:minRead', { minutes: readingTimeMinutes(post.content || post.excerpt) })}
-                  {' · '}
-                  {post.publishedAt ? formatDate(post.publishedAt) : (post.createdAt ? formatDate(post.createdAt) : '')}
-                </p>
-              </Link>
-            ))}
-          </div>
-        ) : (
-          <p className="text-gray-500 dark:text-gray-400">{t('home:noBlogPosts')}</p>
-        )}
-        <div className="mt-6 text-center">
-          <Link to={ROUTES.BLOG} className="inline-flex items-center px-5 py-2.5 rounded-xl bg-edur-steel/10 dark:bg-edur-sky/10 text-edur-steel dark:text-edur-sky font-medium hover:bg-edur-steel/20 btn-theme">
-            {t('home:readMoreArticles')}
-          </Link>
-        </div>
-      </ScrollReveal>
-
-      {(newsletterBlock?.enabled !== false) && (
-      <ScrollReveal as="section" className="max-w-6xl mx-auto px-4 sm:px-6 py-10 sm:py-12 border-t border-gray-200 dark:border-gray-700">
-        <div className="max-w-xl mx-auto text-center p-8 rounded-2xl bg-gradient-to-br from-edur-steel/10 to-edur-blue/10 dark:from-edur-steel/20 dark:to-edur-blue/20 border border-edur-sky/30">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{newsletterBlock?.title || t('home:newsletterTitle')}</h2>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">{newsletterBlock?.subtitle || t('home:newsletterDesc')}</p>
-          <NewsletterSubscribe />
-        </div>
-      </ScrollReveal>
-      )}
 
       <ScrollReveal as="section" className="max-w-6xl mx-auto px-4 sm:px-6 py-6">
         <AdHost placementId="home-footer" />
       </ScrollReveal>
+
     </>
   );
 }

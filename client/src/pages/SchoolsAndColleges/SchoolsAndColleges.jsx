@@ -45,13 +45,13 @@ export default function SchoolsAndColleges() {
         <p className="text-gray-600 dark:text-gray-400 mb-6">{t('static:schoolsIntro')}</p>
 
         <div className="flex flex-wrap gap-3 mb-6">
-          <SearchBar onSearch={(q) => setFilters({ search: q || undefined })} placeholder={t('static:schoolsSearch')} className="flex-1 min-w-[200px]" />
-          <select value={params.type || ''} onChange={(e) => setFilters({ type: e.target.value || undefined })} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
+          <SearchBar onSearch={(q) => setFilters({ search: q || undefined })} placeholder={t('static:schoolsSearch')} className="w-full min-w-0 sm:flex-1 sm:min-w-[200px]" />
+          <select value={params.type || ''} onChange={(e) => setFilters({ type: e.target.value || undefined })} className="w-full sm:w-auto px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
             {TYPES.map(({ value, labelKey }) => (
               <option key={value || 'all'} value={value}>{t(`static:${labelKey}`)}</option>
             ))}
           </select>
-          <input type="text" placeholder={t('static:schoolsProvince')} value={params.province || ''} onChange={(e) => setFilters({ province: e.target.value || undefined })} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800" />
+          <input type="text" placeholder={t('static:schoolsProvince')} value={params.province || ''} onChange={(e) => setFilters({ province: e.target.value || undefined })} className="w-full sm:w-auto px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800" />
         </div>
 
         {error && <p className="text-red-600 mb-4">{error}</p>}

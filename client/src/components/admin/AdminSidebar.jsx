@@ -11,6 +11,7 @@ import {
   readExpandedGroups,
   writeExpandedGroups,
 } from '../../config/adminNavConfig';
+import { useOverlayA11y } from '../../a11y/useOverlayA11y';
 
 function NavIcon({ name, className = 'w-4 h-4 shrink-0' }) {
   const props = { className, fill: 'none', viewBox: '0 0 24 24', stroke: 'currentColor', strokeWidth: 1.75, 'aria-hidden': true };
@@ -245,14 +246,7 @@ export function AdminSidebar({ mobileOpen, onMobileOpen, onMobileClose, can }) {
   const drawerRef = useRef(null);
   const groups = filterAdminNavGroups(ADMIN_NAV_GROUPS, can);
 
-  useEffect(() => {
-    if (!mobileOpen) return undefined;
-    const onKey = (e) => {
-      if (e.key === 'Escape') onMobileClose();
-    };
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, [mobileOpen, onMobileClose]);
+  useOverlayA11y({ open: mobileOpen, onClose: onMobileClose, containerRef: drawerRef, trapFocus: true });
 
   useEffect(() => {
     if (mobileOpen) document.body.style.overflow = 'hidden';
@@ -260,13 +254,7 @@ export function AdminSidebar({ mobileOpen, onMobileOpen, onMobileClose, can }) {
     return () => { document.body.style.overflow = ''; };
   }, [mobileOpen]);
 
-  useEffect(() => {
-    if (mobileOpen && drawerRef.current) {
-      const first = drawerRef.current.querySelector('a, button');
-      first?.focus();
-    }
-  }, [mobileOpen]);
-
+  // focus handled by useOverlayA11y
   return (
     <>
       <div className="lg:hidden sticky top-0 z-30 flex items-center justify-between gap-2 px-4 py-2.5 -mx-4 sm:mx-0 mb-4 border-b border-gray-200 dark:border-gray-700 bg-bg-main/95 dark:bg-secondary/95 backdrop-blur-sm">

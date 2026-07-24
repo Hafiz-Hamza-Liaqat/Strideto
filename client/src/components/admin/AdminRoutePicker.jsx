@@ -2,6 +2,7 @@ import { useMemo, useState, useRef, useEffect, useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AdminLabel, adminFieldClass } from './AdminFormFields.jsx';
 import { getPickablePages, getPageCategories } from '@shared/pageRegistry.js';
+import { registerOverlayEscape } from '../../a11y/overlayStack';
 
 const APP_BASE = (import.meta.env.VITE_APP_URL || (typeof window !== 'undefined' ? window.location.origin : '')).replace(/\/$/, '');
 
@@ -83,6 +84,11 @@ export function AdminRoutePicker({
     document.addEventListener('mousedown', onDoc);
     return () => document.removeEventListener('mousedown', onDoc);
   }, []);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    return registerOverlayEscape(() => setOpen(false));
+  }, [open]);
 
   const displayValue = externalMode
     ? value

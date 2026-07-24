@@ -12,7 +12,7 @@
 
 ```bash
 # Host with mongodump
-MONGO_URI=mongodb://localhost:27017/edurozgaar ./scripts/backup/mongo-backup.sh
+MONGO_URI=mongodb://localhost:27017/strideto ./scripts/backup/mongo-backup.sh
 
 # Docker
 docker compose exec mongodb mongodump --out=/data/backup
@@ -40,7 +40,7 @@ Monthly: restore latest Mongo backup to staging, run `npm run verify:integration
 Verify backup structure without touching live data:
 
 ```bash
-./scripts/backup/verify-restore.sh ./backups/mongo/edurozgaar_YYYYMMDD_HHMMSS
+./scripts/backup/verify-restore.sh ./backups/mongo/strideto_YYYYMMDD_HHMMSS
 ```
 
 Cron examples: `scripts/backup/crontab.example`

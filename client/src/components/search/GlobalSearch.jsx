@@ -120,10 +120,10 @@ export function GlobalSearch({
     || 'rounded-xl border border-white/30 bg-white/10 text-white px-4 py-3 text-sm focus:ring-2 focus:ring-edur-sky outline-none backdrop-blur-sm w-full sm:w-40 shrink-0 h-[48px]';
   const baseInput =
     inputClassName
-    || 'w-full h-[48px] pl-4 pr-12 rounded-xl border border-gray-200 bg-white text-gray-900 placeholder-gray-500 focus:ring-2 focus:ring-edur-sky focus:border-transparent outline-none transition shadow-sm';
+    || 'w-full h-[48px] pl-4 pr-12 rounded-xl border border-gray-200 bg-white text-gray-900 placeholder-gray-600 focus:ring-2 focus:ring-edur-sky focus:border-transparent outline-none transition shadow-sm';
 
   return (
-    <div className={`w-full min-w-0 ${className}`}>
+    <div className={`w-full min-w-0 ${className}`} data-tour="search">
       <div className="flex flex-col sm:flex-row gap-2 sm:gap-3 items-stretch w-full">
         {showCategoryFilter && categories?.length ? (
           <select
@@ -204,7 +204,7 @@ export function GlobalSearch({
                             onMouseDown={(e) => e.preventDefault()}
                             onClick={() => selectItem(item)}
                           >
-                            <span className="font-medium text-gray-900 dark:text-white">{item.title}</span>
+                            <span className="font-medium text-gray-900 dark:text-white line-clamp-2 break-words">{item.title}</span>
                             {item.summary ? (
                               <span className="block text-xs text-gray-500 truncate">{item.summary}</span>
                             ) : null}

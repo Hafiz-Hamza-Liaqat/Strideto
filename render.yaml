@@ -1,0 +1,67 @@
+# Render Blueprint — Strideto API (optional)
+# Docs: https://render.com/docs/blueprint-spec
+# Apply manually in dashboard if preferred; do not auto-deploy from Phase C.
+
+services:
+  - type: web
+    name: strideto-api
+    runtime: node
+    rootDir: server
+    plan: starter
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: APP_ENV
+        value: production
+      - key: SITE_URL
+        value: https://strideto.com
+      - key: FRONTEND_URL
+        value: https://strideto.com
+      - key: REQUIRE_REDIS
+        value: "1"
+      - key: CMS_SEED_ON_START
+        value: "0"
+      - key: DISABLE_QUEUE_CRON
+        value: "1"
+      - key: DISABLE_REMINDER_CRON
+        value: "1"
+      - key: JWT_SECRET
+        sync: false
+      - key: MONGO_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: MAIL_HOST
+        sync: false
+      - key: MAIL_USER
+        sync: false
+      - key: MAIL_PASS
+        sync: false
+      - key: MAIL_FROM
+        value: "Strideto <noreply@strideto.com>"
+
+  - type: worker
+    name: strideto-worker
+    runtime: node
+    rootDir: server
+    plan: starter
+    buildCommand: npm install
+    startCommand: node src/worker.js
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: JWT_SECRET
+        sync: false
+      - key: MONGO_URI
+        sync: false
+      - key: REDIS_URL
+        sync: false
+      - key: MAIL_HOST
+        sync: false
+      - key: MAIL_USER
+        sync: false
+      - key: MAIL_PASS
+        sync: false

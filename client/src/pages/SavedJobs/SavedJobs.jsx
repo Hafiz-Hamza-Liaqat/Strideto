@@ -6,6 +6,7 @@ import { ROUTES } from '../../constants';
 import { formatDate } from '../../utils/formatDate';
 import { Alert } from '../../components/ui/Alerts';
 import { SeoHead } from '../../components/seo';
+import { EmptyState } from '../../components/common/EmptyState';
 
 export default function SavedJobs() {
   const { t } = useTranslation(['dashboard', 'seo', 'common']);
@@ -50,14 +51,13 @@ export default function SavedJobs() {
         {error && <Alert variant="error" className="mb-6">{error}</Alert>}
 
         {total === 0 ? (
-          <div className="p-8 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 text-center text-gray-500 dark:text-gray-400">
-            <p className="mb-4">{t('dashboard:savedNoneYet')}</p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Link to={ROUTES.JOBS} className="text-primary dark:text-mint font-medium hover:underline">{t('dashboard:savedBrowseJobs')}</Link>
-              <Link to={ROUTES.SCHOLARSHIPS} className="text-primary dark:text-mint font-medium hover:underline">{t('dashboard:savedBrowseScholarships')}</Link>
-              <Link to={ROUTES.ADMISSIONS} className="text-primary dark:text-mint font-medium hover:underline">{t('dashboard:savedBrowseAdmissions')}</Link>
-            </div>
-          </div>
+          <EmptyState
+            icon="⭐"
+            title="Save interesting jobs"
+            description="Save interesting jobs to access them later. You can also bookmark scholarships and admissions."
+            actionLabel="Browse Jobs"
+            actionTo={ROUTES.JOBS}
+          />
         ) : (
           <div className="space-y-8">
             {savedJobs.length > 0 && (

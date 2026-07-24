@@ -16,8 +16,8 @@ export default function HiringOverviewWidget({ data }) {
     <Panel title={t('employer:widgetHiringOverview')}>
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3">
         {items.map((item) => (
-          <div key={item.label} className="rounded-lg bg-gray-50 dark:bg-gray-800 px-3 py-2">
-            <div className="text-xs text-gray-500 dark:text-gray-400">{item.label}</div>
+          <div key={item.label} className="min-w-0 rounded-lg bg-gray-50 dark:bg-gray-800 px-3 py-2">
+            <div className="text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">{item.label}</div>
             <div className="text-xl font-semibold text-gray-900 dark:text-white">{item.value ?? 0}</div>
           </div>
         ))}

@@ -40,12 +40,12 @@ export default function ForeignStudies() {
         <p className="text-gray-600 dark:text-gray-400 mb-6">{t('static:foreignStudiesIntro')}</p>
 
         <div className="flex flex-wrap gap-3 mb-6">
-          <SearchBar onSearch={(q) => setFilters({ search: q || undefined })} placeholder={t('static:foreignStudiesSearch')} className="flex-1 min-w-[200px]" />
-          <select value={params.level || ''} onChange={(e) => setFilters({ level: e.target.value || undefined })} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
+          <SearchBar onSearch={(q) => setFilters({ search: q || undefined })} placeholder={t('static:foreignStudiesSearch')} className="w-full min-w-0 sm:flex-1 sm:min-w-[200px]" />
+          <select value={params.level || ''} onChange={(e) => setFilters({ level: e.target.value || undefined })} className="w-full sm:w-auto px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
             <option value="">{t('static:foreignStudiesAllLevels')}</option>
             {LEVELS.filter(Boolean).map((l) => <option key={l} value={l}>{l}</option>)}
           </select>
-          <input type="text" placeholder={t('static:foreignStudiesCountry')} value={params.country || ''} onChange={(e) => setFilters({ country: e.target.value || undefined })} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800" />
+          <input type="text" placeholder={t('static:foreignStudiesCountry')} value={params.country || ''} onChange={(e) => setFilters({ country: e.target.value || undefined })} className="w-full sm:w-auto px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800" />
         </div>
 
         {error && <p className="text-red-600 mb-4">{error}</p>}

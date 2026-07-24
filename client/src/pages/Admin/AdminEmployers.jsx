@@ -9,6 +9,7 @@ import { AdminRouteGuard } from '../../components/admin/AdminRouteGuard';
 import { AdminDataTable } from '../../components/admin/AdminDataTable';
 import { AdminStatusBadge } from '../../components/admin/adminTableUtils';
 import { adminContentApi } from '../../services/adminContentApi';
+import { EscapeWhen } from '../../a11y/EscapeWhen';
 
 export default function AdminEmployers() {
   const { t } = useTranslation(['admin', 'common']);
@@ -174,6 +175,7 @@ export default function AdminEmployers() {
 
         {jobsModal && (
           <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4">
+            <EscapeWhen active onEscape={() => setJobsModal(null)} />
             <div className="max-w-2xl mx-auto my-4 rounded-xl bg-white dark:bg-gray-900 p-6 border border-gray-200 dark:border-gray-700">
               <div className="flex justify-between items-start gap-2 mb-4">
                 <h3 className="text-lg font-bold">{jobsModal.employer.companyName} — {t('admin:jobs', { defaultValue: 'Jobs' })}</h3>

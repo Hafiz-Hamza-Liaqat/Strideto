@@ -13,7 +13,7 @@
 ### 1. Database loss
 
 ```bash
-./scripts/backup/mongo-restore.sh ./backups/mongo/edurozgaar_YYYYMMDD_HHMMSS
+./scripts/backup/mongo-restore.sh ./backups/mongo/strideto_YYYYMMDD_HHMMSS
 docker compose restart backend worker
 ```
 

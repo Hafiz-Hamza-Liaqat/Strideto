@@ -174,7 +174,7 @@ export default function EmployerPostJob() {
             placeholder={t('employer:locationPlaceholder')}
           />
         </div>
-        <div className="grid grid-cols-2 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label className="block text-sm font-medium text-[#0F172A] mb-1">{t('employer:jobTypeLabel')}</label>
             <select

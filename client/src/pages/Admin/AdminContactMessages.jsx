@@ -8,6 +8,7 @@ import { useAdminList } from '../../hooks/useAdminList';
 import { AdminRouteGuard } from '../../components/admin/AdminRouteGuard';
 import { AdminDataTable } from '../../components/admin/AdminDataTable';
 import { adminContentApi } from '../../services/adminContentApi';
+import { EscapeWhen } from '../../a11y/EscapeWhen';
 
 const STATUSES = ['new', 'in_progress', 'resolved', 'closed'];
 
@@ -81,8 +82,9 @@ export default function AdminContactMessages() {
         <AdminDataTable columns={columns} data={data} loading={loading} error={error} pagination={pagination} onPageChange={setPage} />
         {detail && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setDetail(null)}>
-            <div className="max-w-lg w-full rounded-xl bg-white dark:bg-gray-800 p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
-              <h3 className="font-semibold text-lg mb-2">{detail.subject}</h3>
+            <EscapeWhen active onEscape={() => setDetail(null)} />
+            <div className="max-w-lg w-full max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+              <h3 className="font-semibold text-lg mb-2 break-words">{detail.subject}</h3>
               <p className="text-sm text-gray-500 mb-4">{detail.name} &lt;{detail.email}&gt;</p>
               <p className="whitespace-pre-wrap text-gray-700 dark:text-gray-300 mb-4">{detail.message}</p>
               {canEdit && (

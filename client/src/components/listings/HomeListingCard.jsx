@@ -19,7 +19,7 @@ function JobCard({ job, saved, onSaveToggle, showBadge = true }) {
       <div className="flex justify-between gap-2">
         <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="font-semibold text-gray-900 dark:text-white truncate">{job.title}</h3>
+            <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2">{job.title}</h3>
             {showBadge && (
               <span className={`text-xs font-medium px-2 py-0.5 rounded ${JOB_TYPE_BADGE[jobType] || JOB_TYPE_BADGE.Private}`}>
                 {jobType}
@@ -71,7 +71,7 @@ function ScholarshipCard({ item, saved, onSaveToggle }) {
     >
       <div className="flex justify-between gap-2">
         <div className="min-w-0 flex-1">
-          <h3 className="font-semibold text-gray-900 dark:text-white truncate">{item.title}</h3>
+          <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2">{item.title}</h3>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 flex items-center gap-1">
             {flag && <span aria-hidden>{flag}</span>}
             {item.provider}
@@ -107,8 +107,8 @@ function AdmissionCard({ item, saved, onSaveToggle }) {
               {item.logoUrl ? <img src={item.logoUrl} alt="" className="w-10 h-10 rounded-lg object-cover" /> : <span>{initial}</span>}
             </div>
             <div className="min-w-0">
-              <h3 className="font-semibold text-gray-900 dark:text-white truncate">{item.program}</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 truncate">{uni}</p>
+              <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2">{item.program}</h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 line-clamp-1">{uni}</p>
             </div>
           </div>
           <p className="text-xs text-gray-500 dark:text-gray-500 mt-1">{item.city || item.province || item.department}</p>

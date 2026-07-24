@@ -82,7 +82,7 @@ export default function AdminFormSubmissions() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <input className={`${adminFieldClass} flex-1 min-w-[160px]`} placeholder="Search…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
+          <input className={`${adminFieldClass} w-full min-w-0 sm:flex-1 sm:min-w-[160px]`} placeholder="Search…" value={search} onChange={(e) => { setSearch(e.target.value); setPage(1); }} />
           <select className={adminFieldClass} value={status} onChange={(e) => { setStatus(e.target.value); setPage(1); }}>
             <option value="">All</option>
             <option value="new">Unread</option>

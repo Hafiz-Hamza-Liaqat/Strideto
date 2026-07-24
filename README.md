@@ -88,6 +88,8 @@ npm run seed:assessments  # assessment catalog
 
 **Typical production stack:** Vercel (frontend) · Render / Node host (API) · MongoDB Atlas · Redis (recommended) · SMTP · TLS
 
+Guides: [docs/VERCEL_CONFIGURATION.md](./docs/VERCEL_CONFIGURATION.md) · [docs/RENDER_CONFIGURATION.md](./docs/RENDER_CONFIGURATION.md) · [docs/DNS_CHECKLIST.md](./docs/DNS_CHECKLIST.md)
+
 ```bash
 npm run build           # frontend production build
 npm run start:server    # backend production start
@@ -95,7 +97,7 @@ npm run start:server    # backend production start
 
 ## Environment variables
 
-Use **`.env.example`** / **`.env.template`** as the source of truth for keys. Required for a minimal local run:
+Use **`.env.example`** / **`.env.template`** / **`.env.production.example`** as the source of truth for keys. Required for a minimal local run:
 
 | Variable | Where | Purpose |
 | -------- | ----- | ------- |
@@ -111,11 +113,16 @@ Full list: [docs/ENVIRONMENT_VARIABLES.md](./docs/ENVIRONMENT_VARIABLES.md).
 | Doc | Purpose |
 | --- | ------- |
 | [docs/SETUP_AND_RUN.md](./docs/SETUP_AND_RUN.md) | Local setup |
-| [docs/SECURITY_CHECKLIST.md](./docs/SECURITY_CHECKLIST.md) | Security |
+| [docs/PHASE_C_PRODUCTION_SUMMARY.md](./docs/PHASE_C_PRODUCTION_SUMMARY.md) | Pre-deploy production config (Phase C) |
+| [docs/PRODUCTION_ENVIRONMENT_REPORT.md](./docs/PRODUCTION_ENVIRONMENT_REPORT.md) | Env audit |
+| [docs/SECURITY_AUDIT_REPORT.md](./docs/SECURITY_AUDIT_REPORT.md) | Security audit |
+| [docs/SECURITY_CHECKLIST.md](./docs/SECURITY_CHECKLIST.md) | Security checklist |
 | [docs/BACKUP_GUIDE.md](./docs/BACKUP_GUIDE.md) | Backups |
 | [docs/AI_BUDGET_POLICY.md](./docs/AI_BUDGET_POLICY.md) | AI cost policy |
 | [docs/RC2_IMPLEMENTATION_REPORT.md](./docs/RC2_IMPLEMENTATION_REPORT.md) | Current RC status |
 | [docs/archive/](./docs/archive/) | Historical sprint / QA docs |
+
+Production env template: [`.env.production.example`](./.env.production.example)
 
 ## License
 

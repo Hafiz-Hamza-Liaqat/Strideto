@@ -23,7 +23,7 @@ export function ResumeWizard({ resume, onChange, stepIndex, setStepIndex }) {
   return (
     <div className="space-y-6">
       <div className="scroll-tabs pb-2 -mx-2 px-2 sm:mx-0 sm:px-0">
-        <div className="flex gap-1">
+        <div className="flex gap-1 min-w-max">
           {WIZARD_STEPS.map((step, i) => (
             <button
               key={step.id}
@@ -46,7 +46,7 @@ export function ResumeWizard({ resume, onChange, stepIndex, setStepIndex }) {
           style={{ width: `${((stepIndex + 1) / total) * 100}%` }}
         />
       </div>
-      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6">
+      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
           {currentLabel}
         </h2>

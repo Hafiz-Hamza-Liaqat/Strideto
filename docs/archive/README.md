@@ -14,3 +14,5 @@ Historical sprint reports, audits, launch checklists, and QA artifacts.
 | `qa/` | Historical QA scripts/artifacts |
 
 Do not treat archived docs as current runbooks.
+
+Many archived titles still say **EduRozgaar** (former brand). Current product name is **Strideto** — see `docs/REPO_CLEANUP_STRIDETO.md`.

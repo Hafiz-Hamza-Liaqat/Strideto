@@ -118,7 +118,7 @@ export default function AdminInvitations() {
             placeholder={t('admin:filterSearch')}
             value={filters.search || ''}
             onChange={(e) => setFilters({ ...filters, search: e.target.value })}
-            className={`${adminFieldClass} sm:flex-1 sm:min-w-[160px]`}
+            className={`${adminFieldClass} w-full min-w-0 sm:flex-1 sm:min-w-[160px]`}
           />
           <AdminSelectBare
             name="invitation-status-filter"
@@ -139,7 +139,7 @@ export default function AdminInvitations() {
         {loading ? (
           <p className="text-gray-500 dark:text-gray-400">{t('common:loading')}</p>
         ) : (
-          <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+          <div className="table-scroll rounded-xl border border-gray-200 dark:border-gray-700">
             <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700 text-sm">
               <thead className="bg-gray-50 dark:bg-gray-800">
                 <tr>

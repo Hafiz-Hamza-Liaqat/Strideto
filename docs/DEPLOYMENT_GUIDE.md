@@ -18,7 +18,7 @@
 
 1. Create M10+ cluster in nearest region.
 2. Enable **Cloud Backup** (continuous).
-3. Create DB user with read/write on `edurozgaar` database.
+3. Create DB user with read/write on `strideto` database (legacy `edurozgaar` DB name still works).
 4. Network access: allow Render outbound IPs or `0.0.0.0/0` with strong credentials.
 5. Copy connection string â†’ `MONGO_URI`.
 
@@ -90,7 +90,7 @@ When SMTP is not configured, `/api/health` reports `email.mode: "placeholder"` â
 
 ## 4. Cloudinary
 
-1. Create production folder prefix e.g. `edurozgaar-prod/`.
+1. Create production folder prefix e.g. `strideto-prod/`.
 2. Set upload preset restrictions (max size, allowed formats).
 3. Add keys to Render env.
 

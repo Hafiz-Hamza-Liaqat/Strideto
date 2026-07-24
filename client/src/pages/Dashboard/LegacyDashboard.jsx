@@ -6,6 +6,8 @@ import { dashboardApi, applicationsApi, referralsApi } from '../../services/list
 import { ROUTES } from '../../constants';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { Chatbot } from '../../components/chatbot/Chatbot';
+import { ProfileCompletionCard } from '../../components/profile/ProfileCompletionCard';
+import { ResumeEncouragementBanner } from '../../components/profile/ResumeEncouragementBanner';
 
 /** Legacy monolithic dashboard — used when VITE_CAREER_DASHBOARD_ENABLED=0 */
 export default function LegacyDashboard() {
@@ -97,6 +99,13 @@ export default function LegacyDashboard() {
             <span className="block text-sm text-gray-500 dark:text-gray-500 mt-1">{profile.headline}</span>
           ) : null}
         </p>
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6 mb-8">
+          <div className="lg:col-span-2 space-y-4">
+            <ResumeEncouragementBanner />
+          </div>
+          <ProfileCompletionCard />
+        </div>
 
         <div className="flex flex-wrap gap-3 mb-8">
           {quickLinks.map(({ to, label, primary, outline, amber }) => (

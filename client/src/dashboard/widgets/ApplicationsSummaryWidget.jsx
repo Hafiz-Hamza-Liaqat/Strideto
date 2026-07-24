@@ -57,11 +57,11 @@ export function ApplicationsSummaryWidget({ data }) {
         </div>
       </div>
 
-      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3 mb-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-3 mb-4">
         {counts.map(({ key, label, value }) => (
-          <div key={key} className="p-3 rounded-lg bg-gray-50 dark:bg-gray-900/50 text-center">
+          <div key={key} className="min-w-0 p-3 rounded-lg bg-gray-50 dark:bg-gray-900/50 text-center">
             <p className="text-xl font-bold text-gray-900 dark:text-white">{value}</p>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{label}</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 break-words leading-tight">{label}</p>
           </div>
         ))}
       </div>

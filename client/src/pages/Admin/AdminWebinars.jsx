@@ -11,6 +11,7 @@ import { AdminImageUrlField, adminFieldClass } from '../../components/admin/Admi
 import { AdminSelectBare } from '../../components/admin/AdminFormFields';
 import { AdminSlugField } from '../../components/admin/AdminSlugField';
 import { adminContentApi } from '../../services/adminContentApi';
+import { EscapeWhen } from '../../a11y/EscapeWhen';
 
 const EMPTY = {
   title: '', description: '', scheduledAt: '', durationMinutes: 60, meetingUrl: '', recordingUrl: '',
@@ -101,6 +102,7 @@ export default function AdminWebinars() {
 
       {formOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4">
+          <EscapeWhen active onEscape={() => setFormOpen(false)} />
           <div className="max-w-2xl mx-auto my-8 rounded-xl bg-white dark:bg-gray-800 p-6 shadow-xl space-y-3 max-h-[90vh] overflow-y-auto">
             <h3 className="font-semibold text-lg">{editingId ? t('admin:edit') : t('admin:create')} Webinar</h3>
             <input className={adminFieldClass} placeholder={t('admin:colTitle')} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />

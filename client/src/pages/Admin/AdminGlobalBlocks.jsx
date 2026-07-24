@@ -8,6 +8,7 @@ import { adminFieldClass } from '../../components/admin/AdminImageUrlField';
 import { getAllBlockDefinitions } from '@shared/blockRegistry.js';
 import { BlockConfigFields } from '../../components/pageBuilder/BlockConfigFields';
 import { useToast } from '../../context/ToastContext';
+import { EscapeWhen } from '../../a11y/EscapeWhen';
 
 export default function AdminGlobalBlocks() {
   const toast = useToast();
@@ -114,6 +115,7 @@ export default function AdminGlobalBlocks() {
 
         {editing ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 overflow-y-auto">
+            <EscapeWhen active onEscape={() => setEditing(null)} />
             <div className="w-full max-w-2xl rounded-xl bg-white dark:bg-gray-900 border p-6 space-y-3 my-8">
               <h3 className="font-semibold">Edit global block</h3>
               {usage.length ? (

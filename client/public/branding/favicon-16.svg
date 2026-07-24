@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16" fill="none" role="img" aria-label="Strideto">
+  <rect width="16" height="16" rx="4.5" fill="#2563EB"/>
+  <rect x="2.2" y="10" width="6" height="3" rx="1.5" fill="#FFFFFF"/>
+  <rect x="5.2" y="6.5" width="6" height="3" rx="1.5" fill="#FFFFFF"/>
+  <rect x="8.2" y="3" width="6" height="3" rx="1.5" fill="#FFFFFF"/>
+  <circle cx="12.7" cy="2.2" r="1.4" fill="#F97316"/>
+</svg>

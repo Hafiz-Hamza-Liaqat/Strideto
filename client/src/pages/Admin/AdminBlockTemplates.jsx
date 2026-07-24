@@ -7,6 +7,7 @@ import { adminContentApi } from '../../services/adminContentApi';
 import { adminFieldClass } from '../../components/admin/AdminImageUrlField';
 import { filterTemplates, TEMPLATE_CATEGORIES } from '@shared/pageBuilderTemplates.js';
 import { useToast } from '../../context/ToastContext';
+import { EscapeWhen } from '../../a11y/EscapeWhen';
 
 export default function AdminBlockTemplates() {
   const toast = useToast();
@@ -69,7 +70,7 @@ export default function AdminBlockTemplates() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          <input className={`${adminFieldClass} flex-1 min-w-[200px]`} placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
+          <input className={`${adminFieldClass} w-full min-w-0 sm:flex-1 sm:min-w-[200px]`} placeholder="Search…" value={q} onChange={(e) => setQ(e.target.value)} />
           <select className={adminFieldClass} value={category} onChange={(e) => setCategory(e.target.value)}>
             <option value="all">All categories</option>
             {TEMPLATE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}
@@ -95,7 +96,8 @@ export default function AdminBlockTemplates() {
 
         {editing ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
-            <div className="w-full max-w-lg rounded-xl bg-white dark:bg-gray-900 border p-6 space-y-3">
+            <EscapeWhen active onEscape={() => setEditing(null)} />
+            <div className="w-full max-w-lg max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-gray-900 border p-4 sm:p-6 space-y-3">
               <h3 className="font-semibold">Edit template</h3>
               <input className={adminFieldClass} value={editing.name} onChange={(e) => setEditing({ ...editing, name: e.target.value })} />
               <select className={adminFieldClass} value={editing.category} onChange={(e) => setEditing({ ...editing, category: e.target.value })}>

@@ -6,11 +6,17 @@ node_modules/
 .env.*
 !.env.example
 !.env.template
+!.env.production.example
 !docker/.env.*.example
 server/.env
 client/.env
 client/.env.production
 client/.env.local
+client/.env.staging
+server/.env.production
+server/.env.staging
+.env.staging
+.env.local
 
 # Local data & tooling
 .mongo-data/

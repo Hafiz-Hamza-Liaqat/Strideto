@@ -1,8 +1,8 @@
 import { healthRouter } from './health.js';
 import { contactRouter } from './contact.js';
+import { feedbackRouter } from './feedback.js';
 import { institutionsRouter } from './institutions.js';
-import { supportRouter } from './support.js';
-import { userInboxRouter } from './userInbox.js';
+import { supportRouter } from './support.js';import { userInboxRouter } from './userInbox.js';
 import { jobsRouter } from './jobs.js';
 import { scholarshipsRouter } from './scholarships.js';
 import { admissionsRouter } from './admissions.js';
@@ -44,4 +44,4 @@ import { scoringRouter } from './scoring.js';
 import { assessmentsRouter } from './assessments.js';
 import { employerIntelligenceRouter } from './employerIntelligence.js';
 
-export { healthRouter, contactRouter, institutionsRouter, supportRouter, userInboxRouter, jobsRouter, scholarshipsRouter, admissionsRouter, blogsRouter, foreignStudiesRouter, authRouter, adminRouter, trendingRouter, newsletterRouter, notificationsRouter, monetizationRouter, usersRouter, v1Router, examsRouter, internshipsRouter, chatbotRouter, webinarsRouter, intlScholarshipsRouter, badgesRouter, seoRouter, resumesRouter, employerRouter, publicProfilesRouter, careerArticlesRouter, resumeTemplatesRouter, cmsRouter, formsRouter, dynamicContentRouter, searchRouter, analyticsRouter, talentRouter, opportunityApplicationsRouter, timelineRouter, documentsRouter, credentialsRouter, careerDashboardRouter, migrationRouter, scoringRouter, assessmentsRouter, employerIntelligenceRouter };
+export { healthRouter, contactRouter, feedbackRouter, institutionsRouter, supportRouter, userInboxRouter, jobsRouter, scholarshipsRouter, admissionsRouter, blogsRouter, foreignStudiesRouter, authRouter, adminRouter, trendingRouter, newsletterRouter, notificationsRouter, monetizationRouter, usersRouter, v1Router, examsRouter, internshipsRouter, chatbotRouter, webinarsRouter, intlScholarshipsRouter, badgesRouter, seoRouter, resumesRouter, employerRouter, publicProfilesRouter, careerArticlesRouter, resumeTemplatesRouter, cmsRouter, formsRouter, dynamicContentRouter, searchRouter, analyticsRouter, talentRouter, opportunityApplicationsRouter, timelineRouter, documentsRouter, credentialsRouter, careerDashboardRouter, migrationRouter, scoringRouter, assessmentsRouter, employerIntelligenceRouter };

@@ -11,7 +11,7 @@ export function ApplicationTable({ applications }) {
   const { t, i18n } = useTranslation(['applications']);
 
   return (
-    <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700" role="region" aria-label={t('applications:views.table')}>
+    <div className="table-scroll rounded-xl border border-gray-200 dark:border-gray-700" role="region" aria-label={t('applications:views.table')}>
       <table className="min-w-full text-sm text-left">
         <thead className="bg-gray-50 dark:bg-gray-900/50 text-gray-600 dark:text-gray-300">
           <tr>

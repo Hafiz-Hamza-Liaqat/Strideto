@@ -12,6 +12,8 @@ import { Alert } from '../../components/ui/Alerts';
 import { ROUTES } from '../../constants';
 import { formatDate } from '../../utils/formatDate';
 import { SeoHead } from '../../components/seo';
+import { ProfileCompletionCard } from '../../components/profile/ProfileCompletionCard';
+import { ResumeEncouragementBanner } from '../../components/profile/ResumeEncouragementBanner';
 
 export default function Profile() {
   const { t } = useTranslation(['profile', 'common']);
@@ -165,6 +167,11 @@ export default function Profile() {
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('profile:title')}</h1>
         <p className="text-gray-600 dark:text-gray-400 mb-6">{t('profile:subtitle')}</p>
 
+        <div className="space-y-4 mb-8">
+          <ProfileCompletionCard />
+          <ResumeEncouragementBanner />
+        </div>
+
         {message && (
           <Alert variant={messageSuccess ? 'success' : 'error'} className="mb-6">
             {message}
@@ -200,7 +207,7 @@ export default function Profile() {
               type="text"
               value={name}
               onChange={(e) => setName(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-gray-500 focus:ring-2 focus:ring-primary outline-none"
+              className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder:text-gray-500 dark:placeholder:text-gray-400 focus:ring-2 focus:ring-primary outline-none"
             />
           </FormField>
 

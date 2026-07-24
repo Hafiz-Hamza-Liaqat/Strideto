@@ -6,12 +6,14 @@ import { useTranslation } from 'react-i18next';
 import { initI18n } from './i18n/index.js';
 import App from './App';
 import { ThemeProvider } from './context/ThemeContext';
+import { BrandProvider } from './design-system/BrandProvider';
 import { AuthProvider } from './context/AuthContext';
 import { EmployerAuthProvider } from './context/EmployerAuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { LANG_STORAGE_KEY } from './i18n/config.js';
+import { OnboardingProvider } from './onboarding';
 import './index.css';
 
 const BOOTSTRAP_LOADING = {
@@ -57,19 +59,23 @@ function Bootstrap() {
     <HelmetProvider>
       <BrowserRouter>
         <ThemeProvider>
-          <AuthProvider>
-            <EmployerAuthProvider>
-              <LanguageProvider>
-                <ToastProvider>
-                  <NotificationProvider>
-                    <Suspense fallback={<PageLoading />}>
-                      <App />
-                    </Suspense>
-                  </NotificationProvider>
-                </ToastProvider>
-              </LanguageProvider>
-            </EmployerAuthProvider>
-          </AuthProvider>
+          <BrandProvider>
+            <AuthProvider>
+              <EmployerAuthProvider>
+                <LanguageProvider>
+                  <ToastProvider>
+                    <NotificationProvider>
+                      <OnboardingProvider>
+                        <Suspense fallback={<PageLoading />}>
+                          <App />
+                        </Suspense>
+                      </OnboardingProvider>
+                    </NotificationProvider>
+                  </ToastProvider>
+                </LanguageProvider>
+              </EmployerAuthProvider>
+            </AuthProvider>
+          </BrandProvider>
         </ThemeProvider>
       </BrowserRouter>
     </HelmetProvider>

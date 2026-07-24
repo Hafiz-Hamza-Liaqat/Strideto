@@ -61,7 +61,7 @@ export function ReadinessScoreWidget({ data }) {
               </p>
             ) : null}
           </div>
-          <div className="flex-1 min-w-[10rem]">
+          <div className="flex-1 w-full min-w-0 sm:min-w-[10rem]">
             <div className="h-3 rounded-full bg-gray-200 dark:bg-gray-700 overflow-hidden">
               <div
                 className="h-full bg-primary rounded-full transition-all"

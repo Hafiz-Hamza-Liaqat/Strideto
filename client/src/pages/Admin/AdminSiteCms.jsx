@@ -13,6 +13,7 @@ import { AdminLocaleSelect, AdminSeoFields, AdminPublishFields } from '../../com
 import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
 import { getCmsBannerPlacements } from '@shared/placementRegistry.js';
+import { EscapeWhen } from '../../a11y/EscapeWhen';
 
 const CMS_BANNER_PLACEMENTS = getCmsBannerPlacements();
 
@@ -615,6 +616,7 @@ export default function AdminSiteCms() {
             <AdminDataTable columns={pageColumns} data={pages} loading={pagesLoading} />
             {pageFormOpen && (
               <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+                <EscapeWhen active onEscape={() => setPageFormOpen(false)} />
                 <div className="bg-white dark:bg-gray-900 rounded-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto p-6 space-y-3">
                   <h3 className="font-semibold">{pageEditingId ? 'Edit page' : 'New page'}</h3>
                   <AdminPublishFields form={pageForm} setForm={setPageForm} canPublish={canPublish} />
@@ -654,6 +656,7 @@ export default function AdminSiteCms() {
             <AdminDataTable columns={bannerColumns} data={banners} loading={false} />
             {bannerFormOpen && (
               <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+                <EscapeWhen active onEscape={() => setBannerFormOpen(false)} />
                 <div className="bg-white dark:bg-gray-900 rounded-xl max-w-lg w-full max-h-[90vh] overflow-y-auto p-6 space-y-3">
                   <h3 className="font-semibold">{bannerEditingId ? 'Edit banner' : 'New banner'}</h3>
                   <AdminPublishFields form={bannerForm} setForm={setBannerForm} canPublish={canPublish} />

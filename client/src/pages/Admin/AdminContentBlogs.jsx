@@ -13,6 +13,7 @@ import { AdminSlugField } from '../../components/admin/AdminSlugField';
 import { TranslationToolbar } from '../../components/admin/TranslationToolbar';
 import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
+import { EscapeWhen } from '../../a11y/EscapeWhen';
 
 const EMPTY = {
   title: '', excerpt: '', content: '', category: '', tags: '', author: '',
@@ -141,6 +142,7 @@ export default function AdminContentBlogs() {
 
         {formOpen && (
           <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4">
+            <EscapeWhen active onEscape={() => setFormOpen(false)} />
             <div className="max-w-2xl mx-auto my-4 rounded-xl bg-white dark:bg-gray-900 p-6 border border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-bold mb-4">{editingId ? t('admin:editBlog') : t('admin:addBlog')}</h3>
               {editingId ? (

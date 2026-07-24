@@ -44,5 +44,8 @@
   "appearance": "Appearance",
   "userId": "ID",
   "copyId": "Copy",
-  "idCopied": "Copied"
+  "idCopied": "Copied",
+  "help": "Help",
+  "productTour": "Product Tour",
+  "helpCenter": "Help Center"
 }

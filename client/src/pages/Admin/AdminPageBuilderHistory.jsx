@@ -10,6 +10,7 @@ import { adminContentApi } from '../../services/adminContentApi';
 import { useToast } from '../../context/ToastContext';
 import { actionDisplayLabel } from '@shared/pageBuilderRevisionDiff.js';
 import { listPilotPageBuilderPages } from '@shared/pageBuilderConfig.js';
+import { EscapeWhen } from '../../a11y/EscapeWhen';
 
 const PILOT_PAGES = listPilotPageBuilderPages();
 const DEFAULT_PAGE_KEY = PILOT_PAGES[0]?.pageKey || 'about';
@@ -317,6 +318,7 @@ export default function AdminPageBuilderHistory() {
 
         {previewLoading || previewData ? (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50">
+            <EscapeWhen active onEscape={() => { setPreviewData(null); setPreviewLoading(false); }} />
             <div className="w-full max-w-4xl max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-gray-900 border shadow-xl">
               <div className="sticky top-0 flex items-center justify-between gap-2 px-4 py-3 border-b bg-white dark:bg-gray-900">
                 <h3 className="font-semibold">

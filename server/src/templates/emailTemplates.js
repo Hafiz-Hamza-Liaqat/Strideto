@@ -1,9 +1,12 @@
 const BRAND = 'Strideto';
-const PRIMARY = '#0d9488';
+const PRIMARY = '#2563EB';
+const TAGLINE = 'Every Step Toward Success.';
+const SITE = process.env.SITE_URL || 'https://strideto.com';
 
 function layout({ title, bodyHtml, lang = 'en', footerText }) {
   const dir = lang === 'ur' ? 'rtl' : 'ltr';
-  const font = lang === 'ur' ? "'Noto Nastaliq Urdu', 'Segoe UI', Tahoma, sans-serif" : "'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+  const font = lang === 'ur' ? "'Noto Nastaliq Urdu', 'Segoe UI', Tahoma, sans-serif" : "'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+  const logoUrl = `${SITE.replace(/\/$/, '')}/branding/logo-symbol.svg`;
   return `<!DOCTYPE html>
 <html lang="${lang}" dir="${dir}">
 <head>
@@ -11,15 +14,17 @@ function layout({ title, bodyHtml, lang = 'en', footerText }) {
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
 <title>${title}</title>
 </head>
-<body style="margin:0;padding:0;background:#f3f4f6;font-family:${font};">
-<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f4f6;padding:24px 12px;">
+<body style="margin:0;padding:0;background:#F8FAFC;font-family:${font};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;padding:24px 12px;">
 <tr><td align="center">
-<table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;box-shadow:0 1px 3px rgba(0,0,0,.08);">
-<tr><td style="background:${PRIMARY};padding:20px 24px;">
-<h1 style="margin:0;color:#ffffff;font-size:20px;font-weight:700;">${BRAND}</h1>
+<table role="presentation" width="100%" style="max-width:560px;background:#ffffff;border-radius:12px;overflow:hidden;border:1px solid #E2E8F0;">
+<tr><td style="background:#ffffff;padding:28px 24px 16px;text-align:center;border-bottom:1px solid #E2E8F0;">
+<img src="${logoUrl}" width="48" height="48" alt="${BRAND}" style="display:block;margin:0 auto 12px;border:0;"/>
+<div style="font-family:Manrope,Inter,Segoe UI,sans-serif;font-size:22px;font-weight:700;color:#0F172A;letter-spacing:-0.02em;">${BRAND}</div>
+<div style="margin-top:6px;font-size:14px;color:#64748B;">${TAGLINE}</div>
 </td></tr>
-<tr><td style="padding:28px 24px;color:#111827;font-size:15px;line-height:1.6;">${bodyHtml}</td></tr>
-<tr><td style="padding:16px 24px 24px;border-top:1px solid #e5e7eb;color:#6b7280;font-size:12px;line-height:1.5;">
+<tr><td style="padding:28px 24px;color:#334155;font-size:15px;line-height:1.6;">${bodyHtml}</td></tr>
+<tr><td style="padding:16px 24px 24px;border-top:1px solid #E2E8F0;color:#64748B;font-size:12px;line-height:1.5;">
 ${footerText || (lang === 'ur' ? 'یہ ای میل Strideto کی طرف سے بھیجی گئی ہے۔' : 'This email was sent by Strideto.')}
 </td></tr>
 </table>

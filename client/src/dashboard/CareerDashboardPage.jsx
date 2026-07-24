@@ -1,12 +1,28 @@
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../components/seo';
 import { ListingCardSkeleton } from '../components/listings/ListingCardSkeleton';
 import { DashboardLayout } from './DashboardLayout';
 import { useDashboardComposition } from './useDashboardComposition';
+import { ResumeEncouragementBanner } from '../components/profile/ResumeEncouragementBanner';
+import { useAuth } from '../context/AuthContext';
+import { useEmployerAuth } from '../context/EmployerAuthContext';
+import {
+  personalizeDashboardLayout,
+  resolvePersonaBucket,
+} from '../personalization/layoutPersonalization';
 
 export default function CareerDashboardPage() {
   const { t } = useTranslation(['dashboard']);
   const { composition, loading, error } = useDashboardComposition();
+  const { user } = useAuth();
+  const { isAuthenticated: isEmployer } = useEmployerAuth();
+
+  const layout = useMemo(() => {
+    if (!composition?.layout) return composition?.layout;
+    const persona = resolvePersonaBucket(user, isEmployer);
+    return personalizeDashboardLayout(composition.layout, persona);
+  }, [composition?.layout, user, isEmployer]);
 
   if (loading) {
     return (
@@ -42,8 +58,11 @@ export default function CareerDashboardPage() {
         {error ? (
           <p className="mb-4 text-sm text-amber-600 dark:text-amber-400" role="status">{error}</p>
         ) : null}
+        <div className="mb-8">
+          <ResumeEncouragementBanner />
+        </div>
         <DashboardLayout
-          layout={composition.layout}
+          layout={layout}
           widgets={composition.widgets}
           meta={composition.meta}
         />

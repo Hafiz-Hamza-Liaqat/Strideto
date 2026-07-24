@@ -88,6 +88,14 @@ export const supportLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/** Global feedback widget — 8 submissions per hour per IP */
+export const feedbackLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: isDev ? 40 : 8,
+  message: { error: 'Too many feedback submissions. Please try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
 /** Dynamic form submissions — per IP hourly */
 export const formSubmissionLimiter = rateLimit({
   windowMs: 60 * 60 * 1000,

@@ -87,7 +87,7 @@ export default function AdminMediaLibrary() {
 
         <div className="flex flex-wrap gap-2">
           <input
-            className={`${adminFieldClass} flex-1 min-w-[180px]`}
+            className={`${adminFieldClass} w-full min-w-0 sm:flex-1 sm:min-w-[180px]`}
             placeholder="Search filename, alt, tags…"
             value={search}
             onChange={(e) => { setSearch(e.target.value); setPage(1); }}

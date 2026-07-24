@@ -2,6 +2,31 @@
 @tailwind components;
 @tailwind utilities;
 
+:root {
+  --color-primary: #2563EB;
+  --color-primary-hover: #1D4ED8;
+  --color-primary-light: #DBEAFE;
+  --color-accent: #F97316;
+  --color-accent-hover: #EA580C;
+  --color-bg: #F8FAFC;
+  --color-bg-card: #FFFFFF;
+  --color-bg-section: #F1F5F9;
+  --color-dark: #0F172A;
+  --color-dark-elevated: #1E293B;
+  --color-text-secondary: #64748B;
+  --color-text-heading: #0F172A;
+  --color-text-body: #334155;
+  --color-border: #E2E8F0;
+  --color-success: #16A34A;
+  --color-warning: #F59E0B;
+  --color-danger: #DC2626;
+  --color-footer-bg: #0F172A;
+  --color-footer-text: #94A3B8;
+  --color-footer-heading: #CBD5F5;
+  --font-heading: Manrope, Inter, system-ui, sans-serif;
+  --font-body: Inter, system-ui, -apple-system, sans-serif;
+}
+
 @layer base {
   html {
     @apply scroll-smooth;
@@ -9,11 +34,12 @@
     -webkit-text-size-adjust: 100%;
   }
   body {
-    background-color: #F8FAFC;
-    color: #475569;
+    background-color: var(--color-bg);
+    color: var(--color-text-body);
+    font-family: var(--font-body);
     font-size: 16px;
     line-height: 1.6;
-    @apply antialiased overflow-x-hidden min-w-0 font-sans;
+    @apply antialiased overflow-x-hidden min-w-0;
     -webkit-tap-highlight-color: transparent;
   }
   body.font-urdu {
@@ -25,20 +51,24 @@
   [dir='rtl'] .rtl-flip {
     transform: scaleX(-1);
   }
-  .dark body {
-    background-color: #0F172A;
+  .dark body,
+  html.dark body {
+    background-color: var(--color-dark);
     color: #e2e8f0;
   }
   h1, h2, h3, h4, h5, h6 {
-    @apply font-semibold tracking-tight text-[#0F172A] dark:text-white;
+    font-family: var(--font-heading);
+    @apply font-semibold tracking-tight text-text-heading dark:text-white;
   }
-  /* Better touch response on mobile: remove 300ms tap delay */
+  h1 { @apply text-h1; }
+  h2 { @apply text-h2; }
+  h3 { @apply text-h3; }
+  h4 { @apply text-h4; }
   button,
   a,
   [role="button"] {
     touch-action: manipulation;
   }
-  /* Responsive media: prevent overflow and preserve aspect ratio */
   img,
   video {
     max-width: 100%;
@@ -50,10 +80,32 @@
   img {
     @apply align-middle;
   }
+  :focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+  .skip-link {
+    position: absolute;
+    left: -9999px;
+    top: 0;
+    z-index: 200;
+    padding: 0.625rem 1rem;
+    border-radius: 0.5rem;
+    background: var(--color-primary);
+    color: #fff;
+    font-weight: 600;
+    text-decoration: none;
+  }
+  .skip-link:focus,
+  .skip-link:focus-visible {
+    left: 0.5rem;
+    top: 0.5rem;
+    outline: 2px solid #fff;
+    outline-offset: 2px;
+  }
 }
 
 @layer components {
-  /* Primary button: blue, 12px 20px, rounded-lg, hover lift + shadow */
   .btn-theme,
   .btn-primary {
     @apply transition-all duration-200 ease-out font-semibold rounded-lg;
@@ -61,7 +113,7 @@
   .btn-theme:hover:not(:disabled),
   .btn-primary:hover:not(:disabled) {
     transform: translateY(-1px);
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    box-shadow: 0 4px 12px rgba(37, 99, 235, 0.2);
   }
   .btn-theme:active:not(:disabled),
   .btn-primary:active:not(:disabled) {
@@ -76,16 +128,15 @@
   .btn-hover-lift:active:not(:disabled) {
     @apply translate-y-0 scale-[0.98];
   }
-  /* Card: white bg, rounded-xl, shadow, hover lift */
   .card-hover,
   .card-theme {
     @apply transition-all duration-200 ease-out rounded-xl bg-white dark:bg-gray-800;
-    box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+    box-shadow: 0 4px 20px rgba(15, 23, 42, 0.05);
   }
   .card-hover:hover,
   .card-theme:hover {
     transform: translateY(-3px);
-    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.08);
+    box-shadow: 0 10px 25px rgba(15, 23, 42, 0.08);
   }
   .link-hover {
     @apply transition-colors duration-200;
@@ -96,7 +147,6 @@
 }
 
 @layer utilities {
-  /* Responsive page container: use on main content wrappers */
   .container-responsive {
     @apply w-full max-w-7xl mx-auto px-4 sm:px-6;
   }
@@ -106,7 +156,6 @@
   .animate-in-up {
     @apply animate-fade-in-up;
   }
-  /* Scroll-triggered reveal (Victor Sin–style): hidden until in view, then animate in */
   .scroll-reveal {
     opacity: 0;
     transform: translateY(28px);
@@ -122,13 +171,11 @@
   .scroll-reveal--fade.is-visible {
     transform: none;
   }
-  /* Prevent long URLs/words from overflowing on small screens */
   .break-words-safe {
     overflow-wrap: break-word;
     word-wrap: break-word;
     word-break: break-word;
   }
-  /* Safe area insets for notched devices (e.g. iPhone) */
   .safe-area-inset-top {
     padding-top: env(safe-area-inset-top, 0);
   }
@@ -138,7 +185,6 @@
   .safe-area-inset-bottom {
     padding-bottom: env(safe-area-inset-bottom, 0);
   }
-  /* Scrollable table container — page must not scroll horizontally */
   .table-scroll {
     @apply w-full overflow-x-auto;
     -webkit-overflow-scrolling: touch;
@@ -146,13 +192,34 @@
   .table-scroll table {
     @apply w-full min-w-[640px];
   }
-  /* Horizontal scroll for tab/chip bars */
   .scroll-tabs {
     @apply flex gap-2 overflow-x-auto pb-1 -mx-4 px-4 sm:mx-0 sm:px-0;
     -webkit-overflow-scrolling: touch;
   }
-
-  /* Page Builder block enter animations (C.6.4.14) */
+  .touch-target {
+    @apply inline-flex items-center justify-center min-w-[44px] min-h-[44px];
+  }
+  .section-stack {
+    @apply space-y-6 sm:space-y-8 md:space-y-10;
+  }
+  /* Screen-only resume preview scaling — print/PDF keeps 210mm */
+  .resume-preview-scale {
+    transform-origin: top center;
+  }
+  @media (max-width: 1023px) {
+    .resume-preview-scale {
+      /* ~794px A4 @ 96dpi; scale to viewport minus padding */
+      --resume-scale: min(1, calc((100vw - 2.5rem) / 210mm));
+      transform: scale(var(--resume-scale));
+      margin-bottom: calc((1 - var(--resume-scale)) * -297mm);
+    }
+  }
+  @media print {
+    .resume-preview-scale {
+      transform: none !important;
+      margin-bottom: 0 !important;
+    }
+  }
   .pb-animate-pending {
     opacity: 0;
   }
@@ -184,6 +251,25 @@
     .pb-animate-zoom {
       animation: none !important;
       opacity: 1 !important;
+      transform: none !important;
+    }
+    .scroll-reveal,
+    .scroll-reveal--fade {
+      opacity: 1 !important;
+      transform: none !important;
+      transition: none !important;
+    }
+    .animate-fade-in,
+    .animate-fade-in-up,
+    .animate-drawer-enter,
+    .animate-drawer-leave,
+    .animate-overlay-enter,
+    .animate-overlay-leave,
+    .animate-dropdown-enter,
+    .btn-theme:hover:not(:disabled),
+    .btn-primary:hover:not(:disabled) {
+      animation: none !important;
+      transition: none !important;
       transform: none !important;
     }
   }

@@ -10,6 +10,7 @@ import { SocialAuthButton } from '../../components/auth/SocialAuthButton';
 import { FormField } from '../../components/common/FormField';
 import { Alert } from '../../components/ui/Alerts';
 import { SeoHead } from '../../components/seo';
+import { isOnboardingComplete, markOnboardingPending } from '../../onboarding';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -40,8 +41,12 @@ export default function Register() {
     setErrors({});
     setSubmitting(true);
     try {
-      await register({ name: name.trim(), email: email.trim().toLowerCase(), password, referralCode: refCode || undefined });
-      navigate(`${ROUTES.TALENT_PROFILE}?onboarding=1`, { replace: true });
+      const user = await register({ name: name.trim(), email: email.trim().toLowerCase(), password, referralCode: refCode || undefined });
+      const uid = user?._id ? String(user._id) : null;
+      if (!isOnboardingComplete({ userId: uid, userFlag: user?.onboardingCompleted })) {
+        markOnboardingPending();
+      }
+      navigate(ROUTES.HOME, { replace: true });
     } catch (err) {
       const data = err.response?.data;
       const msg = data?.error || t('forms:register.failed');

@@ -15,6 +15,7 @@ import { Alert } from '../../components/ui/Alerts';
 import { formatDate, daysUntil } from '../../utils/formatDate';
 import { useAuth } from '../../context/AuthContext';
 import { AdHost } from '../../components/ads';
+import { EmptyState } from '../../components/common/EmptyState';
 
 const PER_PAGE = 10;
 
@@ -105,7 +106,13 @@ export default function Admissions() {
                 {[...Array(4)].map((_, i) => <ListingCardSkeleton key={i} />)}
               </div>
             ) : data.length === 0 ? (
-              <div className="py-12 text-center text-gray-500 dark:text-gray-400">{t('noAdmissions', { ns: 'admissions' })}</div>
+              <EmptyState
+                icon="🏛"
+                title="Explore admissions"
+                description="Explore university admissions and upcoming deadlines."
+                actionLabel="Browse Admissions"
+                actionTo={ROUTES.ADMISSIONS}
+              />
             ) : (
               <>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('admissionsFound', { count: total, ns: 'admissions' })}</p>

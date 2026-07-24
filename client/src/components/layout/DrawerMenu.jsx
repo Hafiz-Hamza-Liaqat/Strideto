@@ -4,6 +4,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../constants';
 import { useHeaderNavItems } from '../../hooks/useHeaderNavItems';
+import { useOverlayA11y } from '../../a11y/useOverlayA11y';
 
 const DRAWER_DURATION_MS = 220;
 
@@ -30,6 +31,7 @@ export function DrawerMenu({ open, onClose }) {
   const [educationOpen, setEducationOpen] = useState(false);
   const [exiting, setExiting] = useState(false);
   const exitTimeoutRef = useRef(null);
+  const panelRef = useRef(null);
   const { t } = useTranslation(['navbar', 'common']);
 
   const label = (key) => {
@@ -37,6 +39,19 @@ export function DrawerMenu({ open, onClose }) {
     return t(k, { ns });
   };
   const resolvedNavItems = useHeaderNavItems(drawerNavItems, label);
+
+  const handleClose = () => {
+    if (exitTimeoutRef.current) clearTimeout(exitTimeoutRef.current);
+    setExiting(true);
+    exitTimeoutRef.current = setTimeout(() => {
+      onClose();
+      setExiting(false);
+      exitTimeoutRef.current = null;
+    }, DRAWER_DURATION_MS);
+  };
+
+  const show = open || exiting;
+  useOverlayA11y({ open: show && !exiting, onClose: handleClose, containerRef: panelRef, trapFocus: true });
 
   useEffect(() => {
     if (open) {
@@ -50,21 +65,10 @@ export function DrawerMenu({ open, onClose }) {
     if (!open) setEducationOpen(false);
   }, [open]);
 
-  const handleClose = () => {
-    if (exitTimeoutRef.current) clearTimeout(exitTimeoutRef.current);
-    setExiting(true);
-    exitTimeoutRef.current = setTimeout(() => {
-      onClose();
-      setExiting(false);
-      exitTimeoutRef.current = null;
-    }, DRAWER_DURATION_MS);
-  };
-
   useEffect(() => () => { if (exitTimeoutRef.current) clearTimeout(exitTimeoutRef.current); }, []);
 
   const linkClass = 'block px-4 py-3.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700 transition-colors min-h-[44px] flex items-center';
 
-  const show = open || exiting;
   const overlayClass = exiting
     ? 'fixed inset-0 bg-black/50 z-[100] lg:hidden animate-overlay-leave'
     : 'fixed inset-0 bg-black/50 z-[100] lg:hidden animate-overlay-enter';
@@ -80,10 +84,12 @@ export function DrawerMenu({ open, onClose }) {
         aria-hidden="true"
       />
       <aside
+        ref={panelRef}
         className={asideClass}
         role="dialog"
         aria-modal="true"
         aria-label={t('navbar:mobileMenu')}
+        tabIndex={-1}
         style={{ paddingRight: 'env(safe-area-inset-right, 0)' }}
       >
         <div className="sticky top-0 z-10 flex items-center justify-between p-4 border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 shrink-0">
@@ -99,7 +105,7 @@ export function DrawerMenu({ open, onClose }) {
             </svg>
           </button>
         </div>
-        <nav className="p-3 flex flex-col gap-0.5 pb-8 safe-area-inset-bottom">
+        <nav className="p-3 flex flex-col gap-0.5 pb-8 safe-area-inset-bottom" aria-label={t('navbar:mobileMenu')}>
           {resolvedNavItems.map((item) =>
             item.mega ? (
               <div key={item.label || 'edu'}>
@@ -110,26 +116,26 @@ export function DrawerMenu({ open, onClose }) {
                   aria-expanded={educationOpen}
                 >
                   {item.label}
-                  <svg className={`w-5 h-5 transition-transform ${educationOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <svg className={`w-5 h-5 transition-transform ${educationOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
                   </svg>
                 </button>
                 {educationOpen && (
                   <div className="pl-4 py-1 border-l-2 border-gray-200 dark:border-gray-700 ml-4 my-1 space-y-0.5 animate-dropdown-enter">
-                    {item.mega.map((sub) => (
+                    {item.mega.map((sub) =>
                       sub.external ? (
-                        <a key={sub.path} href={sub.path} target="_blank" rel="noopener noreferrer" onClick={onClose} className={linkClass}>{sub.label}</a>
+                        <a key={sub.path} href={sub.path} target="_blank" rel="noopener noreferrer" onClick={handleClose} className={linkClass}>{sub.label}</a>
                       ) : (
-                        <Link key={sub.path} to={sub.path} onClick={onClose} className={linkClass}>{sub.label}</Link>
+                        <Link key={sub.path} to={sub.path} onClick={handleClose} className={linkClass}>{sub.label}</Link>
                       )
-                    ))}
+                    )}
                   </div>
                 )}
               </div>
             ) : item.external ? (
-              <a key={item.path} href={item.path} target="_blank" rel="noopener noreferrer" onClick={onClose} className={linkClass}>{item.label}</a>
+              <a key={item.path} href={item.path} target="_blank" rel="noopener noreferrer" onClick={handleClose} className={linkClass}>{item.label}</a>
             ) : (
-              <Link key={item.path} to={item.path} onClick={onClose} className={linkClass}>{item.label}</Link>
+              <Link key={item.path} to={item.path} onClick={handleClose} className={linkClass}>{item.label}</Link>
             )
           )}
         </nav>

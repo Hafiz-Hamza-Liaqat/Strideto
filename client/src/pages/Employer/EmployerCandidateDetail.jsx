@@ -209,7 +209,7 @@ export default function EmployerCandidateDetail() {
           </button>
         </div>
         <div className="flex flex-wrap gap-2 items-end">
-          <label className="text-sm flex-1 min-w-[200px]">
+          <label className="text-sm w-full min-w-0 sm:flex-1 sm:min-w-[200px]">
             <span className="block text-gray-500 mb-1">{t('employer:candidateNotes')}</span>
             <textarea value={note} onChange={(e) => setNote(e.target.value)} rows={2} className="w-full border rounded-lg px-3 py-2 dark:bg-gray-900 dark:border-gray-700" />
           </label>
@@ -218,7 +218,7 @@ export default function EmployerCandidateDetail() {
         <div className="flex flex-wrap gap-2 items-end">
           <label className="text-sm">
             <span className="block text-gray-500 mb-1">{t('employer:scheduleInterview')}</span>
-            <input type="datetime-local" value={interviewAt} onChange={(e) => setInterviewAt(e.target.value)} className="border rounded-lg px-3 py-2 min-h-[44px] dark:bg-gray-900 dark:border-gray-700" />
+            <input type="datetime-local" value={interviewAt} onChange={(e) => setInterviewAt(e.target.value)} className="w-full max-w-full border rounded-lg px-3 py-2 min-h-[44px] dark:bg-gray-900 dark:border-gray-700" />
           </label>
           <button type="button" disabled={saving} onClick={onInterview} className="px-4 py-2 rounded-lg border text-sm min-h-[44px]">{t('employer:saveInterview')}</button>
         </div>

@@ -1,0 +1,168 @@
+/**
+ * Strideto onboarding (SweetAlert2 + Driver.js) theme overrides.
+ * Uses design tokens: primary #2563EB, accent #F97316.
+ */
+
+.strideto-onboarding-swal {
+  font-family: Inter, system-ui, sans-serif !important;
+  border-radius: 1rem !important;
+  padding: 1.5rem !important;
+}
+
+.strideto-onboarding-title {
+  font-family: Manrope, system-ui, sans-serif !important;
+  font-weight: 700 !important;
+  color: #0f172a !important;
+}
+
+.strideto-onboarding-html {
+  text-align: center !important;
+}
+
+.strideto-onboarding-btn-primary {
+  background: #2563eb !important;
+  color: #fff !important;
+  border: none !important;
+  border-radius: 0.625rem !important;
+  padding: 0.65rem 1.25rem !important;
+  font-weight: 600 !important;
+  font-family: Inter, system-ui, sans-serif !important;
+  margin: 0.25rem !important;
+  cursor: pointer !important;
+  min-height: 44px;
+}
+
+.strideto-onboarding-btn-primary:hover,
+.strideto-onboarding-btn-primary:focus-visible {
+  background: #1d4ed8 !important;
+  outline: 2px solid #2563eb;
+  outline-offset: 2px;
+}
+
+.strideto-onboarding-btn-secondary {
+  background: transparent !important;
+  color: #334155 !important;
+  border: 1px solid #cbd5e1 !important;
+  border-radius: 0.625rem !important;
+  padding: 0.65rem 1.25rem !important;
+  font-weight: 600 !important;
+  font-family: Inter, system-ui, sans-serif !important;
+  margin: 0.25rem !important;
+  cursor: pointer !important;
+  min-height: 44px;
+}
+
+.strideto-onboarding-btn-secondary:hover,
+.strideto-onboarding-btn-secondary:focus-visible {
+  background: #f8fafc !important;
+  outline: 2px solid #94a3b8;
+  outline-offset: 2px;
+}
+
+.strideto-goal-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.5rem;
+  text-align: left;
+}
+
+@media (max-width: 420px) {
+  .strideto-goal-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.strideto-goal-option {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  width: 100%;
+  padding: 0.75rem 0.85rem;
+  border-radius: 0.75rem;
+  border: 1px solid #e2e8f0;
+  background: #fff;
+  color: #0f172a;
+  font-size: 0.9rem;
+  font-family: Inter, system-ui, sans-serif;
+  cursor: pointer;
+  text-align: left;
+  min-height: 44px;
+}
+
+.strideto-goal-option:hover,
+.strideto-goal-option:focus-visible {
+  border-color: #2563eb;
+  outline: 2px solid #2563eb;
+  outline-offset: 1px;
+}
+
+.strideto-goal-option.is-selected {
+  border-color: #2563eb;
+  background: #eff6ff;
+  box-shadow: 0 0 0 1px #2563eb;
+}
+
+/* Driver.js theme */
+.strideto-driver-theme {
+  font-family: Inter, system-ui, sans-serif;
+  max-width: min(360px, calc(100vw - 2rem));
+}
+
+.strideto-driver-theme .driver-popover-title {
+  font-family: Manrope, system-ui, sans-serif;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.strideto-driver-theme .driver-popover-description {
+  white-space: pre-line;
+  color: #475569;
+  line-height: 1.5;
+}
+
+.strideto-driver-theme .driver-popover-progress-text {
+  color: #64748b;
+  font-size: 0.8rem;
+}
+
+.strideto-driver-theme .driver-popover-next-btn,
+.strideto-driver-theme button.driver-next-btn {
+  background: #2563eb !important;
+  color: #fff !important;
+  border: none !important;
+  text-shadow: none !important;
+  border-radius: 0.5rem !important;
+}
+
+.strideto-driver-theme .driver-popover-prev-btn,
+.strideto-driver-theme button.driver-prev-btn {
+  background: transparent !important;
+  color: #334155 !important;
+  border: 1px solid #cbd5e1 !important;
+  text-shadow: none !important;
+  border-radius: 0.5rem !important;
+}
+
+.strideto-tour-final-ctas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  width: 100%;
+  margin-bottom: 0.5rem;
+}
+
+.strideto-tour-final-ctas .strideto-onboarding-btn-primary,
+.strideto-tour-final-ctas .strideto-onboarding-btn-secondary {
+  flex: 1 1 auto;
+  font-size: 0.85rem;
+  padding: 0.5rem 0.75rem !important;
+  margin: 0 !important;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .strideto-onboarding-swal,
+  .strideto-driver-theme {
+    transition: none !important;
+    animation: none !important;
+  }
+}

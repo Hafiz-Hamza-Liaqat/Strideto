@@ -45,6 +45,15 @@ const userSchema = new mongoose.Schema(
     recentlyViewedAdmissions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Admission' }],
     fcmToken: { type: String, select: false },
     preferredLanguage: { type: String, enum: ['en', 'ur', 'ar'], default: 'en' },
+    /** First-time product tour (Phase B.2) — additive, optional */
+    onboardingCompleted: { type: Boolean, default: false },
+    onboardingGoal: { type: String, trim: true, default: '' },
+    /**
+     * Phase B.3 — optional career preference object for future recommendations.
+     * Shape: { version, persona, lookingFor[], educationLevel, fieldsOfInterest[],
+     * preferredLocations[], experience, careerGoal, notificationPrefs, profilingCompleted, updatedAt }
+     */
+    careerPreferences: { type: mongoose.Schema.Types.Mixed, default: null },
     // OAuth: googleId, avatar (future GOOGLE_CLIENT_ID integration)
   },
   { timestamps: true }

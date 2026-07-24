@@ -287,7 +287,7 @@ export function AdminBlockEditor({ blocks, onChange, globalMap = new Map() }) {
 
         {addTab === 'types' ? (
           <div className="flex flex-wrap items-end gap-2">
-            <label className="text-sm flex-1 min-w-[200px]">
+            <label className="text-sm w-full min-w-0 sm:flex-1 sm:min-w-[200px]">
               <span className="font-medium text-gray-700 dark:text-gray-300">Block type</span>
               <select className={adminFieldClass} value={addType} onChange={(e) => setAddType(e.target.value)}>
                 <option value="">Select block type…</option>
@@ -309,7 +309,7 @@ export function AdminBlockEditor({ blocks, onChange, globalMap = new Map() }) {
         {addTab === 'templates' ? (
           <div className="space-y-2">
             <div className="flex flex-wrap gap-2">
-              <input className={`${adminFieldClass} flex-1 min-w-[160px]`} placeholder="Search templates…" value={templateSearch} onChange={(e) => setTemplateSearch(e.target.value)} />
+              <input className={`${adminFieldClass} w-full min-w-0 sm:flex-1 sm:min-w-[160px]`} placeholder="Search templates…" value={templateSearch} onChange={(e) => setTemplateSearch(e.target.value)} />
               <select className={adminFieldClass} value={templateCategory} onChange={(e) => setTemplateCategory(e.target.value)}>
                 <option value="all">All categories</option>
                 {TEMPLATE_CATEGORIES.map((c) => <option key={c} value={c}>{c}</option>)}

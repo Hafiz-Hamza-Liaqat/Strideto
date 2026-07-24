@@ -244,7 +244,7 @@ export default function AnalyticsDashboard() {
                     />
                   </ChartPanel>
                   <ChartPanel title="Top creatives" className="lg:col-span-2">
-                    <div className="overflow-x-auto">
+                    <div className="table-scroll">
                       <table className="w-full text-sm">
                         <thead>
                           <tr className="text-left text-gray-500 border-b border-gray-200 dark:border-gray-700">

@@ -11,6 +11,7 @@ import { AdminStatusBadge, formatAdminDate } from '../../components/admin/adminT
 import { adminFieldClass } from '../../components/admin/AdminFormFields';
 import { AdminSelectBare } from '../../components/admin/AdminFormFields';
 import { adminContentApi } from '../../services/adminContentApi';
+import { EscapeWhen } from '../../a11y/EscapeWhen';
 
 const EMPTY = {
   title: '',
@@ -202,6 +203,7 @@ export default function AdminNotifications() {
 
         {editOpen && (
           <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4">
+            <EscapeWhen active onEscape={() => setEditOpen(false)} />
             <div className="max-w-xl mx-auto my-4 rounded-xl bg-white dark:bg-gray-900 p-6 border border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-bold mb-4">{t('admin:editNotification', { defaultValue: 'Edit notification' })}</h3>
               {renderFormFields(editForm, setEditForm)}

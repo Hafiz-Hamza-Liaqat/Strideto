@@ -7,6 +7,8 @@ import { talentApi } from '../../services/talentApi';
 import { shouldUseTalentProfileApi } from '../../config/careerFeatureFlags';
 import { useTheme } from '../../context/ThemeContext';
 import { LanguageSwitcher } from '../i18n/LanguageSwitcher';
+import { restartProductTour } from '../../onboarding';
+import { registerOverlayEscape } from '../../a11y/overlayStack';
 
 function truncateId(id) {
   if (!id) return '';
@@ -78,6 +80,11 @@ export function UserAccountMenu() {
     if (!open) setCopied(false);
   }, [open]);
 
+  useEffect(() => {
+    if (!open) return undefined;
+    return registerOverlayEscape(() => setOpen(false));
+  }, [open]);
+
   const close = () => setOpen(false);
 
   const handleLogout = () => {
@@ -99,7 +106,7 @@ export function UserAccountMenu() {
   const userId = user?._id ? String(user._id) : '';
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative" ref={ref} data-tour="user-profile">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
@@ -107,6 +114,7 @@ export function UserAccountMenu() {
         aria-label={t('navbar:accountMenu')}
         aria-expanded={open}
         aria-haspopup="true"
+        aria-controls="account-menu-panel"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
           <path
@@ -119,7 +127,7 @@ export function UserAccountMenu() {
       </button>
 
       {open && (
-        <div className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg z-50 py-2">
+        <div id="account-menu-panel" role="menu" className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg z-50 py-2">
           {isAuthenticated ? (
             <>
               <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
@@ -175,6 +183,20 @@ export function UserAccountMenu() {
           <MenuButton onClick={() => { toggleTheme(); }}>
             {theme === 'dark' ? `☀️ ${t('common:lightMode')}` : `🌙 ${t('common:darkMode')}`}
           </MenuButton>
+
+          <MenuSeparator />
+          <MenuSectionLabel>{t('navbar:help', { defaultValue: 'Help' })}</MenuSectionLabel>
+          <MenuButton
+            onClick={() => {
+              close();
+              restartProductTour();
+            }}
+          >
+            {t('navbar:productTour', { defaultValue: 'Product Tour' })}
+          </MenuButton>
+          <MenuLink to={ROUTES.HELP_CENTER} onClose={close}>
+            {t('navbar:helpCenter', { defaultValue: 'Help Center' })}
+          </MenuLink>
 
           {isAuthenticated && (
             <>

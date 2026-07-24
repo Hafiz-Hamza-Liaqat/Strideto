@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../constants';
@@ -7,6 +7,9 @@ import { DrawerMenu } from './DrawerMenu';
 import { useHeaderNavItems } from '../../hooks/useHeaderNavItems';
 import { NotificationBell } from '../notifications/NotificationBell';
 import { UserAccountMenu } from './UserAccountMenu';
+import { Logo } from '../brand/Logo';
+import { TourAnchors } from '../../onboarding/TourAnchors';
+import { registerOverlayEscape } from '../../a11y/overlayStack';
 
 const navItems = [
   { labelKey: 'navbar:home', path: ROUTES.HOME },
@@ -30,11 +33,17 @@ const navItems = [
 export function Navbar() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [megaOpen, setMegaOpen] = useState(null);
+  const megaRef = useRef(null);
   const { t: legacyT } = useLanguage();
   const { t } = useTranslation(['navbar', 'common']);
 
   const label = (key) => (key.includes(':') ? t(key.split(':')[1], { ns: key.split(':')[0] }) : legacyT(key));
   const resolvedNavItems = useHeaderNavItems(navItems, label);
+
+  useEffect(() => {
+    if (!megaOpen) return undefined;
+    return registerOverlayEscape(() => setMegaOpen(null));
+  }, [megaOpen]);
 
   const renderNavLink = (item, key) => {
     if (item.external) {
@@ -54,9 +63,17 @@ export function Navbar() {
   return (
     <header className="sticky top-0 z-40 border-b border-gray-200 dark:border-gray-800 bg-surface/98 dark:bg-surface-dark/98 backdrop-blur safe-area-inset-top">
       <div className="max-w-7xl mx-auto px-3 sm:px-6">
-        <div className="flex items-center justify-between h-14 md:h-16 gap-2 min-h-[56px] min-w-0">
-          <Link to={ROUTES.HOME} className="font-bold text-base sm:text-lg text-gray-900 dark:text-white link-hover hover:text-primary dark:hover:text-mint truncate min-w-0 shrink sm:max-w-[40%]">
-            {t('common:appName')}
+        <div className="flex items-center justify-between h-14 md:h-16 gap-2 min-h-[56px] min-w-0" data-tour="nav">
+          <Link to={ROUTES.HOME} className="flex items-center gap-2 min-w-0 shrink link-hover" aria-label={t('common:appName')}>
+            <span className="inline-flex sm:hidden">
+              <Logo variant="symbol" height={32} />
+            </span>
+            <span className="hidden sm:inline-flex dark:hidden">
+              <Logo variant="full" height={32} />
+            </span>
+            <span className="hidden sm:dark:inline-flex">
+              <Logo variant="full" tone="dark" height={32} />
+            </span>
           </Link>
 
           <nav className="hidden lg:flex items-center gap-1" aria-label={t('navbar:mainNav')}>
@@ -65,25 +82,35 @@ export function Navbar() {
                 <div
                   key={item.label}
                   className="relative"
+                  ref={megaOpen === item.label ? megaRef : undefined}
                   onMouseEnter={() => setMegaOpen(item.label)}
                   onMouseLeave={() => setMegaOpen(null)}
                 >
                   <button
                     type="button"
                     className="px-3 py-2 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-mint rounded-lg link-hover"
+                    aria-expanded={megaOpen === item.label}
+                    aria-haspopup="true"
+                    onClick={() => setMegaOpen((cur) => (cur === item.label ? null : item.label))}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setMegaOpen(item.label);
+                      }
+                    }}
                   >
                     {item.label} ▾
                   </button>
                   {megaOpen === item.label && (
                     <div className="absolute left-0 top-full pt-1 w-56 animate-dropdown-enter">
-                      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-2">
+                      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-2" role="menu">
                         {item.mega.map((sub) =>
                           sub.external ? (
-                            <a key={sub.path} href={sub.path} target="_blank" rel="noopener noreferrer" className="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 link-hover rounded-lg">
+                            <a key={sub.path} role="menuitem" href={sub.path} target="_blank" rel="noopener noreferrer" className="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 link-hover rounded-lg" onClick={() => setMegaOpen(null)}>
                               {sub.label}
                             </a>
                           ) : (
-                            <Link key={sub.path} to={sub.path} className="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 link-hover rounded-lg">
+                            <Link key={sub.path} role="menuitem" to={sub.path} className="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 link-hover rounded-lg" onClick={() => setMegaOpen(null)}>
                               {sub.label}
                             </Link>
                           )
@@ -99,6 +126,7 @@ export function Navbar() {
           </nav>
 
           <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            <TourAnchors />
             <NotificationBell />
             <UserAccountMenu />
             <button
@@ -107,8 +135,9 @@ export function Navbar() {
               onClick={(e) => { e.preventDefault(); e.stopPropagation(); setDrawerOpen(true); }}
               aria-label={t('common:openMenu')}
               aria-expanded={drawerOpen}
+              aria-controls="mobile-drawer"
             >
-              <svg className="w-6 h-6 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <svg className="w-6 h-6 pointer-events-none" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
               </svg>
             </button>

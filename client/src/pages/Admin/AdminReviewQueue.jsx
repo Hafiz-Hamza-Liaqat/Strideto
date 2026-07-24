@@ -7,6 +7,7 @@ import { PERMISSIONS } from '../../config/rbac';
 import { AdminRouteGuard } from '../../components/admin/AdminRouteGuard';
 import { workflowResourceLabel } from '@shared/workflow/resources.js';
 import { workflowStateLabel } from '@shared/workflow/states.js';
+import { EscapeWhen } from '../../a11y/EscapeWhen';
 
 const TABS = [
   { id: 'awaiting', label: 'Awaiting review' },
@@ -218,7 +219,7 @@ export default function AdminReviewQueue() {
         </p>
 
         {dashboard && (
-          <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-8" role="region" aria-label="Workflow dashboard">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-7 gap-3 mb-8" role="region" aria-label="Workflow dashboard">
             {[
               ['Pending', dashboard.pendingReviews],
               ['Assigned', dashboard.assignedReviews],
@@ -228,8 +229,8 @@ export default function AdminReviewQueue() {
               ['Drafts', dashboard.drafts],
               ['Avg approval (h)', dashboard.averageApprovalHours ?? '—'],
             ].map(([label, value]) => (
-              <div key={label} className="rounded-xl border border-gray-200 dark:border-gray-700 p-3 bg-white dark:bg-gray-800">
-                <div className="text-xs text-gray-500 dark:text-gray-400">{label}</div>
+              <div key={label} className="min-w-0 rounded-xl border border-gray-200 dark:border-gray-700 p-3 bg-white dark:bg-gray-800">
+                <div className="text-xs text-gray-500 dark:text-gray-400 break-words leading-tight">{label}</div>
                 <div className="text-xl font-semibold text-gray-900 dark:text-white">{value}</div>
               </div>
             ))}
@@ -301,7 +302,8 @@ export default function AdminReviewQueue() {
 
         {showRejectDialog && (
           <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="reject-dialog-title">
-            <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-md w-full shadow-xl">
+            <EscapeWhen active onEscape={() => setShowRejectDialog(false)} />
+            <div className="bg-white dark:bg-gray-800 rounded-xl p-4 sm:p-6 max-w-md w-full max-h-[90vh] overflow-y-auto shadow-xl">
               <h2 id="reject-dialog-title" className="text-lg font-semibold mb-3 text-gray-900 dark:text-white">Reject selected</h2>
               <textarea
                 value={rejectReason}
@@ -322,7 +324,7 @@ export default function AdminReviewQueue() {
         {error && <p className="text-red-600">{error}</p>}
 
         {!loading && !error && (
-          <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700">
+          <div className="table-scroll rounded-xl border border-gray-200 dark:border-gray-700">
             <table className="min-w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-800 text-left">
                 <tr>
@@ -380,6 +382,7 @@ export default function AdminReviewQueue() {
 
         {detail && (
           <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center bg-black/40 p-4" role="dialog" aria-modal="true" aria-labelledby="detail-dialog-title">
+            <EscapeWhen active onEscape={() => setDetail(null)} />
             <div className="bg-white dark:bg-gray-800 rounded-xl p-6 max-w-2xl w-full max-h-[90vh] overflow-y-auto shadow-xl">
               <div className="flex justify-between items-start mb-4">
                 <div>

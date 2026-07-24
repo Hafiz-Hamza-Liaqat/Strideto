@@ -15,6 +15,7 @@ import { TranslationToolbar } from '../../components/admin/TranslationToolbar';
 import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
 import axiosInstance from '../../services/axiosBase';
+import { EscapeWhen } from '../../a11y/EscapeWhen';
 
 const EMPTY_JOB = {
   title: '',
@@ -267,6 +268,7 @@ export default function AdminContentJobs() {
 
         {formOpen && (
           <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4" role="dialog" aria-modal="true">
+            <EscapeWhen active onEscape={() => setFormOpen(false)} />
             <div className="max-w-3xl mx-auto my-4 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
               <h3 className="text-lg font-bold mb-4">{editingId ? t('admin:editJob') : t('admin:createJob')}</h3>
               {editingId ? (

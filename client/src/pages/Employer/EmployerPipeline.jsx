@@ -44,9 +44,9 @@ export default function EmployerPipeline() {
       <p className="text-sm text-gray-500">{t('employer:pipelineReuseHint')}</p>
       {error && <p className="text-sm text-red-600">{error}</p>}
 
-      <div className="flex gap-3 overflow-x-auto pb-2">
+      <div className="flex flex-col md:flex-row gap-3 md:overflow-x-auto pb-2">
         {FOCUS_STAGES.map((stage) => (
-          <div key={stage} className="min-w-[220px] max-w-[240px] rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3">
+          <div key={stage} className="w-full md:min-w-[220px] md:max-w-[240px] md:shrink-0 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3">
             <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
               {stage} ({(columns[stage] || []).length})
             </div>

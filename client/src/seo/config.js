@@ -1,17 +1,19 @@
 /** Site-wide SEO configuration for Strideto */
 import { LANGUAGES } from '../i18n/config.js';
+import { BRAND_NAME, BRAND_TAGLINE, BRAND_SITE_URL } from '../design-system/brand.js';
+import { colors } from '../design-system/colors.js';
 
-export const SITE_URL = (import.meta.env.VITE_APP_URL || 'https://strideto.com').replace(/\/$/, '');
-export const SITE_NAME = 'Strideto';
-export const SITE_TAGLINE = 'Your Career Journey Starts Here';
+export const SITE_URL = (import.meta.env.VITE_APP_URL || BRAND_SITE_URL).replace(/\/$/, '');
+export const SITE_NAME = BRAND_NAME;
+export const SITE_TAGLINE = BRAND_TAGLINE;
 export const DEFAULT_TITLE = `${SITE_NAME} | Jobs, Scholarships, Admissions & Career Platform`;
 export const DEFAULT_DESCRIPTION =
-  'Discover jobs, scholarships, university admissions, internships, career guidance, resume builder, and education opportunities across Pakistan.';
+  'Discover jobs, scholarships, admissions, internships, and career resources—all in one place. Every step toward success with Strideto.';
 export const DEFAULT_KEYWORDS =
   'jobs pakistan, government jobs, private jobs, scholarships, internships, career guidance, resume builder, admissions, universities, students, education portal, Pakistan jobs, latest jobs, career opportunities, Strideto';
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.png`;
 export const TWITTER_HANDLE = '@Strideto';
-export const THEME_COLOR = '#31708E';
+export const THEME_COLOR = colors.primary;
 export const LOCALE_EN = 'en_PK';
 export const LOCALE_UR = 'ur_PK';
 export const LOCALE_AR = 'ar_SA';

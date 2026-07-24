@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, useRef } from 'react';
 import { adminContentApi } from '../../services/adminContentApi';
 import { resolveImagePreviewUrl } from '../admin/AdminImageUrlField';
 import { adminFieldClass } from '../admin/AdminImageUrlField';
+import { useOverlayA11y } from '../../a11y/useOverlayA11y';
 
 /**
  * Modal asset picker — select from Media Library (C.7.0.1).
@@ -17,6 +18,8 @@ export function MediaAssetPicker({ open, onClose, onSelect, title = 'Select from
   const [folders, setFolders] = useState([]);
   const [loading, setLoading] = useState(false);
   const [view, setView] = useState('grid');
+  const panelRef = useRef(null);
+  useOverlayA11y({ open, onClose, containerRef: panelRef, trapFocus: true });
 
   const load = useCallback(async () => {
     if (!open) return;
@@ -49,13 +52,6 @@ export function MediaAssetPicker({ open, onClose, onSelect, title = 'Select from
     load();
   }, [load]);
 
-  useEffect(() => {
-    if (!open) return undefined;
-    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [open, onClose]);
-
   const previewUrl = useCallback((asset) => {
     return resolveImagePreviewUrl(asset.thumbnailUrl || asset.storageUrl || '');
   }, []);
@@ -63,9 +59,16 @@ export function MediaAssetPicker({ open, onClose, onSelect, title = 'Select from
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" role="dialog" aria-modal="true" aria-label={title}>
+    <div className="fixed inset-0 z-[80] flex items-center justify-center p-4" role="presentation">
       <button type="button" className="absolute inset-0 bg-black/50" onClick={onClose} aria-label="Close" />
-      <div className="relative z-10 w-full max-w-4xl max-h-[90vh] flex flex-col rounded-xl bg-white dark:bg-gray-900 shadow-xl border border-gray-200 dark:border-gray-700">
+      <div
+        ref={panelRef}
+        className="relative z-10 w-full max-w-4xl max-h-[90vh] flex flex-col rounded-xl bg-white dark:bg-gray-900 shadow-xl border border-gray-200 dark:border-gray-700 outline-none"
+        role="dialog"
+        aria-modal="true"
+        aria-label={title}
+        tabIndex={-1}
+      >
         <div className="flex items-center justify-between gap-3 px-4 py-3 border-b border-gray-200 dark:border-gray-700">
           <h3 className="font-semibold text-gray-900 dark:text-white">{title}</h3>
           <button type="button" onClick={onClose} className="text-sm text-gray-500 hover:text-gray-800 dark:hover:text-gray-200">Close</button>

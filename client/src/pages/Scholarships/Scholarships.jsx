@@ -16,6 +16,7 @@ import { Alert } from '../../components/ui/Alerts';
 import { formatDate } from '../../utils/formatDate';
 import { useAuth } from '../../context/AuthContext';
 import { AdHost } from '../../components/ads';
+import { EmptyState } from '../../components/common/EmptyState';
 
 const PER_PAGE = 10;
 
@@ -150,7 +151,13 @@ export default function Scholarships() {
                 {[...Array(4)].map((_, i) => <ListingCardSkeleton key={i} />)}
               </div>
             ) : data.length === 0 ? (
-              <div className="py-12 text-center text-gray-500 dark:text-gray-400">{t('noScholarships', { ns: 'scholarships' })}</div>
+              <EmptyState
+                icon="🎓"
+                title="Find scholarships"
+                description="Discover scholarships that match your education and interests."
+                actionLabel="Find Scholarships"
+                actionTo={ROUTES.SCHOLARSHIPS}
+              />
             ) : (
               <>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('scholarshipsFound', { count: total, ns: 'scholarships' })}</p>

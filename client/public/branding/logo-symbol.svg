@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="none" role="img" aria-label="Strideto">
+  <!--
+    Strideto “Rising Stride” v3
+    Three soft ascending steps + warm goal spark.
+    Instant progress metaphor — friendly, clear at small sizes.
+  -->
+  <rect width="64" height="64" rx="18" fill="#2563EB"/>
+  <!-- Soft ground glow -->
+  <ellipse cx="28" cy="52" rx="18" ry="4" fill="#1D4ED8" opacity="0.55"/>
+  <!-- Step 1 -->
+  <rect x="9" y="40" width="24" height="12" rx="6" fill="#FFFFFF"/>
+  <!-- Step 2 -->
+  <rect x="21" y="26" width="24" height="12" rx="6" fill="#FFFFFF"/>
+  <!-- Step 3 -->
+  <rect x="33" y="12" width="24" height="12" rx="6" fill="#FFFFFF"/>
+  <!-- Goal spark -->
+  <circle cx="51" cy="9" r="5.5" fill="#F97316"/>
+  <circle cx="51" cy="9" r="2.1" fill="#FFFFFF"/>
+</svg>

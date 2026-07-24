@@ -7,6 +7,7 @@ import { AdminDataTable } from '../../components/admin/AdminDataTable';
 import { PERMISSIONS } from '../../config/rbac';
 import { useAdminList } from '../../hooks/useAdminList';
 import { adminContentApi } from '../../services/adminContentApi';
+import { EscapeWhen } from '../../a11y/EscapeWhen';
 
 const PRIORITIES = ['low', 'medium', 'high', 'urgent'];
 const STATUSES = ['open', 'in_progress', 'waiting', 'resolved', 'closed'];
@@ -70,6 +71,7 @@ export default function AdminSupport() {
 
         {detail && (
           <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50" onClick={() => setDetail(null)}>
+            <EscapeWhen active onEscape={() => setDetail(null)} />
             <div className="max-w-2xl w-full max-h-[90vh] overflow-y-auto rounded-xl bg-white dark:bg-gray-800 p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
               <h3 className="font-semibold">{detail.ticketNumber}: {detail.subject}</h3>
               <div className="flex flex-wrap gap-2 my-3">

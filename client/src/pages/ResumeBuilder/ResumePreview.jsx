@@ -8,9 +8,11 @@ export const ResumePreview = forwardRef(function ResumePreview({ resume, templat
   return (
     <div
       ref={ref}
-      className="resume-preview-wrapper overflow-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 shadow-inner flex justify-center p-4 min-h-[400px]"
+      className="resume-preview-wrapper overflow-x-auto overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 shadow-inner flex justify-center p-2 sm:p-4 min-h-[280px] sm:min-h-[400px]"
     >
-      <ResumeDocument viewModel={viewModel} template={template} />
+      <div className="resume-preview-scale origin-top">
+        <ResumeDocument viewModel={viewModel} template={template} />
+      </div>
     </div>
   );
 });

@@ -51,7 +51,7 @@ function buildJobs() {
       requirements: ['Relevant degree', 'Good communication'],
       applicationInstructions: 'Apply via email or portal.',
       status: 'active',
-      logoUrl: '/placeholder-job.svg',
+      logoUrl: '/job-logo-fallback.svg',
     });
   }
   return jobs;

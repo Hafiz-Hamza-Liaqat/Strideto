@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
 import { employerApi } from '../../services/employerService';
 import { ROUTES } from '../../constants';
+import { EmptyState } from '../../components/common/EmptyState';
 
 const STATUS_FILTERS = ['', 'draft', 'active', 'closed'];
 
@@ -57,12 +58,13 @@ export default function EmployerJobs() {
         {loading ? (
           <div className="p-8 text-center text-slate-600">{t('common:loading')}</div>
         ) : jobs.length === 0 ? (
-          <div className="p-8 text-center text-slate-600">
-            {t('employer:noJobsFound')}{' '}
-            <Link to={ROUTES.EMPLOYER_POST_JOB} className="text-[#635BFF] font-medium">
-              {t('employer:postAJob')}
-            </Link>
-          </div>
+          <EmptyState
+            icon="🏢"
+            title="Post your first job"
+            description="Create your first job posting and start hiring."
+            actionLabel="Post a Job"
+            actionTo={ROUTES.EMPLOYER_POST_JOB}
+          />
         ) : (
           <>
             <div className="md:hidden divide-y divide-[#E5E7EB]">

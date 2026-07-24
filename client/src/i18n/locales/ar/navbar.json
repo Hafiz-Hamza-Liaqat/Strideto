@@ -42,5 +42,8 @@
   "appearance": "[AR] Appearance",
   "userId": "[AR] ID",
   "copyId": "[AR] Copy",
-  "idCopied": "[AR] Copied"
+  "idCopied": "[AR] Copied",
+  "help": "[AR] Help",
+  "productTour": "[AR] Product Tour",
+  "helpCenter": "[AR] Help Center"
 }

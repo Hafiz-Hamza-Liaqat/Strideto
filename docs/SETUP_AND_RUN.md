@@ -32,7 +32,7 @@ The app stores jobs, users, resumes, and everything else in **MongoDB**. You mus
 
 3. **Connection URL (use this in the next part)**  
    ```
-   mongodb://localhost:27017/edurozgaar
+   mongodb://localhost:27017/strideto
    ```
 
 ### Option B – MongoDB Atlas (cloud, no local install)
@@ -47,7 +47,7 @@ The app stores jobs, users, resumes, and everything else in **MongoDB**. You mus
    ```
 6. **Edit the URI:** replace `<password>` with your database user password, and add the database name at the end:
    ```
-   mongodb+srv://USERNAME:YourActualPassword@cluster0.xxxxx.mongodb.net/edurozgaar?retryWrites=true&w=majority
+   mongodb+srv://USERNAME:YourActualPassword@cluster0.xxxxx.mongodb.net/strideto?retryWrites=true&w=majority
    ```
    Use this full string as your **MONGO_URI** in the next part.
 
@@ -70,7 +70,7 @@ The app reads settings from **env files**. You do **not** need any external paid
 ```env
 PORT=5000
 NODE_ENV=development
-MONGO_URI=mongodb://localhost:27017/edurozgaar
+MONGO_URI=mongodb://localhost:27017/strideto
 JWT_SECRET=REPLACE_WITH_A_STRONG_SECRET_AT_LEAST_32_CHARS
 JWT_EXPIRES_IN=1h
 REFRESH_EXPIRES_IN=7d
@@ -81,7 +81,7 @@ SITE_URL=http://localhost:5173
 
 | Variable       | What to put |
 |----------------|-------------|
-| **MONGO_URI**  | Your MongoDB URL from Part 1 (local: `mongodb://localhost:27017/edurozgaar` or Atlas URI from above). |
+| **MONGO_URI**  | Your MongoDB URL from Part 1 (local: `mongodb://localhost:27017/strideto` or Atlas URI from above). |
 | **JWT_SECRET** | Any long random string (e.g. 32+ characters). Example: `mySuperSecretKeyForStrideto2024!@#` – in production use a strong random value. |
 
 Leave the rest as-is for local run. Save the file.
@@ -240,7 +240,7 @@ Full deployment details (build, process manager, CORS, etc.) are in **DEPLOYMENT
 
 ```bash
 # 1. Create server/.env with at least:
-#    MONGO_URI=mongodb://localhost:27017/edurozgaar
+#    MONGO_URI=mongodb://localhost:27017/strideto
 #    JWT_SECRET=your-long-random-secret-32-chars
 
 # 2. Install and seed

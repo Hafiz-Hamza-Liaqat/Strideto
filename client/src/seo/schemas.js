@@ -42,7 +42,7 @@ export function organizationSchema() {
     url: SITE_URL,
     logo: {
       '@type': 'ImageObject',
-      url: `${SITE_URL}/favicon.svg`,
+      url: `${SITE_URL}/branding/logo-symbol.svg`,
     },
     description: DEFAULT_DESCRIPTION,
     areaServed: { '@type': 'Country', name: 'Pakistan' },
@@ -201,7 +201,7 @@ export function blogPostingSchema(post, { readingMinutes, canonicalUrl } = {}) {
     publisher: {
       '@type': 'Organization',
       name: SITE_NAME,
-      logo: { '@type': 'ImageObject', url: `${SITE_URL}/favicon.svg` },
+      logo: { '@type': 'ImageObject', url: `${SITE_URL}/branding/logo-symbol.svg` },
     },
     mainEntityOfPage: { '@type': 'WebPage', '@id': url },
     url,

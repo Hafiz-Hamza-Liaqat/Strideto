@@ -1,11 +1,11 @@
 {
   "name": "Strideto",
   "short_name": "Strideto",
-  "description": "Career & Education Platform",
+  "description": "Career & Education Platform — Every Step Toward Success.",
   "start_url": "/",
   "display": "standalone",
-  "background_color": "#FFFFFF",
-  "theme_color": "#31708E",
+  "background_color": "#F8FAFC",
+  "theme_color": "#2563EB",
   "lang": "en-PK",
   "icons": [
     {

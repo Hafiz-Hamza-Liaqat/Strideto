@@ -43,7 +43,7 @@ export default function EmployerRegister() {
       <SeoHead title={t('employer:registerTitle')} description={t('forms:employerRegister.seoDescription')} noindex />
       <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4 py-8">
         <div className="w-full max-w-md">
-          <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-8">
+          <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-4 sm:p-8">
             <h1 className="text-2xl font-semibold tracking-tight text-[#0F172A]">{t('employer:registrationHeading')}</h1>
             <p className="text-slate-600 mt-1 mb-6">{t('employer:registrationSubtitle')}</p>
             {error && (

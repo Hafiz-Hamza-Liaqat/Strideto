@@ -8,6 +8,8 @@ import { useSiteContent } from '../../context/SiteContentContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { resolveColumnTitle, resolveLinkLabel, hasFooterPromoContent } from '../../utils/cmsNav';
 import { FooterPromoColumn } from './FooterPromoColumn';
+import { Logo } from '../brand/Logo';
+import { BRAND_TAGLINE } from '../../design-system/brand.js';
 
 function FooterLinkColumn({ title, links }) {
   return (
@@ -111,12 +113,12 @@ export function Footer() {
   return (
     <footer className="bg-[#020617] text-[#94A3B8] mt-auto safe-area-inset-bottom">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-14">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-8 lg:gap-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-8 lg:gap-10">
           <div className="sm:col-span-2 lg:col-span-1">
-            <Link to={ROUTES.HOME} className="inline-block font-bold text-xl text-white hover:text-primary transition-colors mb-3">
-              {t('common:appName')}
+            <Link to={ROUTES.HOME} className="inline-flex items-center mb-3 link-hover" aria-label={t('common:appName')}>
+              <Logo variant="full" tone="dark" height={36} />
             </Link>
-            <p className="text-sm text-[#94A3B8] max-w-xs leading-relaxed mb-4">{t('footer:tagline')}</p>
+            <p className="text-sm text-[#94A3B8] max-w-xs leading-relaxed mb-4">{footerNav?.tagline || t('footer:tagline') || BRAND_TAGLINE}</p>
             <div className="flex gap-3">
               {socialLinks.map(({ id, label, href }) => (
                 <a
@@ -124,7 +126,7 @@ export function Footer() {
                   href={href}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="flex items-center justify-center w-10 h-10 rounded-lg bg-white/5 text-[#94A3B8] hover:bg-primary hover:text-white transition-all duration-200"
+                  className="flex items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-lg bg-white/5 text-[#94A3B8] hover:bg-primary hover:text-white transition-all duration-200"
                   aria-label={label}
                 >
                   {id === 'twitter' && (
@@ -159,9 +161,8 @@ export function Footer() {
           {showPromo && (
             <FooterPromoColumn promo={footerNav.promoColumn} locale={lang} />
           )}
-          <div>
-            {!cmsColumns && null}
-            <h3 className="font-semibold text-[#CBD5F5] text-sm uppercase tracking-wider mb-2 mt-6">
+          <div className="sm:col-span-2 lg:col-span-1 min-w-0">
+            <h3 className="font-semibold text-[#CBD5F5] text-sm uppercase tracking-wider mb-2 mt-6 lg:mt-0">
               {t('footer:newsletter')}
             </h3>
             <p className="text-sm text-[#94A3B8] mb-3">{newsletterText}</p>

@@ -1,7 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="240" height="64" viewBox="0 0 240 64" role="img" aria-label="Strideto">
-  <rect width="240" height="64" fill="none"/>
-  <rect x="8" y="12" width="40" height="40" rx="10" fill="#31708E"/>
-  <path d="M18 40 L26 28 L31 34 L40 20" fill="none" stroke="#FFFFFF" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-  <circle cx="40" cy="20" r="2.5" fill="#7DD3C0"/>
-  <text x="60" y="42" font-family="Segoe UI, Helvetica, Arial, sans-serif" font-size="28" font-weight="700" fill="#0F172A">Strideto</text>
-</svg>

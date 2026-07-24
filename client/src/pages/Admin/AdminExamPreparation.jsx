@@ -9,6 +9,7 @@ import { AdminStatusBadge } from '../../components/admin/adminTableUtils';
 import { adminFieldClass, textToLines } from '../../components/admin/AdminImageUrlField';
 import { AdminSelectBare } from '../../components/admin/AdminFormFields';
 import { adminContentApi } from '../../services/adminContentApi';
+import { EscapeWhen } from '../../a11y/EscapeWhen';
 
 const TABS = ['exams', 'mcqs', 'quizzes', 'pastPapers'];
 
@@ -352,6 +353,7 @@ export default function AdminExamPreparation() {
 
         {formOpen && (
           <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4">
+            <EscapeWhen active onEscape={() => setFormOpen(false)} />
             <div className="max-w-lg mx-auto my-4 rounded-xl bg-white dark:bg-gray-900 p-6 border border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-bold mb-4">{editingId ? t('common:edit') : t('admin:create')} — {tabLabels[tab]}</h3>
               <div className="grid gap-3">{renderForm()}</div>

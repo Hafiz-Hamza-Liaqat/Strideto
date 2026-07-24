@@ -65,7 +65,7 @@ export default function AdminForms() {
         <input className={adminFieldClass} placeholder="Search forms…" value={search} onChange={(e) => setSearch(e.target.value)} />
 
         {loading ? <p className="text-gray-500">Loading…</p> : (
-          <div className="rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden">
+          <div className="table-scroll rounded-xl border border-gray-200 dark:border-gray-700">
             <table className="w-full text-sm">
               <thead className="bg-gray-50 dark:bg-gray-800/50 text-left">
                 <tr>

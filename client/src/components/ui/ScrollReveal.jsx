@@ -5,15 +5,14 @@ const defaultOptions = {
   threshold: 0.1,
 };
 
+function prefersReducedMotion() {
+  if (typeof window === 'undefined' || !window.matchMedia) return false;
+  return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+}
+
 /**
  * Wraps content and reveals it with a smooth animation when it scrolls into view.
- * Victor Sin–style scroll-triggered reveal; lightweight (Intersection Observer + CSS).
- * @param {React.ReactNode} children
- * @param {string} [className] - Extra classes (e.g. for layout)
- * @param {string} [variant] - 'up' (default, slide up + fade) or 'fade' (fade only)
- * @param {number} [delay] - Stagger delay in ms (e.g. for list items)
- * @param {object} [ioOptions] - { rootMargin, threshold } for Intersection Observer
- * @param {string} [as] - Element type: 'div' | 'section' | 'article'
+ * Honors prefers-reduced-motion by showing content immediately with no transform.
  */
 export function ScrollReveal({
   children,
@@ -24,12 +23,16 @@ export function ScrollReveal({
   as: Component = 'div',
 }) {
   const ref = useRef(null);
-  const [visible, setVisible] = useState(false);
+  const [visible, setVisible] = useState(() => prefersReducedMotion());
   const options = { ...defaultOptions, ...ioOptions };
 
   useEffect(() => {
+    if (prefersReducedMotion()) {
+      setVisible(true);
+      return undefined;
+    }
     const el = ref.current;
-    if (!el) return;
+    if (!el) return undefined;
     let timeoutId;
     const observer = new IntersectionObserver(
       ([entry]) => {
@@ -56,7 +59,7 @@ export function ScrollReveal({
     <Component
       ref={ref}
       className={`${baseClass}${visibleClass} ${className}`.trim()}
-      style={delay > 0 ? { transitionDelay: visible ? `${delay}ms` : undefined } : undefined}
+      style={delay > 0 && !prefersReducedMotion() ? { transitionDelay: visible ? `${delay}ms` : undefined } : undefined}
     >
       {children}
     </Component>

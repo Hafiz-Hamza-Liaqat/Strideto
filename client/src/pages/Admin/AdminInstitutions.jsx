@@ -11,6 +11,7 @@ import { AdminImageUrlField, adminFieldClass } from '../../components/admin/Admi
 import { AdminSelectBare } from '../../components/admin/AdminFormFields';
 import { AdminSlugField } from '../../components/admin/AdminSlugField';
 import { adminContentApi } from '../../services/adminContentApi';
+import { EscapeWhen } from '../../a11y/EscapeWhen';
 
 const EMPTY = {
   name: '', type: 'school', description: '', city: '', province: '', address: '', phone: '', email: '', website: '',
@@ -100,6 +101,7 @@ export default function AdminInstitutions() {
 
       {formOpen && (
         <div className="fixed inset-0 z-50 overflow-y-auto bg-black/50 p-4">
+          <EscapeWhen active onEscape={() => setFormOpen(false)} />
           <div className="max-w-2xl mx-auto my-8 rounded-xl bg-white dark:bg-gray-800 p-6 shadow-xl space-y-3">
             <h3 className="font-semibold text-lg">{editingId ? t('admin:edit') : t('admin:create')}</h3>
             <input className={adminFieldClass} placeholder={t('admin:colName')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />

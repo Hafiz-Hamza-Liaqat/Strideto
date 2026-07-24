@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../constants';
 import { inboxApi } from '../../services/listingsService';
 import { useAuth } from '../../context/AuthContext';
+import { registerOverlayEscape } from '../../a11y/overlayStack';
 
 export function NotificationBell() {
   const { t } = useTranslation(['common', 'dashboard']);
@@ -43,6 +44,11 @@ export function NotificationBell() {
     return () => document.removeEventListener('click', onDoc);
   }, []);
 
+  useEffect(() => {
+    if (!open) return undefined;
+    return registerOverlayEscape(() => setOpen(false));
+  }, [open]);
+
   if (!isAuthenticated) return null;
 
   const markRead = async (id) => {
@@ -51,12 +57,15 @@ export function NotificationBell() {
   };
 
   return (
-    <div className="relative" ref={ref}>
+    <div className="relative" ref={ref} data-tour="notifications">
       <button
         type="button"
         onClick={() => { setOpen((o) => !o); if (!open) load(); }}
-        className="relative p-2 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+        className="relative min-w-[44px] min-h-[44px] p-2 flex items-center justify-center rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
         aria-label={t('dashboard:notifications')}
+        aria-expanded={open}
+        aria-haspopup="true"
+        aria-controls="notification-panel"
       >
         <span aria-hidden="true">🔔</span>
         {unread > 0 && (
@@ -66,7 +75,7 @@ export function NotificationBell() {
         )}
       </button>
       {open && (
-        <div className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg z-50">
+        <div id="notification-panel" role="region" aria-label={t('dashboard:notifications')} className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg z-50">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
             <span className="font-semibold text-gray-900 dark:text-white">{t('dashboard:notifications')}</span>
             <Link to={ROUTES.NOTIFICATIONS} className="text-xs text-primary dark:text-mint" onClick={() => setOpen(false)}>

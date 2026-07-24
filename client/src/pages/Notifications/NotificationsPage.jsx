@@ -6,6 +6,7 @@ import { ROUTES } from '../../constants';
 import { inboxApi } from '../../services/listingsService';
 import { Pagination } from '../../components/ui/Pagination';
 import { ProtectedRoute } from '../../components/auth/ProtectedRoute';
+import { EmptyState } from '../../components/common/EmptyState';
 
 const CATEGORIES = ['', 'application', 'scholarship', 'admission', 'interview', 'job', 'payment', 'support', 'system', 'general'];
 
@@ -80,7 +81,13 @@ function NotificationsContent() {
         {loading ? (
           <p className="text-gray-500">{t('common:loading')}</p>
         ) : items.length === 0 ? (
-          <p className="text-gray-500 dark:text-gray-400">{t('dashboard:noNotifications')}</p>
+          <EmptyState
+            icon="🔔"
+            title="Stay updated"
+            description="Stay updated with the latest opportunities. Enable notifications in your profile preferences."
+            actionLabel="Enable Notifications"
+            actionTo={ROUTES.PROFILE}
+          />
         ) : (
           <ul className="space-y-3">
             {items.map((n) => (

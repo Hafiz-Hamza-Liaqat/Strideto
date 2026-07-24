@@ -27,12 +27,12 @@ export function ApplicationKanbanBoard({ applications, onMoveStage }) {
   );
 
   return (
-    <div className="overflow-x-auto pb-2 -mx-1 px-1" role="region" aria-label={t('applications:views.kanban')}>
-      <div className="flex gap-3 min-w-max">
+    <div className="md:overflow-x-auto pb-2 -mx-1 px-1" role="region" aria-label={t('applications:views.kanban')}>
+      <div className="flex flex-col md:flex-row gap-3 md:min-w-max">
         {visibleStages.map((stage) => (
           <div
             key={stage}
-            className="w-64 shrink-0 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-3"
+            className="w-full md:w-64 md:shrink-0 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/40 p-3"
           >
             <div className="flex items-center justify-between gap-2 mb-3">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white">

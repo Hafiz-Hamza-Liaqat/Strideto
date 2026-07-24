@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" fill="black" role="img" aria-label="Strideto">
+  <rect x="9" y="40" width="24" height="12" rx="6" fill="black"/>
+  <rect x="21" y="26" width="24" height="12" rx="6" fill="black"/>
+  <rect x="33" y="12" width="24" height="12" rx="6" fill="black"/>
+  <circle cx="51" cy="9" r="5.5" fill="black"/>
+</svg>
