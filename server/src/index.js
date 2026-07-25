@@ -163,6 +163,16 @@ connectDB()
       logger.info('cms_seed_skipped', { reason: 'CMS_SEED_ON_START=0' });
     }
 
+    // Optional: set ADMIN_EMAIL + ADMIN_PASSWORD on Render to bootstrap first admin
+    if (process.env.ADMIN_EMAIL && process.env.ADMIN_PASSWORD) {
+      const { ensureAdminOnBoot } = await import('./seed/ensureAdmin.js');
+      await ensureAdminOnBoot().catch((e) => {
+        logger.warn('admin_ensure_failed', { error: e.message });
+      });
+    } else {
+      logger.info('admin_ensure_skipped', { reason: 'ADMIN_EMAIL/ADMIN_PASSWORD not set' });
+    }
+
     if (process.env.WORKER_ONLY !== '1') {
       startScraperCron();
     } else {
