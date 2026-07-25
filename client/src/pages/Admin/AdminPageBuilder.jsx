@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useBlocker, useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '../../context/ToastContext';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -129,19 +129,8 @@ export default function AdminPageBuilder() {
     return window.confirm(UNSAVED_MSG);
   }, [isDirty]);
 
-  const blocker = useBlocker(
-    ({ currentLocation, nextLocation }) =>
-      isDirty
-      && !loading
-      && currentLocation.pathname !== nextLocation.pathname,
-  );
-
-  useEffect(() => {
-    if (blocker.state !== 'blocked') return;
-    if (window.confirm(UNSAVED_MSG)) blocker.proceed();
-    else blocker.reset();
-  }, [blocker]);
-
+  // Note: useBlocker requires createBrowserRouter; this app uses BrowserRouter.
+  // Keep tab-close protection via beforeunload; in-app leave uses confirmDiscard on page-key changes.
   useEffect(() => {
     const onBeforeUnload = (e) => {
       if (!isDirty) return;

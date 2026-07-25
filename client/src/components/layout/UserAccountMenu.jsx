@@ -159,7 +159,7 @@ export function UserAccountMenu() {
               <MenuLink to={ROUTES.APPLICATIONS} onClose={close}>{t('navbar:myApplications')}</MenuLink>
               <MenuLink to={ROUTES.PROFILE} onClose={close}>{t('navbar:profile')}</MenuLink>
               <MenuLink to={ROUTES.RESUME_BUILDER} onClose={close}>{t('navbar:resume')}</MenuLink>
-              <MenuLink to={ROUTES.PROFILE} onClose={close}>{t('navbar:accountSettings')}</MenuLink>
+              <MenuLink to={`${ROUTES.PROFILE}#account-settings`} onClose={close}>{t('navbar:accountSettings')}</MenuLink>
               {STAFF_ROLES.includes(user?.role) && (
                 <MenuLink to={ROUTES.ADMIN} onClose={close}>{t('common:admin')}</MenuLink>
               )}

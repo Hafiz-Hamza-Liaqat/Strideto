@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -19,6 +19,7 @@ export default function Profile() {
   const { t } = useTranslation(['profile', 'common']);
   const { user, updateUser } = useAuth();
   const { setLang } = useLanguage();
+  const location = useLocation();
   const [name, setName] = useState('');
   const [province, setProvince] = useState('');
   const [interests, setInterests] = useState([]);
@@ -75,6 +76,13 @@ export default function Profile() {
       setSavedAdmissions(data.savedAdmissions || []);
     }).catch(() => {});
   }, [setLang]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (location.hash !== '#account-settings') return;
+    const el = document.getElementById('account-settings');
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }, [loading, location.hash]);
 
   const toggleInterest = (item) => {
     setInterests((prev) =>
@@ -291,7 +299,7 @@ export default function Profile() {
           </Button>
         </form>
 
-        <section className="mt-10 pt-8 border-t border-gray-200 dark:border-gray-700">
+        <section id="account-settings" className="mt-10 pt-8 border-t border-gray-200 dark:border-gray-700 scroll-mt-24">
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{t('profile:changePassword', { defaultValue: 'Change password' })}</h2>
           {user?.mustChangePassword && (
             <Alert variant="warning" className="mb-4">
