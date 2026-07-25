@@ -57,12 +57,13 @@ export default defineConfig(({ command }) => {
   build: {
     rollupOptions: {
       output: {
+        // Keep PDF libs separate; do NOT force a catch-all `vendor` chunk.
+        // Splitting react into `vendor-react` while dumping everything else into
+        // `vendor` created a circular chunk (vendor ↔ vendor-react) that left
+        // React undefined at runtime (blank page: useState of undefined).
         manualChunks(id) {
-          if (id.includes('node_modules')) {
-            if (id.includes('react') || id.includes('react-dom') || id.includes('react-router')) return 'vendor-react';
-            if (id.includes('jspdf') || id.includes('html2canvas')) return 'vendor-pdf';
-            return 'vendor';
-          }
+          if (!id.includes('node_modules')) return;
+          if (id.includes('jspdf') || id.includes('html2canvas')) return 'vendor-pdf';
         },
       },
     },
