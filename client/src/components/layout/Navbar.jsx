@@ -64,15 +64,15 @@ export function Navbar() {
     <header className="sticky top-0 z-40 border-b border-gray-200 dark:border-gray-800 bg-surface/98 dark:bg-surface-dark/98 backdrop-blur safe-area-inset-top">
       <div className="max-w-7xl mx-auto px-3 sm:px-6">
         <div className="flex items-center justify-between h-14 md:h-16 gap-2 min-h-[56px] min-w-0" data-tour="nav">
-          <Link to={ROUTES.HOME} className="flex items-center gap-2 min-w-0 shrink link-hover" aria-label={t('common:appName')}>
-            <span className="inline-flex sm:hidden">
-              <Logo variant="symbol" height={32} />
+          <Link to={ROUTES.HOME} className="flex items-center gap-2 shrink-0 link-hover" aria-label={t('common:appName')}>
+            <span className="inline-flex sm:hidden shrink-0">
+              <Logo variant="symbol" height={36} className="shrink-0" />
             </span>
-            <span className="hidden sm:inline-flex dark:hidden">
-              <Logo variant="full" height={32} />
+            <span className="hidden sm:inline-flex dark:hidden shrink-0">
+              <Logo variant="full" height={36} className="shrink-0" />
             </span>
-            <span className="hidden sm:dark:inline-flex">
-              <Logo variant="full" tone="dark" height={32} />
+            <span className="hidden sm:dark:inline-flex shrink-0">
+              <Logo variant="full" tone="dark" height={36} className="shrink-0" />
             </span>
           </Link>
 

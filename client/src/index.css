@@ -202,17 +202,10 @@
   .section-stack {
     @apply space-y-6 sm:space-y-8 md:space-y-10;
   }
-  /* Screen-only resume preview scaling — print/PDF keeps 210mm */
+  /* Screen scaling is applied in ResumePreview via ResizeObserver; print/PDF stay 210mm */
   .resume-preview-scale {
     transform-origin: top center;
-  }
-  @media (max-width: 1023px) {
-    .resume-preview-scale {
-      /* ~794px A4 @ 96dpi; scale to viewport minus padding */
-      --resume-scale: min(1, calc((100vw - 2.5rem) / 210mm));
-      transform: scale(var(--resume-scale));
-      margin-bottom: calc((1 - var(--resume-scale)) * -297mm);
-    }
+    max-width: 100%;
   }
   @media print {
     .resume-preview-scale {

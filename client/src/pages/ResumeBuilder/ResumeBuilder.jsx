@@ -260,7 +260,7 @@ export default function ResumeBuilder() {
               )}
             </div>
           </div>
-          <div className="lg:col-span-2 space-y-4 min-w-0">
+          <div className="lg:col-span-2 space-y-4 min-w-0 overflow-hidden">
             <ResumePreview ref={previewRef} resume={resume} template={resume.template} />
             <ResumeScore resume={resume} />
             <ResumeDownload previewRef={previewRef} fileName={fileName} />

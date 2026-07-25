@@ -25,8 +25,8 @@ export function Logo({
       src={src}
       alt={title}
       height={typeof height === 'number' ? height : undefined}
-      className={`inline-block object-contain ${className}`}
-      style={{ height: h, width: 'auto' }}
+      className={`inline-block object-contain shrink-0 max-h-full ${className}`}
+      style={{ height: h, width: 'auto', maxHeight: h }}
       decoding="async"
     />
   );

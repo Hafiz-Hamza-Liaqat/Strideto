@@ -5,6 +5,8 @@
   color: #111827;
   font-size: 11pt;
   line-height: 1.45;
+  overflow-wrap: anywhere;
+  word-break: break-word;
   -webkit-print-color-adjust: exact;
   print-color-adjust: exact;
 }

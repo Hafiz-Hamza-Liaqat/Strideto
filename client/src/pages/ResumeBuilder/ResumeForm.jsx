@@ -17,6 +17,7 @@ import {
 import { AdminImageUrlField } from '../../components/admin/AdminImageUrlField';
 import { resumesApi } from '../../services/listingsService';
 import { useToast } from '../../context/ToastContext';
+import { sanitizeGpa, sanitizePhone, sanitizeYear } from './resumeInputSanitize';
 
 const inputClass =
   'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-mint outline-none text-sm';
@@ -102,7 +103,15 @@ export function ResumeForm({ stepIndex, resume, onChange }) {
           </div>
           <div>
             <label className={labelClass}>{t('phone')}</label>
-            <input type="tel" className={inputClass} value={p.phone || ''} onChange={(e) => update('personalInfo.phone', e.target.value)} placeholder="+92 300 1234567" />
+            <input
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              className={inputClass}
+              value={p.phone || ''}
+              onChange={(e) => update('personalInfo.phone', sanitizePhone(e.target.value))}
+              placeholder="+92 300 1234567"
+            />
           </div>
           <div>
             <label className={labelClass}>{t('cityProvince')}</label>
@@ -181,12 +190,28 @@ export function ResumeForm({ stepIndex, resume, onChange }) {
               </div>
               <div>
                 <label className={labelClass}>{t('graduationYear')}</label>
-                <input type="text" className={inputClass} value={entry.graduationYear || ''} onChange={(e) => updateEntry('education', i, 'graduationYear', e.target.value)} placeholder="2025" />
+                <input
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
+                  maxLength={4}
+                  className={inputClass}
+                  value={entry.graduationYear || ''}
+                  onChange={(e) => updateEntry('education', i, 'graduationYear', sanitizeYear(e.target.value))}
+                  placeholder="2025"
+                />
               </div>
             </div>
             <div>
               <label className={labelClass}>{t('gpa')}</label>
-              <input type="text" className={inputClass} value={entry.gpa || ''} onChange={(e) => updateEntry('education', i, 'gpa', e.target.value)} placeholder={t('gpaPlaceholder')} />
+              <input
+                type="text"
+                inputMode="decimal"
+                className={inputClass}
+                value={entry.gpa || ''}
+                onChange={(e) => updateEntry('education', i, 'gpa', sanitizeGpa(e.target.value))}
+                placeholder={t('gpaPlaceholder')}
+              />
             </div>
           </div>
         ))}
@@ -364,7 +389,14 @@ export function ResumeForm({ stepIndex, resume, onChange }) {
               <input className={inputClass} placeholder={t('company')} value={entry.company || ''} onChange={(e) => updateEntry('references', i, 'company', e.target.value)} />
               <div className="grid sm:grid-cols-2 gap-2">
                 <input className={inputClass} placeholder={t('email')} value={entry.email || ''} onChange={(e) => updateEntry('references', i, 'email', e.target.value)} />
-                <input className={inputClass} placeholder={t('phone')} value={entry.phone || ''} onChange={(e) => updateEntry('references', i, 'phone', e.target.value)} />
+                <input
+                  type="tel"
+                  inputMode="tel"
+                  className={inputClass}
+                  placeholder={t('phone')}
+                  value={entry.phone || ''}
+                  onChange={(e) => updateEntry('references', i, 'phone', sanitizePhone(e.target.value))}
+                />
               </div>
             </div>
           ))}
@@ -379,7 +411,16 @@ export function ResumeForm({ stepIndex, resume, onChange }) {
                 <button type="button" onClick={() => removeEntry('awards', i)} className="text-sm text-red-600">{t('removeEntry')}</button></div>
               <input className={inputClass} placeholder={t('awardTitle')} value={entry.title || ''} onChange={(e) => updateEntry('awards', i, 'title', e.target.value)} />
               <input className={inputClass} placeholder={t('awardIssuer')} value={entry.issuer || ''} onChange={(e) => updateEntry('awards', i, 'issuer', e.target.value)} />
-              <input className={inputClass} placeholder={t('graduationYear')} value={entry.year || ''} onChange={(e) => updateEntry('awards', i, 'year', e.target.value)} />
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={4}
+                className={inputClass}
+                placeholder={t('graduationYear')}
+                value={entry.year || ''}
+                onChange={(e) => updateEntry('awards', i, 'year', sanitizeYear(e.target.value))}
+              />
               <textarea className={`${inputClass} min-h-[60px]`} placeholder={t('description')} value={entry.description || ''} onChange={(e) => updateEntry('awards', i, 'description', e.target.value)} rows={2} />
             </div>
           ))}
@@ -409,7 +450,16 @@ export function ResumeForm({ stepIndex, resume, onChange }) {
                 <button type="button" onClick={() => removeEntry('publications', i)} className="text-sm text-red-600">{t('removeEntry')}</button></div>
               <input className={inputClass} placeholder={t('publicationTitle')} value={entry.title || ''} onChange={(e) => updateEntry('publications', i, 'title', e.target.value)} />
               <input className={inputClass} placeholder={t('publicationPublisher')} value={entry.publisher || ''} onChange={(e) => updateEntry('publications', i, 'publisher', e.target.value)} />
-              <input className={inputClass} placeholder={t('graduationYear')} value={entry.year || ''} onChange={(e) => updateEntry('publications', i, 'year', e.target.value)} />
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={4}
+                className={inputClass}
+                placeholder={t('graduationYear')}
+                value={entry.year || ''}
+                onChange={(e) => updateEntry('publications', i, 'year', sanitizeYear(e.target.value))}
+              />
               <input className={inputClass} placeholder={t('publicationUrl')} value={entry.url || ''} onChange={(e) => updateEntry('publications', i, 'url', e.target.value)} />
               <textarea className={`${inputClass} min-h-[60px]`} placeholder={t('description')} value={entry.description || ''} onChange={(e) => updateEntry('publications', i, 'description', e.target.value)} rows={2} />
             </div>
@@ -436,7 +486,16 @@ export function ResumeForm({ stepIndex, resume, onChange }) {
                 <button type="button" onClick={() => removeEntry('professionalMemberships', i)} className="text-sm text-red-600">{t('removeEntry')}</button></div>
               <input className={inputClass} placeholder={t('membershipOrg')} value={entry.organization || ''} onChange={(e) => updateEntry('professionalMemberships', i, 'organization', e.target.value)} />
               <input className={inputClass} placeholder={t('role')} value={entry.role || ''} onChange={(e) => updateEntry('professionalMemberships', i, 'role', e.target.value)} />
-              <input className={inputClass} placeholder={t('membershipSince')} value={entry.since || ''} onChange={(e) => updateEntry('professionalMemberships', i, 'since', e.target.value)} />
+              <input
+                type="text"
+                inputMode="numeric"
+                pattern="[0-9]*"
+                maxLength={4}
+                className={inputClass}
+                placeholder={t('membershipSince')}
+                value={entry.since || ''}
+                onChange={(e) => updateEntry('professionalMemberships', i, 'since', sanitizeYear(e.target.value))}
+              />
             </div>
           ))}
           <button type="button" onClick={() => addEntry('professionalMemberships', defaultMembershipEntry)} className="text-sm text-primary dark:text-mint">{t('addMembership')}</button>
