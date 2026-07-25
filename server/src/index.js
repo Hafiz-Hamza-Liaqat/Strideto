@@ -65,6 +65,32 @@ app.use('/uploads', (_req, res, next) => {
 app.get('/sitemap.xml', getSitemap);
 app.get('/robots.txt', getRobots);
 
+// Operator-friendly probes (browsers hit these; API has no HTML UI)
+app.get('/', (_req, res) => {
+  res.json({
+    service: 'Strideto API',
+    status: 'ok',
+    health: '/api/health',
+    hint: 'JSON API — use paths under /api/* (e.g. POST /api/auth/login)',
+  });
+});
+app.get('/api', (_req, res) => {
+  res.json({
+    service: 'Strideto API',
+    status: 'ok',
+    health: '/api/health',
+    auth: {
+      login: 'POST /api/auth/login',
+      register: 'POST /api/auth/register',
+      me: 'GET /api/auth/me',
+    },
+  });
+});
+// Alias for Render health checks misconfigured as /health
+app.get('/health', (_req, res) => {
+  res.json({ status: 'ok', service: 'Strideto API', full: '/api/health' });
+});
+
 app.use('/api', healthRouter);
 app.use('/api', contactRouter);
 app.use('/api', feedbackRouter);
