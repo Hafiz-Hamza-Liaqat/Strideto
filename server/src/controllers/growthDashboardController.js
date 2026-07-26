@@ -1,7 +1,7 @@
 import { User } from '../models/User.js';
 import { AnalyticsEvent } from '../models/AnalyticsEvent.js';
-import { ScraperRun } from '../models/ScraperRun.js';
-import { NewsletterLog } from '../models/NewsletterLog.js';
+import { ScraperRun, resolveScraperErrorDetails } from '../models/ScraperRun.js';
+import { NewsletterLog, resolveNewsletterErrorDetails } from '../models/NewsletterLog.js';
 import { Job } from '../models/Job.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { cacheGet, cacheSet } from '../config/redis.js';
@@ -59,14 +59,22 @@ export const getGrowthDashboard = asyncHandler(async (req, res) => {
     trendingSearches: (trendingSearches || []).map((s) => ({ query: s._id || '(unknown)', count: s.count })),
     recommendedClicksToday: recommendedClicksToday ?? 0,
     scraper: {
-      lastRuns: scraperRuns || [],
+      lastRuns: (scraperRuns || []).map((run) => {
+        const errorDetails = resolveScraperErrorDetails(run);
+        const { errors: _legacy, ...rest } = run;
+        return { ...rest, errorDetails, errors: errorDetails };
+      }),
       totalJobsAdded: scraperStats?.totalJobs ?? 0,
       totalAdmissionsAdded: scraperStats?.totalAdmissions ?? 0,
       totalRuns: scraperStats?.runs ?? 0,
       scrapedListingsCount: scrapedJobsCount ?? 0,
     },
     newsletter: {
-      lastLogs: newsletterLogs || [],
+      lastLogs: (newsletterLogs || []).map((log) => {
+        const errorDetails = resolveNewsletterErrorDetails(log);
+        const { errors: _legacy, ...rest } = log;
+        return { ...rest, errorDetails, errors: errorDetails };
+      }),
       totalSent: (newsletterLogs || []).reduce((acc, l) => acc + (l.sentCount || 0), 0),
     },
     referrals: {

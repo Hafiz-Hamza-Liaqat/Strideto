@@ -95,7 +95,7 @@ async function processScheduledNewsletter(payload) {
       subscriberCount: subscribers.length,
       status: failedCount ? (sentCount ? 'partial' : 'failed') : 'sent',
       summary: `Sent to ${sentCount}/${subscribers.length}`,
-      errors: errors.slice(0, 20),
+      errorDetails: errors.slice(0, 20),
     });
   }
 

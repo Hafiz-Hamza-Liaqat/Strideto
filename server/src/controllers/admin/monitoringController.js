@@ -1,5 +1,5 @@
 import { FailedEmail } from '../../models/FailedEmail.js';
-import { NewsletterLog } from '../../models/NewsletterLog.js';
+import { NewsletterLog, resolveNewsletterErrorDetails } from '../../models/NewsletterLog.js';
 import { AuditLog } from '../../models/AuditLog.js';
 import { SupportTicket } from '../../models/SupportTicket.js';
 import { ContactMessage } from '../../models/ContactMessage.js';
@@ -65,7 +65,11 @@ export const getMonitoringDashboard = asyncHandler(async (_req, res) => {
     },
     cache: cacheStats,
     recentErrors,
-    newsletter: newsletterLogs,
+    newsletter: (newsletterLogs || []).map((log) => {
+      const errorDetails = resolveNewsletterErrorDetails(log);
+      const { errors: _legacy, ...rest } = log;
+      return { ...rest, errorDetails, errors: errorDetails };
+    }),
     auditSummary,
     backgroundTasks: {
       scraperCron: process.env.DISABLE_SCRAPER_CRON !== 'true' ? 'running' : 'disabled',

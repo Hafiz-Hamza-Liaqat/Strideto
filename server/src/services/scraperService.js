@@ -121,7 +121,7 @@ export async function runScraper(options = {}) {
   run.jobsAdded = jobsAdded;
   run.admissionsAdded = admissionsAdded;
   run.jobsSkipped = jobsSkipped;
-  run.errors = errors;
+  run.errorDetails = errors;
   run.durationMs = Date.now() - start;
   await run.save();
 

@@ -10,11 +10,20 @@ const newsletterLogSchema = new mongoose.Schema(
     subject: { type: String },
     summary: { type: String },
     status: { type: String, enum: ['sent', 'failed', 'partial'], default: 'sent' },
-    errors: [{ type: String }],
+    /** Renamed from reserved path `errors` (Mongoose reserved key). */
+    errorDetails: [{ type: String }],
   },
   { timestamps: true }
 );
 
 newsletterLogSchema.index({ sentAt: -1 });
+
+/** Prefer errorDetails; fall back to legacy persisted `errors` for older documents. */
+export function resolveNewsletterErrorDetails(doc) {
+  if (!doc) return [];
+  if (Array.isArray(doc.errorDetails) && doc.errorDetails.length) return doc.errorDetails;
+  if (Array.isArray(doc.errors)) return doc.errors;
+  return Array.isArray(doc.errorDetails) ? doc.errorDetails : [];
+}
 
 export const NewsletterLog = mongoose.model('NewsletterLog', newsletterLogSchema);

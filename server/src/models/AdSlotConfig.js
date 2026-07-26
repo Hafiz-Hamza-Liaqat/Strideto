@@ -21,7 +21,6 @@ const adSlotSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-adSlotSchema.index({ slotId: 1 });
 adSlotSchema.index({ placement: 1 });
 
 export const AdSlotConfig = mongoose.model('AdSlotConfig', adSlotSchema);

@@ -1,6 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { runScraper, getScraperSources } from '../services/scraperService.js';
-import { ScraperRun } from '../models/ScraperRun.js';
+import { ScraperRun, resolveScraperErrorDetails } from '../models/ScraperRun.js';
 import { ScraperConfig } from '../models/ScraperConfig.js';
 import { SCRAPER_REGISTRY } from '../services/scrapers/index.js';
 
@@ -16,13 +16,19 @@ export const triggerScraper = asyncHandler(async (req, res) => {
     status: result.run.status,
     durationMs: result.run.durationMs,
     errors: result.errors,
+    errorDetails: result.errors,
   });
 });
 
 export const getScraperRuns = asyncHandler(async (req, res) => {
   const limit = Math.min(50, parseInt(req.query.limit, 10) || 20);
   const runs = await ScraperRun.find().sort({ runAt: -1 }).limit(limit).lean();
-  res.json({ data: runs });
+  const data = runs.map((run) => {
+    const errorDetails = resolveScraperErrorDetails(run);
+    const { errors: _legacy, ...rest } = run;
+    return { ...rest, errorDetails, errors: errorDetails };
+  });
+  res.json({ data });
 });
 
 export const getScraperSourcesList = asyncHandler(async (_req, res) => {

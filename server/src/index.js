@@ -20,6 +20,7 @@ import { requestLogger } from './middleware/requestLogger.js';
 import { apiLimiter } from './middleware/rateLimit.js';
 import { getCorsOptions } from './config/cors.js';
 import { validateProductionEnv } from './config/validateEnv.js';
+import { configureTrustProxy } from './config/proxy.js';
 import { logger } from './utils/logger.js';
 
 validateProductionEnv();
@@ -31,6 +32,9 @@ registerCareerScoringHandlers();
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const app = express();
 const PORT = process.env.PORT || 5000;
+
+// Must run before any express-rate-limit middleware (Render sets X-Forwarded-For).
+configureTrustProxy(app);
 
 if (process.env.SENTRY_DSN) {
   import('@sentry/node')

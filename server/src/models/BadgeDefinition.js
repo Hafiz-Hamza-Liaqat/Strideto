@@ -11,6 +11,4 @@ const badgeDefinitionSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-badgeDefinitionSchema.index({ badgeType: 1 });
-
 export const BadgeDefinition = mongoose.model('BadgeDefinition', badgeDefinitionSchema);
