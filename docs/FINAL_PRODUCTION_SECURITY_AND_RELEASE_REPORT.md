@@ -185,8 +185,9 @@ Manual UI verification previously passed per operator.
 | Field | Value |
 |-------|-------|
 | Commit message | `feat: secure account verification and stabilize production UI` |
-| Commit hash | *(filled after commit)* |
-| Push | `origin/main` |
+| Commit hash | `bf6539e4eb2a0ad5356c02e51f122095422eb432` (`bf6539e`) |
+| Push | Succeeded — `origin/main` (`5a9a8a7..bf6539e`) |
+| Local vs remote | `main` matches `origin/main` |
 | Tag | Not created |
 
 ---
