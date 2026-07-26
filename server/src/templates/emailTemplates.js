@@ -1,7 +1,16 @@
 const BRAND = 'Strideto';
 const PRIMARY = '#2563EB';
 const TAGLINE = 'Every Step Toward Success.';
-const SITE = process.env.SITE_URL || 'https://strideto.com';
+const SITE = process.env.SITE_URL || process.env.FRONTEND_URL || 'https://strideto.com';
+
+function escapeHtml(value) {
+  return String(value ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
 
 function layout({ title, bodyHtml, lang = 'en', footerText }) {
   const dir = lang === 'ur' ? 'rtl' : 'ltr';
@@ -12,7 +21,7 @@ function layout({ title, bodyHtml, lang = 'en', footerText }) {
 <head>
 <meta charset="utf-8"/>
 <meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>${title}</title>
+<title>${escapeHtml(title)}</title>
 </head>
 <body style="margin:0;padding:0;background:#F8FAFC;font-family:${font};">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#F8FAFC;padding:24px 12px;">
@@ -35,53 +44,90 @@ ${footerText || (lang === 'ur' ? 'یہ ای میل Strideto کی طرف سے ب�
 }
 
 function btn(href, label) {
-  return `<p style="margin:24px 0;"><a href="${href}" style="display:inline-block;background:${PRIMARY};color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">${label}</a></p>`;
+  const safeHref = escapeHtml(href);
+  return `<p style="margin:24px 0;"><a href="${safeHref}" style="display:inline-block;background:${PRIMARY};color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">${escapeHtml(label)}</a></p>`;
 }
 
 const TEMPLATES = {
   welcome: {
-    en: ({ name }) => ({
-      subject: `${BRAND} – Welcome!`,
-      html: layout({
-        title: 'Welcome',
-        bodyHtml: `<p>Hi ${name || 'there'},</p><p>Welcome to ${BRAND}! Explore jobs, scholarships, admissions, and career tools tailored for Pakistan.</p>${btn(process.env.SITE_URL || 'https://strideto.com', 'Get started')}`,
-      }),
-      text: `Welcome to ${BRAND}! Visit ${process.env.SITE_URL || 'https://strideto.com'}`,
-    }),
-    ur: ({ name }) => ({
-      subject: `${BRAND} – خوش آمدید!`,
-      html: layout({
-        lang: 'ur',
-        title: 'خوش آمدید',
-        bodyHtml: `<p>السلام علیکم ${name || ''}،</p><p>${BRAND} میں خوش آمدید! پاکستان کے لیے نوکریاں، اسکالرشپس اور داخلہ مواقع دریافت کریں۔</p>${btn(process.env.SITE_URL || 'https://strideto.com', 'شروع کریں')}`,
-        footerText: 'یہ ای میل Strideto کی طرف سے بھیجی گئی ہے۔',
-      }),
-      text: `${BRAND} میں خوش آمدید`,
-    }),
+    en: ({ name }) => {
+      const safeName = escapeHtml(name || 'there');
+      const home = (process.env.FRONTEND_URL || process.env.SITE_URL || 'https://strideto.com').replace(/\/$/, '');
+      return {
+        subject: `${BRAND} – Welcome!`,
+        html: layout({
+          title: 'Welcome',
+          bodyHtml: `<p>Hi ${safeName},</p><p>Your email is verified. Welcome to ${BRAND}! Explore jobs, scholarships, admissions, and career tools.</p>${btn(home, 'Get started')}`,
+        }),
+        text: `Welcome to ${BRAND}! Visit ${home}`,
+      };
+    },
+    ur: ({ name }) => {
+      const safeName = escapeHtml(name || '');
+      const home = (process.env.FRONTEND_URL || process.env.SITE_URL || 'https://strideto.com').replace(/\/$/, '');
+      return {
+        subject: `${BRAND} – خوش آمدید!`,
+        html: layout({
+          lang: 'ur',
+          title: 'خوش آمدید',
+          bodyHtml: `<p>السلام علیکم ${safeName}،</p><p>${BRAND} میں خوش آمدید! پاکستان کے لیے نوکریاں، اسکالرشپس اور داخلہ مواقع دریافت کریں۔</p>${btn(home, 'شروع کریں')}`,
+          footerText: 'یہ ای میل Strideto کی طرف سے بھیجی گئی ہے۔',
+        }),
+        text: `${BRAND} میں خوش آمدید`,
+      };
+    },
   },
   emailVerification: {
-    en: ({ name, url }) => ({
-      subject: `${BRAND} – Verify your email`,
-      html: layout({ title: 'Verify email', bodyHtml: `<p>Hi ${name || 'there'},</p><p>Please verify your email address:</p>${btn(url, 'Verify email')}` }),
-      text: `Verify your email: ${url}`,
-    }),
-    ur: ({ name, url }) => ({
-      subject: `${BRAND} – ای میل کی تصدیق`,
-      html: layout({ lang: 'ur', title: 'تصدیق', bodyHtml: `<p>${name || 'محترم صارف'}، براہ کرم اپنی ای میل کی تصدیق کریں:</p>${btn(url, 'تصدیق کریں')}` }),
-      text: `تصدیق لنک: ${url}`,
-    }),
+    en: ({ name, url, expiresMinutes = 30 }) => {
+      const safeName = escapeHtml(name || 'there');
+      const mins = Number(expiresMinutes) || 30;
+      return {
+        subject: `${BRAND} – Verify your email`,
+        html: layout({
+          title: 'Verify email',
+          bodyHtml: `<p>Hi ${safeName},</p><p>Please verify your email address to finish creating your ${BRAND} account.</p>${btn(url, 'Verify email')}<p style="color:#64748B;font-size:13px;">This link expires in ${mins} minutes and can be used once.</p><p style="color:#64748B;font-size:13px;">If you did not create an account, you can ignore this email.</p>`,
+        }),
+        text: `Verify your email (expires in ${mins} minutes): ${url}\n\nIf you did not create an account, ignore this email.`,
+      };
+    },
+    ur: ({ name, url, expiresMinutes = 30 }) => {
+      const safeName = escapeHtml(name || 'محترم صارف');
+      const mins = Number(expiresMinutes) || 30;
+      return {
+        subject: `${BRAND} – ای میل کی تصدیق`,
+        html: layout({
+          lang: 'ur',
+          title: 'تصدیق',
+          bodyHtml: `<p>${safeName}، براہ کرم اپنی ای میل کی تصدیق کریں:</p>${btn(url, 'تصدیق کریں')}<p style="font-size:13px;color:#64748B;">یہ لنک ${mins} منٹ میں ختم ہو جائے گا۔</p>`,
+        }),
+        text: `تصدیق لنک: ${url}`,
+      };
+    },
   },
   passwordReset: {
-    en: ({ url }) => ({
-      subject: `${BRAND} – Reset your password`,
-      html: layout({ title: 'Password reset', bodyHtml: `<p>You requested a password reset. Click below (valid 1 hour):</p>${btn(url, 'Reset password')}<p style="color:#6b7280;font-size:13px;">If you didn't request this, ignore this email.</p>` }),
-      text: `Reset password: ${url}`,
-    }),
-    ur: ({ url }) => ({
-      subject: `${BRAND} – پاس ورڈ ری سیٹ`,
-      html: layout({ lang: 'ur', title: 'پاس ورڈ', bodyHtml: `<p>آپ نے پاس ورڈ ری سیٹ کی درخواست کی ہے (1 گھنٹے کے لیے درست):</p>${btn(url, 'پاس ورڈ ری سیٹ')}` }),
-      text: `ری سیٹ لنک: ${url}`,
-    }),
+    en: ({ url, expiresMinutes = 60 }) => {
+      const mins = Number(expiresMinutes) || 60;
+      return {
+        subject: `${BRAND} – Reset your password`,
+        html: layout({
+          title: 'Password reset',
+          bodyHtml: `<p>You requested a password reset for your ${BRAND} account.</p>${btn(url, 'Reset password')}<p style="color:#64748B;font-size:13px;">This link expires in ${mins} minutes and can be used once.</p><p style="color:#6b7280;font-size:13px;">If you didn't request this, ignore this email.</p>`,
+        }),
+        text: `Reset password (expires in ${mins} minutes): ${url}\n\nIf you didn't request this, ignore this email.`,
+      };
+    },
+    ur: ({ url, expiresMinutes = 60 }) => {
+      const mins = Number(expiresMinutes) || 60;
+      return {
+        subject: `${BRAND} – پاس ورڈ ری سیٹ`,
+        html: layout({
+          lang: 'ur',
+          title: 'پاس ورڈ',
+          bodyHtml: `<p>آپ نے پاس ورڈ ری سیٹ کی درخواست کی ہے (${mins} منٹ کے لیے درست):</p>${btn(url, 'پاس ورڈ ری سیٹ')}`,
+        }),
+        text: `ری سیٹ لنک: ${url}`,
+      };
+    },
   },
   applicationReceived: {
     en: ({ name, jobTitle }) => ({

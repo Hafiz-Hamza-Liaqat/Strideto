@@ -17,12 +17,13 @@ export async function ensureAdminOnBoot() {
   if (user) {
     user.role = 'Admin';
     user.password = password;
+    user.emailVerified = true;
     await user.save();
     logger.info('admin_ensured', { email, action: 'updated' });
     return { skipped: false, action: 'updated', email };
   }
 
-  await User.create({ name, email, password, role: 'Admin' });
+  await User.create({ name, email, password, role: 'Admin', emailVerified: true });
   logger.info('admin_ensured', { email, action: 'created' });
   return { skipped: false, action: 'created', email };
 }

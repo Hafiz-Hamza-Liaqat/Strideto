@@ -145,7 +145,7 @@ export default function Profile() {
     setResendingVerify(true);
     setMessage(null);
     try {
-      const { data } = await authApi.resendVerification();
+      const { data } = await authApi.resendVerification(user?.email);
       const notice = data.emailNotice ? ` ${data.emailNotice}` : '';
       setMessage(`${t('profile:verificationSent', { defaultValue: 'Verification email sent' })}${notice}`);
       setMessageSuccess(true);

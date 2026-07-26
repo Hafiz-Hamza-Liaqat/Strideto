@@ -1,14 +1,59 @@
-import crypto from 'crypto';
 import { User } from '../models/User.js';
 import { Job } from '../models/Job.js';
 import { Employer } from '../models/Employer.js';
 import { notifyStaff } from './notificationService.js';
 import { enqueueJob } from './jobQueueService.js';
+import { isSmtpConfigured, sendTemplatedEmail, sendEmail } from './emailService.js';
 
-const SITE = process.env.SITE_URL || process.env.FRONTEND_URL || 'https://strideto.com';
+/** Templates that embed one-time secrets in `vars.url` — never persist raw URLs in BackgroundJob. */
+const SENSITIVE_EMAIL_TEMPLATES = new Set(['emailVerification', 'passwordReset', 'staffInvitation']);
 
-export function queueEmail({ to, templateKey, lang, vars, dedupKey, subject, body, text, template, scheduledAt }) {
-  if (!to) return Promise.resolve({ enqueued: false });
+export async function queueEmail({ to, templateKey, lang, vars, dedupKey, subject, body, text, template, scheduledAt }) {
+  if (!to) return { enqueued: false };
+
+  if (templateKey && SENSITIVE_EMAIL_TEMPLATES.has(templateKey)) {
+    try {
+      const result = await sendTemplatedEmail(to, templateKey, lang || 'en', vars || {});
+      return {
+        enqueued: false,
+        sentDirect: true,
+        sent: !!result?.sent,
+        placeholder: !!result?.placeholder,
+        smtpConfigured: isSmtpConfigured(),
+      };
+    } catch (err) {
+      return {
+        enqueued: false,
+        sentDirect: true,
+        sent: false,
+        error: err?.message || 'send_failed',
+        smtpConfigured: isSmtpConfigured(),
+      };
+    }
+  }
+
+  // Raw HTML/text payloads may also contain secrets (e.g. admin-composed); prefer templateKey path.
+  if (!templateKey && (text || body) && /[?&]token=/.test(`${text || ''}${body || ''}`)) {
+    try {
+      const result = await sendEmail({ to, subject, body, text, template });
+      return {
+        enqueued: false,
+        sentDirect: true,
+        sent: !!result?.sent,
+        placeholder: !!result?.placeholder,
+        smtpConfigured: isSmtpConfigured(),
+      };
+    } catch (err) {
+      return {
+        enqueued: false,
+        sentDirect: true,
+        sent: false,
+        error: err?.message || 'send_failed',
+        smtpConfigured: isSmtpConfigured(),
+      };
+    }
+  }
+
   return enqueueJob({
     type: 'email',
     dedupKey,
@@ -35,27 +80,9 @@ export function queueNotification({ dedupKey, ...payload }) {
 }
 
 export async function onUserRegistered(user) {
-  const verifyToken = crypto.randomBytes(32).toString('hex');
-  await User.findByIdAndUpdate(user._id, {
-    emailVerificationToken: crypto.createHash('sha256').update(verifyToken).digest('hex'),
-    emailVerificationExpires: new Date(Date.now() + 24 * 60 * 60 * 1000),
-  });
-
-  const verifyUrl = `${SITE.replace(/\/$/, '')}/auth/verify-email?token=${verifyToken}`;
-
-  await queueEmail({
-    to: user.email,
-    templateKey: 'welcome',
-    vars: { name: user.name || user.email.split('@')[0] },
-    dedupKey: `welcome:${user._id}`,
-  });
-
-  await queueEmail({
-    to: user.email,
-    templateKey: 'emailVerification',
-    vars: { name: user.name, url: verifyUrl },
-    dedupKey: `verify:${user._id}`,
-  });
+  // Verification email is issued by auth register / resend flows (hashed token + FRONTEND_URL).
+  // Keep this hook as a no-op for email so registration does not double-send or grant sessions.
+  if (!user?._id) return;
 }
 
 export async function onJobApplication({ applicationId, userId, jobId, userName, userEmail }) {

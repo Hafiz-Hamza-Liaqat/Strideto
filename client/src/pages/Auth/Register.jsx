@@ -41,7 +41,17 @@ export default function Register() {
     setErrors({});
     setSubmitting(true);
     try {
-      const user = await register({ name: name.trim(), email: email.trim().toLowerCase(), password, referralCode: refCode || undefined });
+      const result = await register({ name: name.trim(), email: email.trim().toLowerCase(), password, referralCode: refCode || undefined });
+      if (result?.requiresVerification) {
+        const params = new URLSearchParams({
+          pending: '1',
+          email: email.trim().toLowerCase(),
+        });
+        if (result.emailMode === 'unavailable') params.set('smtp', '0');
+        navigate(`${ROUTES.VERIFY_EMAIL}?${params.toString()}`, { replace: true });
+        return;
+      }
+      const user = result?.user;
       const uid = user?._id ? String(user._id) : null;
       if (!isOnboardingComplete({ userId: uid, userFlag: user?.onboardingCompleted })) {
         markOnboardingPending();

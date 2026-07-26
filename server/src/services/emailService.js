@@ -34,8 +34,8 @@ export function isSmtpConfigured() {
 export async function sendEmail({ to, subject, body, text, template }) {
   const transport = getTransporter();
   if (!transport) {
+    // Never log body/text — auth templates embed one-time URLs.
     console.log('[Email dev placeholder]', { to, subject, template });
-    if (text) console.log(text);
     return { sent: false, placeholder: true };
   }
 

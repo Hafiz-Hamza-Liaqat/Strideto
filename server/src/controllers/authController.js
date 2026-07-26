@@ -5,7 +5,7 @@ import { validateAuthRegister, validateAuthLogin, validateForgotPassword, valida
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ensureReferralCode } from '../utils/referralCode.js';
 import { awardBadge } from './badgesController.js';
-import { onUserRegistered, queueEmail } from '../services/automationService.js';
+import { queueEmail } from '../services/automationService.js';
 import { isSmtpConfigured } from '../services/emailService.js';
 import { logAudit, auditFromRequest } from '../services/auditService.js';
 import { getPermissionsForRole } from '../config/rbac.js';
@@ -16,20 +16,58 @@ import {
   revokeAccessToken,
   hashResetToken,
 } from '../utils/tokenStore.js';
+import {
+  applyVerificationTokenFields,
+  buildVerifyEmailUrl,
+  clearVerificationTokenFields,
+  frontendBaseUrl,
+  hashVerificationToken,
+  isEmailVerificationRequired,
+  VERIFY_TOKEN_TTL_MS,
+} from '../utils/emailVerification.js';
 
 function toSafeUser(user) {
   if (!user) return null;
-  const u = user.toObject ? user.toObject() : user;
+  const u = user.toObject ? user.toObject() : { ...user };
   delete u.password;
   delete u.refreshToken;
   delete u.refreshTokenExpires;
   delete u.passwordResetToken;
   delete u.passwordResetExpires;
+  delete u.emailVerificationToken;
+  delete u.emailVerificationExpires;
+  delete u.tempPasswordExpires;
+  delete u.fcmToken;
   return u;
 }
 
 const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
-const FRONTEND_BASE = process.env.FRONTEND_URL || process.env.APP_URL || process.env.SITE_URL || 'http://localhost:5173';
+const FRONTEND_BASE = frontendBaseUrl();
+const GENERIC_RESEND_MESSAGE =
+  'If an unverified account exists for this email, a new verification link has been sent.';
+
+async function issueAndQueueVerification(user) {
+  const rawToken = applyVerificationTokenFields(user);
+  await user.save({ validateBeforeSave: false });
+  const smtpOk = isSmtpConfigured();
+  if (smtpOk) {
+    const result = await queueEmail({
+      to: user.email,
+      templateKey: 'emailVerification',
+      vars: {
+        name: user.name,
+        url: buildVerifyEmailUrl(rawToken),
+        expiresMinutes: Math.round(VERIFY_TOKEN_TTL_MS / 60000),
+      },
+      dedupKey: `verify:${user._id}:${Date.now()}`,
+    });
+    // Direct send: treat hard SMTP errors as delivery unavailable for truthful client messaging.
+    if (result?.error && result?.sent === false) {
+      return { rawToken, smtpOk: false, sendError: result.error };
+    }
+  }
+  return { rawToken, smtpOk };
+}
 
 export const register = asyncHandler(async (req, res) => {
   const { emailError, passwordError, name } = validateAuthRegister(req.body);
@@ -56,9 +94,8 @@ export const register = asyncHandler(async (req, res) => {
     name: name || email.split('@')[0],
     role: 'User',
     referredBy,
+    emailVerified: false,
   });
-  user.lastLoginAt = new Date();
-  await user.save({ validateBeforeSave: false });
   await ensureReferralCode(user);
 
   const REFERRER_POINTS = 25;
@@ -71,16 +108,28 @@ export const register = asyncHandler(async (req, res) => {
     await awardBadge(referredBy, 'referral', 'Referral Champion', 'Referred a friend');
   }
 
-  onUserRegistered(user).catch(() => {});
+  const { smtpOk } = await issueAndQueueVerification(user);
+  const safe = toSafeUser(await User.findById(user._id));
 
-  const accessToken = signAccessToken({ userId: user._id.toString(), role: user.role });
-  const refreshToken = signRefreshToken({ userId: user._id.toString() });
-  await storeRefreshToken(user._id.toString(), refreshToken);
-  res.status(201).json({
-    user: toSafeUser(await User.findById(user._id)),
-    accessToken,
-    refreshToken,
-    expiresIn: process.env.JWT_EXPIRES_IN || '1h',
+  if (!smtpOk) {
+    return res.status(201).json({
+      user: safe,
+      requiresVerification: true,
+      emailQueued: false,
+      emailMode: 'unavailable',
+      message:
+        'Account created, but email delivery is not configured yet. Verification email could not be sent — try Resend later once SMTP is available.',
+      expiresInMinutes: Math.round(VERIFY_TOKEN_TTL_MS / 60000),
+    });
+  }
+
+  return res.status(201).json({
+    user: safe,
+    requiresVerification: true,
+    emailQueued: true,
+    emailMode: 'live',
+    message: 'Account created. Check your email for a verification link before signing in.',
+    expiresInMinutes: Math.round(VERIFY_TOKEN_TTL_MS / 60000),
   });
 });
 
@@ -102,6 +151,13 @@ export const login = asyncHandler(async (req, res) => {
   }
   if (user.tempPasswordExpires && user.tempPasswordExpires < new Date()) {
     return res.status(403).json({ error: 'Temporary password has expired. Contact an administrator.' });
+  }
+  if (isEmailVerificationRequired(user)) {
+    return res.status(403).json({
+      error: 'Please verify your email before signing in.',
+      code: 'email_verification_required',
+      email: user.email,
+    });
   }
   user.lastLoginAt = new Date();
   await user.save({ validateBeforeSave: false });
@@ -177,6 +233,14 @@ export const refreshToken = asyncHandler(async (req, res) => {
   }
   const user = await User.findById(decoded.userId);
   if (!user) return res.status(401).json({ error: 'User not found' });
+  if (isEmailVerificationRequired(user)) {
+    await revokeRefreshToken(decoded.userId);
+    return res.status(403).json({
+      error: 'Please verify your email before continuing.',
+      code: 'email_verification_required',
+      email: user.email,
+    });
+  }
   const accessToken = signAccessToken({ userId: user._id.toString(), role: user.role });
   const newRefreshToken = signRefreshToken({ userId: user._id.toString() });
   await storeRefreshToken(user._id.toString(), newRefreshToken);
@@ -203,13 +267,16 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   user.passwordResetToken = hashResetToken(token);
   user.passwordResetExpires = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
   await user.save({ validateBeforeSave: false });
-  const resetUrl = `${FRONTEND_BASE.replace(/\/$/, '')}/auth/reset-password?token=${token}`;
-  await queueEmail({
-    to: user.email,
-    templateKey: 'passwordReset',
-    vars: { url: resetUrl },
-    dedupKey: `password_reset:${user._id}:${Date.now()}`,
-  });
+  const resetUrl = `${FRONTEND_BASE}/auth/reset-password?token=${encodeURIComponent(token)}`;
+  if (isSmtpConfigured()) {
+    await queueEmail({
+      to: user.email,
+      templateKey: 'passwordReset',
+      vars: { url: resetUrl, expiresMinutes: 60 },
+      dedupKey: `password_reset:${user._id}:${Date.now()}`,
+    });
+  }
+  // Always generic — do not reveal account existence or SMTP status
   return res.status(200).json({ message });
 });
 
@@ -218,16 +285,24 @@ export const verifyEmail = asyncHandler(async (req, res) => {
   if (!token) return res.status(400).json({ error: 'Verification token is required' });
 
   const user = await User.findOne({
-    emailVerificationToken: crypto.createHash('sha256').update(token).digest('hex'),
+    emailVerificationToken: hashVerificationToken(token),
     emailVerificationExpires: { $gt: new Date() },
   }).select('+emailVerificationToken +emailVerificationExpires');
 
   if (!user) return res.status(400).json({ error: 'Invalid or expired verification link' });
 
   user.emailVerified = true;
-  user.emailVerificationToken = undefined;
-  user.emailVerificationExpires = undefined;
+  clearVerificationTokenFields(user);
   await user.save({ validateBeforeSave: false });
+
+  if (isSmtpConfigured()) {
+    await queueEmail({
+      to: user.email,
+      templateKey: 'welcome',
+      vars: { name: user.name || user.email.split('@')[0] },
+      dedupKey: `welcome:${user._id}`,
+    });
+  }
 
   res.json({ message: 'Email verified successfully', emailVerified: true });
 });
@@ -255,7 +330,6 @@ export const resetPassword = asyncHandler(async (req, res) => {
   user.mustChangePassword = false;
   user.tempPasswordExpires = undefined;
   await user.save();
-  // RC-1: invalidate existing sessions after password reset
   await revokeRefreshToken(String(user._id));
   return res.status(200).json({ message: 'Password reset successfully. You can now sign in with your new password.' });
 });
@@ -277,7 +351,6 @@ export const changePassword = asyncHandler(async (req, res) => {
   user.mustChangePassword = false;
   user.tempPasswordExpires = undefined;
   await user.save();
-  // RC-1: invalidate refresh tokens; revoke current access token if present
   await revokeRefreshToken(String(user._id));
   const authHeader = req.headers.authorization;
   if (authHeader?.startsWith('Bearer ')) {
@@ -294,27 +367,55 @@ export const changePassword = asyncHandler(async (req, res) => {
 });
 
 export const resendVerification = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.user.userId).select('+emailVerificationToken +emailVerificationExpires');
-  if (!user) return res.status(404).json({ error: 'User not found' });
-  if (user.emailVerified) {
-    return res.status(400).json({ error: 'Email is already verified' });
+  const emailFromBody = (req.body?.email || '').trim().toLowerCase();
+  let user = null;
+
+  if (req.user?.userId) {
+    user = await User.findById(req.user.userId).select('+emailVerificationToken +emailVerificationExpires');
+    if (!user) return res.status(404).json({ error: 'User not found' });
+    if (user.emailVerified) {
+      return res.json({ message: 'Email is already verified', emailVerified: true });
+    }
+  } else {
+    if (!emailFromBody) {
+      return res.status(400).json({ error: 'Email is required' });
+    }
+    user = await User.findOne({ email: emailFromBody }).select('+emailVerificationToken +emailVerificationExpires');
+    if (!user || user.emailVerified) {
+      return res.json({ message: GENERIC_RESEND_MESSAGE });
+    }
   }
-  const verifyToken = crypto.randomBytes(32).toString('hex');
-  user.emailVerificationToken = hashResetToken(verifyToken);
-  user.emailVerificationExpires = new Date(Date.now() + 24 * 60 * 60 * 1000);
-  await user.save({ validateBeforeSave: false });
 
-  const verifyUrl = `${FRONTEND_BASE.replace(/\/$/, '')}/auth/verify-email?token=${verifyToken}`;
-  await queueEmail({
-    to: user.email,
-    templateKey: 'emailVerification',
-    vars: { name: user.name, url: verifyUrl },
-    dedupKey: `verify_resend:${user._id}:${Date.now()}`,
+  const { smtpOk } = await issueAndQueueVerification(user);
+
+  if (!smtpOk) {
+    if (req.user?.userId) {
+      return res.status(503).json({
+        error: 'Email delivery is not configured. Try again later.',
+        code: 'smtp_not_configured',
+        emailQueued: false,
+        emailMode: 'unavailable',
+      });
+    }
+    return res.json({
+      message: GENERIC_RESEND_MESSAGE,
+      emailQueued: false,
+      emailMode: 'unavailable',
+    });
+  }
+
+  if (req.user?.userId) {
+    return res.json({
+      message: 'Verification email sent',
+      emailQueued: true,
+      emailMode: 'live',
+      expiresInMinutes: Math.round(VERIFY_TOKEN_TTL_MS / 60000),
+    });
+  }
+
+  return res.json({
+    message: GENERIC_RESEND_MESSAGE,
+    emailQueued: true,
+    emailMode: 'live',
   });
-
-  const emailMeta = isSmtpConfigured()
-    ? { emailQueued: true, emailMode: 'live' }
-    : { emailQueued: true, emailMode: 'placeholder', emailNotice: 'Email queued (SMTP not configured)' };
-
-  res.json({ message: 'Verification email sent', ...emailMeta });
 });

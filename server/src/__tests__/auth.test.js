@@ -1,8 +1,17 @@
 /**
- * Placeholder unit tests for auth routes.
- * Integration point: add Jest or Vitest and run full route tests with supertest.
- * Example: GET /api/auth/me returns 401 without token, 200 with valid JWT.
+ * Auth + email-verification policy tests (no DB).
+ * Run: node src/__tests__/auth.test.js && node src/__tests__/emailVerification.test.js
  */
+import assert from 'assert';
+import {
+  clearVerificationTokenFields,
+  createRawVerificationToken,
+  hashVerificationToken,
+  isEmailVerificationRequired,
+  EMAIL_VERIFY_ENFORCE_FROM,
+} from '../utils/emailVerification.js';
+import { hashResetToken } from '../utils/tokenStore.js';
+
 function validateEmail(email) {
   const EMAIL_REGEX = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!email || typeof email !== 'string') return 'Email is required';
@@ -15,13 +24,36 @@ function validatePasswordMinLength(pwd) {
   return null;
 }
 
-// Simple assertions (run with: node src/__tests__/auth.test.js)
-const assert = (ok, msg) => {
-  if (!ok) throw new Error(msg || 'Assertion failed');
-};
 assert(validateEmail('') === 'Email is required');
 assert(validateEmail('bad') === 'Invalid email format');
 assert(validateEmail('a@b.c') === null);
 assert(validatePasswordMinLength('short') !== null);
 assert(validatePasswordMinLength('longenough') === null);
-console.log('Auth validator placeholder tests passed.');
+
+// Token hashing — raw never equals stored; hashResetToken === hashVerificationToken
+const raw = createRawVerificationToken();
+const hashed = hashVerificationToken(raw);
+assert.notStrictEqual(raw, hashed);
+assert.strictEqual(hashed, hashResetToken(raw));
+
+// One-time clear semantics
+const doc = { emailVerificationToken: hashed, emailVerificationExpires: new Date() };
+clearVerificationTokenFields(doc);
+assert.strictEqual(doc.emailVerificationToken, undefined);
+assert.strictEqual(doc.emailVerificationExpires, undefined);
+
+// Login enforcement matrix
+const cutoff = new Date(EMAIL_VERIFY_ENFORCE_FROM);
+assert.strictEqual(isEmailVerificationRequired({ emailVerified: true, role: 'User', createdAt: new Date() }), false);
+assert.strictEqual(isEmailVerificationRequired({ emailVerified: false, role: 'Admin', createdAt: new Date() }), false);
+assert.strictEqual(isEmailVerificationRequired({ emailVerified: false, role: 'SuperAdmin', createdAt: new Date() }), false);
+assert.strictEqual(
+  isEmailVerificationRequired({ emailVerified: false, role: 'User', createdAt: new Date(cutoff.getTime() - 1) }),
+  false,
+);
+assert.strictEqual(
+  isEmailVerificationRequired({ emailVerified: false, role: 'User', createdAt: new Date(cutoff.getTime() + 1) }),
+  true,
+);
+
+console.log('Auth validator + verification policy tests passed.');

@@ -51,6 +51,15 @@ export const forgotPasswordLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+/** Resend verification — 5 / hour per IP in production */
+export const resendVerificationLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  max: isDev ? 30 : 5,
+  message: { error: 'Too many verification email requests. Try again later.' },
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 /** File uploads — 20/min per IP in production */
 export const uploadLimiter = rateLimit({
   windowMs: 60 * 1000,

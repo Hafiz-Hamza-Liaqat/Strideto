@@ -18,8 +18,8 @@ import { getDashboard } from '../controllers/dashboardController.js';
 import { recordRecentlyViewed } from '../controllers/recentlyViewedController.js';
 import { registerFcmToken } from '../controllers/fcmController.js';
 import { getMyReferrals } from '../controllers/referralsController.js';
-import { requireAuth, requireUserAuth } from '../middleware/auth.js';
-import { authLimiter, forgotPasswordLimiter, refreshLimiter } from '../middleware/rateLimit.js';
+import { requireAuth, requireUserAuth, optionalAuth } from '../middleware/auth.js';
+import { authLimiter, forgotPasswordLimiter, refreshLimiter, resendVerificationLimiter } from '../middleware/rateLimit.js';
 
 export const authRouter = Router();
 
@@ -32,7 +32,7 @@ authRouter.post('/auth/verify-email', verifyEmail);
 authRouter.get('/auth/accept-invitation', getInvitationByToken);
 authRouter.post('/auth/accept-invitation', acceptInvitation);
 authRouter.post('/auth/change-password', requireAuth, requireUserAuth, changePassword);
-authRouter.post('/auth/resend-verification', requireAuth, requireUserAuth, resendVerification);
+authRouter.post('/auth/resend-verification', resendVerificationLimiter, optionalAuth, resendVerification);
 authRouter.get('/auth/me', requireAuth, requireUserAuth, me);
 authRouter.post('/auth/logout', requireAuth, requireUserAuth, logout);
 authRouter.post('/auth/refresh-token', refreshLimiter, refreshToken);

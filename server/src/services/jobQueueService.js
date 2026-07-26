@@ -40,6 +40,15 @@ export async function enqueueJob({ type, payload, dedupKey, scheduledAt, maxAtte
   }
 }
 
+function redactEmailPayload(payload) {
+  if (!payload || typeof payload !== 'object') return;
+  if (payload.vars && typeof payload.vars === 'object' && payload.vars.url) {
+    payload.vars = { ...payload.vars, url: '[redacted]' };
+  }
+  if (typeof payload.text === 'string' && payload.text) payload.text = '[redacted]';
+  if (typeof payload.body === 'string' && payload.body) payload.body = '[redacted]';
+}
+
 async function processEmailJob(payload) {
   if (payload.templateKey) {
     return sendTemplatedEmail(payload.to, payload.templateKey, payload.lang || 'en', payload.vars || {});
@@ -170,6 +179,9 @@ export async function processQueue(limit = BATCH_SIZE) {
       job.status = 'completed';
       job.processedAt = new Date();
       job.lastError = undefined;
+      if (job.type === 'email' || job.type === 'retry_email') {
+        redactEmailPayload(job.payload);
+      }
       await job.save();
       results.completed += 1;
 
@@ -194,6 +206,7 @@ export async function processQueue(limit = BATCH_SIZE) {
             dedupKey: job.dedupKey ? `${job.dedupKey}:retry:${job.attempts}` : undefined,
             maxAttempts: 1,
           }).catch(() => {});
+          redactEmailPayload(job.payload);
         }
       } else {
         job.status = 'pending';

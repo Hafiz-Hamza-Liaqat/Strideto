@@ -21,6 +21,7 @@ export default function Login() {
   const [password, setPassword] = useState('');
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  const [verificationEmail, setVerificationEmail] = useState('');
 
   const from = location.state?.from?.pathname || ROUTES.HOME;
   const isFromAdmin = from === ROUTES.ADMIN;
@@ -28,6 +29,7 @@ export default function Login() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError(null);
+    setVerificationEmail('');
     const emailErr = translateValidationError(validateEmail(email), t);
     const passwordErr = translateValidationError(validatePassword(password, false), t);
     if (emailErr || passwordErr) {
@@ -51,10 +53,16 @@ export default function Login() {
       }
     } catch (err) {
       const data = err.response?.data;
-      const msg = data?.error || t('forms:login.failed');
-      const details = data?.details || {};
-      setError(msg);
-      setErrors({ email: details.email || null, password: details.password || null });
+      if (data?.code === 'email_verification_required') {
+        const target = data.email || email.trim().toLowerCase();
+        setVerificationEmail(target);
+        setError(data.error || t('forms:login.verifyRequired', { defaultValue: 'Please verify your email before signing in.' }));
+      } else {
+        const msg = data?.error || t('forms:login.failed');
+        const details = data?.details || {};
+        setError(msg);
+        setErrors({ email: details.email || null, password: details.password || null });
+      }
     } finally {
       setSubmitting(false);
     }
@@ -76,6 +84,16 @@ export default function Login() {
         {error && (
           <Alert variant="error" title={t('common:error')} className="mb-6">
             {error}
+            {verificationEmail ? (
+              <p className="mt-3">
+                <Link
+                  to={`${ROUTES.VERIFY_EMAIL}?pending=1&email=${encodeURIComponent(verificationEmail)}`}
+                  className="text-primary dark:text-mint font-medium hover:underline"
+                >
+                  {t('forms:login.goVerify', { defaultValue: 'Resend verification email' })}
+                </Link>
+              </p>
+            ) : null}
           </Alert>
         )}
 

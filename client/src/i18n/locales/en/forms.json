@@ -7,7 +7,9 @@
     "signIn": "Sign in",
     "signingIn": "Signing in...",
     "failed": "Login failed. Please try again.",
-    "googleSoon": "Google sign-in will be available in a future update."
+    "googleSoon": "Google sign-in will be available in a future update.",
+    "verifyRequired": "Please verify your email before signing in.",
+    "goVerify": "Resend verification email"
   },
   "register": {
     "title": "Register",
@@ -35,6 +37,25 @@
     "checkEmail": "Check your email",
     "backToLogin": "← Back to login",
     "failed": "Could not send reset link."
+  },
+  "verifyEmail": {
+    "title": "Verify email",
+    "successTitle": "Email verified",
+    "errorTitle": "Verification failed",
+    "success": "Email verified successfully.",
+    "failed": "Verification failed. The link may have expired.",
+    "missingToken": "Verification link is invalid or missing.",
+    "checkEmailTitle": "Check your email",
+    "checkEmailBody": "We sent a verification link to your email. It expires in 30 minutes and can be used once.",
+    "accountCreatedNoSmtp": "Your account was created, but email delivery is not configured yet. You can try Resend once SMTP is available.",
+    "idleHint": "Enter your email to resend a verification link.",
+    "expiredHint": "Request a new verification link below. Links expire after 30 minutes.",
+    "emailRequired": "Enter your email to resend verification.",
+    "resend": "Resend verification",
+    "resending": "Sending…",
+    "resendSent": "If an unverified account exists for this email, a new verification link has been sent.",
+    "resendSmtpUnavailable": "If an unverified account exists, a link will be sent once email delivery is configured.",
+    "resendFailed": "Could not resend verification email."
   },
   "resetPassword": {
     "title": "Reset password",

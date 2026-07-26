@@ -59,9 +59,19 @@ export function AuthProvider({ children }) {
     async (payload) => {
       setError(null);
       const { data } = await authApi.register(payload);
+      if (data.requiresVerification || !data.accessToken) {
+        return {
+          user: data.user || null,
+          requiresVerification: true,
+          message: data.message,
+          emailQueued: data.emailQueued,
+          emailMode: data.emailMode,
+          expiresInMinutes: data.expiresInMinutes,
+        };
+      }
       setTokens(data.accessToken, data.refreshToken);
       persistUser(data.user);
-      return data.user;
+      return { user: data.user, requiresVerification: false };
     },
     [persistUser, setTokens]
   );
