@@ -6,17 +6,28 @@
 .strideto-onboarding-swal {
   font-family: Inter, system-ui, sans-serif !important;
   border-radius: 1rem !important;
-  padding: 1.5rem !important;
+  padding: 1.25rem !important;
+  width: min(32em, calc(100vw - 1.5rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))) !important;
+  max-width: calc(100vw - 1.5rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px)) !important;
+  max-height: min(90dvh, 100%) !important;
+  overflow-y: auto !important;
+  box-sizing: border-box !important;
 }
 
 .strideto-onboarding-title {
   font-family: Manrope, system-ui, sans-serif !important;
   font-weight: 700 !important;
   color: #0f172a !important;
+  font-size: clamp(1.15rem, 4.5vw, 1.875rem) !important;
+  line-height: 1.3 !important;
+  padding-inline: 0.25rem !important;
+  overflow-wrap: anywhere;
 }
 
 .strideto-onboarding-html {
   text-align: center !important;
+  padding-inline: 0.25rem !important;
+  overflow-wrap: anywhere;
 }
 
 .strideto-onboarding-btn-primary {
@@ -30,6 +41,7 @@
   margin: 0.25rem !important;
   cursor: pointer !important;
   min-height: 44px;
+  min-width: 44px;
 }
 
 .strideto-onboarding-btn-primary:hover,
@@ -50,6 +62,7 @@
   margin: 0.25rem !important;
   cursor: pointer !important;
   min-height: 44px;
+  min-width: 44px;
 }
 
 .strideto-onboarding-btn-secondary:hover,
@@ -59,11 +72,45 @@
   outline-offset: 2px;
 }
 
+.swal2-container:has(.strideto-onboarding-swal) {
+  padding: max(0.75rem, env(safe-area-inset-top, 0px))
+    max(0.75rem, env(safe-area-inset-right, 0px))
+    max(0.75rem, env(safe-area-inset-bottom, 0px))
+    max(0.75rem, env(safe-area-inset-left, 0px)) !important;
+  box-sizing: border-box;
+}
+
+.swal2-actions:has(.strideto-onboarding-btn-primary) {
+  flex-wrap: wrap !important;
+  gap: 0.35rem;
+  width: 100%;
+}
+
+@media (max-width: 420px) {
+  .strideto-onboarding-swal {
+    padding: 1rem !important;
+  }
+
+  .swal2-actions:has(.strideto-onboarding-btn-primary) {
+    flex-direction: column-reverse;
+    align-items: stretch;
+  }
+
+  .swal2-actions:has(.strideto-onboarding-btn-primary) .strideto-onboarding-btn-primary,
+  .swal2-actions:has(.strideto-onboarding-btn-primary) .strideto-onboarding-btn-secondary {
+    width: 100%;
+    margin-inline: 0 !important;
+  }
+}
+
 .strideto-goal-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 0.5rem;
-  text-align: left;
+  text-align: start;
+  max-height: min(50dvh, 320px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 @media (max-width: 420px) {
@@ -85,8 +132,9 @@
   font-size: 0.9rem;
   font-family: Inter, system-ui, sans-serif;
   cursor: pointer;
-  text-align: left;
+  text-align: start;
   min-height: 44px;
+  overflow-wrap: anywhere;
 }
 
 .strideto-goal-option:hover,
@@ -105,24 +153,73 @@
 /* Driver.js theme */
 .strideto-driver-theme {
   font-family: Inter, system-ui, sans-serif;
-  max-width: min(360px, calc(100vw - 2rem));
+  min-width: 0 !important;
+  width: min(360px, calc(100vw - 1.5rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))) !important;
+  max-width: min(360px, calc(100vw - 1.5rem - env(safe-area-inset-left, 0px) - env(safe-area-inset-right, 0px))) !important;
+  max-height: min(85dvh, 100%);
+  overflow-y: auto;
+  box-sizing: border-box;
+  padding: 0.85rem !important;
 }
 
 .strideto-driver-theme .driver-popover-title {
   font-family: Manrope, system-ui, sans-serif;
   font-weight: 700;
   color: #0f172a;
+  font-size: clamp(1rem, 3.8vw, 1.15rem);
+  overflow-wrap: anywhere;
 }
 
 .strideto-driver-theme .driver-popover-description {
   white-space: pre-line;
   color: #475569;
   line-height: 1.5;
+  overflow-wrap: anywhere;
+  font-size: clamp(0.85rem, 3.2vw, 0.95rem);
 }
 
 .strideto-driver-theme .driver-popover-progress-text {
   color: #64748b;
   font-size: 0.8rem;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+
+.strideto-driver-theme .driver-popover-footer {
+  flex-wrap: wrap !important;
+  gap: 0.35rem;
+  align-items: center;
+  justify-content: flex-end;
+}
+
+.strideto-driver-theme .driver-popover-navigation-btns {
+  flex-wrap: wrap;
+  gap: 0.35rem;
+  justify-content: flex-end;
+}
+
+.strideto-driver-theme .driver-popover-close-btn {
+  min-width: 44px !important;
+  min-height: 44px !important;
+  width: 44px !important;
+  height: 44px !important;
+  display: inline-flex !important;
+  align-items: center;
+  justify-content: center;
+  inset-inline-end: 0.15rem;
+  top: 0.15rem;
+}
+
+.strideto-driver-theme .driver-popover-next-btn,
+.strideto-driver-theme button.driver-next-btn,
+.strideto-driver-theme .driver-popover-prev-btn,
+.strideto-driver-theme button.driver-prev-btn {
+  min-height: 44px !important;
+  min-width: 44px !important;
+  padding: 0.5rem 0.9rem !important;
+  font-size: 0.9rem !important;
+  text-shadow: none !important;
+  border-radius: 0.5rem !important;
 }
 
 .strideto-driver-theme .driver-popover-next-btn,
@@ -130,8 +227,6 @@
   background: #2563eb !important;
   color: #fff !important;
   border: none !important;
-  text-shadow: none !important;
-  border-radius: 0.5rem !important;
 }
 
 .strideto-driver-theme .driver-popover-prev-btn,
@@ -139,24 +234,48 @@
   background: transparent !important;
   color: #334155 !important;
   border: 1px solid #cbd5e1 !important;
-  text-shadow: none !important;
-  border-radius: 0.5rem !important;
 }
 
 .strideto-tour-final-ctas {
   display: flex;
   flex-wrap: wrap;
+  flex-direction: column;
   gap: 0.35rem;
   width: 100%;
+  flex: 1 0 100%;
   margin-bottom: 0.5rem;
 }
 
 .strideto-tour-final-ctas .strideto-onboarding-btn-primary,
 .strideto-tour-final-ctas .strideto-onboarding-btn-secondary {
   flex: 1 1 auto;
-  font-size: 0.85rem;
-  padding: 0.5rem 0.75rem !important;
+  width: 100%;
+  font-size: 0.9rem;
+  padding: 0.65rem 0.75rem !important;
   margin: 0 !important;
+}
+
+@media (min-width: 420px) {
+  .strideto-tour-final-ctas {
+    flex-direction: row;
+  }
+
+  .strideto-tour-final-ctas .strideto-onboarding-btn-primary,
+  .strideto-tour-final-ctas .strideto-onboarding-btn-secondary {
+    width: auto;
+  }
+}
+
+/* RTL / logical alignment */
+[dir='rtl'] .strideto-driver-theme .driver-popover-footer,
+[dir='rtl'] .strideto-driver-theme .driver-popover-navigation-btns {
+  justify-content: flex-start;
+}
+
+[dir='rtl'] .strideto-goal-grid,
+[dir='rtl'] .strideto-goal-option,
+[dir='rtl'] .strideto-onboarding-html {
+  text-align: start;
 }
 
 @media (prefers-reduced-motion: reduce) {

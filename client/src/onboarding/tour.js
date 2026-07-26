@@ -21,6 +21,35 @@ function elExists(selector) {
   }
 }
 
+/** Prefer attaching a highlight only when the target is actually visible. */
+function isHighlightable(selector) {
+  try {
+    const el = document.querySelector(selector);
+    if (!el) return false;
+    const style = window.getComputedStyle(el);
+    if (style.display === 'none' || style.visibility === 'hidden' || style.opacity === '0') return false;
+    const rect = el.getBoundingClientRect();
+    return rect.width > 0 && rect.height > 0;
+  } catch {
+    return false;
+  }
+}
+
+function isNarrowViewport() {
+  try {
+    return window.matchMedia('(max-width: 640px)').matches;
+  } catch {
+    return false;
+  }
+}
+
+function popoverPlacement(preferred = { side: 'bottom', align: 'start' }) {
+  if (isNarrowViewport()) {
+    return { side: preferred.side === 'over' ? 'over' : 'bottom', align: 'center' };
+  }
+  return preferred;
+}
+
 /**
  * Build Driver.js steps. Employer dashboard step only when isEmployer.
  */
@@ -37,104 +66,87 @@ export function buildTourSteps({ isEmployer = false } = {}) {
     },
   ];
 
-  if (elExists(TOUR_SELECTORS.search)) {
-    steps.push({
-      element: TOUR_SELECTORS.search,
-      popover: {
-        title: 'Search',
-        description: 'Search thousands of opportunities instantly.',
-        side: 'bottom',
-        align: 'start',
-      },
+  const pushTargeted = (selector, popover) => {
+    if (!elExists(selector)) return;
+    const placement = popoverPlacement({ side: popover.side, align: popover.align });
+    if (isHighlightable(selector)) {
+      steps.push({
+        element: selector,
+        popover: { ...popover, ...placement },
+      });
+    } else {
+      // Keep the educational step as a centered card when the anchor is off-screen/hidden.
+      steps.push({
+        popover: {
+          ...popover,
+          side: 'over',
+          align: 'center',
+          description: `${popover.description}\n\n(Open this area from the header or menu when you are ready.)`,
+        },
+      });
+    }
+  };
+
+  pushTargeted(TOUR_SELECTORS.search, {
+    title: 'Search',
+    description: 'Search thousands of opportunities instantly.',
+    side: 'bottom',
+    align: 'start',
+  });
+
+  pushTargeted(TOUR_SELECTORS.nav, {
+    title: 'Navigation',
+    description:
+      'Browse:\n• Jobs\n• Scholarships\n• Admissions\n• Internships\n• Career Guidance\n• Foreign Studies\n• Resume Builder',
+    side: 'bottom',
+    align: 'start',
+  });
+
+  pushTargeted(TOUR_SELECTORS.resume, {
+    title: 'Resume Builder',
+    description: 'Create a professional resume using guided templates.\n\nTip: use “Try Resume Builder” on the final step.',
+    side: 'bottom',
+    align: 'end',
+  });
+
+  pushTargeted(TOUR_SELECTORS.dashboard, {
+    title: 'Dashboard',
+    description:
+      'Track:\nApplications\nSaved Opportunities\nAchievements\nProfile Progress\nRecommendations',
+    side: 'bottom',
+    align: 'end',
+  });
+
+  pushTargeted(TOUR_SELECTORS.career, {
+    title: 'Career Guidance',
+    description: 'Explore career paths, articles, and personalized recommendations.',
+    side: 'bottom',
+    align: 'end',
+  });
+
+  if (isEmployer) {
+    pushTargeted(TOUR_SELECTORS.employer, {
+      title: 'Employer Dashboard',
+      description: 'Manage job posts.\nReview applicants.\nTrack hiring.',
+      side: 'bottom',
+      align: 'end',
     });
   }
 
-  if (elExists(TOUR_SELECTORS.nav)) {
-    steps.push({
-      element: TOUR_SELECTORS.nav,
-      popover: {
-        title: 'Navigation',
-        description:
-          'Browse:\n• Jobs\n• Scholarships\n• Admissions\n• Internships\n• Career Guidance\n• Foreign Studies\n• Resume Builder',
-        side: 'bottom',
-        align: 'start',
-      },
-    });
-  }
+  pushTargeted(TOUR_SELECTORS.notifications, {
+    title: 'Notifications',
+    description:
+      'Receive updates about:\nJobs\nScholarships\nAdmissions\nDeadlines\nAnnouncements',
+    side: 'bottom',
+    align: 'end',
+  });
 
-  if (elExists(TOUR_SELECTORS.resume)) {
-    steps.push({
-      element: TOUR_SELECTORS.resume,
-      popover: {
-        title: 'Resume Builder',
-        description: 'Create a professional resume using guided templates.\n\nTip: use “Try Resume Builder” on the final step.',
-        side: 'bottom',
-        align: 'end',
-      },
-    });
-  }
-
-  if (elExists(TOUR_SELECTORS.dashboard)) {
-    steps.push({
-      element: TOUR_SELECTORS.dashboard,
-      popover: {
-        title: 'Dashboard',
-        description:
-          'Track:\nApplications\nSaved Opportunities\nAchievements\nProfile Progress\nRecommendations',
-        side: 'bottom',
-        align: 'end',
-      },
-    });
-  }
-
-  if (elExists(TOUR_SELECTORS.career)) {
-    steps.push({
-      element: TOUR_SELECTORS.career,
-      popover: {
-        title: 'Career Guidance',
-        description: 'Explore career paths, articles, and personalized recommendations.',
-        side: 'bottom',
-        align: 'end',
-      },
-    });
-  }
-
-  if (isEmployer && elExists(TOUR_SELECTORS.employer)) {
-    steps.push({
-      element: TOUR_SELECTORS.employer,
-      popover: {
-        title: 'Employer Dashboard',
-        description: 'Manage job posts.\nReview applicants.\nTrack hiring.',
-        side: 'bottom',
-        align: 'end',
-      },
-    });
-  }
-
-  if (elExists(TOUR_SELECTORS.notifications)) {
-    steps.push({
-      element: TOUR_SELECTORS.notifications,
-      popover: {
-        title: 'Notifications',
-        description:
-          'Receive updates about:\nJobs\nScholarships\nAdmissions\nDeadlines\nAnnouncements',
-        side: 'bottom',
-        align: 'end',
-      },
-    });
-  }
-
-  if (elExists(TOUR_SELECTORS.profile)) {
-    steps.push({
-      element: TOUR_SELECTORS.profile,
-      popover: {
-        title: 'Your Profile',
-        description: 'Complete your profile for better recommendations and visibility.',
-        side: 'bottom',
-        align: 'end',
-      },
-    });
-  }
+  pushTargeted(TOUR_SELECTORS.profile, {
+    title: 'Your Profile',
+    description: 'Complete your profile for better recommendations and visibility.',
+    side: 'bottom',
+    align: 'end',
+  });
 
   steps.push({
     popover: {
@@ -221,6 +233,18 @@ export function startGuidedTour({ isEmployer = false, goal = null, onComplete, o
     doneBtnText: 'Finish',
     showButtons: ['next', 'previous', 'close'],
     steps,
+    onHighlightStarted: (element) => {
+      if (!element || typeof element.scrollIntoView !== 'function') return;
+      try {
+        element.scrollIntoView({
+          block: 'center',
+          inline: 'nearest',
+          behavior: reduced ? 'auto' : 'smooth',
+        });
+      } catch {
+        /* ignore */
+      }
+    },
     onPopoverRender: () => {
       const closeBtn = document.querySelector('.driver-popover-close-btn');
       if (closeBtn) {

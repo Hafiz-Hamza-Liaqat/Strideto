@@ -3,6 +3,7 @@ import { ResumeDocument } from './ResumeDocument';
 import { buildResumeViewModel } from './resumeRenderUtils';
 
 const A4_WIDTH_MM = 210;
+const A4_HEIGHT_MM = 297;
 
 function measureMmInPx(mm) {
   const probe = document.createElement('div');
@@ -13,11 +14,16 @@ function measureMmInPx(mm) {
   return px;
 }
 
+/**
+ * Screen-only viewport around a full A4 ResumeDocument.
+ * Export continues to capture `.resume-preview` at true 210mm (unscaled).
+ */
 export const ResumePreview = forwardRef(function ResumePreview({ resume, template }, ref) {
   const viewModel = useMemo(() => buildResumeViewModel(resume), [resume]);
   const wrapperRef = useRef(null);
   const scaleInnerRef = useRef(null);
   const [scale, setScale] = useState(1);
+  const [scaledHeight, setScaledHeight] = useState(null);
 
   const setWrapperRef = useCallback((node) => {
     wrapperRef.current = node;
@@ -55,25 +61,38 @@ export const ResumePreview = forwardRef(function ResumePreview({ resume, templat
   useEffect(() => {
     const node = scaleInnerRef.current;
     if (!node) return;
-    const fullHeight = node.scrollHeight;
-    node.style.marginBottom = scale < 1 ? `${(scale - 1) * fullHeight}px` : '0px';
+    const fullHeight = node.scrollHeight || measureMmInPx(A4_HEIGHT_MM);
+    // Collapse the post-transform layout gap so the wrapper height matches the visual page.
+    setScaledHeight(fullHeight * scale);
   }, [scale, viewModel, template]);
 
   return (
     <div
       ref={setWrapperRef}
-      className="resume-preview-wrapper overflow-x-hidden overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 shadow-inner flex justify-center p-2 sm:p-4 min-h-[280px] sm:min-h-[400px] max-w-full"
+      className="resume-preview-wrapper w-full max-w-full overflow-x-hidden overflow-y-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-100 dark:bg-gray-800 shadow-inner flex justify-center p-2 sm:p-3 md:p-4"
+      style={{
+        minHeight: 'min(70vh, 520px)',
+        maxHeight: 'min(85vh, 900px)',
+      }}
     >
       <div
-        ref={scaleInnerRef}
-        className="resume-preview-scale"
+        className="resume-preview-viewport relative w-full flex justify-center"
         style={{
-          width: `${A4_WIDTH_MM}mm`,
-          transform: `scale(${scale})`,
-          transformOrigin: 'top center',
+          height: scaledHeight ? `${scaledHeight}px` : undefined,
+          minHeight: scaledHeight ? undefined : `${Math.round(280 * scale)}px`,
         }}
       >
-        <ResumeDocument viewModel={viewModel} template={template} />
+        <div
+          ref={scaleInnerRef}
+          className="resume-preview-scale"
+          style={{
+            width: `${A4_WIDTH_MM}mm`,
+            transform: `scale(${scale})`,
+            transformOrigin: 'top center',
+          }}
+        >
+          <ResumeDocument viewModel={viewModel} template={template} />
+        </div>
       </div>
     </div>
   );

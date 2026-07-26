@@ -44,10 +44,11 @@ function FooterLinkColumn({ title, links }) {
 
 export function Footer() {
   const { t } = useTranslation(['footer', 'common', 'navbar']);
-  const { footerNav } = useSiteContent();
+  const { footerNav, hasResolved } = useSiteContent();
   const { lang } = useLanguage();
 
   const cmsColumns = useMemo(() => {
+    if (!hasResolved) return undefined; // still loading — avoid flashing hardcoded columns
     if (!footerNav?.columns?.length) return null;
     return footerNav.columns.map((col) => ({
       title: resolveColumnTitle(col, lang),
@@ -57,9 +58,9 @@ export function Footer() {
         external: link.external,
       })),
     }));
-  }, [footerNav, lang]);
+  }, [footerNav, lang, hasResolved]);
 
-  const cmsSocial = footerNav?.socialLinks?.length
+  const cmsSocial = hasResolved && footerNav?.socialLinks?.length
     ? footerNav.socialLinks.map((s) => ({ id: s.platform || s.icon, label: s.platform, href: s.url }))
     : null;
 
@@ -100,15 +101,17 @@ export function Footer() {
     { label: t('footer:sitemap'), path: `${SITE_URL}/sitemap.xml`, external: true },
   ];
 
-  const socialLinks = cmsSocial || [
-    { id: 'twitter', label: t('footer:twitter'), href: 'https://twitter.com/strideto' },
-    { id: 'linkedin', label: t('footer:linkedin'), href: 'https://linkedin.com/company/strideto' },
-    { id: 'telegram', label: t('footer:telegram'), href: 'https://t.me/strideto' },
-  ];
+  const socialLinks = !hasResolved
+    ? []
+    : (cmsSocial || [
+      { id: 'twitter', label: t('footer:twitter'), href: 'https://twitter.com/strideto' },
+      { id: 'linkedin', label: t('footer:linkedin'), href: 'https://linkedin.com/company/strideto' },
+      { id: 'telegram', label: t('footer:telegram'), href: 'https://t.me/strideto' },
+    ]);
 
-  const newsletterText = footerNav?.newsletterText || t('footer:newsletterDesc');
-  const copyrightText = footerNav?.copyrightText || t('footer:copyright');
-  const showPromo = hasFooterPromoContent(footerNav?.promoColumn);
+  const newsletterText = hasResolved ? (footerNav?.newsletterText || t('footer:newsletterDesc')) : '';
+  const copyrightText = hasResolved ? (footerNav?.copyrightText || t('footer:copyright')) : '';
+  const showPromo = hasResolved && hasFooterPromoContent(footerNav?.promoColumn);
 
   return (
     <footer className="bg-[#020617] text-[#94A3B8] mt-auto safe-area-inset-bottom">
@@ -118,37 +121,58 @@ export function Footer() {
             <Link to={ROUTES.HOME} className="inline-flex items-center mb-3 link-hover" aria-label={t('common:appName')}>
               <Logo variant="full" tone="dark" height={36} />
             </Link>
-            <p className="text-sm text-[#94A3B8] max-w-xs leading-relaxed mb-4">{footerNav?.tagline || t('footer:tagline') || BRAND_TAGLINE}</p>
-            <div className="flex gap-3">
-              {socialLinks.map(({ id, label, href }) => (
-                <a
-                  key={id}
-                  href={href}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-lg bg-white/5 text-[#94A3B8] hover:bg-primary hover:text-white transition-all duration-200"
-                  aria-label={label}
-                >
-                  {id === 'twitter' && (
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
-                    </svg>
-                  )}
-                  {id === 'linkedin' && (
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
-                    </svg>
-                  )}
-                  {id === 'telegram' && (
-                    <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                      <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
-                    </svg>
-                  )}
-                </a>
-              ))}
+            <p className="text-sm text-[#94A3B8] max-w-xs leading-relaxed mb-4">
+              {hasResolved ? (footerNav?.tagline || t('footer:tagline') || BRAND_TAGLINE) : '\u00a0'}
+            </p>
+            <div className="flex gap-3 min-h-[44px]">
+              {!hasResolved ? (
+                <div className="flex gap-3 animate-pulse" aria-busy="true">
+                  {[0, 1, 2].map((i) => (
+                    <div key={i} className="w-11 h-11 rounded-lg bg-white/10" />
+                  ))}
+                </div>
+              ) : (
+                socialLinks.map(({ id, label, href }) => (
+                  <a
+                    key={id}
+                    href={href}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center w-11 h-11 min-w-[44px] min-h-[44px] rounded-lg bg-white/5 text-[#94A3B8] hover:bg-primary hover:text-white transition-all duration-200"
+                    aria-label={label}
+                  >
+                    {id === 'twitter' && (
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z" />
+                      </svg>
+                    )}
+                    {id === 'linkedin' && (
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M20.447 20.452h-3.554v-5.569c0-1.328-.027-3.037-1.852-3.037-1.853 0-2.136 1.445-2.136 2.939v5.667H9.351V9h3.414v1.561h.046c.477-.9 1.637-1.85 3.37-1.85 3.601 0 4.267 2.37 4.267 5.455v6.286zM5.337 7.433c-1.144 0-2.063-.926-2.063-2.065 0-1.138.92-2.063 2.063-2.063 1.14 0 2.064.925 2.064 2.063 0 1.139-.925 2.065-2.064 2.065zm1.782 13.019H3.555V9h3.564v11.452zM22.225 0H1.771C.792 0 0 .774 0 1.729v20.542C0 23.227.792 24 1.771 24h20.451C23.2 24 24 23.227 24 22.271V1.729C24 .774 23.2 0 22.222 0h.003z" />
+                      </svg>
+                    )}
+                    {id === 'telegram' && (
+                      <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                        <path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z" />
+                      </svg>
+                    )}
+                  </a>
+                ))
+              )}
             </div>
           </div>
-          {cmsColumns ? (
+          {!hasResolved ? (
+            <>
+              {[0, 1, 2, 3].map((i) => (
+                <div key={i} className="animate-pulse space-y-3" aria-hidden="true">
+                  <div className="h-4 w-24 rounded bg-white/10" />
+                  <div className="h-3 w-32 rounded bg-white/5" />
+                  <div className="h-3 w-28 rounded bg-white/5" />
+                  <div className="h-3 w-20 rounded bg-white/5" />
+                </div>
+              ))}
+            </>
+          ) : cmsColumns ? (
             cmsColumns.map((col) => <FooterLinkColumn key={col.title} title={col.title} links={col.links} />)
           ) : (
             <>
@@ -165,13 +189,13 @@ export function Footer() {
             <h3 className="font-semibold text-[#CBD5F5] text-sm uppercase tracking-wider mb-2 mt-6 lg:mt-0">
               {t('footer:newsletter')}
             </h3>
-            <p className="text-sm text-[#94A3B8] mb-3">{newsletterText}</p>
+            <p className="text-sm text-[#94A3B8] mb-3">{newsletterText || '\u00a0'}</p>
             <NewsletterSubscribe compact />
           </div>
         </div>
         <div className="mt-12 pt-6 border-t border-white/10 text-center text-sm text-[#64748B]">
-          <p>{copyrightText}</p>
-          {footerNav?.contact?.email && (
+          <p>{copyrightText || '\u00a0'}</p>
+          {hasResolved && footerNav?.contact?.email && (
             <p className="mt-1">{footerNav.contact.email}{footerNav.contact.phone ? ` · ${footerNav.contact.phone}` : ''}</p>
           )}
         </div>

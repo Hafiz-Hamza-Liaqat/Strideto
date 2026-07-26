@@ -4,12 +4,17 @@ import { useLanguage } from '../context/LanguageContext';
 import { normalizeCmsNavItems, resolveCmsLabel } from '../utils/cmsNav';
 import { isCorruptCmsNav } from '../utils/cmsCorruption';
 
-/** CMS-first header nav items with i18n fallback. */
+/**
+ * CMS-first header nav items with i18n fallback.
+ * Returns null while the initial CMS request is in flight (callers should show a stable shell).
+ */
 export function useHeaderNavItems(fallbackItems, labelFn) {
-  const { headerNav } = useSiteContent();
+  const { headerNav, hasResolved } = useSiteContent();
   const { lang } = useLanguage();
 
   return useMemo(() => {
+    if (!hasResolved) return null;
+
     const cmsItems = headerNav?.items?.length && !isCorruptCmsNav(headerNav.items)
       ? headerNav.items
       : null;
@@ -34,5 +39,5 @@ export function useHeaderNavItems(fallbackItems, labelFn) {
           }))
         : undefined,
     }));
-  }, [headerNav, lang, fallbackItems, labelFn]);
+  }, [headerNav, lang, fallbackItems, labelFn, hasResolved]);
 }

@@ -77,50 +77,58 @@ export function Navbar() {
           </Link>
 
           <nav className="hidden lg:flex items-center gap-1" aria-label={t('navbar:mainNav')}>
-            {resolvedNavItems.map((item) =>
-              item.mega ? (
-                <div
-                  key={item.label}
-                  className="relative"
-                  ref={megaOpen === item.label ? megaRef : undefined}
-                  onMouseEnter={() => setMegaOpen(item.label)}
-                  onMouseLeave={() => setMegaOpen(null)}
-                >
-                  <button
-                    type="button"
-                    className="px-3 py-2 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-mint rounded-lg link-hover"
-                    aria-expanded={megaOpen === item.label}
-                    aria-haspopup="true"
-                    onClick={() => setMegaOpen((cur) => (cur === item.label ? null : item.label))}
-                    onKeyDown={(e) => {
-                      if (e.key === 'ArrowDown') {
-                        e.preventDefault();
-                        setMegaOpen(item.label);
-                      }
-                    }}
+            {!resolvedNavItems ? (
+              <div className="flex items-center gap-2 animate-pulse" aria-busy="true" aria-label={t('common:loading')}>
+                {[0, 1, 2, 3, 4].map((i) => (
+                  <div key={i} className="h-8 w-16 rounded-lg bg-gray-200 dark:bg-gray-700" />
+                ))}
+              </div>
+            ) : (
+              resolvedNavItems.map((item) =>
+                item.mega ? (
+                  <div
+                    key={item.label}
+                    className="relative"
+                    ref={megaOpen === item.label ? megaRef : undefined}
+                    onMouseEnter={() => setMegaOpen(item.label)}
+                    onMouseLeave={() => setMegaOpen(null)}
                   >
-                    {item.label} ▾
-                  </button>
-                  {megaOpen === item.label && (
-                    <div className="absolute left-0 top-full pt-1 w-56 animate-dropdown-enter">
-                      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-2" role="menu">
-                        {item.mega.map((sub) =>
-                          sub.external ? (
-                            <a key={sub.path} role="menuitem" href={sub.path} target="_blank" rel="noopener noreferrer" className="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 link-hover rounded-lg" onClick={() => setMegaOpen(null)}>
-                              {sub.label}
-                            </a>
-                          ) : (
-                            <Link key={sub.path} role="menuitem" to={sub.path} className="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 link-hover rounded-lg" onClick={() => setMegaOpen(null)}>
-                              {sub.label}
-                            </Link>
-                          )
-                        )}
+                    <button
+                      type="button"
+                      className="px-3 py-2 text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-mint rounded-lg link-hover"
+                      aria-expanded={megaOpen === item.label}
+                      aria-haspopup="true"
+                      onClick={() => setMegaOpen((cur) => (cur === item.label ? null : item.label))}
+                      onKeyDown={(e) => {
+                        if (e.key === 'ArrowDown') {
+                          e.preventDefault();
+                          setMegaOpen(item.label);
+                        }
+                      }}
+                    >
+                      {item.label} ▾
+                    </button>
+                    {megaOpen === item.label && (
+                      <div className="absolute left-0 top-full pt-1 w-56 animate-dropdown-enter">
+                        <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-2" role="menu">
+                          {item.mega.map((sub) =>
+                            sub.external ? (
+                              <a key={sub.path} role="menuitem" href={sub.path} target="_blank" rel="noopener noreferrer" className="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 link-hover rounded-lg" onClick={() => setMegaOpen(null)}>
+                                {sub.label}
+                              </a>
+                            ) : (
+                              <Link key={sub.path} role="menuitem" to={sub.path} className="block px-4 py-2 text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 link-hover rounded-lg" onClick={() => setMegaOpen(null)}>
+                                {sub.label}
+                              </Link>
+                            )
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  )}
-                </div>
-              ) : (
-                renderNavLink(item, item.path || item.label)
+                    )}
+                  </div>
+                ) : (
+                  renderNavLink(item, item.path || item.label)
+                )
               )
             )}
           </nav>

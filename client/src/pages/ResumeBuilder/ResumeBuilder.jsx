@@ -222,8 +222,8 @@ export default function ResumeBuilder() {
           </div>
         )}
 
-        <div className="grid lg:grid-cols-5 gap-6 lg:gap-8">
-          <div className="lg:col-span-3 space-y-6 min-w-0">
+        <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-5 gap-6 lg:gap-8 items-start">
+          <div className="xl:col-span-3 space-y-6 min-w-0 order-1">
             <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
               <div className="mb-3">
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('resume:resumeName')}</label>
@@ -260,7 +260,7 @@ export default function ResumeBuilder() {
               )}
             </div>
           </div>
-          <div className="lg:col-span-2 space-y-4 min-w-0 overflow-hidden">
+          <div className="xl:col-span-2 space-y-4 min-w-0 order-2 lg:sticky lg:top-20 lg:self-start">
             <ResumePreview ref={previewRef} resume={resume} template={resume.template} />
             <ResumeScore resume={resume} />
             <ResumeDownload previewRef={previewRef} fileName={fileName} />

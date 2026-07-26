@@ -205,7 +205,9 @@
   /* Screen scaling is applied in ResumePreview via ResizeObserver; print/PDF stay 210mm */
   .resume-preview-scale {
     transform-origin: top center;
-    max-width: 100%;
+  }
+  .resume-preview-wrapper {
+    -webkit-overflow-scrolling: touch;
   }
   @media print {
     .resume-preview-scale {

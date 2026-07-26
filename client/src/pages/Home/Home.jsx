@@ -18,6 +18,7 @@ import {
   resolvePersonaBucket,
 } from '../../personalization/layoutPersonalization';
 import { HomePersonalizedBody } from '../../components/home/HomePersonalizedBody';
+import { HomeHeroSkeleton } from '../../components/home/HomeHeroSkeleton';
 
 const TRENDING_JOBS_LIMIT = 8;
 const SCHOLARSHIPS_LIMIT = 6;
@@ -39,7 +40,7 @@ export default function Home() {
   const { isAuthenticated, user } = useAuth();
   const { isAuthenticated: isEmployer } = useEmployerAuth();
   const persona = resolvePersonaBucket(user, isEmployer);
-  const { homepage, banners } = useSiteContent();
+  const { homepage, banners, hasResolved } = useSiteContent();
   const [trendingJobs, setTrendingJobs] = useState([]);
   const [latestScholarships, setLatestScholarships] = useState([]);
   const [admissionDeadlines, setAdmissionDeadlines] = useState([]);
@@ -185,6 +186,7 @@ export default function Home() {
     });
   };
 
+  // CMS / i18n hero only after the initial site-content request settles (success, empty, failure, or timeout).
   const rawHeadline = homepage?.hero?.headline;
   const heroTitle = rawHeadline && !isC61TestMarker(rawHeadline) ? rawHeadline : t('home:heroTitle');
   const heroSub = homepage?.hero?.subheadline || t('home:heroSub');
@@ -220,118 +222,129 @@ export default function Home() {
         )}
       />
 
-      {banners?.length > 0 && (
-        <section className="bg-edur-steel dark:bg-gray-900">
-          <div className="max-w-6xl mx-auto px-4 py-4 space-y-3">
-            {banners.map((banner) => (
-              <div
-                key={banner._id}
-                className="relative rounded-xl overflow-hidden p-6 sm:p-8 text-white"
-                style={banner.backgroundImageUrl ? { backgroundImage: `url(${banner.backgroundImageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
-              >
-                <div className="relative z-10">
-                  {banner.headline && <h2 className="text-xl sm:text-2xl font-bold mb-1">{banner.headline}</h2>}
-                  {banner.subheadline && <p className="text-white/90 mb-3">{banner.subheadline}</p>}
-                  {banner.ctaLabel && banner.ctaUrl && (
-                    banner.ctaExternal ? (
-                      <a href={banner.ctaUrl} target="_blank" rel="noopener noreferrer" className="inline-flex px-4 py-2 rounded-lg bg-white text-edur-steel font-medium">{banner.ctaLabel}</a>
-                    ) : (
-                      <Link to={banner.ctaUrl} className="inline-flex px-4 py-2 rounded-lg bg-white text-edur-steel font-medium">{banner.ctaLabel}</Link>
-                    )
-                  )}
-                </div>
+      {!hasResolved ? (
+        <HomeHeroSkeleton />
+      ) : (
+        <>
+          {banners?.length > 0 && (
+            <section className="bg-edur-steel dark:bg-gray-900">
+              <div className="max-w-6xl mx-auto px-4 py-4 space-y-3">
+                {banners.map((banner) => (
+                  <div
+                    key={banner._id}
+                    className="relative rounded-xl overflow-hidden p-6 sm:p-8 text-white"
+                    style={banner.backgroundImageUrl ? { backgroundImage: `url(${banner.backgroundImageUrl})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
+                  >
+                    <div className="relative z-10">
+                      {banner.headline && <h2 className="text-xl sm:text-2xl font-bold mb-1">{banner.headline}</h2>}
+                      {banner.subheadline && <p className="text-white/90 mb-3">{banner.subheadline}</p>}
+                      {banner.ctaLabel && banner.ctaUrl && (
+                        banner.ctaExternal ? (
+                          <a href={banner.ctaUrl} target="_blank" rel="noopener noreferrer" className="inline-flex px-4 py-2 rounded-lg bg-white text-edur-steel font-medium">{banner.ctaLabel}</a>
+                        ) : (
+                          <Link to={banner.ctaUrl} className="inline-flex px-4 py-2 rounded-lg bg-white text-edur-steel font-medium">{banner.ctaLabel}</Link>
+                        )
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
-            ))}
-          </div>
-        </section>
+            </section>
+          )}
+
+          <section
+            className="relative bg-gradient-to-br from-primary via-primary-hover to-secondary dark:from-secondary dark:via-primary dark:to-secondary py-12 sm:py-14 md:py-24 px-4 sm:px-6 overflow-hidden"
+            style={{
+              minHeight: '28rem',
+              ...(heroBg
+                ? { backgroundImage: `linear-gradient(rgba(37,99,235,0.88), rgba(15,23,42,0.88)), url(${heroBg})`, backgroundSize: 'cover', backgroundPosition: 'center' }
+                : {}),
+            }}
+          >
+            <div className="absolute inset-0 bg-primary/10 dark:bg-black/20" aria-hidden />
+            <div className="relative max-w-4xl mx-auto text-center animate-fade-in-up">
+              <h1 className="font-heading text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 break-words px-1">
+                {heroTitle}
+              </h1>
+              <p className="text-base sm:text-lg text-white/95 mb-8 max-w-2xl mx-auto break-words px-1">
+                {heroSub}
+              </p>
+              <div className="w-full max-w-3xl mx-auto mb-6 min-w-0">
+                <GlobalSearch
+                  placeholder={t('home:keywordSearchPlaceholder')}
+                  className="w-full"
+                  showCategoryFilter
+                  categories={searchCategories}
+                  category={selectedCategory?.type || ''}
+                  categoryValue={searchCategory}
+                  onCategoryChange={(match) => {
+                    if (!match) return;
+                    setSearchCategory(match.value || 'all');
+                    if (match.path) {
+                      navigate(match.path);
+                    }
+                  }}
+                  showProvinceFilter
+                  provinces={PROVINCES}
+                  province={province}
+                  onProvinceChange={setProvince}
+                  onNavigate={handleSearchNavigate}
+                />
+              </div>
+              <div className="flex flex-wrap justify-center gap-3 mb-8">
+                {heroCtas ? heroCtas.map((cta, i) => (
+                  cta.external ? (
+                    <a key={i} href={cta.url} target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-medium border border-white/30 btn-theme">{cta.label}</a>
+                  ) : (
+                    <Link key={i} to={cta.url || ROUTES.JOBS} className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-medium border border-white/30 btn-theme">{cta.label}</Link>
+                  )
+                )) : (
+                  <>
+                    <Link to={ROUTES.JOBS} className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-medium border border-white/30 btn-theme">{t('home:govJobs')}</Link>
+                    <Link to={ROUTES.SCHOLARSHIPS} className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-medium border border-white/30 btn-theme">{t('home:scholarships')}</Link>
+                    <Link to={ROUTES.ADMISSIONS} className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-medium border border-white/30 btn-theme">{t('home:admissions')}</Link>
+                    <Link to={ROUTES.INTERNSHIPS} className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-medium border border-white/30 btn-theme">{t('home:internships')}</Link>
+                  </>
+                )}
+              </div>
+              {!heroCtas && (
+              <div className="flex flex-wrap justify-center gap-3">
+                <Link to={ROUTES.JOBS} className="inline-flex items-center px-6 py-3 rounded-xl bg-accent text-white font-semibold hover:bg-accent-hover shadow-lg btn-theme">
+                  {t('home:exploreOpportunities')}
+                </Link>
+                <Link to={ROUTES.RESUME_BUILDER} className="inline-flex items-center px-6 py-3 rounded-xl bg-white text-primary font-semibold hover:bg-primary-light shadow-lg btn-theme">
+                  {t('home:buildYourResume')}
+                </Link>
+              </div>
+              )}
+              {cmsStats && (
+                <div className="mt-10 grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 max-w-2xl mx-auto">
+                  {cmsStats.map((stat, i) => (
+                    <div key={i} className="min-w-0 rounded-xl bg-white/10 backdrop-blur border border-white/20 p-3 sm:p-4 text-center">
+                      <div className="text-xl sm:text-2xl font-bold text-white break-words">{stat.value}</div>
+                      <div className="text-xs sm:text-sm text-white/80 break-words">{stat.label}</div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        </>
       )}
 
-      <section
-        className="relative bg-gradient-to-br from-primary via-primary-hover to-secondary dark:from-secondary dark:via-primary dark:to-secondary py-12 sm:py-14 md:py-24 px-4 sm:px-6 overflow-hidden"
-        style={heroBg ? { backgroundImage: `linear-gradient(rgba(37,99,235,0.88), rgba(15,23,42,0.88)), url(${heroBg})`, backgroundSize: 'cover', backgroundPosition: 'center' } : undefined}
-      >
-        <div className="absolute inset-0 bg-primary/10 dark:bg-black/20" aria-hidden />
-        <div className="relative max-w-4xl mx-auto text-center animate-fade-in-up">
-          <h1 className="font-heading text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-white mb-4 break-words px-1">
-            {heroTitle}
-          </h1>
-          <p className="text-base sm:text-lg text-white/95 mb-8 max-w-2xl mx-auto break-words px-1">
-            {heroSub}
-          </p>
-          <div className="w-full max-w-3xl mx-auto mb-6 min-w-0">
-            <GlobalSearch
-              placeholder={t('home:keywordSearchPlaceholder')}
-              className="w-full"
-              showCategoryFilter
-              categories={searchCategories}
-              category={selectedCategory?.type || ''}
-              categoryValue={searchCategory}
-              onCategoryChange={(match) => {
-                if (!match) return;
-                setSearchCategory(match.value || 'all');
-                if (match.path) {
-                  navigate(match.path);
-                }
-              }}
-              showProvinceFilter
-              provinces={PROVINCES}
-              province={province}
-              onProvinceChange={setProvince}
-              onNavigate={handleSearchNavigate}
-            />
-          </div>
-          <div className="flex flex-wrap justify-center gap-3 mb-8">
-            {heroCtas ? heroCtas.map((cta, i) => (
-              cta.external ? (
-                <a key={i} href={cta.url} target="_blank" rel="noopener noreferrer" className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-medium border border-white/30 btn-theme">{cta.label}</a>
-              ) : (
-                <Link key={i} to={cta.url || ROUTES.JOBS} className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-medium border border-white/30 btn-theme">{cta.label}</Link>
-              )
-            )) : (
-              <>
-                <Link to={ROUTES.JOBS} className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-medium border border-white/30 btn-theme">{t('home:govJobs')}</Link>
-                <Link to={ROUTES.SCHOLARSHIPS} className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-medium border border-white/30 btn-theme">{t('home:scholarships')}</Link>
-                <Link to={ROUTES.ADMISSIONS} className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-medium border border-white/30 btn-theme">{t('home:admissions')}</Link>
-                <Link to={ROUTES.INTERNSHIPS} className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-medium border border-white/30 btn-theme">{t('home:internships')}</Link>
-              </>
-            )}
-          </div>
-          {!heroCtas && (
-          <div className="flex flex-wrap justify-center gap-3">
-            <Link to={ROUTES.JOBS} className="inline-flex items-center px-6 py-3 rounded-xl bg-accent text-white font-semibold hover:bg-accent-hover shadow-lg btn-theme">
-              {t('home:exploreOpportunities')}
-            </Link>
-            <Link to={ROUTES.RESUME_BUILDER} className="inline-flex items-center px-6 py-3 rounded-xl bg-white text-primary font-semibold hover:bg-primary-light shadow-lg btn-theme">
-              {t('home:buildYourResume')}
-            </Link>
-          </div>
-          )}
-          {cmsStats && (
-            <div className="mt-10 grid grid-cols-2 sm:grid-cols-3 gap-3 sm:gap-4 max-w-2xl mx-auto">
-              {cmsStats.map((stat, i) => (
-                <div key={i} className="min-w-0 rounded-xl bg-white/10 backdrop-blur border border-white/20 p-3 sm:p-4 text-center">
-                  <div className="text-xl sm:text-2xl font-bold text-white break-words">{stat.value}</div>
-                  <div className="text-xs sm:text-sm text-white/80 break-words">{stat.label}</div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
-
-            <ScrollReveal as="section" className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
+      <ScrollReveal as="section" className="max-w-6xl mx-auto px-4 sm:px-6 py-4">
         <AdHost placementId="home-top" />
       </ScrollReveal>
 
       <HomePersonalizedBody
         persona={persona}
-        homepage={homepage}
+        homepage={hasResolved ? homepage : null}
         t={t}
         isAuthenticated={isAuthenticated}
         recommended={recommended}
         loadingRecommended={loadingRecommended}
-        loadingTrending={loadingTrending}
-        loadingBlogs={loadingBlogs}
+        loadingTrending={loadingTrending || !hasResolved}
+        loadingBlogs={loadingBlogs || !hasResolved}
         trendingJobs={trendingJobs}
         latestScholarships={latestScholarships}
         admissionDeadlines={admissionDeadlines}
@@ -343,11 +356,11 @@ export default function Home() {
         showJobs={showJobs}
         showScholarships={showScholarships}
         showAdmissions={showAdmissions}
-        foreignStudyCountries={foreignStudyCountries}
-        testimonials={testimonials}
-        partners={partners}
-        studentResources={studentResources}
-        newsletterBlock={newsletterBlock}
+        foreignStudyCountries={hasResolved ? foreignStudyCountries : null}
+        testimonials={hasResolved ? testimonials : undefined}
+        partners={hasResolved ? partners : undefined}
+        studentResources={hasResolved ? studentResources : null}
+        newsletterBlock={hasResolved ? newsletterBlock : undefined}
       />
 
       <ScrollReveal><AdHost placementId="home-mid-1" variant="inline" /></ScrollReveal>

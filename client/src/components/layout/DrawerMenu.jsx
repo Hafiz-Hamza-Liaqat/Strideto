@@ -106,36 +106,44 @@ export function DrawerMenu({ open, onClose }) {
           </button>
         </div>
         <nav className="p-3 flex flex-col gap-0.5 pb-8 safe-area-inset-bottom" aria-label={t('navbar:mobileMenu')}>
-          {resolvedNavItems.map((item) =>
-            item.mega ? (
-              <div key={item.label || 'edu'}>
-                <button
-                  type="button"
-                  onClick={() => setEducationOpen((o) => !o)}
-                  className={`w-full text-left ${linkClass} flex justify-between items-center`}
-                  aria-expanded={educationOpen}
-                >
-                  {item.label}
-                  <svg className={`w-5 h-5 transition-transform ${educationOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                  </svg>
-                </button>
-                {educationOpen && (
-                  <div className="pl-4 py-1 border-l-2 border-gray-200 dark:border-gray-700 ml-4 my-1 space-y-0.5 animate-dropdown-enter">
-                    {item.mega.map((sub) =>
-                      sub.external ? (
-                        <a key={sub.path} href={sub.path} target="_blank" rel="noopener noreferrer" onClick={handleClose} className={linkClass}>{sub.label}</a>
-                      ) : (
-                        <Link key={sub.path} to={sub.path} onClick={handleClose} className={linkClass}>{sub.label}</Link>
-                      )
-                    )}
-                  </div>
-                )}
-              </div>
-            ) : item.external ? (
-              <a key={item.path} href={item.path} target="_blank" rel="noopener noreferrer" onClick={handleClose} className={linkClass}>{item.label}</a>
-            ) : (
-              <Link key={item.path} to={item.path} onClick={handleClose} className={linkClass}>{item.label}</Link>
+          {!resolvedNavItems ? (
+            <div className="space-y-2 animate-pulse p-2" aria-busy="true">
+              {[0, 1, 2, 3, 4].map((i) => (
+                <div key={i} className="h-11 rounded-lg bg-gray-200 dark:bg-gray-700" />
+              ))}
+            </div>
+          ) : (
+            resolvedNavItems.map((item) =>
+              item.mega ? (
+                <div key={item.label || 'edu'}>
+                  <button
+                    type="button"
+                    onClick={() => setEducationOpen((o) => !o)}
+                    className={`w-full text-start ${linkClass} flex justify-between items-center`}
+                    aria-expanded={educationOpen}
+                  >
+                    {item.label}
+                    <svg className={`w-5 h-5 transition-transform ${educationOpen ? 'rotate-180' : ''}`} fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                  {educationOpen && (
+                    <div className="ps-4 py-1 border-s-2 border-gray-200 dark:border-gray-700 ms-4 my-1 space-y-0.5 animate-dropdown-enter">
+                      {item.mega.map((sub) =>
+                        sub.external ? (
+                          <a key={sub.path} href={sub.path} target="_blank" rel="noopener noreferrer" onClick={handleClose} className={linkClass}>{sub.label}</a>
+                        ) : (
+                          <Link key={sub.path} to={sub.path} onClick={handleClose} className={linkClass}>{sub.label}</Link>
+                        )
+                      )}
+                    </div>
+                  )}
+                </div>
+              ) : item.external ? (
+                <a key={item.path} href={item.path} target="_blank" rel="noopener noreferrer" onClick={handleClose} className={linkClass}>{item.label}</a>
+              ) : (
+                <Link key={item.path} to={item.path} onClick={handleClose} className={linkClass}>{item.label}</Link>
+              )
             )
           )}
         </nav>
