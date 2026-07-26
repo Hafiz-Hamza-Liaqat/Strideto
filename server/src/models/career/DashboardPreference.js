@@ -17,6 +17,4 @@ const dashboardPreferenceSchema = new mongoose.Schema(
   { timestamps: true, collection: 'dashboardPreferences' }
 );
 
-dashboardPreferenceSchema.index({ userId: 1 });
-
 export const DashboardPreference = mongoose.model('DashboardPreference', dashboardPreferenceSchema);
