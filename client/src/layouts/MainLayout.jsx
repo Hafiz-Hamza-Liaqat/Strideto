@@ -12,11 +12,11 @@ export function MainLayout({ children }) {
   return (
     <SiteContentProvider>
       <AdSlotsProvider>
-        <div className="min-h-screen flex flex-col bg-bg-main dark:bg-secondary overflow-x-hidden">
+        <div className="min-h-screen flex flex-col bg-bg-main dark:bg-secondary min-w-0">
           <SkipLink />
           <GlobalSeo />
           <Navbar />
-          <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 w-full outline-none">
+          <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 w-full max-w-full outline-none">
             {children || <Outlet />}
           </main>
           <Footer />

@@ -1,7 +1,9 @@
 import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import { useLocation } from 'react-router-dom';
 import { authApi } from '../services/authService';
 import { resetAxiosAuthState } from '../services/axiosBase';
 import { resetPermissionsCache } from '../hooks/usePermissions';
+import { shouldSkipUserAuthBootstrap } from '../auth/authRealm';
 
 const STORAGE_TOKEN = 'edurozgaar-token';
 const STORAGE_REFRESH = 'edurozgaar-refresh-token';
@@ -19,6 +21,7 @@ function readStoredUser() {
 }
 
 export function AuthProvider({ children }) {
+  const { pathname } = useLocation();
   const [user, setUser] = useState(readStoredUser);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -100,11 +103,17 @@ export function AuthProvider({ children }) {
   }, [clearAuth, persistUser, setTokens]);
 
   useEffect(() => {
+    if (shouldSkipUserAuthBootstrap(pathname)) {
+      setLoading(false);
+      return undefined;
+    }
+
     const token = localStorage.getItem(STORAGE_TOKEN);
     if (!token) {
       setLoading(false);
-      return;
+      return undefined;
     }
+    setLoading(true);
     let cancelled = false;
     authApi
       .me()
@@ -120,7 +129,7 @@ export function AuthProvider({ children }) {
     return () => {
       cancelled = true;
     };
-  }, [clearAuth, persistUser]);
+  }, [pathname, clearAuth, persistUser]);
 
   const value = {
     user,

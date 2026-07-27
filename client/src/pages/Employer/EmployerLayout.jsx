@@ -7,10 +7,12 @@ import { SkipLink } from '../../components/a11y/SkipLink';
 import { FeedbackWidget } from '../../components/feedback/FeedbackWidget';
 import { useOverlayA11y } from '../../a11y/useOverlayA11y';
 
-function NavLinks({ location, onNavigate, t }) {
+import { isEmployerIntelligenceEnabled } from '../../config/careerFeatureFlags';
+
+function NavLinks({ location, onNavigate, t, showIntelligence }) {
   const menu = [
     { path: ROUTES.EMPLOYER_DASHBOARD, labelKey: 'dashboardHeading' },
-    { path: ROUTES.EMPLOYER_INTELLIGENCE, labelKey: 'intelligenceHeading' },
+    ...(showIntelligence ? [{ path: ROUTES.EMPLOYER_INTELLIGENCE, labelKey: 'intelligenceHeading' }] : []),
     { path: ROUTES.EMPLOYER_JOBS, labelKey: 'myJobPosts' },
     { path: ROUTES.EMPLOYER_POST_JOB, labelKey: 'postNewJob' },
     { path: ROUTES.EMPLOYER_APPLICATIONS, labelKey: 'applications' },
@@ -40,6 +42,7 @@ export default function EmployerLayout() {
   const location = useLocation();
   const { employer, logout } = useEmployerAuth();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const showIntelligence = isEmployerIntelligenceEnabled();
   const panelRef = useRef(null);
   useOverlayA11y({ open: mobileOpen, onClose: () => setMobileOpen(false), containerRef: panelRef, trapFocus: true });
 
@@ -100,7 +103,7 @@ export default function EmployerLayout() {
               </button>
             </div>
             <nav className="space-y-1 flex-1">
-              <NavLinks location={location} onNavigate={() => setMobileOpen(false)} t={t} />
+              <NavLinks location={location} onNavigate={() => setMobileOpen(false)} t={t} showIntelligence={showIntelligence} />
             </nav>
             <div className="pt-3 border-t border-gray-200 dark:border-gray-700 shrink-0">
               <p className="text-xs text-gray-500 truncate px-2 break-words-safe">{employer?.companyName}</p>
@@ -124,7 +127,7 @@ export default function EmployerLayout() {
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('employer:employerPortal')}</p>
         </div>
         <nav className="p-2 flex-1 space-y-1">
-          <NavLinks location={location} t={t} />
+          <NavLinks location={location} t={t} showIntelligence={showIntelligence} />
         </nav>
         <div className="p-3 border-t border-gray-200 dark:border-gray-700">
           <p className="text-xs text-gray-500 dark:text-gray-400 truncate px-2 break-words-safe">{employer?.companyName}</p>

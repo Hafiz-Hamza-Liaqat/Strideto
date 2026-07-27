@@ -6,8 +6,15 @@ const REFRESH_KEY = 'edurozgaar-refresh-token';
 
 const AUTH_NO_REFRESH = ['/auth/login', '/auth/register', '/auth/refresh-token', '/auth/logout', '/auth/forgot-password', '/auth/reset-password', '/auth/verify-email'];
 
+/** Endpoints that accept anonymous requests; do not refresh or clear session on 401. */
+const OPTIONAL_AUTH_PATHS = ['/feedback'];
+
 function isAuthNoRefreshUrl(url = '') {
   return AUTH_NO_REFRESH.some((path) => url.includes(path));
+}
+
+function isOptionalAuthUrl(url = '') {
+  return OPTIONAL_AUTH_PATHS.some((path) => url.includes(path));
 }
 
 const axiosInstance = axios.create({
@@ -43,8 +50,17 @@ axiosInstance.interceptors.response.use(
       return Promise.reject(err);
     }
 
+    if (isOptionalAuthUrl(original.url)) {
+      if (status === 401 && !original._retryAnonymous) {
+        original._retryAnonymous = true;
+        delete original.headers.Authorization;
+        return axiosInstance(original);
+      }
+      return Promise.reject(err);
+    }
+
     if (status !== 401 || original._retry || isAuthNoRefreshUrl(original.url)) {
-      if (status === 401 && !isAuthNoRefreshUrl(original.url)) {
+      if (status === 401 && !isAuthNoRefreshUrl(original.url) && !isOptionalAuthUrl(original.url)) {
         localStorage.removeItem(TOKEN_KEY);
         localStorage.removeItem(REFRESH_KEY);
         localStorage.removeItem('edurozgaar-user');

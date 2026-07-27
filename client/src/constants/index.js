@@ -50,6 +50,7 @@ export const ROUTES = {
   EMPLOYER_DASHBOARD: '/employer',
   EMPLOYER_JOBS: '/employer/jobs',
   EMPLOYER_POST_JOB: '/employer/jobs/new',
+  EMPLOYER_EDIT_JOB: '/employer/jobs/:jobId/edit',
   EMPLOYER_APPLICATIONS: '/employer/applications',
   EMPLOYER_ANALYTICS: '/employer/analytics',
   EMPLOYER_SETTINGS: '/employer/settings',

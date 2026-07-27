@@ -1,5 +1,6 @@
 import { SITE_URL, SITE_NAME, DEFAULT_DESCRIPTION, DEFAULT_OG_IMAGE } from './config.js';
 import { sanitizeJsonLdString } from './sanitize.js';
+import { organizationSameAsUrls } from '@shared/social/officialSocialLinks.js';
 
 function mapEmploymentType(type) {
   const t = String(type || '').toUpperCase();
@@ -46,6 +47,7 @@ export function organizationSchema() {
     },
     description: DEFAULT_DESCRIPTION,
     areaServed: { '@type': 'Country', name: 'Pakistan' },
+    sameAs: organizationSameAsUrls(),
   });
 }
 

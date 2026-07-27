@@ -3,12 +3,14 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ROUTES, STAFF_ROLES } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
+import { useEmployerAuth } from '../../context/EmployerAuthContext';
 import { talentApi } from '../../services/talentApi';
 import { shouldUseTalentProfileApi } from '../../config/careerFeatureFlags';
+import { useUserNavbarSession } from '../../hooks/useUserNavbarSession';
 import { useTheme } from '../../context/ThemeContext';
 import { LanguageSwitcher } from '../i18n/LanguageSwitcher';
 import { restartProductTour } from '../../onboarding';
-import { registerOverlayEscape } from '../../a11y/overlayStack';
+import { useOverlayA11y } from '../../a11y/useOverlayA11y';
 
 function truncateId(id) {
   if (!id) return '';
@@ -33,7 +35,7 @@ function MenuButton({ onClick, children, className = '' }) {
     <button
       type="button"
       onClick={onClick}
-      className={`block w-full text-left px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg mx-1 ${className}`}
+      className={`block w-full text-start px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg mx-1 ${className}`}
     >
       {children}
     </button>
@@ -55,18 +57,32 @@ function MenuSectionLabel({ children }) {
 export function UserAccountMenu() {
   const { t } = useTranslation(['navbar', 'common']);
   const { isAuthenticated, user, logout } = useAuth();
+  const { isAuthenticated: isEmployer, logout: employerLogout } = useEmployerAuth();
+  const { enabled: userNavbarSession } = useUserNavbarSession();
+  const showUserSession = userNavbarSession && isAuthenticated;
   const { theme, toggleTheme } = useTheme();
   const [open, setOpen] = useState(false);
   const [copied, setCopied] = useState(false);
   const [careerHeadline, setCareerHeadline] = useState('');
   const ref = useRef(null);
+  const panelRef = useRef(null);
+
+  useOverlayA11y({
+    open,
+    onClose: () => setOpen(false),
+    containerRef: panelRef,
+    trapFocus: true,
+  });
 
   useEffect(() => {
-    if (!isAuthenticated || !shouldUseTalentProfileApi()) return;
+    if (!showUserSession || !shouldUseTalentProfileApi()) {
+      setCareerHeadline('');
+      return;
+    }
     talentApi.getSummary()
       .then(({ data }) => setCareerHeadline(data?.career?.headline || ''))
       .catch(() => setCareerHeadline(''));
-  }, [isAuthenticated]);
+  }, [showUserSession]);
 
   useEffect(() => {
     const onDoc = (e) => {
@@ -80,15 +96,15 @@ export function UserAccountMenu() {
     if (!open) setCopied(false);
   }, [open]);
 
-  useEffect(() => {
-    if (!open) return undefined;
-    return registerOverlayEscape(() => setOpen(false));
-  }, [open]);
-
   const close = () => setOpen(false);
 
   const handleLogout = () => {
     logout();
+    close();
+  };
+
+  const handleEmployerLogout = () => {
+    employerLogout();
     close();
   };
 
@@ -127,8 +143,14 @@ export function UserAccountMenu() {
       </button>
 
       {open && (
-        <div id="account-menu-panel" role="menu" className="absolute right-0 mt-2 w-72 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg z-50 py-2">
-          {isAuthenticated ? (
+        <div
+          id="account-menu-panel"
+          ref={panelRef}
+          role="menu"
+          aria-label={t('navbar:accountMenu')}
+          className="absolute end-0 mt-2 w-72 max-w-[min(18rem,calc(100vw-1rem))] rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg z-50 py-2"
+        >
+          {showUserSession ? (
             <>
               <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
                 <p className="font-semibold text-gray-900 dark:text-white truncate">{user?.name || t('navbar:profile')}</p>
@@ -170,9 +192,23 @@ export function UserAccountMenu() {
               <MenuLink to={ROUTES.LOGIN} onClose={close}>{t('navbar:login')}</MenuLink>
               <MenuLink to={ROUTES.REGISTER} onClose={close} className="font-medium">{t('navbar:register')}</MenuLink>
               <MenuLink to={ROUTES.FORGOT_PASSWORD} onClose={close}>{t('navbar:forgotPassword')}</MenuLink>
+              <MenuLink to={ROUTES.EMPLOYER_LOGIN} onClose={close}>{t('navbar:employerLogin', { defaultValue: 'Employer login' })}</MenuLink>
               <MenuSeparator />
             </>
           )}
+
+          {isEmployer ? (
+            <>
+              <MenuSectionLabel>{t('navbar:employerPortal', { defaultValue: 'Employer' })}</MenuSectionLabel>
+              <MenuLink to={ROUTES.EMPLOYER_DASHBOARD} onClose={close}>
+                {t('navbar:employerDashboard', { defaultValue: 'Employer dashboard' })}
+              </MenuLink>
+              <MenuButton onClick={handleEmployerLogout} className="text-red-600 dark:text-red-400">
+                {t('navbar:employerLogout', { defaultValue: 'Log out of employer' })}
+              </MenuButton>
+              <MenuSeparator />
+            </>
+          ) : null}
 
           <MenuSectionLabel>{t('navbar:languageSwitcher')}</MenuSectionLabel>
           <div className="px-3 pb-2">
@@ -198,7 +234,7 @@ export function UserAccountMenu() {
             {t('navbar:helpCenter', { defaultValue: 'Help Center' })}
           </MenuLink>
 
-          {isAuthenticated && (
+          {showUserSession && (
             <>
               <MenuSeparator />
               <MenuButton onClick={handleLogout} className="text-red-600 dark:text-red-400">

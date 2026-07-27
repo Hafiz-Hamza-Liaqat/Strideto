@@ -1,6 +1,8 @@
 import { createContext, useContext, useEffect, useRef } from 'react';
+import { useLocation } from 'react-router-dom';
 import { fcmApi } from '../services/listingsService';
 import { useAuth } from './AuthContext';
+import { shouldSkipUserAuthBootstrap } from '../auth/authRealm';
 
 const NotificationContext = createContext(null);
 
@@ -18,9 +20,11 @@ function getOrCreatePlaceholderToken() {
 export function NotificationProvider({ children }) {
   const registered = useRef(false);
   const { isAuthenticated } = useAuth();
+  const { pathname } = useLocation();
+  const userRealmActive = !shouldSkipUserAuthBootstrap(pathname);
 
   useEffect(() => {
-    if (!isAuthenticated || registered.current || !('Notification' in window)) return;
+    if (!userRealmActive || !isAuthenticated || registered.current || !('Notification' in window)) return;
     registered.current = true;
     const token = getOrCreatePlaceholderToken();
     Notification.requestPermission().then((permission) => {
@@ -28,7 +32,7 @@ export function NotificationProvider({ children }) {
         fcmApi.registerToken(token).catch(() => {});
       }
     }).catch(() => {});
-  }, [isAuthenticated]);
+  }, [isAuthenticated, userRealmActive]);
 
   const registerToken = (token) => {
     if (token) {

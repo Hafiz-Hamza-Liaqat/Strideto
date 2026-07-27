@@ -6,6 +6,7 @@ import { breadcrumbSchema, combineSchemas, contactPageSchema } from '../../seo/s
 import { ROUTES } from '../../constants';
 import { contactApi } from '../../services/listingsService';
 import { Alert } from '../../components/ui/Alerts';
+import { OFFICIAL_LINKEDIN_COMPANY_URL } from '@shared/social/officialSocialLinks.js';
 
 export default function Contact() {
   const { t } = useTranslation(['static', 'seo', 'common']);
@@ -88,7 +89,14 @@ export default function Contact() {
           <p><strong>{t('static:contactEmailLabel')}</strong> contact@strideto.com</p>
           <p>
             {t('static:contactSocialPrefix')}{' '}
-            <a href="https://t.me/strideto" target="_blank" rel="noopener noreferrer" className="text-primary dark:text-mint hover:underline">Telegram</a>
+            <a
+              href={OFFICIAL_LINKEDIN_COMPANY_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary dark:text-mint hover:underline inline-flex min-h-[44px] items-center"
+            >
+              {t('footer:linkedinAria', { ns: 'footer', defaultValue: 'Strideto on LinkedIn' })}
+            </a>
           </p>
         </div>
         <p className="mt-6 text-sm text-gray-500 dark:text-gray-400">

@@ -19,10 +19,14 @@ employerRouter.post(
 
 employerRouter.get('/employer/me', requireAuth, requireEmployerAuth, employerAuth.employerMe);
 employerRouter.get('/employer/dashboard', requireAuth, requireEmployerAuth, employer.getDashboard);
+employerRouter.patch('/employer/profile', requireAuth, requireEmployerAuth, employer.updateEmployerProfile);
 employerRouter.get('/employer/plans', requireAuth, requireEmployerAuth, employer.getPlans);
 employerRouter.get('/employer/jobs', requireAuth, requireEmployerAuth, employer.getMyJobs);
+employerRouter.get('/employer/jobs/:id', requireAuth, requireEmployerAuth, employer.getJob);
 employerRouter.post('/employer/jobs', requireAuth, requireEmployerAuth, employer.createJob);
 employerRouter.patch('/employer/jobs/:id', requireAuth, requireEmployerAuth, employer.updateJob);
+employerRouter.post('/employer/jobs/:id/close', requireAuth, requireEmployerAuth, employer.closeJob);
+employerRouter.post('/employer/jobs/:id/reopen', requireAuth, requireEmployerAuth, employer.reopenJob);
 employerRouter.post('/employer/jobs/:id/activate', requireAuth, requireEmployerAuth, employer.activateJob);
 employerRouter.post('/employer/jobs/:id/checkout', requireAuth, requireEmployerAuth, createJobCheckout);
 employerRouter.get('/employer/jobs/:id/applications', requireAuth, requireEmployerAuth, employer.getJobApplications);

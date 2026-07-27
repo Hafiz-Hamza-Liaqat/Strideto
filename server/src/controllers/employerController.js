@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import { Job } from '../models/Job.js';
 import { Application } from '../models/Application.js';
 import { onApplicationStatusChange } from '../services/automationService.js';
@@ -10,46 +9,42 @@ import { jobSlug } from '../utils/slugify.js';
 import { sanitizeString } from '../utils/sanitize.js';
 import { stripAllHtml } from '../utils/htmlSanitize.js';
 import { TalentProfileReadService } from '../services/career/TalentProfileReadService.js';
+import { enrichEmployerJobsWithApplicationCounts, resolveJobApplyType } from '../services/employerApplicationCounts.js';
+import { computeEmployerDashboardMetrics } from '../services/employerDashboardMetrics.js';
+import { syncOpportunityApplicationFromLegacyStatus } from '../services/employerOpportunityApplicationSync.js';
+import { buildEmployerProfileUpdates } from '../utils/employerProfileValidation.js';
 
 /** GET /employer/dashboard - Stats for employer dashboard */
 export const getDashboard = asyncHandler(async (req, res) => {
   const employerId = req.employer.employerId;
-  const [activeJobs, totalApplications, jobsWithCounts] = await Promise.all([
-    Job.countDocuments({ employerId, status: 'active' }),
-    Application.countDocuments({ jobId: { $in: await Job.find({ employerId }).distinct('_id') } }),
-    Job.aggregate([
-      { $match: { employerId: new mongoose.Types.ObjectId(employerId) } },
-      { $lookup: { from: 'applications', localField: '_id', foreignField: 'jobId', as: 'apps' } },
-      {
-        $project: {
-          _id: 1,
-          title: 1,
-          views: 1,
-          applicationsCount: 1,
-          apps: 1,
-          shortlisted: { $size: { $filter: { input: '$apps', as: 'a', cond: { $eq: ['$$a.status', 'shortlisted'] } } } },
-        },
-      },
-    ]),
-  ]);
-  const totalViews = jobsWithCounts.reduce((s, j) => s + (j.views || 0), 0);
-  const shortlistedCandidates = jobsWithCounts.reduce((s, j) => s + (j.shortlisted || 0), 0);
+  const metrics = await computeEmployerDashboardMetrics(employerId);
   const employer = await Employer.findById(employerId).select('verificationLevel verified companyName').lean();
   res.json({
-    activeJobs,
-    totalApplications,
-    totalViews,
-    shortlistedCandidates,
+    ...metrics,
     verificationLevel: employer?.verificationLevel || 'basic',
     verified: employer?.verified || false,
-    jobs: jobsWithCounts.slice(0, 10).map((j) => ({
-      _id: j._id,
-      title: j.title,
-      views: j.views || 0,
-      applications: (j.apps?.length ?? 0) || (j.applicationsCount || 0),
-      shortlisted: j.shortlisted || 0,
-    })),
   });
+});
+
+/** GET /employer/jobs/:id - Single owned job */
+export const getJob = asyncHandler(async (req, res) => {
+  const employerId = req.employer.employerId;
+  const job = await Job.findOne({ _id: req.params.id, employerId }).lean();
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+  const [enriched] = await enrichEmployerJobsWithApplicationCounts([job]);
+  res.json({ job: enriched });
+});
+
+/** PATCH /employer/profile - Update employer company profile (no password) */
+export const updateEmployerProfile = asyncHandler(async (req, res) => {
+  const employerId = req.employer.employerId;
+  const parsed = buildEmployerProfileUpdates(req.body);
+  if (!parsed.ok) return res.status(400).json({ error: parsed.error });
+  const employer = await Employer.findByIdAndUpdate(employerId, { $set: parsed.updates }, { new: true });
+  if (!employer) return res.status(404).json({ error: 'Employer not found' });
+  const e = employer.toObject();
+  delete e.password;
+  res.json({ employer: e });
 });
 
 /** GET /employer/jobs - List employer's job posts */
@@ -64,7 +59,8 @@ export const getMyJobs = asyncHandler(async (req, res) => {
     Job.find(filter).sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit).lean(),
     Job.countDocuments(filter),
   ]);
-  res.json({ data, total, page, limit });
+  const enriched = await enrichEmployerJobsWithApplicationCounts(data);
+  res.json({ data: enriched, total, page, limit });
 });
 
 /** POST /employer/jobs - Create job as draft (first job can be free) */
@@ -119,11 +115,14 @@ export const createJob = asyncHandler(async (req, res) => {
   res.status(201).json({ job, isFirstJobFree: isFirstJob });
 });
 
-/** PATCH /employer/jobs/:id - Update job (draft only or own job) */
+/** PATCH /employer/jobs/:id - Update owned job */
 export const updateJob = asyncHandler(async (req, res) => {
   const employerId = req.employer.employerId;
   const job = await Job.findOne({ _id: req.params.id, employerId });
   if (!job) return res.status(404).json({ error: 'Job not found' });
+  if (job.status === 'closed') {
+    return res.status(400).json({ error: 'Closed jobs cannot be edited. Reopen the job first.' });
+  }
   const body = req.body;
   const allowed = [
     'title', 'company', 'organization', 'location', 'province', 'city', 'category', 'type', 'jobType',
@@ -143,8 +142,36 @@ export const updateJob = asyncHandler(async (req, res) => {
   });
   if (body.requirements && Array.isArray(body.requirements)) job.requirements = body.requirements;
   if (body.skillsRequired && Array.isArray(body.skillsRequired)) job.skillsRequired = body.skillsRequired;
+  if (body.applyLink !== undefined || body.applyEmail !== undefined) {
+    job.applyType = job.applicationLink || job.applyEmail ? 'external' : 'internal';
+  }
+  if (job.status === 'active' && job.approvalStatus === 'approved') {
+    job.approvalStatus = 'pending';
+  }
+  await job.save();
+  res.json({ job, message: job.approvalStatus === 'pending' ? 'Changes saved. Job may require admin re-approval.' : undefined });
+});
+
+/** POST /employer/jobs/:id/close - Close an active or draft job */
+export const closeJob = asyncHandler(async (req, res) => {
+  const employerId = req.employer.employerId;
+  const job = await Job.findOne({ _id: req.params.id, employerId });
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+  if (job.status === 'closed') return res.status(400).json({ error: 'Job is already closed' });
+  job.status = 'closed';
   await job.save();
   res.json({ job });
+});
+
+/** POST /employer/jobs/:id/reopen - Reopen a closed job as draft */
+export const reopenJob = asyncHandler(async (req, res) => {
+  const employerId = req.employer.employerId;
+  const job = await Job.findOne({ _id: req.params.id, employerId });
+  if (!job) return res.status(404).json({ error: 'Job not found' });
+  if (job.status !== 'closed') return res.status(400).json({ error: 'Only closed jobs can be reopened' });
+  job.status = 'draft';
+  await job.save();
+  res.json({ job, message: 'Job reopened as draft. Activate when ready to publish.' });
 });
 
 /** GET /employer/plans - List job posting plans */
@@ -200,8 +227,31 @@ export const activateJob = asyncHandler(async (req, res) => {
 /** GET /employer/jobs/:id/applications - List applications for a job */
 export const getJobApplications = asyncHandler(async (req, res) => {
   const employerId = req.employer.employerId;
-  const job = await Job.findOne({ _id: req.params.id, employerId });
+  const job = await Job.findOne({ _id: req.params.id, employerId }).lean();
   if (!job) return res.status(404).json({ error: 'Job not found' });
+
+  const applyType = resolveJobApplyType(job);
+  const jobMeta = {
+    _id: job._id,
+    title: job.title,
+    applyType,
+    applicationLink: job.applicationLink || null,
+    applyEmail: job.applyEmail || null,
+    status: job.status,
+    approvalStatus: job.approvalStatus,
+  };
+
+  if (applyType === 'external') {
+    return res.json({
+      data: [],
+      job: jobMeta,
+      applicationsTracked: false,
+      submittedApplicationsCount: null,
+      message:
+        'Applications for this job are handled outside Strideto and are not visible in your applicant dashboard.',
+    });
+  }
+
   const applications = await Application.find({ jobId: job._id })
     .populate('userId', 'name email')
     .sort({ appliedDate: -1 })
@@ -220,14 +270,19 @@ export const getJobApplications = asyncHandler(async (req, res) => {
     })
   );
 
-  res.json({ data: enriched });
+  res.json({
+    data: enriched,
+    job: jobMeta,
+    applicationsTracked: true,
+    submittedApplicationsCount: enriched.length,
+  });
 });
 
 /** PATCH /employer/applications/:id - Update application status (shortlist, reject, interview, hired) */
 export const updateApplicationStatus = asyncHandler(async (req, res) => {
   const employerId = req.employer.employerId;
   const application = await Application.findById(req.params.id).populate('jobId');
-  if (!application || application.jobId.employerId?.toString() !== employerId) {
+  if (!application || application.jobId?.employerId?.toString() !== String(employerId)) {
     return res.status(404).json({ error: 'Application not found' });
   }
   const { status } = req.body;
@@ -235,8 +290,17 @@ export const updateApplicationStatus = asyncHandler(async (req, res) => {
   if (!status || !allowed.includes(status)) {
     return res.status(400).json({ error: 'Invalid status. Use: ' + allowed.join(', ') });
   }
+  // Keep user OpportunityApplication tracker in sync when dual-write exists (best-effort)
+  const previousStatus = application.status;
   application.status = status;
   await application.save();
+
+  void syncOpportunityApplicationFromLegacyStatus(application, {
+    employerId,
+    previousStatus,
+    newStatus: status,
+  });
+
   onApplicationStatusChange({
     applicationId: application._id,
     userId: application.userId,
@@ -253,12 +317,16 @@ export const getJobAnalytics = asyncHandler(async (req, res) => {
   const employerId = req.employer.employerId;
   const job = await Job.findOne({ _id: req.params.jobId, employerId }).lean();
   if (!job) return res.status(404).json({ error: 'Job not found' });
-  const applicationsCount = await Application.countDocuments({ jobId: job._id });
+  const applicationsCount =
+    resolveJobApplyType(job) === 'external' ? null : await Application.countDocuments({ jobId: job._id });
   const views = job.views || 0;
-  const conversionRate = views > 0 ? ((applicationsCount / views) * 100).toFixed(2) : 0;
+  const conversionRate =
+    applicationsCount != null && views > 0 ? ((applicationsCount / views) * 100).toFixed(2) : null;
   res.json({
-    views: views,
+    views,
     applications: applicationsCount,
-    conversionRate: conversionRate + '%',
+    applicationsTracked: applicationsCount != null,
+    applyType: resolveJobApplyType(job),
+    conversionRate: conversionRate != null ? `${conversionRate}%` : 'n/a',
   });
 });

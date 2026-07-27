@@ -22,6 +22,7 @@ import {
   saveCareerPreferencesLocal,
 } from '../preferences/careerPreferences.js';
 import { trackOnboarding } from './analytics.js';
+import { isEmployerPortalPath, isEmployerPublicAuthPath } from '../auth/authRealm.js';
 import './onboarding.css';
 
 let activeDriver = null;
@@ -205,6 +206,7 @@ export function OnboardingProvider({ children }) {
 
   useEffect(() => {
     if (authLoading) return;
+    if (isEmployerPortalPath(location.pathname) || isEmployerPublicAuthPath(location.pathname)) return;
     if (!isAuthenticated && !isEmployerAuth) return;
     if (user?.mustChangePassword) return;
     if (!consumeOnboardingPending()) return;
@@ -219,7 +221,7 @@ export function OnboardingProvider({ children }) {
       runTourFlow({ skipWelcome: false, force: false });
     }, 500);
     return () => clearTimeout(t);
-  }, [authLoading, isAuthenticated, isEmployerAuth, user, userId, runTourFlow]);
+  }, [authLoading, isAuthenticated, isEmployerAuth, user, userId, runTourFlow, location.pathname]);
 
   useEffect(() => {
     const onForce = () => {

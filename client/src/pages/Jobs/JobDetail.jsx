@@ -131,12 +131,14 @@ export default function JobDetail() {
     if (!job?._id || !isOpportunityApplicationEnabled()) return;
     setTrackLoading(true);
     try {
+      const external = job.applyType === 'external';
       const { data: app } = await oaApi.create({
         opportunityType: 'job',
         opportunityId: job._id,
-        source: 'platform',
+        source: external ? 'external' : 'platform',
         title: job.title,
         companyName: job.organization || job.company || '',
+        externalUrl: external ? (job.applicationLink || job.sourceUrl || '') : '',
       });
       toast?.success?.(t('trackedSuccess', { ns: 'jobs', defaultValue: 'Added to your application tracker' }));
       navigate(`${ROUTES.APPLICATIONS}/${app._id}`);
@@ -167,6 +169,7 @@ export default function JobDetail() {
   const jobType = job.jobType || 'Private';
   const isExternal = job.applyType === 'external';
   const applicationLink = job.applicationLink || job.sourceUrl;
+  const applyEmail = job.applyEmail || '';
 
   const canonicalPath = `${ROUTES.JOBS}/${job.slug || job._id}`;
   const description = job.description || t('detailSeoDescription', {
@@ -260,9 +263,26 @@ export default function JobDetail() {
                   {coverLetterLoading ? t('generating', { ns: 'jobs' }) : t('generateCoverLetter', { ns: 'jobs' })}
                 </button>
               )}
+              {isExternal && (
+                <p className="w-full text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">
+                  {t('externalApplyLeavesStrideto', {
+                    ns: 'jobs',
+                    defaultValue:
+                      'This job uses an external application process. Completing it happens outside Strideto, so employers will not see your submission in the Strideto applicant dashboard.',
+                  })}
+                </p>
+              )}
               {isExternal && applicationLink && (
                 <a href={applicationLink} className="inline-flex items-center px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover btn-theme" target="_blank" rel="noopener noreferrer">
                   {t('applyOfficialWebsite', { ns: 'jobs' })}
+                </a>
+              )}
+              {isExternal && !applicationLink && applyEmail && (
+                <a
+                  href={`mailto:${applyEmail}`}
+                  className="inline-flex items-center px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover btn-theme"
+                >
+                  {t('applyByEmail', { ns: 'jobs', defaultValue: 'Apply by email' })}
                 </a>
               )}
               {isAuthenticated && isOpportunityApplicationEnabled() && (
@@ -271,10 +291,20 @@ export default function JobDetail() {
                   onClick={handleTrackApplication}
                   disabled={trackLoading}
                   className="inline-flex items-center px-4 py-2 rounded-lg border-2 border-primary text-primary dark:text-mint hover:bg-mint/20 dark:hover:bg-mint/10 font-medium btn-theme disabled:opacity-50"
+                  title={
+                    isExternal
+                      ? t('trackExternalHint', {
+                          ns: 'jobs',
+                          defaultValue: 'Save this opportunity in your personal tracker. The employer will not be notified.',
+                        })
+                      : undefined
+                  }
                 >
                   {trackLoading
                     ? t('tracking', { ns: 'jobs', defaultValue: 'Adding…' })
-                    : t('trackApplication', { ns: 'jobs', defaultValue: 'Track application' })}
+                    : isExternal
+                      ? t('trackExternalApplication', { ns: 'jobs', defaultValue: 'Mark as applied (personal tracker)' })
+                      : t('trackApplication', { ns: 'jobs', defaultValue: 'Track application' })}
                 </button>
               )}
               {!isExternal && isAuthenticated && (

@@ -5,8 +5,11 @@ import { Helmet } from 'react-helmet-async';
 import { employerApi } from '../../services/employerService';
 import { ROUTES } from '../../constants';
 
+import { isEmployerIntelligenceEnabled } from '../../config/careerFeatureFlags';
+
 export default function EmployerCandidateCompare() {
   const { t } = useTranslation(['employer', 'common']);
+  const enabled = isEmployerIntelligenceEnabled();
   const [searchParams] = useSearchParams();
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -15,6 +18,10 @@ export default function EmployerCandidateCompare() {
   const ids = (searchParams.get('ids') || '').split(',').filter(Boolean);
 
   useEffect(() => {
+    if (!enabled) {
+      setLoading(false);
+      return;
+    }
     if (ids.length < 2) {
       setLoading(false);
       return;
@@ -24,10 +31,13 @@ export default function EmployerCandidateCompare() {
       .then(({ data }) => setRows(data.data?.candidates || []))
       .catch((err) => setError(err.response?.data?.error || t('employer:intelligenceLoadFailed')))
       .finally(() => setLoading(false));
-  }, [searchParams, t, ids.join(',')]);
+  }, [enabled, searchParams, t, ids.join(',')]);
 
-  const metrics = [
-    { key: 'jobMatch', label: t('employer:jobMatchShort', { defaultValue: 'Job Match' }), fmt: (v) => (v != null ? `${v}%` : '—') },
+  if (!enabled) {
+    return <div className="p-6 text-sm text-gray-600 dark:text-gray-300">{t('employer:intelligenceDisabled')}</div>;
+  }
+
+  const metrics = [    { key: 'jobMatch', label: t('employer:jobMatchShort', { defaultValue: 'Job Match' }), fmt: (v) => (v != null ? `${v}%` : '—') },
     { key: 'resumeQuality', label: t('employer:resumeShort', { defaultValue: 'Resume Quality' }), fmt: (v) => v ?? '—' },
     { key: 'readiness', label: t('employer:readinessShort'), fmt: (v) => v ?? '—' },
     { key: 'communication', label: t('employer:communication', { defaultValue: 'Communication' }), fmt: (v) => v ?? '—' },

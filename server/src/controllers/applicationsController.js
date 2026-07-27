@@ -57,16 +57,24 @@ export const applyToJob = asyncHandler(async (req, res) => {
   const existing = await Application.findOne({ userId, jobId });
   if (existing) return res.status(400).json({ error: 'You have already applied to this job' });
 
-  const application = await Application.create({
-    userId,
-    jobId,
-    resumeURL: resumeURL || req.body?.resumeURL,
-    talentProfileId,
-    resumeVersionId,
-    resumeSource,
-    coverLetter: stripAllHtml(req.body?.coverLetter),
-    status: 'submitted',
-  });
+  let application;
+  try {
+    application = await Application.create({
+      userId,
+      jobId,
+      resumeURL: resumeURL || req.body?.resumeURL,
+      talentProfileId,
+      resumeVersionId,
+      resumeSource,
+      coverLetter: stripAllHtml(req.body?.coverLetter),
+      status: 'submitted',
+    });
+  } catch (err) {
+    if (err?.code === 11000) {
+      return res.status(400).json({ error: 'You have already applied to this job' });
+    }
+    throw err;
+  }
   await Job.findByIdAndUpdate(jobId, { $inc: { applicationsCount: 1 } });
 
   // L.2.6 — await dual-write so Apply → Tracker redirect can use OA id

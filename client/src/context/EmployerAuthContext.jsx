@@ -59,6 +59,12 @@ export function EmployerAuthProvider({ children }) {
     return data.employer;
   }, [persistEmployer, setSessionTokens]);
 
+  const refreshEmployer = useCallback(async () => {
+    const { data } = await employerAuthApi.me();
+    persistEmployer(data.employer);
+    return data.employer;
+  }, [persistEmployer]);
+
   const logout = useCallback(async () => {
     try {
       if (localStorage.getItem(EMPLOYER_TOKEN_STORAGE)) {
@@ -96,6 +102,7 @@ export function EmployerAuthProvider({ children }) {
     login,
     register,
     logout,
+    refreshEmployer,
   };
 
   return (

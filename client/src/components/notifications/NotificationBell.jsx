@@ -4,11 +4,13 @@ import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../constants';
 import { inboxApi } from '../../services/listingsService';
 import { useAuth } from '../../context/AuthContext';
+import { useUserNavbarSession } from '../../hooks/useUserNavbarSession';
 import { registerOverlayEscape } from '../../a11y/overlayStack';
 
 export function NotificationBell() {
   const { t } = useTranslation(['common', 'dashboard']);
   const { isAuthenticated } = useAuth();
+  const { enabled: userNavbarSession } = useUserNavbarSession();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
@@ -16,7 +18,7 @@ export function NotificationBell() {
   const ref = useRef(null);
 
   const load = () => {
-    if (!isAuthenticated) return;
+    if (!userNavbarSession || !isAuthenticated) return;
     setLoading(true);
     Promise.all([
       inboxApi.list({ limit: 8 }),
@@ -34,7 +36,7 @@ export function NotificationBell() {
     load();
     const id = setInterval(load, 60000);
     return () => clearInterval(id);
-  }, [isAuthenticated]);
+  }, [isAuthenticated, userNavbarSession]);
 
   useEffect(() => {
     const onDoc = (e) => {
@@ -49,7 +51,7 @@ export function NotificationBell() {
     return registerOverlayEscape(() => setOpen(false));
   }, [open]);
 
-  if (!isAuthenticated) return null;
+  if (!userNavbarSession || !isAuthenticated) return null;
 
   const markRead = async (id) => {
     await inboxApi.markRead(id).catch(() => {});

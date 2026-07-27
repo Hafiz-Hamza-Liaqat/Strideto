@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
@@ -8,19 +8,98 @@ import { EmptyState } from '../../components/common/EmptyState';
 
 const STATUS_FILTERS = ['', 'draft', 'active', 'closed'];
 
+function isExternalJob(j) {
+  return j?.applyType === 'external' || j?.applicationsTracked === false;
+}
+
+function formatApplicationCount(j, t) {
+  if (isExternalJob(j)) return t('employer:applicationsNotTracked');
+  const n = j.submittedApplicationsCount ?? j.applicationsCount ?? 0;
+  return String(n);
+}
+
 export default function EmployerJobs() {
   const { t } = useTranslation(['employer', 'common']);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [status, setStatus] = useState('');
+  const [error, setError] = useState('');
+  const [actionJobId, setActionJobId] = useState('');
 
-  useEffect(() => {
-    employerApi
+  const loadJobs = useCallback(() => {
+    setLoading(true);
+    setError('');
+    return employerApi
       .getJobs({ status: status || undefined })
       .then(({ data }) => setJobs(data.data || []))
-      .catch(() => setJobs([]))
+      .catch(() => {
+        setJobs([]);
+        setError(t('employer:jobsLoadFailed'));
+      })
       .finally(() => setLoading(false));
-  }, [status]);
+  }, [status, t]);
+
+  useEffect(() => {
+    loadJobs();
+  }, [loadJobs]);
+
+  const editPath = (id) => `/employer/jobs/${id}/edit`;
+
+  const runJobAction = async (id, action) => {
+    if (actionJobId) return;
+    setActionJobId(id);
+    try {
+      if (action === 'close') await employerApi.closeJob(id);
+      else if (action === 'reopen') await employerApi.reopenJob(id);
+      else if (action === 'activate') await employerApi.activateJob(id, {});
+      await loadJobs();
+    } catch (err) {
+      setError(err.response?.data?.error || t('employer:jobActionFailed'));
+    } finally {
+      setActionJobId('');
+    }
+  };
+
+  const JobActions = ({ j }) => (
+    <div className="flex flex-wrap gap-2">
+      {j.status !== 'closed' ? (
+        <Link to={editPath(j._id)} className="text-sm text-primary hover:underline inline-flex min-h-[44px] items-center">
+          {t('employer:editJob')}
+        </Link>
+      ) : (
+        <button
+          type="button"
+          disabled={actionJobId === j._id}
+          onClick={() => runJobAction(j._id, 'reopen')}
+          className="text-sm text-primary hover:underline min-h-[44px]"
+        >
+          {t('employer:reopenJob')}
+        </button>
+      )}
+      {j.status === 'draft' ? (
+        <button
+          type="button"
+          disabled={actionJobId === j._id}
+          onClick={() => runJobAction(j._id, 'activate')}
+          className="text-sm text-slate-700 dark:text-gray-300 hover:underline min-h-[44px]"
+        >
+          {t('employer:activateJob')}
+        </button>
+      ) : null}
+      {j.status !== 'closed' ? (
+        <button
+          type="button"
+          disabled={actionJobId === j._id}
+          onClick={() => {
+            if (window.confirm(t('employer:confirmCloseJob'))) runJobAction(j._id, 'close');
+          }}
+          className="text-sm text-red-600 hover:underline min-h-[44px]"
+        >
+          {t('employer:closeJob')}
+        </button>
+      ) : null}
+    </div>
+  );
 
   const statusLabel = (s) => {
     if (!s) return t('common:all');
@@ -32,10 +111,12 @@ export default function EmployerJobs() {
     <>
       <SeoHead title={t('employer:myJobsSeoTitle')} description={t('employer:myJobsSeoDesc')} noindex />
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-[#0F172A]">{t('employer:myJobPosts')}</h1>
+        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
+          {t('employer:myJobPosts')}
+        </h1>
         <Link
           to={ROUTES.EMPLOYER_POST_JOB}
-          className="px-4 py-2.5 bg-[#635BFF] hover:bg-[#4F46E5] text-white text-sm font-medium rounded-lg min-h-[44px] inline-flex items-center shrink-0"
+          className="px-4 py-2.5 bg-primary hover:opacity-90 text-white text-sm font-medium rounded-lg min-h-[44px] inline-flex items-center shrink-0"
         >
           {t('employer:postNewJob')}
         </Link>
@@ -47,94 +128,176 @@ export default function EmployerJobs() {
             type="button"
             onClick={() => setStatus(s)}
             className={`px-3 py-2 text-sm rounded-lg min-h-[44px] ${
-              status === s ? 'bg-[#635BFF] text-white' : 'bg-white border border-[#E5E7EB] text-slate-600'
+              status === s
+                ? 'bg-primary text-white'
+                : 'bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 text-slate-600 dark:text-gray-300'
             }`}
           >
             {statusLabel(s)}
           </button>
         ))}
       </div>
-      <div className="bg-white rounded-xl border border-[#E5E7EB] overflow-hidden">
+      {error ? (
+        <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm" role="alert">
+          {error}
+        </div>
+      ) : null}
+      <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden min-w-0">
         {loading ? (
-          <div className="p-8 text-center text-slate-600">{t('common:loading')}</div>
+          <div className="p-8 text-center text-slate-600 dark:text-gray-300">{t('common:loading')}</div>
         ) : jobs.length === 0 ? (
           <EmptyState
             icon="🏢"
-            title="Post your first job"
-            description="Create your first job posting and start hiring."
-            actionLabel="Post a Job"
+            title={t('employer:postFirstJob')}
+            description={t('employer:noJobsYet')}
+            actionLabel={t('employer:postAJob')}
             actionTo={ROUTES.EMPLOYER_POST_JOB}
           />
         ) : (
           <>
-            <div className="md:hidden divide-y divide-[#E5E7EB]">
+            <div className="md:hidden divide-y divide-gray-200 dark:divide-gray-700">
               {jobs.map((j) => (
-                <div key={j._id} className="p-4 space-y-2">
+                <div key={j._id} className="p-4 space-y-2 min-w-0">
                   <Link
                     to={`/jobs/${j.slug}`}
-                    className="font-medium text-[#0F172A] hover:text-[#635BFF] break-words-safe block"
+                    className="font-medium text-gray-900 dark:text-white hover:text-primary break-words-safe block"
                     target="_blank"
                     rel="noopener noreferrer"
                   >
                     {j.title}
                   </Link>
-                  <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600">
+                  <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600 dark:text-gray-300">
                     <span
                       className={`inline-block px-2 py-0.5 text-xs rounded ${
-                        j.status === 'active' ? 'bg-green-100 text-green-800' : j.status === 'draft' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
+                        j.status === 'active'
+                          ? 'bg-green-100 text-green-800'
+                          : j.status === 'draft'
+                            ? 'bg-amber-100 text-amber-800'
+                            : 'bg-slate-100 text-slate-600'
                       }`}
                     >
                       {statusLabel(j.status)}
                     </span>
-                    <span>{t('common:views')}: {j.views ?? 0}</span>
-                    <span>{t('common:applications')}: {j.applicationsCount ?? 0}</span>
+                    {j.approvalStatus && j.approvalStatus !== 'approved' ? (
+                      <span className="inline-block px-2 py-0.5 text-xs rounded bg-slate-100 text-slate-700">
+                        {t(`employer:approval_${j.approvalStatus}`, { defaultValue: j.approvalStatus })}
+                      </span>
+                    ) : null}
+                    <span
+                      className={`inline-block px-2 py-0.5 text-xs rounded ${
+                        isExternalJob(j) ? 'bg-violet-100 text-violet-800' : 'bg-sky-100 text-sky-800'
+                      }`}
+                    >
+                      {isExternalJob(j) ? t('employer:applyMethodExternal') : t('employer:applyMethodInternal')}
+                    </span>
+                    <span>
+                      {t('common:views')}: {j.views ?? 0}
+                    </span>
+                    <span>
+                      {t('common:applications')}: {formatApplicationCount(j, t)}
+                    </span>
                   </div>
-                  <Link
-                    to={`${ROUTES.EMPLOYER_APPLICATIONS}?jobId=${j._id}`}
-                    className="text-sm text-[#635BFF] hover:underline inline-flex min-h-[44px] items-center"
-                  >
-                    {t('employer:viewApplications')}
-                  </Link>
+                  {isExternalJob(j) ? (
+                    <div className="space-y-1">
+                      <p className="text-xs text-slate-500 dark:text-gray-400">{t('employer:externalAppsNotVisible')}</p>
+                      {j.applicationLink ? (
+                        <a
+                          href={j.applicationLink}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-sm text-primary hover:underline inline-flex min-h-[44px] items-center"
+                        >
+                          {t('employer:openApplicationDestination')}
+                        </a>
+                      ) : j.applyEmail ? (
+                        <a
+                          href={`mailto:${j.applyEmail}`}
+                          className="text-sm text-primary hover:underline inline-flex min-h-[44px] items-center"
+                        >
+                          {t('employer:openApplicationEmail')}
+                        </a>
+                      ) : null}
+                    </div>
+                  ) : (
+                    <Link
+                      to={`${ROUTES.EMPLOYER_APPLICATIONS}?jobId=${j._id}`}
+                      className="text-sm text-primary hover:underline inline-flex min-h-[44px] items-center"
+                    >
+                      {t('employer:viewApplications')}
+                    </Link>
+                  )}
+                  <JobActions j={j} />
                 </div>
               ))}
             </div>
             <div className="hidden md:block table-scroll">
-              <table>
-                <thead className="bg-slate-50 border-b border-[#E5E7EB]">
+              <table className="w-full min-w-0">
+                <thead className="bg-slate-50 dark:bg-gray-900/40 border-b border-gray-200 dark:border-gray-700">
                   <tr>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-[#0F172A]">{t('common:title')}</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-[#0F172A]">{t('common:status')}</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-[#0F172A]">{t('common:views')}</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-[#0F172A]">{t('common:applications')}</th>
-                    <th className="text-left py-3 px-4 text-sm font-semibold text-[#0F172A]">{t('common:actions')}</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900 dark:text-white">{t('common:title')}</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900 dark:text-white">{t('common:status')}</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900 dark:text-white">{t('employer:applyMethod')}</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900 dark:text-white">{t('common:views')}</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900 dark:text-white">{t('common:applications')}</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900 dark:text-white">{t('common:actions')}</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-[#E5E7EB]">
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-700">
                   {jobs.map((j) => (
                     <tr key={j._id}>
-                      <td className="py-3 px-4">
-                        <Link to={`/jobs/${j.slug}`} className="font-medium text-[#0F172A] hover:text-[#635BFF] break-words-safe" target="_blank" rel="noopener noreferrer">
+                      <td className="py-3 px-4 min-w-0">
+                        <Link
+                          to={`/jobs/${j.slug}`}
+                          className="font-medium text-gray-900 dark:text-white hover:text-primary break-words-safe"
+                          target="_blank"
+                          rel="noopener noreferrer"
+                        >
                           {j.title}
                         </Link>
                       </td>
                       <td className="py-3 px-4">
                         <span
                           className={`inline-block px-2 py-0.5 text-xs rounded ${
-                            j.status === 'active' ? 'bg-green-100 text-green-800' : j.status === 'draft' ? 'bg-amber-100 text-amber-800' : 'bg-slate-100 text-slate-600'
+                            j.status === 'active'
+                              ? 'bg-green-100 text-green-800'
+                              : j.status === 'draft'
+                                ? 'bg-amber-100 text-amber-800'
+                                : 'bg-slate-100 text-slate-600'
                           }`}
                         >
                           {statusLabel(j.status)}
                         </span>
                       </td>
-                      <td className="py-3 px-4 text-slate-600">{j.views ?? 0}</td>
-                      <td className="py-3 px-4 text-slate-600">{j.applicationsCount ?? 0}</td>
+                      <td className="py-3 px-4 text-sm text-slate-600 dark:text-gray-300">
+                        {isExternalJob(j) ? t('employer:applyMethodExternal') : t('employer:applyMethodInternal')}
+                      </td>
+                      <td className="py-3 px-4 text-slate-600 dark:text-gray-300">{j.views ?? 0}</td>
+                      <td className="py-3 px-4 text-slate-600 dark:text-gray-300">{formatApplicationCount(j, t)}</td>
                       <td className="py-3 px-4">
-                        <Link
-                          to={`${ROUTES.EMPLOYER_APPLICATIONS}?jobId=${j._id}`}
-                          className="text-sm text-[#635BFF] hover:underline"
-                        >
-                          {t('employer:viewApplications')}
-                        </Link>
+                        <div className="space-y-1">
+                          {isExternalJob(j) ? (
+                            j.applicationLink ? (
+                              <a
+                                href={j.applicationLink}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-sm text-primary hover:underline"
+                              >
+                                {t('employer:openApplicationDestination')}
+                              </a>
+                            ) : (
+                              <span className="text-sm text-slate-500">{t('employer:externalAppsShort')}</span>
+                            )
+                          ) : (
+                            <Link
+                              to={`${ROUTES.EMPLOYER_APPLICATIONS}?jobId=${j._id}`}
+                              className="text-sm text-primary hover:underline"
+                            >
+                              {t('employer:viewApplications')}
+                            </Link>
+                          )}
+                          <JobActions j={j} />
+                        </div>
                       </td>
                     </tr>
                   ))}

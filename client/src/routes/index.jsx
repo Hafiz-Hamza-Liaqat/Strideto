@@ -170,6 +170,7 @@ export const routes = [
       { path: 'intelligence/pipeline', element: <EmployerPipeline /> },
       { path: 'jobs', element: <EmployerJobs /> },
       { path: 'jobs/new', element: <EmployerPostJob /> },
+      { path: 'jobs/:jobId/edit', element: <EmployerPostJob /> },
       { path: 'applications', element: <EmployerApplications /> },
       { path: 'analytics', element: <EmployerAnalytics /> },
       { path: 'settings', element: <EmployerSettings /> },
