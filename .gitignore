@@ -22,6 +22,8 @@ server/.env.staging
 .mongo-data/
 .cursor/
 *.local
+server/.remediation-rollbacks/
+server/.remediation-targets/
 
 # Build outputs
 dist/
