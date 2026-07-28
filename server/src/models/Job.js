@@ -2,6 +2,55 @@ import mongoose from 'mongoose';
 import { jobSlug } from '../utils/slugify.js';
 import { translationFieldDefinition, applySlugLocaleIndex, ensureTranslationGroupHook } from './mixins/translationFields.js';
 
+const { ObjectId } = mongoose.Schema.Types;
+
+const CANONICAL_PUBLICATION_STATES = Object.freeze([
+  'draft',
+  'pending_review',
+  'active',
+  'rejected',
+  'closed',
+  'expired',
+]);
+
+const PUBLICATION_MIGRATION_STATUSES = Object.freeze([
+  'canonical_native',
+  'legacy_backfilled',
+  'legacy_compatible',
+  'manual_review',
+]);
+
+const rejectionSummarySchema = new mongoose.Schema(
+  {
+    reasonCode: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 100,
+      match: /^[A-Z0-9_]+$/,
+    },
+    ownerMessage: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: 1000,
+    },
+    eventId: {
+      type: ObjectId,
+      ref: 'JobModerationEvent',
+      required: true,
+    },
+    decidedAt: { type: Date, required: true },
+  },
+  { _id: false, strict: 'throw' }
+);
+
+function hasCanonicalState(states) {
+  return function canonicalStateMatches() {
+    return states.includes(this.publicationState);
+  };
+}
+
 const jobSchema = new mongoose.Schema(
   {
     title: { type: String, required: true },
@@ -49,6 +98,82 @@ const jobSchema = new mongoose.Schema(
     sourceWebsite: { type: String }, // e.g. PPSC, FPSC, LinkedIn, Rozee.pk
     externalId: { type: String, unique: true, sparse: true }, // unique per source for dedup
     approvalStatus: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'approved' },
+    publicationState: {
+      type: String,
+      enum: CANONICAL_PUBLICATION_STATES,
+    },
+    publicationVersion: {
+      type: Number,
+      min: 0,
+      required: hasCanonicalState(CANONICAL_PUBLICATION_STATES),
+      validate: {
+        validator(value) {
+          return value == null || Number.isInteger(value);
+        },
+        message: 'publicationVersion must be an integer',
+      },
+    },
+    currentSubmissionId: {
+      type: ObjectId,
+      ref: 'JobPublicationSubmission',
+      required: hasCanonicalState(['pending_review', 'active', 'rejected']),
+    },
+    lastApprovedSubmissionId: {
+      type: ObjectId,
+      ref: 'JobPublicationSubmission',
+      required: hasCanonicalState(['active']),
+    },
+    publishedAt: {
+      type: Date,
+      required: hasCanonicalState(['active']),
+    },
+    visibleUntil: {
+      type: Date,
+      required: hasCanonicalState(['active']),
+      validate: {
+        validator(value) {
+          return !value || !this.publishedAt || value >= this.publishedAt;
+        },
+        message: 'visibleUntil cannot be earlier than publishedAt',
+      },
+    },
+    applicationsCloseAt: {
+      type: Date,
+      required: hasCanonicalState(['active']),
+      validate: {
+        validator(value) {
+          return !value || !this.visibleUntil || value <= this.visibleUntil;
+        },
+        message: 'applicationsCloseAt cannot be later than visibleUntil',
+      },
+    },
+    closedAt: {
+      type: Date,
+      required: hasCanonicalState(['closed']),
+    },
+    expiredAt: {
+      type: Date,
+      required: hasCanonicalState(['expired']),
+    },
+    rejectionSummary: {
+      type: rejectionSummarySchema,
+      required: hasCanonicalState(['rejected']),
+    },
+    slugFrozenAt: {
+      type: Date,
+      required: hasCanonicalState(['active']),
+    },
+    policyVersion: {
+      type: String,
+      trim: true,
+      maxlength: 100,
+      required: hasCanonicalState(['pending_review', 'active', 'rejected']),
+    },
+    publicationUpdatedAt: { type: Date },
+    publicationMigrationStatus: {
+      type: String,
+      enum: PUBLICATION_MIGRATION_STATUSES,
+    },
     remote: { type: Boolean, default: false },
     hybrid: { type: Boolean, default: false },
     responsibilities: [{ type: String }],

@@ -15,6 +15,10 @@ import { CareerArticle } from '../../models/CareerArticle.js';
 import { CmsStaticPage } from '../../models/CmsStaticPage.js';
 import { CmsPageLayout } from '../../models/CmsPageLayout.js';
 import { FormDefinition } from '../../models/FormDefinition.js';
+import {
+  buildJobTranslationProjection,
+  validateJobTranslationOverrides,
+} from '../jobWriteBoundary.js';
 
 const ENTITY_MODEL_MAP = {
   blog: Blog,
@@ -94,15 +98,40 @@ export async function createTranslationFromSource({
   delete plain.slug;
   delete plain.publishedAt;
 
-  const doc = new Model({
-    ...plain,
-    ...overrides,
-    locale: loc,
-    translationGroupId: groupId,
-    translationOf: source._id,
-    translationStatus: defaultTranslationStatusForLocale(loc),
-    status: entityType === 'job' ? 'draft' : (plain.status === 'published' ? 'draft' : plain.status),
-  });
+  let documentInput;
+  if (entityType === 'job') {
+    const validation = validateJobTranslationOverrides(overrides);
+    if (!validation.ok) {
+      const error = new Error(
+        'One or more translation override fields are not allowed.'
+      );
+      error.status = 400;
+      error.code = 'TRANSLATION_OVERRIDE_FIELDS_FORBIDDEN';
+      error.details = { fields: validation.forbiddenFields };
+      throw error;
+    }
+    documentInput = {
+      ...buildJobTranslationProjection(plain, validation.safeOverrides),
+      locale: loc,
+      translationGroupId: groupId,
+      translationOf: source._id,
+      translationStatus: defaultTranslationStatusForLocale(loc),
+      status: 'draft',
+      approvalStatus: 'pending',
+    };
+  } else {
+    documentInput = {
+      ...plain,
+      ...overrides,
+      locale: loc,
+      translationGroupId: groupId,
+      translationOf: source._id,
+      translationStatus: defaultTranslationStatusForLocale(loc),
+      status: plain.status === 'published' ? 'draft' : plain.status,
+    };
+  }
+
+  const doc = new Model(documentInput);
 
   if (doc.title) doc.title = `${doc.title} (${loc.toUpperCase()})`;
   if (doc.name) doc.name = `${doc.name} (${loc.toUpperCase()})`;

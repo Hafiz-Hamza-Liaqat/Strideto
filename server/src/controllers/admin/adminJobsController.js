@@ -10,6 +10,7 @@ import { cacheDelPattern } from '../../config/redis.js';
 import { CACHE_KEYS } from '../../utils/cacheKeys.js';
 import { invalidateDynamicContentForEntity } from '../../utils/dynamicContentCache.js';
 import { onContentSaved, onContentDeleted, onContentBulkDeleted, onContentBulkUpdated } from '../../utils/contentIntegration.js';
+import { buildJobDuplicateProjection } from '../../services/jobWriteBoundary.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -182,17 +183,21 @@ export const duplicate = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
   const source = await Job.findById(id).lean();
   if (!source) return res.status(404).json({ error: 'Job not found' });
-  delete source._id;
-  delete source.createdAt;
-  delete source.updatedAt;
-  source.title = `${source.title} (Copy)`;
-  source.status = 'draft';
-  source.approvalStatus = 'pending';
-  source.views = 0;
-  source.applicationsCount = 0;
-  delete source.slug;
-  const doc = new Job(source);
-  const slugErr = await applyResolvedSlug('job', doc, { title: source.title, province: source.province, location: source.location }, true);
+  const duplicateInput = buildJobDuplicateProjection(source);
+  duplicateInput.title = `${source.title} (Copy)`;
+  duplicateInput.status = 'draft';
+  duplicateInput.approvalStatus = 'pending';
+  const doc = new Job(duplicateInput);
+  const slugErr = await applyResolvedSlug(
+    'job',
+    doc,
+    {
+      title: duplicateInput.title,
+      province: duplicateInput.province,
+      location: duplicateInput.location,
+    },
+    true
+  );
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();
   onContentSaved('jobs', doc);

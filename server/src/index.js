@@ -22,6 +22,7 @@ import { getCorsOptions } from './config/cors.js';
 import { validateProductionEnv } from './config/validateEnv.js';
 import { configureTrustProxy } from './config/proxy.js';
 import { logger } from './utils/logger.js';
+import { createMongoSanitizeOptions } from './services/jobWriteBoundary.js';
 
 validateProductionEnv();
 
@@ -53,7 +54,7 @@ app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), stri
 
 app.use(cors(getCorsOptions()));
 app.use(express.json({ limit: '1mb' }));
-app.use(mongoSanitize());
+app.use(mongoSanitize(createMongoSanitizeOptions()));
 app.use(requestLogger);
 app.use('/api', apiLimiter);
 
