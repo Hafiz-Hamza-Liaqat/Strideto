@@ -837,8 +837,11 @@ Builders and validators return canonical deeply frozen values.
 { classification, mismatchCodes }
 ```
 
-Classification is `MATCH` or `CONFLICT`; mismatch codes use a separate bounded
-operation-identity policy and never values.
+Classification is exactly `SAME_LOGICAL_OPERATION`,
+`DIFFERENT_LOGICAL_OPERATION`, or `IDENTITY_CONFLICT`. The complete ordered
+mismatch-code inventory and exclusive-identity rules are defined by the C3-A1
+consistency correction in section 41. That correction supersedes the original
+incomplete two-way comparison statement.
 
 Reconciliation module exports:
 
@@ -1099,3 +1102,753 @@ and runtime-isolated.
 - Production acceptance report touched: No.
 
 STRIDETO PROJECT PRESERVATION CONTRACT SATISFIED
+
+## 41. C3-A1 Authoritative Contract Consistency Correction
+
+### 41.1 Status, scope, and supersession
+
+C3-B correctly stopped before implementation because the original C3-A
+contract would have required invention in six areas:
+
+1. operation identity had only two classifications while three behaviors were
+   required;
+2. operation-identity mismatch codes were not enumerated;
+3. simultaneous security, corruption, duplicate, and read-failure evidence had
+   no fixed precedence;
+4. non-`FOUND` observation shapes were not exact;
+5. counts above ten had no bounded representation;
+6. exported policy inventories and numeric bounds were incomplete.
+
+This section corrects only those defects. It is authoritative and supersedes
+earlier sections 16, 20 through 23, 31 through 34, and 37 only where their
+identity classification, observation shape, result shape, precedence, export
+inventory, bound, or mandatory-test wording differs from this section. Every
+other C3-A decision remains unchanged, including the 19-field seed, 32-field
+context, operation kinds, identity generation boundary, lack of context digest,
+five reconciliation outcomes, error codes, privacy rules, file scope, and
+dormancy.
+
+### 41.2 Exact three-way operation-identity comparison
+
+The comparison output has exactly these fields in this order:
+
+```text
+classification
+mismatchCodes
+```
+
+The classification enum has exactly:
+
+```text
+SAME_LOGICAL_OPERATION
+DIFFERENT_LOGICAL_OPERATION
+IDENTITY_CONFLICT
+```
+
+`SAME_LOGICAL_OPERATION` is returned only when `operationId` and every stable
+field in the complete 32-field context are identical. `mismatchCodes` is then
+an empty frozen array.
+
+`IDENTITY_CONFLICT` is returned when either:
+
+1. `operationId` is identical and any mismatch code exists; or
+2. `operationId` differs and at least one exclusive identity is reused.
+
+The exact exclusive identities are:
+
+```text
+submissionId
+acknowledgementId
+moderationEventId
+newModerationCycleId
+expectedCurrentSubmissionId
+outboxDeduplicationKeys.employerSubmissionReceived
+outboxDeduplicationKeys.adminJobReviewRequested
+ownerType + ownerId + idempotencyKey
+```
+
+The idempotency identity is exclusive only as the complete three-field
+composite. An idempotency-key string used by a different owner is not by itself
+exclusive.
+
+`DIFFERENT_LOGICAL_OPERATION` is returned only when operation IDs differ and no
+exclusive identity is reused. Shared Job, Employer, quota owner, candidate
+hash, approved base, correction predecessor, moderation cycle, rules version,
+or policy version does not alone prove conflict because a later independent
+operation may legitimately share those values.
+
+The comparison evaluates every stable context field and returns all applicable
+mismatch codes in canonical policy order. It returns no values.
+
+### 41.3 Exact operation-identity mismatch codes
+
+The complete immutable ordered enum has exactly 33 codes:
+
+```text
+SCHEMA_VERSION_MISMATCH
+POLICY_VERSION_MISMATCH
+OPERATION_ID_MISMATCH
+OPERATION_KIND_MISMATCH
+OWNER_TYPE_MISMATCH
+OWNER_ID_MISMATCH
+EMPLOYER_ID_MISMATCH
+JOB_ID_MISMATCH
+IDEMPOTENCY_KEY_MISMATCH
+SUBMISSION_ID_MISMATCH
+ACKNOWLEDGEMENT_ID_MISMATCH
+MODERATION_EVENT_ID_MISMATCH
+NEW_MODERATION_CYCLE_ID_MISMATCH
+EXPECTED_PUBLICATION_VERSION_MISMATCH
+EXPECTED_PUBLICATION_STATE_MISMATCH
+CORRECTION_OF_SUBMISSION_ID_MISMATCH
+RULES_VERSION_MISMATCH
+EMPLOYER_SUBMISSION_RECEIVED_OUTBOX_KEY_MISMATCH
+ADMIN_JOB_REVIEW_REQUESTED_OUTBOX_KEY_MISMATCH
+INITIATED_AT_MISMATCH
+REQUEST_FINGERPRINT_MISMATCH
+CANDIDATE_HASH_MISMATCH
+CANDIDATE_REVISION_MISMATCH
+CANDIDATE_KIND_MISMATCH
+BASE_APPROVED_SUBMISSION_ID_MISMATCH
+BASE_APPROVED_CANDIDATE_HASH_MISMATCH
+BASE_PUBLICATION_VERSION_MISMATCH
+ACTUAL_MODERATION_CYCLE_ID_MISMATCH
+EXPECTED_COMMITTED_PUBLICATION_VERSION_MISMATCH
+EXPECTED_COMMITTED_PUBLICATION_STATE_MISMATCH
+EXPECTED_CURRENT_SUBMISSION_ID_MISMATCH
+RULES_DIGEST_MISMATCH
+QUOTA_CHARGED_MISMATCH
+```
+
+The order maps one-for-one to the 32 context fields, except that the
+`outboxDeduplicationKeys` field deliberately produces one code for each of its
+two fixed typed keys. No generic or caller-provided code is allowed.
+
+All 33 fields are stable for same-operation comparison. Only the exclusive
+identities listed in section 41.2 can turn differing operation IDs into
+`IDENTITY_CONFLICT`. Non-exclusive mismatches distinguish independent
+operations but do not by themselves establish identity substitution.
+
+`mismatchCodes` is newly allocated, deduplicated by construction, deeply
+frozen, and bounded to 33. It contains no raw field values.
+
+### 41.4 Exact tagged-union convention
+
+Every reduced record observation uses the discriminator field `state` and
+exactly one of:
+
+```text
+FOUND
+ABSENT
+DUPLICATE
+DUPLICATE_OVERFLOW
+READ_FAILED
+```
+
+The common non-`FOUND` variants are exact:
+
+```text
+{ state: "ABSENT" }
+{ state: "READ_FAILED" }
+{ state: "DUPLICATE", count: <integer 2 through 10> }
+{ state: "DUPLICATE_OVERFLOW" }
+```
+
+`DUPLICATE_OVERFLOW` means 11 or more observations. It never stores a count.
+`ABSENT` and `READ_FAILED` contain no other field. `DUPLICATE` contains only
+`state` and `count`.
+
+Variant fields never mix:
+
+- `ABSENT` cannot contain match flags;
+- `READ_FAILED` cannot contain an error, code, message, stack, cause, or retry
+  flag;
+- `DUPLICATE` cannot contain records or match flags;
+- `DUPLICATE_OVERFLOW` cannot contain a count;
+- `FOUND` cannot contain a duplicate count;
+- unknown states and unknown fields fail closed.
+
+All variants reject accessors, symbols, inherited or hidden fields, unusual
+prototypes, raw records, database documents, sessions, and driver objects.
+
+### 41.5 Exact `FOUND` variants
+
+The submission `FOUND` shape has exactly these 15 fields:
+
+```text
+state
+submissionIdMatches
+ownerMatches
+idempotencyKeyMatches
+requestFingerprintMatches
+jobIdMatches
+employerIdMatches
+candidateHashMatches
+candidateRevisionMatches
+candidateKindMatches
+baseBindingMatches
+expectedPublicationVersionMatches
+stateMatches
+quotaEvidenceMatches
+safeResultAvailable
+```
+
+Every field after `state` is a required primitive boolean.
+
+The canonical Job `FOUND` shape has exactly:
+
+```text
+state
+stateClassification
+ownerMatches
+publicationVersionMatches
+currentSubmissionMatches
+lastApprovedSubmissionMatches
+policyVersionMatches
+```
+
+`stateClassification` is exactly `BASE_UNCHANGED`, `COMMITTED_MATCH`, or
+`CONFLICT`; the remaining fields are required booleans.
+
+The acknowledgement `FOUND` shape has exactly:
+
+```text
+state
+acknowledgementIdMatches
+submissionIdMatches
+jobIdMatches
+employerIdMatches
+acceptedMatches
+policyVersionMatches
+rulesVersionMatches
+rulesDigestMatches
+```
+
+The moderation-event `FOUND` shape has exactly:
+
+```text
+state
+moderationEventIdMatches
+submissionIdMatches
+jobIdMatches
+employerIdMatches
+actionMatches
+stateTransitionMatches
+moderationCycleMatches
+candidateHashMatches
+```
+
+Each typed outbox-intent `FOUND` shape has exactly:
+
+```text
+state
+deduplicationKeyMatches
+submissionIdMatches
+jobIdMatches
+typeMatches
+audienceMatches
+employerPresenceMatches
+```
+
+The unexpected-outbox-record observation uses the common variants, except its
+`FOUND` shape is exactly:
+
+```text
+{ state: "FOUND" }
+```
+
+That shape means exactly one unexpected record. `DUPLICATE` represents 2
+through 10 unexpected records and `DUPLICATE_OVERFLOW` represents 11 or more.
+
+The quota-evidence `FOUND` shape has exactly:
+
+```text
+state
+chargedEvidenceStatus
+guardEvidenceStatus
+```
+
+`chargedEvidenceStatus` is exactly `MATCH`, `CONFLICT`, or `NOT_APPLICABLE`.
+Absence uses the common `ABSENT` variant rather than an `ABSENT` status inside a
+`FOUND` value. `guardEvidenceStatus` is exactly
+`NOT_OPERATION_ADDRESSABLE`.
+
+### 41.6 Exact top-level reconciliation envelope
+
+The envelope has exactly nine required fields in this order:
+
+```text
+schemaVersion
+observedAt
+readAuthority
+submission
+canonicalJob
+acknowledgement
+moderationEvent
+outbox
+quota
+```
+
+- `schemaVersion`: integer `1`.
+- `observedAt`: canonical 24-character primitive UTC ISO string.
+- `readAuthority`: the exact six-field record below.
+- `submission`, `canonicalJob`, `acknowledgement`, `moderationEvent`, and
+  `quota`: one exact tagged-union variant.
+- `outbox`: the exact three-field record below.
+
+`readAuthority` has exactly:
+
+```text
+status
+source
+consistency
+roundsCompleted
+visibilityProven
+failureClassification
+```
+
+Its enums and relationships are:
+
+- `status`: `COMPLETE`, `RETRYABLE_FAILURE`, or `NON_RETRYABLE_FAILURE`;
+- `source`: exactly `primary`;
+- `consistency`: exactly `majority_snapshot`;
+- `roundsCompleted`: integer 1 through 3;
+- `visibilityProven`: primitive boolean;
+- `failureClassification`: null only when status is `COMPLETE`; otherwise one
+  of `CONNECTION_UNAVAILABLE`, `SELECTION_UNAVAILABLE`,
+  `READ_CONCERN_UNAVAILABLE`, `SNAPSHOT_UNAVAILABLE`, or
+  `UNKNOWN_READ_FAILURE`.
+
+`COMPLETE` requires `visibilityProven === true`. A failure status requires
+`visibilityProven === false`.
+
+`COMPLETE` also requires that no component is `READ_FAILED`. A failure status
+requires at least one required component to be `READ_FAILED`. Successful
+`FOUND`, `ABSENT`, `DUPLICATE`, and `DUPLICATE_OVERFLOW` reductions remain
+authoritative for their individual primary/majority reads even when another
+component failed. `visibilityProven` describes completeness of the whole
+cross-record proof, not whether an independently successful positive or
+negative component observation must be discarded. This permits already-proved
+security or corruption evidence to take precedence over an unrelated failed
+component while still forbidding `COMMITTED` or `NOT_COMMITTED` from an
+incomplete set.
+
+`outbox` has exactly:
+
+```text
+employerSubmissionReceived
+adminJobReviewRequested
+unexpectedRecords
+```
+
+Each field is a required exact tagged-union observation. The first two use the
+typed outbox `FOUND` shape. `unexpectedRecords` uses its specialized `FOUND`
+shape.
+
+Every record component permits all five observation states so malformed or
+impossible adapter reductions can be classified deterministically. No field is
+optional and no arbitrary nested object is accepted.
+
+### 41.7 Exact duplicate and overflow outcomes
+
+`DUPLICATE` and `DUPLICATE_OVERFLOW` have identical outcome treatment for the
+same component:
+
+| Component                           | Outcome             | Reason                                                                                                     |
+| ----------------------------------- | ------------------- | ---------------------------------------------------------------------------------------------------------- |
+| `submission`                        | `SECURITY_CONFLICT` | Unique owner/idempotency and pre-generated submission identity conflict                                    |
+| `acknowledgement`                   | `SECURITY_CONFLICT` | Pre-generated ID and one-per-submission identity conflict                                                  |
+| `moderationEvent`                   | `SECURITY_CONFLICT` | Pre-generated event identity conflict                                                                      |
+| `outbox.employerSubmissionReceived` | `SECURITY_CONFLICT` | Unique exclusive deduplication-key conflict                                                                |
+| `outbox.adminJobReviewRequested`    | `SECURITY_CONFLICT` | Unique exclusive deduplication-key conflict                                                                |
+| `canonicalJob`                      | `CORRUPT`           | A unique Job lookup returned impossible duplicate topology without a proved substituted operation identity |
+| `quota`                             | `CORRUPT`           | Reduced quota evidence is duplicated but is not a separate exclusive record identity                       |
+| `outbox.unexpectedRecords`          | `CORRUPT`           | Extra transaction-linked outbox topology                                                                   |
+
+Any `FOUND`, `DUPLICATE`, or `DUPLICATE_OVERFLOW` value for
+`outbox.unexpectedRecords` is corruption. Duplicate or overflow evidence can
+never produce `COMMITTED` or `NOT_COMMITTED`.
+
+### 41.8 Exact reconciliation outcome precedence
+
+The classifier evaluates in this fixed order:
+
+```text
+1. SECURITY_CONFLICT
+2. CORRUPT
+3. INDETERMINATE
+4. COMMITTED
+5. NOT_COMMITTED
+6. INDETERMINATE fallback
+```
+
+1. `SECURITY_CONFLICT` wins when already-present authoritative evidence proves
+   identity substitution, conflicting operation reuse, owner/Job mismatch,
+   exclusive-ID reuse, or a component duplicate classified as security. It
+   takes precedence over corruption, duplicate evidence, and unrelated
+   `READ_FAILED` values. Missing evidence caused by a read failure cannot be
+   invented into a security conflict.
+2. `CORRUPT` wins when authoritative evidence already proves impossible or
+   partial atomic topology. It takes precedence over unrelated read failures.
+   Examples include a found submission with an authoritatively absent required
+   companion, one required outbox intent found while the other is absent, an
+   advanced Job with absent atomic records, component duplicates classified as
+   corruption, or any unexpected outbox record.
+3. `INDETERMINATE` is returned when no higher-priority outcome is proved and at
+   least one required observation is `READ_FAILED`, read authority is not
+   complete and visibility-proven, or the trusted set is incomplete.
+4. `COMMITTED` is returned only when the original complete-match proof is
+   satisfied by `FOUND` variants, all match flags are true, quota evidence is
+   valid for the context, outbox unexpected records are `ABSENT`, and authority
+   is complete and visibility-proven.
+5. `NOT_COMMITTED` is returned only when submission, acknowledgement,
+   moderation event, quota and both required outbox intents are `ABSENT`,
+   unexpected outbox records are `ABSENT`, canonical Job is `FOUND` with
+   `BASE_UNCHANGED` and every relationship flag true, authority is complete and
+   visibility-proven, and no duplicate/overflow/read failure exists.
+6. Every other valid combination returns `INDETERMINATE`.
+
+Precedence is independent of object key or iteration order.
+
+### 41.9 Exact outcome/result/action policy
+
+The reconciliation result now has exactly 11 fields in this order:
+
+```text
+schemaVersion
+outcome
+actions
+terminal
+success
+retryAllowed
+reconcileLater
+manualReviewRequired
+securityReviewRequired
+mismatchCodes
+missingCodes
+```
+
+`success` is `true`, `false`, or null. The exact immutable policy is:
+
+| Outcome             | Actions in order                                                                       | Terminal | Success | Retry allowed | Reconcile later | Manual review | Security review |
+| ------------------- | -------------------------------------------------------------------------------------- | -------- | ------- | ------------- | --------------- | ------------- | --------------- |
+| `COMMITTED`         | `RETURN_SUCCESS`, `DO_NOT_RETRY`                                                       | true     | true    | false         | false           | false         | false           |
+| `NOT_COMMITTED`     | `RETURN_RETRYABLE_FAILURE`, `DO_NOT_RETRY`                                             | true     | false   | true          | false           | false         | false           |
+| `INDETERMINATE`     | `RECONCILE_AGAIN_LATER`, `DO_NOT_RETRY`                                                | false    | null    | false         | true            | false         | false           |
+| `CORRUPT`           | `RETURN_FAILURE`, `DO_NOT_RETRY`, `ESCALATE_MANUAL_REVIEW`                             | true     | false   | false         | false           | true          | false           |
+| `SECURITY_CONFLICT` | `RETURN_FAILURE`, `DO_NOT_RETRY`, `ESCALATE_MANUAL_REVIEW`, `ESCALATE_SECURITY_REVIEW` | true     | false   | false         | false           | true          | true            |
+
+`retryAllowed` for `NOT_COMMITTED` means only that an outer service may later
+authorize a new same-key write attempt. The classifier never retries or
+authorizes an automatic write retry after unknown commit.
+
+### 41.10 Exact public export inventories
+
+`PublishingOperationContextContract.js` must export exactly these constants,
+class, and functions in this order:
+
+```text
+PUBLISHING_OPERATION_CONTEXT_SCHEMA_VERSION
+PUBLISHING_OPERATION_POLICY_VERSION
+PUBLISHING_OPERATION_KINDS
+PUBLISHING_OPERATION_IDENTITY_CLASSIFICATIONS
+PUBLISHING_OPERATION_IDENTITY_MISMATCH_CODES
+PUBLISHING_OPERATION_SEED_FIELDS
+PUBLISHING_OPERATION_CONTEXT_FIELDS
+PUBLISHING_OPERATION_IDENTIFIER_POLICIES
+PUBLISHING_OPERATION_OUTBOX_KEY_POLICY
+PUBLISHING_OPERATION_BOUNDS
+PUBLISHING_OPERATION_ERROR_CODES
+PUBLISHING_OPERATION_ERROR_MESSAGES
+PublishingOperationContextContractError
+buildPublishingOperationSeed
+buildPublishingOperationContext
+validatePublishingOperationSeed
+validatePublishingOperationContext
+comparePublishingOperationIdentity
+```
+
+Runtime types:
+
+- schema version is a number;
+- policy version is a string;
+- enums and field inventories are frozen ordered arrays;
+- identifier, outbox, bounds, and message policies are deeply frozen ordinary
+  objects;
+- error codes are a frozen ordered array;
+- the error class and five functions are functions.
+
+`PublishingReconciliationContract.js` must export exactly:
+
+```text
+PUBLISHING_RECONCILIATION_SCHEMA_VERSION
+PUBLISHING_RECONCILIATION_OBSERVATION_FIELDS
+PUBLISHING_RECONCILIATION_READ_AUTHORITY_FIELDS
+PUBLISHING_RECONCILIATION_SUBMISSION_FOUND_FIELDS
+PUBLISHING_RECONCILIATION_JOB_FOUND_FIELDS
+PUBLISHING_RECONCILIATION_ACKNOWLEDGEMENT_FOUND_FIELDS
+PUBLISHING_RECONCILIATION_MODERATION_FOUND_FIELDS
+PUBLISHING_RECONCILIATION_OUTBOX_FOUND_FIELDS
+PUBLISHING_RECONCILIATION_QUOTA_FOUND_FIELDS
+PUBLISHING_RECONCILIATION_RESULT_FIELDS
+PUBLISHING_RECONCILIATION_OBSERVATION_STATES
+PUBLISHING_RECONCILIATION_READ_AUTHORITY_STATUSES
+PUBLISHING_RECONCILIATION_READ_FAILURE_CLASSIFICATIONS
+PUBLISHING_RECONCILIATION_JOB_STATE_CLASSIFICATIONS
+PUBLISHING_RECONCILIATION_QUOTA_CHARGED_STATUSES
+PUBLISHING_RECONCILIATION_OUTCOMES
+PUBLISHING_RECONCILIATION_ACTIONS
+PUBLISHING_RECONCILIATION_MISMATCH_CODES
+PUBLISHING_RECONCILIATION_MISSING_CODES
+PUBLISHING_RECONCILIATION_DUPLICATE_OUTCOMES
+PUBLISHING_RECONCILIATION_OUTCOME_ACTION_POLICY
+PUBLISHING_RECONCILIATION_BOUNDS
+PUBLISHING_RECONCILIATION_ERROR_CODES
+PUBLISHING_RECONCILIATION_ERROR_MESSAGES
+PublishingReconciliationContractError
+evaluatePublishingReconciliation
+```
+
+All inventory/enums are frozen ordered arrays. Duplicate and outcome policies,
+bounds, and messages are deeply frozen ordinary objects. Error codes are a
+frozen ordered array. The error class and evaluator are functions.
+
+No other export is allowed.
+
+### 41.11 Complete literal policy values
+
+Operation constants:
+
+```text
+PUBLISHING_OPERATION_CONTEXT_SCHEMA_VERSION = 1
+PUBLISHING_OPERATION_POLICY_VERSION = "free-beta-2026-01"
+PUBLISHING_OPERATION_KINDS =
+  ["major_edit_submission", "correction_submission"]
+PUBLISHING_OPERATION_IDENTITY_CLASSIFICATIONS =
+  ["SAME_LOGICAL_OPERATION", "DIFFERENT_LOGICAL_OPERATION", "IDENTITY_CONFLICT"]
+```
+
+`PUBLISHING_OPERATION_SEED_FIELDS`,
+`PUBLISHING_OPERATION_CONTEXT_FIELDS`,
+`PUBLISHING_OPERATION_IDENTITY_MISMATCH_CODES`, operation error codes, and
+messages are exactly the ordered inventories already defined by C3-A and this
+correction.
+
+`PUBLISHING_OPERATION_IDENTIFIER_POLICIES` has exactly:
+
+```text
+operationId:
+  type = "uuid_v4"
+  length = 36
+  canonicalCase = "lowercase"
+objectId:
+  type = "mongo_object_id"
+  length = 24
+  canonicalCase = "lowercase"
+hash:
+  type = "sha256_hex"
+  length = 64
+  canonicalCase = "lowercase"
+idempotencyKey:
+  type = "printable_ascii"
+  minimumLength = 16
+  maximumLength = 128
+rulesVersion:
+  type = "trimmed_string"
+  minimumLength = 1
+  maximumLength = 100
+```
+
+`PUBLISHING_OPERATION_OUTBOX_KEY_POLICY` has exactly:
+
+```text
+separator = ":"
+maximumLength = 160
+employerSubmissionReceivedType = "employer_submission_received"
+adminJobReviewRequestedType = "admin_job_review_requested"
+```
+
+Each key is exactly `<submissionId>:<type>`; there is no additional prefix,
+version, salt, secret, case transformation, or framing.
+
+Reconciliation constants:
+
+```text
+PUBLISHING_RECONCILIATION_SCHEMA_VERSION = 1
+PUBLISHING_RECONCILIATION_OBSERVATION_STATES =
+  ["FOUND", "ABSENT", "DUPLICATE", "DUPLICATE_OVERFLOW", "READ_FAILED"]
+PUBLISHING_RECONCILIATION_READ_AUTHORITY_STATUSES =
+  ["COMPLETE", "RETRYABLE_FAILURE", "NON_RETRYABLE_FAILURE"]
+PUBLISHING_RECONCILIATION_READ_FAILURE_CLASSIFICATIONS =
+  ["CONNECTION_UNAVAILABLE", "SELECTION_UNAVAILABLE",
+   "READ_CONCERN_UNAVAILABLE", "SNAPSHOT_UNAVAILABLE",
+   "UNKNOWN_READ_FAILURE"]
+PUBLISHING_RECONCILIATION_JOB_STATE_CLASSIFICATIONS =
+  ["BASE_UNCHANGED", "COMMITTED_MATCH", "CONFLICT"]
+PUBLISHING_RECONCILIATION_QUOTA_CHARGED_STATUSES =
+  ["MATCH", "CONFLICT", "NOT_APPLICABLE"]
+```
+
+The reconciliation outcomes, actions, mismatch codes, missing codes, error
+codes, and messages are exactly the ordered inventories already defined in
+sections 21 through 27. `PUBLISHING_RECONCILIATION_DUPLICATE_OUTCOMES` is the
+exact component-to-outcome mapping in section 41.7.
+`PUBLISHING_RECONCILIATION_OUTCOME_ACTION_POLICY` is the exact matrix in
+section 41.9.
+
+### 41.12 Exact numeric bounds
+
+`PUBLISHING_OPERATION_BOUNDS` has exactly:
+
+```text
+operationIdLength = 36
+objectIdLength = 24
+hashLength = 64
+idempotencyKeyMinimumLength = 16
+idempotencyKeyMaximumLength = 128
+rulesVersionMinimumLength = 1
+rulesVersionMaximumLength = 100
+outboxKeyMaximumLength = 160
+operationSeedFieldCount = 19
+operationContextFieldCount = 32
+identityMismatchCodeMaximum = 33
+```
+
+`PUBLISHING_RECONCILIATION_BOUNDS` has exactly:
+
+```text
+observationFieldCount = 9
+readAuthorityFieldCount = 6
+submissionFoundFieldCount = 15
+jobFoundFieldCount = 7
+acknowledgementFoundFieldCount = 9
+moderationFoundFieldCount = 9
+outboxGroupFieldCount = 3
+outboxFoundFieldCount = 7
+quotaFoundFieldCount = 3
+resultFieldCount = 11
+duplicateCountMinimum = 2
+duplicateCountMaximum = 10
+duplicateOverflowThreshold = 11
+mismatchCodeMaximum = 16
+missingCodeMaximum = 5
+contradictionCodeMaximum = 0
+actionMaximum = 4
+maximumReconciliationCategoryCount = 21
+reconciliationRoundMinimum = 1
+reconciliationRoundMaximum = 3
+```
+
+There is no contradiction-code array in the result; contradictions are
+represented by the fixed mismatch and missing codes. Its explicit maximum is
+therefore zero. The maximum reconciliation category count is the sum of the 16
+mismatch and five missing categories.
+
+### 41.13 Private helper boundary
+
+The operation module keeps exactly these implementation responsibilities
+private; names may be used internally but are not exports:
+
+```text
+deepFreeze
+assertStrictRecord
+assertExactFields
+assertNoUnsafeStructure
+normalizeObjectId
+validateUuidV4
+validateCanonicalIso
+deriveOutboxDeduplicationKeys
+validateCandidateBinding
+validateSeedRelationships
+validateContextRelationships
+cloneFrozen
+collectIdentityMismatchCodes
+hasExclusiveIdentityReuse
+createOperationError
+```
+
+The reconciliation module keeps exactly these responsibilities private:
+
+```text
+deepFreeze
+assertStrictRecord
+assertExactFields
+validateTaggedObservation
+validateReadAuthority
+validateObservationEnvelope
+collectMismatchCodes
+collectMissingCodes
+hasSecurityConflict
+hasCorruptTopology
+hasIndeterminateEvidence
+isCommittedProof
+isNotCommittedProof
+buildReconciliationResult
+createReconciliationError
+```
+
+These are responsibility names, not required source-level function names. No
+low-level helper may be exported.
+
+### 41.14 Revised mandatory tests
+
+The future operation-context suite must add:
+
+- same operation ID with all fields identical;
+- same operation ID with each of the 33 mismatch codes independently;
+- different operation IDs with all exclusive identities distinct;
+- different operation IDs sharing submission ID;
+- different operation IDs sharing acknowledgement ID;
+- different operation IDs sharing moderation-event ID;
+- different operation IDs sharing new moderation-cycle ID;
+- different operation IDs sharing expected-current-submission ID;
+- different operation IDs sharing each typed outbox key;
+- different operation IDs sharing the complete owner-scoped idempotency
+  identity;
+- different operation IDs sharing only Job/requester/non-exclusive values;
+- exact classification, mismatch ordering, 33-code bound, frozen array, and no
+  raw values.
+
+For every record component, the future reconciliation suite must test:
+
+- valid `FOUND`, `ABSENT`, `READ_FAILED`, and `DUPLICATE_OVERFLOW`;
+- valid `DUPLICATE` at counts 2 and 10;
+- rejection at counts 1 and 11;
+- rejection of mixed-state and unknown fields;
+- rejection of raw errors, records, accessors, symbols, hidden and inherited
+  fields.
+
+The precedence matrix must include:
+
+- security conflict plus read failure, corruption, and duplicate overflow;
+- corruption plus read failure;
+- duplicate classified as corruption plus read failure;
+- complete-looking evidence plus one malformed or failed required component;
+- all-absent evidence plus read failure;
+- all-absent evidence plus changed Job;
+- every valid no-proof fallback.
+
+Overflow must be tested independently for submission, Job, acknowledgement,
+moderation event, quota, both required outbox intents, and unexpected outbox
+records. Tests must assert exact result fields, action order, flags, category
+order/bounds, privacy, immutability, JSON compatibility, and structured-clone
+compatibility.
+
+### 41.15 Corrected readiness and preservation
+
+With this correction, pure C3 implementation no longer needs to invent an
+identity classification, mismatch literal, tagged variant, overflow
+representation, duplicate outcome, precedence rule, result flag/action, export,
+or numeric bound.
+
+- Pure C3 implementation: ready after checkpointing this correction.
+- Model integration: not authorized.
+- Transaction-service integration: not authorized.
+- Database reconciliation adapter: not authorized.
+- Mongoose submission adapter: not ready/not authorized.
+- Runtime wiring: not ready/not authorized.
+
+This correction modifies only this authoritative document. It creates no
+implementation or test file, performs no database or reconciliation read,
+changes no C1/C2/outbox/runtime behavior, and does not stage, commit, push, or
+deploy anything.
