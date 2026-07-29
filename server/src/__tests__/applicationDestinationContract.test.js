@@ -11,6 +11,7 @@ import mongoose from 'mongoose';
 const TEST_DIR = dirname(fileURLToPath(import.meta.url));
 const SERVER_SRC = join(TEST_DIR, '..');
 const CLIENT_SRC = join(SERVER_SRC, '..', '..', 'client', 'src');
+const REPOSITORY_ROOT = join(SERVER_SRC, '..', '..');
 const CONTRACT_PATH = join(
   SERVER_SRC,
   'services',
@@ -49,6 +50,31 @@ function listSourceFiles(root) {
     }
   }
   return results;
+}
+
+const AUTHORIZED_APPLICATION_DESTINATION_REFERENCE_PATHS = Object.freeze([
+  'server/src/services/publishing/contracts/ApplicationDestinationContract.js',
+  'server/src/__tests__/applicationDestinationContract.test.js',
+  'server/src/services/publishing/contracts/PublicationCandidateContract.js',
+  'server/src/__tests__/publicationCandidateContract.test.js',
+]);
+
+function normalizeRepositoryRelativePath(path) {
+  const normalizedPath = path.replaceAll('\\', '/');
+  const normalizedRoot = REPOSITORY_ROOT.replaceAll('\\', '/').replace(
+    /\/+$/u,
+    ''
+  );
+  const rootPrefix = `${normalizedRoot}/`;
+  return normalizedPath.startsWith(rootPrefix)
+    ? normalizedPath.slice(rootPrefix.length)
+    : normalizedPath.replace(/^(?:\.\/)+/u, '');
+}
+
+function isAuthorizedApplicationDestinationReference(path) {
+  return AUTHORIZED_APPLICATION_DESTINATION_REFERENCE_PATHS.includes(
+    normalizeRepositoryRelativePath(path)
+  );
 }
 
 const readyStateBefore = mongoose.connection.readyState;
@@ -1169,19 +1195,79 @@ throwsCode(
   APPLICATION_DESTINATION_ERROR_CODES.EVIDENCE_CONFLICT
 );
 
-// Runtime/import isolation: only this test and the dormant module reference it.
-const runtimeReferences = [
+// Runtime/import isolation: only the exact C1/C2 pure contracts and tests refer
+// to the destination contract.
+const applicationDestinationReferences = [
   ...listSourceFiles(SERVER_SRC),
   ...listSourceFiles(CLIENT_SRC),
-].filter(
-  (path) =>
-    path !== CONTRACT_PATH &&
-    path !== fileURLToPath(import.meta.url) &&
+]
+  .filter((path) =>
     /ApplicationDestinationContract|buildApplicationDestinationEvidence|classifyApplicationDestinationChange/u.test(
       readFileSync(path, 'utf8')
     )
+  )
+  .map(normalizeRepositoryRelativePath)
+  .sort();
+const unexpectedApplicationDestinationReferences = [
+  ...new Set(
+    applicationDestinationReferences.filter(
+      (path) => !isAuthorizedApplicationDestinationReference(path)
+    )
+  ),
+].sort();
+deepEqual(unexpectedApplicationDestinationReferences, []);
+deepEqual(
+  [...new Set(applicationDestinationReferences)],
+  [...AUTHORIZED_APPLICATION_DESTINATION_REFERENCE_PATHS].sort()
 );
-deepEqual(runtimeReferences, []);
+
+equal(
+  isAuthorizedApplicationDestinationReference(
+    'server/src/services/publishing/contracts/PublicationCandidateContract.js'
+  ),
+  true
+);
+equal(
+  isAuthorizedApplicationDestinationReference(
+    'server/src/__tests__/publicationCandidateContract.test.js'
+  ),
+  true
+);
+for (const unauthorizedPath of [
+  'server/src/controllers/applicationDestinationController.js',
+  'server/src/routes/applicationDestinationRoutes.js',
+  'server/src/index.js',
+  'server/src/worker.js',
+  'server/src/models/ApplicationDestination.js',
+  'server/src/services/publishing/TransactionalFreeBetaSubmissionService.js',
+  'client/src/services/ApplicationDestinationContract.js',
+  'server/src/services/publishing/contracts/PublicationCandidateContractCopy.js',
+  'server/src/services/publishing/contracts/UnknownApplicationDestinationContract.js',
+]) {
+  equal(isAuthorizedApplicationDestinationReference(unauthorizedPath), false);
+}
+equal(
+  isAuthorizedApplicationDestinationReference(
+    'server\\src\\services\\publishing\\contracts\\PublicationCandidateContract.js'
+  ),
+  true
+);
+equal(
+  isAuthorizedApplicationDestinationReference(
+    'server/src/services/publishing/contracts/PublicationCandidateContract.js'
+  ),
+  true
+);
+equal(
+  Object.isFrozen(AUTHORIZED_APPLICATION_DESTINATION_REFERENCE_PATHS),
+  true
+);
+assert.throws(() => {
+  AUTHORIZED_APPLICATION_DESTINATION_REFERENCE_PATHS.push(
+    'server/src/controllers/applicationDestinationController.js'
+  );
+}, TypeError);
+assertions += 1;
 doesNotContain(CONTRACT_SOURCE, "from '../../../");
 doesNotContain(CONTRACT_SOURCE, "from '../../");
 doesNotContain(CONTRACT_SOURCE, "from '../");
