@@ -49,6 +49,83 @@ export const MODERATION_REQUESTABLE_FIELD_PATHS = Object.freeze([
   'totalSeats',
 ]);
 
+const C4_SUBMITTED_EVIDENCE_FIELDS = Object.freeze([
+  'schemaVersion',
+  'operationId',
+  'operationKind',
+  'submissionId',
+  'candidateHash',
+  'candidateKind',
+  'candidateRevision',
+  'destinationMode',
+  'destinationTargetDigest',
+  'expectedPublicationVersion',
+  'moderationCycleId',
+  'actorClassification',
+  'eventType',
+  'eventTimestamp',
+]);
+const C4_UUID_V4_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const C4_OBJECT_ID_PATTERN = /^[a-f0-9]{24}$/;
+const C4_HASH_PATTERN = /^[a-f0-9]{64}$/;
+const C4_CANONICAL_ISO_PATTERN =
+  /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z$/;
+const C4_UNSAFE_KEYS = new Set(['__proto__', 'prototype', 'constructor']);
+
+function rejectUnsafeSubmittedEvidence(value) {
+  if (
+    value === null ||
+    typeof value !== 'object' ||
+    Array.isArray(value) ||
+    Object.getPrototypeOf(value) !== Object.prototype
+  ) {
+    throw new TypeError('submittedEvidence contains invalid evidence');
+  }
+  for (const key of Reflect.ownKeys(value)) {
+    const descriptor = Object.getOwnPropertyDescriptor(value, key);
+    if (
+      typeof key !== 'string' ||
+      C4_UNSAFE_KEYS.has(key) ||
+      key.includes('.') ||
+      key.startsWith('$') ||
+      !C4_SUBMITTED_EVIDENCE_FIELDS.includes(key) ||
+      !descriptor?.enumerable ||
+      !Object.hasOwn(descriptor, 'value') ||
+      !['string', 'number'].includes(typeof descriptor.value)
+    ) {
+      throw new TypeError('submittedEvidence contains unsupported evidence');
+    }
+  }
+  return value;
+}
+
+function canonicalIso(value) {
+  return (
+    typeof value === 'string' &&
+    C4_CANONICAL_ISO_PATTERN.test(value) &&
+    new Date(value).toISOString() === value
+  );
+}
+
+function requireSubmittedPrimitiveTypes(schema) {
+  const numericFields = new Set([
+    'schemaVersion',
+    'candidateRevision',
+    'expectedPublicationVersion',
+  ]);
+  for (const field of C4_SUBMITTED_EVIDENCE_FIELDS) {
+    const expectedType = numericFields.has(field) ? 'number' : 'string';
+    schema.path(field).set(function rejectImplicitEvidenceCast(value) {
+      if (value === undefined) return value;
+      if (typeof value !== expectedType) {
+        throw new TypeError('submitted evidence value has invalid type');
+      }
+      return value;
+    });
+  }
+}
+
 function appendOnlyError() {
   const error = new Error('Job moderation events are append-only');
   error.code = 'JOB_MODERATION_EVENT_APPEND_ONLY';
@@ -97,6 +174,108 @@ const moderationEventMetadataSchema = new mongoose.Schema(
   },
   { _id: false, strict: 'throw' }
 );
+
+const submittedEvidenceSchema = new mongoose.Schema(
+  {
+    schemaVersion: {
+      type: Number,
+      enum: [1],
+      required: true,
+      immutable: true,
+    },
+    operationId: {
+      type: String,
+      match: [C4_UUID_V4_PATTERN, 'operation identity is invalid'],
+      required: true,
+      immutable: true,
+    },
+    operationKind: {
+      type: String,
+      enum: ['major_edit_submission', 'correction_submission'],
+      required: true,
+      immutable: true,
+    },
+    submissionId: {
+      type: String,
+      match: [C4_OBJECT_ID_PATTERN, 'submission identity is invalid'],
+      required: true,
+      immutable: true,
+    },
+    candidateHash: {
+      type: String,
+      match: [C4_HASH_PATTERN, 'candidate hash evidence is invalid'],
+      required: true,
+      immutable: true,
+    },
+    candidateKind: {
+      type: String,
+      enum: ['major_edit', 'correction'],
+      required: true,
+      immutable: true,
+    },
+    candidateRevision: {
+      type: Number,
+      min: 1,
+      required: true,
+      immutable: true,
+      validate: {
+        validator: Number.isSafeInteger,
+        message: 'submitted candidate revision evidence is invalid',
+      },
+    },
+    destinationMode: {
+      type: String,
+      enum: ['internal_platform', 'external_url', 'external_email'],
+      required: true,
+      immutable: true,
+    },
+    destinationTargetDigest: {
+      type: String,
+      match: [C4_HASH_PATTERN, 'destination digest evidence is invalid'],
+      required: true,
+      immutable: true,
+    },
+    expectedPublicationVersion: {
+      type: Number,
+      min: 0,
+      required: true,
+      immutable: true,
+      validate: {
+        validator: Number.isSafeInteger,
+        message: 'submitted publication version evidence is invalid',
+      },
+    },
+    moderationCycleId: {
+      type: String,
+      match: [C4_OBJECT_ID_PATTERN, 'moderation cycle identity is invalid'],
+      required: true,
+      immutable: true,
+    },
+    actorClassification: {
+      type: String,
+      enum: MODERATION_ACTOR_TYPES,
+      required: true,
+      immutable: true,
+    },
+    eventType: {
+      type: String,
+      enum: MODERATION_EVENT_ACTIONS,
+      required: true,
+      immutable: true,
+    },
+    eventTimestamp: {
+      type: String,
+      required: true,
+      immutable: true,
+      validate: {
+        validator: canonicalIso,
+        message: 'submitted event timestamp evidence is invalid',
+      },
+    },
+  },
+  { _id: false, strict: 'throw' }
+);
+requireSubmittedPrimitiveTypes(submittedEvidenceSchema);
 
 const jobModerationEventSchema = new mongoose.Schema(
   {
@@ -193,6 +372,15 @@ const jobModerationEventSchema = new mongoose.Schema(
       immutable: true,
       set: rejectUnknownMetadata,
     },
+    submittedEvidence: {
+      type: submittedEvidenceSchema,
+      default: undefined,
+      immutable: true,
+      set(value) {
+        if (value === undefined) return value;
+        return rejectUnsafeSubmittedEvidence(value);
+      },
+    },
     createdAt: {
       type: Date,
       required: true,
@@ -213,6 +401,48 @@ jobModerationEventSchema.index({ employerId: 1, createdAt: -1 });
 jobModerationEventSchema.index({ action: 1, createdAt: -1 });
 
 jobModerationEventSchema.pre('validate', function validateEventContract(next) {
+  if (this.submittedEvidence !== undefined) {
+    const evidence = this.submittedEvidence;
+    const expectedCandidateKind =
+      evidence.operationKind === 'major_edit_submission'
+        ? 'major_edit'
+        : evidence.operationKind === 'correction_submission'
+          ? 'correction'
+          : null;
+    const expectedFromState =
+      evidence.operationKind === 'major_edit_submission'
+        ? 'active'
+        : evidence.operationKind === 'correction_submission'
+          ? 'rejected'
+          : null;
+    if (
+      this.action !== 'submitted' ||
+      this.actorType !== 'employer' ||
+      this.fromState !== expectedFromState ||
+      this.toState !== 'pending_review' ||
+      evidence.submissionId !== this.submissionId?.toString() ||
+      evidence.candidateHash !== this.contentHash ||
+      evidence.candidateKind !== expectedCandidateKind ||
+      evidence.actorClassification !== this.actorType ||
+      evidence.eventType !== this.action ||
+      evidence.eventTimestamp !== this.createdAt?.toISOString() ||
+      evidence.moderationCycleId !==
+        this.metadata?.moderationCycleId?.toString()
+    ) {
+      this.invalidate(
+        'submittedEvidence',
+        'submitted moderation evidence relationships are invalid'
+      );
+    }
+  }
+
+  if (!this.isNew && this.isModified('submittedEvidence')) {
+    this.invalidate(
+      'submittedEvidence',
+      'submitted moderation evidence cannot be modified'
+    );
+  }
+
   if (['employer', 'staff'].includes(this.actorType) && !this.actorId) {
     this.invalidate(
       'actorId',

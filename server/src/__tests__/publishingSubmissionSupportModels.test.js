@@ -1,13 +1,29 @@
 /**
  * Run: node src/__tests__/publishingSubmissionSupportModels.test.js
  */
-import assert from 'assert';
+import nodeAssert from 'assert';
 import mongoose from 'mongoose';
 import { EmployerPostingRulesAcknowledgement } from '../models/EmployerPostingRulesAcknowledgement.js';
 import {
   JobModerationEvent,
   toEmployerSafeModerationEvent,
 } from '../models/JobModerationEvent.js';
+
+let assertionCount = 0;
+const assert = new Proxy(nodeAssert, {
+  apply(target, thisArg, argumentsList) {
+    assertionCount += 1;
+    return Reflect.apply(target, thisArg, argumentsList);
+  },
+  get(target, property, receiver) {
+    const value = Reflect.get(target, property, receiver);
+    if (typeof value !== 'function') return value;
+    return (...argumentsList) => {
+      assertionCount += 1;
+      return Reflect.apply(value, target, argumentsList);
+    };
+  },
+});
 
 const id = () => new mongoose.Types.ObjectId();
 const hash = (character) => character.repeat(64);
@@ -110,7 +126,21 @@ assert.ok(
     .some(([fields]) => fields.rulesVersion === 1 && fields.acceptedAt === -1)
 );
 
-await new JobModerationEvent(moderationEvent()).validate();
+const legacyModerationEvent = new JobModerationEvent(moderationEvent());
+await legacyModerationEvent.validate();
+assert.strictEqual(legacyModerationEvent.submittedEvidence, undefined);
+assert.strictEqual(
+  JobModerationEvent.schema.path('submittedEvidence').options.immutable,
+  true
+);
+assert.strictEqual(
+  JobModerationEvent.schema.path('submittedEvidence').options.default,
+  undefined
+);
+assert.strictEqual(
+  JobModerationEvent.schema.path('submittedEvidence').schema.options.strict,
+  'throw'
+);
 
 await assert.rejects(
   new JobModerationEvent(
@@ -206,6 +236,10 @@ assert.strictEqual(
   'The listing needs correction.'
 );
 assert.strictEqual(Object.hasOwn(employerProjection, 'metadata'), false);
+assert.strictEqual(
+  Object.hasOwn(employerProjection, 'submittedEvidence'),
+  false
+);
 
 assert.strictEqual(JobModerationEvent.schema.options.strict, 'throw');
 assert.notStrictEqual(
@@ -250,5 +284,13 @@ assert.ok(
     ([fields]) => fields.action === 1 && fields.createdAt === -1
   )
 );
+assert.strictEqual(
+  moderationIndexes.some(([fields]) =>
+    Object.keys(fields).some((field) => field.startsWith('submittedEvidence'))
+  ),
+  false
+);
 
-console.log('publishingSubmissionSupportModels tests passed.');
+console.log(
+  `publishingSubmissionSupportModels.test.js: ${assertionCount} assertions passed`
+);

@@ -2,10 +2,26 @@
  * Additive publication-ledger and serialization-guard model tests (E.1F-H2A).
  * Run: node src/__tests__/jobPublicationSubmissionModel.test.js
  */
-import assert from 'assert';
+import nodeAssert from 'assert';
 import mongoose from 'mongoose';
 import { EmployerPublishingQuotaGuard } from '../models/EmployerPublishingQuotaGuard.js';
 import { JobPublicationSubmission } from '../models/JobPublicationSubmission.js';
+
+let assertionCount = 0;
+const assert = new Proxy(nodeAssert, {
+  apply(target, thisArg, argumentsList) {
+    assertionCount += 1;
+    return Reflect.apply(target, thisArg, argumentsList);
+  },
+  get(target, property, receiver) {
+    const value = Reflect.get(target, property, receiver);
+    if (typeof value !== 'function') return value;
+    return (...argumentsList) => {
+      assertionCount += 1;
+      return Reflect.apply(value, target, argumentsList);
+    };
+  },
+});
 
 function indexByName(schema, name) {
   return schema.indexes().find(([, options]) => options?.name === name);
@@ -137,8 +153,50 @@ assert.strictEqual(
   JobPublicationSubmission.schema.path('quotaSnapshot').schema.options.strict,
   'throw'
 );
+assert.strictEqual(
+  JobPublicationSubmission.schema.path('publicationCandidate').options
+    .immutable,
+  true
+);
+assert.strictEqual(
+  JobPublicationSubmission.schema.path('operationEvidence').options.immutable,
+  true
+);
+assert.strictEqual(
+  JobPublicationSubmission.schema.path('publicationCandidate').options.default,
+  undefined
+);
+assert.strictEqual(
+  JobPublicationSubmission.schema.path('operationEvidence').options.default,
+  undefined
+);
+assert.strictEqual(
+  JobPublicationSubmission.schema.path('publicationCandidate').schema.options
+    .strict,
+  'throw'
+);
+assert.strictEqual(
+  JobPublicationSubmission.schema.path('operationEvidence').schema.options
+    .strict,
+  'throw'
+);
 
-await new JobPublicationSubmission(baseSubmission()).validate();
+const legacySubmission = new JobPublicationSubmission(baseSubmission());
+await legacySubmission.validate();
+assert.strictEqual(legacySubmission.publicationCandidate, undefined);
+assert.strictEqual(legacySubmission.operationEvidence, undefined);
+assert.strictEqual(
+  JobPublicationSubmission.schema
+    .indexes()
+    .some(([fields]) =>
+      Object.keys(fields).some(
+        (field) =>
+          field.startsWith('publicationCandidate') ||
+          field.startsWith('operationEvidence')
+      )
+    ),
+  false
+);
 
 await new JobPublicationSubmission(
   baseSubmission({
@@ -310,4 +368,6 @@ assert.ok(guardOwnerUnique, 'guard owner unique index must exist');
 assert.deepStrictEqual(guardOwnerUnique[0], { ownerType: 1, ownerId: 1 });
 assert.strictEqual(guardOwnerUnique[1].unique, true);
 
-console.log('jobPublicationSubmissionModel tests passed.');
+console.log(
+  `jobPublicationSubmissionModel.test.js: ${assertionCount} assertions passed`
+);
