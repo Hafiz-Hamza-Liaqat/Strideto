@@ -5,6 +5,8 @@ import assert from 'assert';
 import { readFileSync } from 'fs';
 import {
   PublishingSubmissionDomainError,
+  TRANSACTION_SERVICE_BOUNDARY_OUTCOMES,
+  createDormantTransactionalFreeBetaSubmissionBoundary,
   createTransactionalFreeBetaSubmissionService,
 } from '../services/publishing/TransactionalFreeBetaSubmissionService.js';
 
@@ -367,9 +369,20 @@ assert.throws(
     error instanceof PublishingSubmissionDomainError &&
     error.code === 'CANONICAL_JOB_REPOSITORY_REQUIRED'
 );
+assert.deepStrictEqual(TRANSACTION_SERVICE_BOUNDARY_OUTCOMES, [
+  'COMMIT_ACKNOWLEDGED',
+  'DEFINITELY_ABORTED',
+  'APPLICATION_ERROR_BEFORE_COMMIT',
+  'COMMIT_RESULT_UNKNOWN',
+]);
+assert.throws(
+  () => createDormantTransactionalFreeBetaSubmissionBoundary({}),
+  (error) => error.code === 'TRANSACTION_BOUNDARY_EXECUTOR_REQUIRED'
+);
 
 {
   const { state, calls, service } = createHarness();
+  assert.deepStrictEqual(Object.keys(service), ['submitFreeBetaJob']);
   assert.strictEqual(Object.hasOwn(service, 'createDraft'), false);
   const result = await service.submitFreeBetaJob(command());
 
