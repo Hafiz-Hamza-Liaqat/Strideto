@@ -27,6 +27,19 @@ const employerSchema = new mongoose.Schema(
     verificationLevel: { type: String, enum: ['basic', 'verified', 'trusted'], default: 'basic' },
     totalJobsPosted: { type: Number, default: 0 },
     isPublicProfile: { type: Boolean, default: true },
+    /**
+     * SEC-3B — additive, dormant field. Not yet read, incremented, or
+     * enforced by any live code path; reserved for the future access-token
+     * invalidation contract defined in
+     * docs/STRIDETO_AUTHENTICATION_SESSION_SECURITY_ARCHITECTURE_AUDIT.md.
+     */
+    tokenVersion: {
+      type: Number,
+      default: 0,
+      min: 0,
+      required: true,
+      validate: { validator: Number.isInteger, message: 'tokenVersion must be an integer' },
+    },
   },
   { timestamps: true }
 );

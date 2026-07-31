@@ -55,6 +55,19 @@ const userSchema = new mongoose.Schema(
      */
     careerPreferences: { type: mongoose.Schema.Types.Mixed, default: null },
     // OAuth: googleId, avatar (future GOOGLE_CLIENT_ID integration)
+    /**
+     * SEC-3B — additive, dormant field. Not yet read, incremented, or
+     * enforced by any live code path; reserved for the future access-token
+     * invalidation contract defined in
+     * docs/STRIDETO_AUTHENTICATION_SESSION_SECURITY_ARCHITECTURE_AUDIT.md.
+     */
+    tokenVersion: {
+      type: Number,
+      default: 0,
+      min: 0,
+      required: true,
+      validate: { validator: Number.isInteger, message: 'tokenVersion must be an integer' },
+    },
   },
   { timestamps: true }
 );
