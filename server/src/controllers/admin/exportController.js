@@ -55,7 +55,90 @@ const EXPORTERS = {
   },
 };
 
-function toCsv(rows) {
+/**
+ * Spreadsheet formula-injection neutralization boundary (STRIDETO-SEC-2).
+ *
+ * Applied to every row before both CSV serialization and XLSX worksheet
+ * construction (and, since it shares toCsv(), the CSV-embedded PDF/HTML
+ * export path too). CSV quoting alone is not treated as the security
+ * control — quoted cells can still be interpreted as formulas by spreadsheet
+ * software, so dangerous values are rewritten as literal text instead.
+ */
+const DANGEROUS_LEADING_CHARS = new Set(['=', '+', '-', '@', '\t', '\r', '\n']);
+const PURE_SIGNED_NUMERIC_STRING = /^[+-]?(\d+\.?\d*|\.\d+)$/;
+const DANGEROUS_OBJECT_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const MAX_NEUTRALIZE_DEPTH = 8;
+
+function isPlainNeutralizableObject(value) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+/**
+ * Neutralizes a single string against spreadsheet-formula interpretation.
+ * Deterministic and idempotent: a string that already starts with a literal
+ * apostrophe is treated as already forced to text and returned unchanged, so
+ * running this twice never double-prefixes.
+ */
+function neutralizeSpreadsheetString(value) {
+  if (value.length === 0 || value.startsWith("'")) return value;
+
+  let i = 0;
+  while (i < value.length && value[i] === ' ') i += 1;
+  const effective = value.slice(i);
+  if (!effective.length) return value;
+
+  const lead = effective[0];
+  if (!DANGEROUS_LEADING_CHARS.has(lead)) return value;
+
+  if ((lead === '+' || lead === '-') && PURE_SIGNED_NUMERIC_STRING.test(effective)) {
+    return value; // legitimate signed numeric string (e.g. "-5"), not a formula
+  }
+
+  return `'${value}`;
+}
+
+/**
+ * Recursively neutralizes a value for safe spreadsheet export. Numbers,
+ * booleans, null, undefined, and Date instances pass through unchanged.
+ * Plain arrays/objects are walked (own-enumerable keys only, dangerous key
+ * names skipped) without ever invoking a getter or method on the source
+ * value — class instances other than Date/Array/plain-object are returned
+ * as-is rather than traversed. Never mutates its input.
+ */
+function neutralizeSpreadsheetValue(value, depth = 0) {
+  if (typeof value === 'string') return neutralizeSpreadsheetString(value);
+  if (value === null || value === undefined) return value;
+  if (typeof value !== 'object') return value; // number, boolean
+  if (value instanceof Date) return value;
+  if (depth >= MAX_NEUTRALIZE_DEPTH) return value;
+
+  if (Array.isArray(value)) {
+    return value.map((item) => neutralizeSpreadsheetValue(item, depth + 1));
+  }
+
+  if (isPlainNeutralizableObject(value)) {
+    const safe = {};
+    for (const key of Object.keys(value)) {
+      if (DANGEROUS_OBJECT_KEYS.has(key)) continue;
+      safe[key] = neutralizeSpreadsheetValue(value[key], depth + 1);
+    }
+    return safe;
+  }
+
+  return value; // e.g. ObjectId or other class instance — left untouched, not traversed
+}
+
+/**
+ * Neutralizes every row of an export result set. Returns a new array of new
+ * row objects; never mutates the input rows.
+ */
+export function neutralizeExportRows(rows) {
+  return rows.map((row) => neutralizeSpreadsheetValue(row, 0));
+}
+
+export function toCsv(rows) {
   if (!rows.length) return '';
   const keys = Object.keys(rows[0]);
   const header = keys.join(',');
@@ -81,16 +164,19 @@ export const exportData = asyncHandler(async (req, res) => {
     if (o._id) o._id = String(o._id);
     return o;
   });
+  // Every user-controlled value is neutralized against spreadsheet-formula
+  // injection before it reaches either serialization path below.
+  const safeRows = neutralizeExportRows(flatRows);
 
   await logAudit({
     ...auditFromRequest(req),
     action: 'export.data',
     targetType: resource,
-    metadata: { format, count: flatRows.length },
+    metadata: { format, count: safeRows.length },
   });
 
   if (format === 'xlsx' || format === 'excel') {
-    const ws = XLSX.utils.json_to_sheet(flatRows);
+    const ws = XLSX.utils.json_to_sheet(safeRows);
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, resource);
     const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
@@ -100,13 +186,13 @@ export const exportData = asyncHandler(async (req, res) => {
   }
 
   if (format === 'pdf') {
-    const html = `<html><head><title>${resource} export</title></head><body><h1>${resource}</h1><pre>${toCsv(flatRows).replace(/</g, '&lt;')}</pre></body></html>`;
+    const html = `<html><head><title>${resource} export</title></head><body><h1>${resource}</h1><pre>${toCsv(safeRows).replace(/</g, '&lt;')}</pre></body></html>`;
     res.setHeader('Content-Type', 'text/html');
     res.setHeader('Content-Disposition', `attachment; filename="${resource}-export.html"`);
     return res.send(html);
   }
 
-  const csv = toCsv(flatRows);
+  const csv = toCsv(safeRows);
   res.setHeader('Content-Type', 'text/csv');
   res.setHeader('Content-Disposition', `attachment; filename="${resource}-export.csv"`);
   res.send(csv);

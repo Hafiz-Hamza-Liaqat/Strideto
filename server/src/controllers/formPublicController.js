@@ -32,7 +32,11 @@ export const submitForm = asyncHandler(async (req, res) => {
   if (!form) return res.status(404).json({ error: 'Form not found' });
 
   const body = req.body || {};
-  const spam = checkFormSpam(form, body);
+  // CAPTCHA verification is a real network round trip (STRIDETO-SEC-2) and
+  // must be awaited: without this, `spam` would be a pending Promise whose
+  // `.blocked`/`.silent` are both undefined, silently letting every
+  // submission through regardless of verification outcome.
+  const spam = await checkFormSpam(form, body);
   if (spam.blocked && spam.silent) {
     return res.status(201).json({
       message: form.successMessage || 'Thank you!',
@@ -44,6 +48,11 @@ export const submitForm = asyncHandler(async (req, res) => {
   }
 
   const values = { ...body };
+  // The CAPTCHA token is anti-abuse metadata, not form content — never
+  // persist it into the submission record, notifications, or audit trail.
+  delete values.captchaToken;
+  delete values['g-recaptcha-response'];
+  delete values.cfTurnstileResponse;
   const files = [];
 
   // Process file fields from multipart (req.files) or JSON references
