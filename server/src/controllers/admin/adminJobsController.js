@@ -10,7 +10,11 @@ import { cacheDelPattern } from '../../config/redis.js';
 import { CACHE_KEYS } from '../../utils/cacheKeys.js';
 import { invalidateDynamicContentForEntity } from '../../utils/dynamicContentCache.js';
 import { onContentSaved, onContentDeleted, onContentBulkDeleted, onContentBulkUpdated } from '../../utils/contentIntegration.js';
-import { buildJobDuplicateProjection } from '../../services/jobWriteBoundary.js';
+import {
+  buildJobDuplicateProjection,
+  JOB_DUPLICATE_PRESERVE_FIELDS,
+  JOB_DUPLICATE_RESET_FIELDS,
+} from '../../services/jobWriteBoundary.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -178,6 +182,12 @@ export const update = asyncHandler(async (req, res) => {
   res.json(doc);
 });
 
+// Field-level duplication contract lives in jobWriteBoundary.js
+// (JOB_DUPLICATE_PRESERVE_FIELDS / JOB_DUPLICATE_RESET_FIELDS / JOB_DUPLICATE_FORBIDDEN_FIELDS)
+// and docs/STRIDETO_ADMIN_JOB_DUPLICATION_REGRESSION_CORRECTION_REPORT.md. Only content and
+// ownership/attribution fields are preserved from the source; paid placement, promotion,
+// analytics, scrape provenance, translation linkage, and publication/moderation evidence are
+// intentionally reset — title/status/approvalStatus/slug are then explicitly recomputed below.
 export const duplicate = asyncHandler(async (req, res) => {
   const { id } = req.params;
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
@@ -208,7 +218,11 @@ export const duplicate = asyncHandler(async (req, res) => {
     targetType: 'job',
     targetId: doc._id,
     targetLabel: doc.title,
-    metadata: { sourceId: id },
+    metadata: {
+      sourceId: id,
+      preservedFieldCount: JOB_DUPLICATE_PRESERVE_FIELDS.length,
+      resetFieldCount: JOB_DUPLICATE_RESET_FIELDS.length,
+    },
   });
   res.status(201).json(doc);
 });
