@@ -72,7 +72,11 @@ const tokenVersionMinValidator = paths.tokenVersionAtIssue.validators.find(
 check(tokenVersionMinValidator, 'tokenVersionAtIssue has a min validator');
 equal(tokenVersionMinValidator.min, 0, 'tokenVersionAtIssue minimum is 0');
 
-// Allowed revoke reasons — exact set, plus null.
+// Allowed revoke reasons — exact set, plus null. Ten values: the original
+// nine plus SEC-3D.3's 'refresh_final_state_mismatch' (readiness audit
+// §11.2/§18), added because the accepted architecture already mandated a
+// distinct system-generated post-rotation cleanup event without assigning
+// it a truthful audit reason.
 const expectedRevokeReasons = [
   'logout',
   'logout_all',
@@ -83,7 +87,10 @@ const expectedRevokeReasons = [
   'account_deleted',
   'role_changed',
   'admin_revoked',
+  'refresh_final_state_mismatch',
 ];
+equal(expectedRevokeReasons.length, 10, 'exactly ten revoke reasons');
+equal(new Set(expectedRevokeReasons).size, 10, 'every revoke reason is unique');
 deepEqual(
   REFRESH_SESSION_REVOKE_REASONS,
   expectedRevokeReasons,
@@ -98,6 +105,22 @@ check(
   paths.revokeReason.enumValues.includes(null),
   'revokeReason enum allows null'
 );
+check(
+  paths.revokeReason.enumValues.includes('refresh_final_state_mismatch'),
+  'the new reason is accepted by the schema enum'
+);
+check(
+  !paths.revokeReason.enumValues.includes('some_unknown_reason'),
+  'unknown reasons remain rejected by the schema enum'
+);
+for (const reason of expectedRevokeReasons.filter(
+  (r) => r !== 'refresh_final_state_mismatch'
+)) {
+  check(
+    paths.revokeReason.enumValues.includes(reason),
+    `existing reason "${reason}" remains accepted`
+  );
+}
 
 // TTL index on expiresAt.
 const indexes = schema.indexes();

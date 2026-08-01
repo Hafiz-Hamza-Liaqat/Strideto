@@ -65,6 +65,7 @@ const userSchema = new mongoose.Schema(
       type: Number,
       default: 0,
       min: 0,
+      max: Number.MAX_SAFE_INTEGER,
       required: true,
       validate: { validator: Number.isInteger, message: 'tokenVersion must be an integer' },
     },

@@ -211,8 +211,8 @@ function seedFamily(model, overrides = {}) {
 
   deepEqual(
     [...SINGLE_FAMILY_REVOKE_REASONS].sort(),
-    ['admin_revoked', 'logout'].sort(),
-    'allowed single-family reasons are exactly logout and admin_revoked'
+    ['admin_revoked', 'logout', 'refresh_final_state_mismatch'].sort(),
+    'allowed single-family reasons are exactly logout, admin_revoked, and the SEC-3D.3 post-rotation mismatch reason'
   );
   deepEqual(
     [...ALL_FAMILY_REVOKE_REASONS].sort(),
@@ -226,6 +226,14 @@ function seedFamily(model, overrides = {}) {
       'admin_revoked',
     ].sort(),
     'allowed all-family reasons match the accepted event matrix exactly'
+  );
+  check(
+    !isAllFamilyRevokeReason('refresh_final_state_mismatch'),
+    'the SEC-3D.3 post-rotation mismatch reason is single-family only, never accepted for an all-family sweep'
+  );
+  check(
+    isSingleFamilyRevokeReason('refresh_final_state_mismatch'),
+    'the SEC-3D.3 post-rotation mismatch reason is an accepted single-family reason'
   );
 
   check(
@@ -387,6 +395,87 @@ for (const realm of ['user', 'employer']) {
     doc.expiresAt.getTime(),
     new Date('2026-01-01T00:01:00.000Z').getTime(),
     `${realm} expiresAt is untouched`
+  );
+}
+
+// --- SEC-3D.3 addition: 'refresh_final_state_mismatch' is single-family only ---
+{
+  const model = createFakeModel();
+  seedFamily(model);
+  const service = createSessionFamilyRevocationService({
+    refreshSessionModel: model,
+    now: () => new Date('2026-01-01T00:00:10.000Z'),
+  });
+  const result = await service.revokeCurrentFamily({
+    realm: 'user',
+    subjectId: VALID_USER_ID,
+    sessionFamilyId: VALID_FAMILY_ID,
+    reason: 'refresh_final_state_mismatch',
+  });
+  equal(
+    result.code,
+    'REVOKED_CURRENT_FAMILY',
+    'revokeCurrentFamily accepts the new SEC-3D.3 reason'
+  );
+  equal(
+    model._store.get(VALID_FAMILY_ID).revokeReason,
+    'refresh_final_state_mismatch',
+    'the exact new reason is stored'
+  );
+  check(
+    model._store.get(VALID_FAMILY_ID).subjectType === 'user' &&
+      model._store.get(VALID_FAMILY_ID).subjectId === VALID_USER_ID,
+    'realm and subject binding remain enforced for the new reason'
+  );
+}
+{
+  const model = createFakeModel();
+  const doc = seedFamily(model, {
+    revokedAt: new Date('2025-12-31T00:00:00.000Z'),
+    revokeReason: 'logout',
+  });
+  const service = createSessionFamilyRevocationService({
+    refreshSessionModel: model,
+    now: () => new Date('2026-01-01T00:00:10.000Z'),
+  });
+  await service.revokeCurrentFamily({
+    realm: 'user',
+    subjectId: VALID_USER_ID,
+    sessionFamilyId: VALID_FAMILY_ID,
+    reason: 'refresh_final_state_mismatch',
+  });
+  equal(
+    doc.revokeReason,
+    'logout',
+    'an already-revoked family keeps its original reason — never overwritten by the new reason'
+  );
+}
+{
+  const model = createFakeModel();
+  seedFamily(model);
+  const service = createSessionFamilyRevocationService({
+    refreshSessionModel: model,
+    now: () => new Date('2026-01-01T00:00:10.000Z'),
+  });
+  const result = await service.revokeAllFamilies({
+    realm: 'user',
+    subjectId: VALID_USER_ID,
+    reason: 'refresh_final_state_mismatch',
+  });
+  equal(
+    result.code,
+    'INVALID_INPUT',
+    'revokeAllFamilies rejects the SEC-3D.3 reason — single-family only'
+  );
+  equal(
+    model._callCounts.updateMany,
+    0,
+    'the all-family rejection occurs before any model access'
+  );
+  equal(
+    model._callCounts.findOneAndUpdate,
+    0,
+    'no findOneAndUpdate call either, on the rejected all-family attempt'
   );
 }
 

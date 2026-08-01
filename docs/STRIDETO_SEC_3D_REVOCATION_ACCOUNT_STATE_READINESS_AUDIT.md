@@ -549,12 +549,22 @@ defined as **one atomic write**, never two.
 
 ## 6. Revoke-reason coverage audit
 
-_(Preserved from the original pass — no contradiction found.)_ The
-implemented enum (`RefreshSessionContracts.js`,
-`REFRESH_SESSION_REVOKE_REASONS`) already contains all 9 values needed:
-`logout, logout_all, replay_detected, password_change, password_reset,
-account_suspended, account_deleted, role_changed, admin_revoked`. Complete;
-no new value required; no ambiguous overlap found; no enum change needed.
+_(Corrected — SEC-3D.3 authority correction.)_ The original 9-value enum
+(`RefreshSessionContracts.js`, `REFRESH_SESSION_REVOKE_REASONS`) was
+believed complete at the time of the original pass: `logout, logout_all,
+replay_detected, password_change, password_reset, account_suspended,
+account_deleted, role_changed, admin_revoked`. This was correct for every
+event named in §5's matrix, but §11.2 (added in a later correction pass)
+independently mandates a distinct, system-generated post-rotation
+final-state-mismatch cleanup event that the original 9-value set never
+assigned a truthful reason to — reusing `'admin_revoked'` (no admin
+action occurred) or `'logout'` (no user action occurred) would have
+misrepresented that event in the revocation audit trail. The enum is
+therefore extended by exactly one narrow, additive value:
+`refresh_final_state_mismatch` (§11.2, §18 — SEC-3D.3), bringing the set
+to 10 values. No other value changes; no existing value is renamed,
+reordered, or removed; no ambiguous overlap exists between the new value
+and any of the original 9.
 
 ## 7. Ordering and atomicity model
 
@@ -1343,12 +1353,17 @@ operation ever performs a third write or a second classification read.
 _(Preserved from the original pass — no contradiction found; re-verified
 consistent with §4's corrected current-session-logout resolution, since
 this section only ever concerned the `RefreshSession` side, not the
-access-token side.)_
+access-token side. This same primitive, `revokeCurrentFamily`, is also the
+exact mechanism SEC-3D.3's post-rotation mismatch cleanup reuses — with a
+different `reason`, `'refresh_final_state_mismatch'` instead of `'logout'`
+— since it is the identical single-document, state-conditioned revoke
+shape; only the caller and the stored reason differ, per §11.2.)_
 
 Safe binding fields: `sid` (caller-supplied, never trusted alone), `realm`
 and `subjectId` from the authenticated bearer access token's own verified
 claims (never client input). Filter: `{_id: sid, subjectType: realm,
-subjectId: subjectId, revokedAt: null}`. Update:
+subjectId: subjectId, revokedAt: null}`. Update (current-session-logout's
+own exact call):
 `{$set: {revokedAt: now, revokeReason: 'logout'}}`. Idempotent by filter —
 a second call on an already-revoked session simply doesn't match, safely
 classified as `SESSION_ALREADY_REVOKED` rather than an error. No plaintext
@@ -1430,19 +1445,26 @@ outcomes:
   is a single in-process step with no further I/O in between, as tight as
   achievable without a cross-document transaction (§7, Strategy A
   rejected).
-- **Mismatch (`TOKEN_VERSION_MISMATCH`, `SUBJECT_INACTIVE`, or
-  `SUBJECT_MISSING`)**: the CAS already committed and cannot be undone
-  without a transaction — the coordinator instead **conditionally revokes**
-  the just-rotated family (step 9), reusing §9's single-family revoke
-  primitive with a filter conditioned on the exact state the CAS just
-  wrote (the same "condition the write on the exact state just observed"
-  pattern already used by `RefreshSessionRotationService.classifyMiss`'s
+- **Mismatch (`TOKEN_VERSION_MISMATCH`, `SUBJECT_INACTIVE`,
+  `SUBJECT_MISSING`, or `SUBJECT_STATE_INVALID`)**: the CAS already
+  committed and cannot be undone without a transaction — the coordinator
+  instead **conditionally revokes** the just-rotated family (step 9),
+  calling §9's single-family revoke primitive, `revokeCurrentFamily`, with
+  the exact reason **`refresh_final_state_mismatch`** (§6, added narrowly
+  to `REFRESH_SESSION_REVOKE_REASONS`/`SINGLE_FAMILY_REVOKE_REASONS` for
+  this event specifically — never `'admin_revoked'` or `'logout'`, neither
+  of which truthfully describes a system-generated cleanup with no user or
+  admin action behind it), scoped to this one family only (never
+  `revokeAllFamilies`), with a filter conditioned on the exact state the
+  CAS just wrote (the same "condition the write on the exact state just
+  observed" pattern already used by `RefreshSessionRotationService.classifyMiss`'s
   replay-revoke, so a second, genuinely-concurrent legitimate rotation
   racing against this cleanup is not itself clobbered). The internal
   cleanup outcome is classified separately from what is returned to the
   caller: `ROTATED_FAMILY_REVOKED` (the conditional revoke matched and
-  committed) or `ROTATED_FAMILY_CLEANUP_FAILED` (the revoke's own filter
-  no longer matched, or a storage error occurred — logged as an internal
+  committed, storing `revokeReason: 'refresh_final_state_mismatch'`) or
+  `ROTATED_FAMILY_CLEANUP_FAILED` (the revoke's own filter no longer
+  matched, or a storage error occurred — logged as an internal
   alert, never surfacing as a different externally-visible outcome, since
   the caller-facing result is identical either way). The caller-facing
   result code, in both cleanup sub-cases, is `REFRESH_FINAL_STATE_MISMATCH`
@@ -1754,6 +1776,11 @@ discipline already established across every SEC-3B/3C module.
 | `REVOKED_ALL_FAMILIES`     | All-family sweep completed, including the zero-matched case                                                                                                                                     | Yes (idempotent — `updateMany` re-matches fewer/zero documents) | N/A — internal completion signal                                                           | Yes                  | No                                                                                   |
 | `REVOCATION_PARTIAL`       | The all-family `updateMany` itself failed, **after** the authoritative `tokenVersion` bump already committed                                                                                    | Yes (safe to retry the sweep alone)                             | N/A — never surfaces as event failure (§7, §10)                                            | Yes (internal alert) | Yes — logged for reconciliation, does not block the primary event's reported success |
 
+`REVOKED_CURRENT_FAMILY` is reason-agnostic at the result-code level — it
+is returned identically regardless of which allowed single-family reason
+(`'logout'`, `'admin_revoked'`, or SEC-3D.3's `'refresh_final_state_mismatch'`,
+§6) was supplied; only the stored `revokeReason` field differs.
+
 ### 14.3 `tokenVersion` and subject-security mutation (§8) — final SEC-3D.2 result taxonomy, 15 codes
 
 _(Replaces the original 6-code table in full — consolidated from the
@@ -1791,7 +1818,7 @@ SEC-3D.2 write is a single `findOneAndUpdate` — document-or-null — never
 | `REFRESH_ELIGIBLE`              | Steps 1–6 passed — internal state immediately before attempting the rotation CAS, not typically returned to an external caller since the flow continues automatically | N/A — internal marker                                                     | N/A                                  | Yes                | No                                                                                    |
 | `REFRESH_ROTATED`               | The coordinator's own external success code — CAS rotated **and** the step-8 reread confirmed the version is still current                                            | N/A — this is success                                                     | 200, new token pair issued           | No — caller-facing | No                                                                                    |
 | `REFRESH_FINAL_STATE_MISMATCH`  | Step-8 reread found a version/status change since steps 5–6 — no token is returned even though the CAS itself already committed (§11.2/§11.3)                         | No — the caller must obtain a fresh refresh token via a new login/session | 401 (generic) — no token of any kind | Yes                | Triggers `ROTATED_FAMILY_REVOKED`/`ROTATED_FAMILY_CLEANUP_FAILED` internally          |
-| `ROTATED_FAMILY_REVOKED`        | Internal sub-classification: the post-rotation conditional revoke (§11.2) matched and committed                                                                       | N/A — internal                                                            | N/A                                  | Yes                | No — this _is_ the cleanup                                                            |
+| `ROTATED_FAMILY_REVOKED`        | Internal sub-classification: the post-rotation conditional revoke (§11.2), calling `revokeCurrentFamily` with `reason: 'refresh_final_state_mismatch'` (§6, §9), matched and committed | N/A — internal                                                            | N/A                                  | Yes                | No — this _is_ the cleanup                                                            |
 | `ROTATED_FAMILY_CLEANUP_FAILED` | Internal sub-classification: the conditional revoke's own filter no longer matched, or errored                                                                        | N/A — internal alert                                                      | N/A                                  | Yes                | Yes — logged, does not change the caller-facing `REFRESH_FINAL_STATE_MISMATCH` result |
 | `CLASSIFICATION_STALE`          | Existing (SEC-3B, `RefreshSessionRotationService`), reused unchanged — a guarded replay-revoke lost its own race against a legitimate concurrent rotation             | Yes                                                                       | 401 (generic)                        | Yes                | No                                                                                    |
 
@@ -1901,6 +1928,13 @@ not any SEC-3D slice.
 - **Dormancy proof**: grep for the new service's name across
   `controllers/`, `routes/`, `middleware/`, `index.js`, `worker.js` —
   zero matches required.
+- **Post-checkpoint correction note**: this slice's checkpointed
+  `SINGLE_FAMILY_REVOKE_REASONS` set (originally `['logout',
+  'admin_revoked']`) was narrowly extended, additively, to include
+  `'refresh_final_state_mismatch'` as part of SEC-3D.3's authority
+  correction (§6, §11.2) — `revokeCurrentFamily` itself required no code
+  change, since its reason validation already delegates entirely to this
+  exported set; only the contracts file changed.
 
 ### SEC-3D.2 — Dormant bounded tokenVersion and atomic subject-security mutation primitives
 
@@ -1997,8 +2031,14 @@ not any SEC-3D slice.
 - **Prohibited files**: `controllers/`, `routes/`, `middleware/`,
   `authController.js`, `employerAuthController.js` — the live refresh
   routes are untouched by this slice.
-- **Dependencies**: SEC-3D.1 (the post-rotation-mismatch path reuses its
-  revoke primitive).
+- **Dependencies**: SEC-3D.1's `revokeCurrentFamily` — called only on the
+  post-rotation-mismatch cleanup path, only with `reason:
+  'refresh_final_state_mismatch'`, never `revokeAllFamilies`. That exact
+  reason required one narrow, additive authority correction to two
+  already-checkpointed contracts files
+  (`RefreshSessionContracts.js`/`SessionFamilyRevocationContracts.js`, §6)
+  — performed as its own bounded pre-step before this slice, not as part
+  of this slice's own file allowance below.
 - **Tests**: every binding-mismatch case; every fail-closed case; the
   race scenario from §11.1 reproduced against doubles (a double whose
   subject-state read returns a different value on the second call than

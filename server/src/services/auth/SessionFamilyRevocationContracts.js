@@ -62,6 +62,13 @@ export const SESSION_FAMILY_REVOCATION_RESULT_CODES = Object.freeze([
 export const SINGLE_FAMILY_REVOKE_REASONS = Object.freeze([
   'logout',
   'admin_revoked',
+  /**
+   * SEC-3D.3 addition — the exact reason for the mandatory post-rotation
+   * final-state-mismatch cleanup path (readiness audit §11.2/§18). Single-
+   * family only: it revokes exactly the one family that just rotated, never
+   * a bulk sweep, so it is never added to `ALL_FAMILY_REVOKE_REASONS`.
+   */
+  'refresh_final_state_mismatch',
 ]);
 
 /**

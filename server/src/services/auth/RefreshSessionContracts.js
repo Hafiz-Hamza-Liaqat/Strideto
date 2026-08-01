@@ -21,6 +21,18 @@ export const REFRESH_SESSION_REVOKE_REASONS = Object.freeze([
   'account_deleted',
   'role_changed',
   'admin_revoked',
+  /**
+   * SEC-3D.3 — the refresh family rotated successfully, but the mandatory
+   * authoritative post-rotation subject-state revalidation (readiness
+   * audit §11.2) found the successor credential no longer eligible for
+   * delivery. Single-family only, system-generated, never used by SEC-3B
+   * replay classification or any other event. Added narrowly to this
+   * already-checkpointed enum because the accepted architecture already
+   * mandated this exact cleanup event without assigning it a truthful
+   * audit reason — reusing 'admin_revoked' or 'logout' for it would have
+   * misrepresented the event in the revocation audit trail.
+   */
+  'refresh_final_state_mismatch',
 ]);
 
 /** §22/§23 — the accepted, tested benign-concurrency window. Not a guess. */
