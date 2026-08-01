@@ -25,6 +25,27 @@ import {
   isEmailVerificationRequired,
   VERIFY_TOKEN_TTL_MS,
 } from '../utils/emailVerification.js';
+import { secureAuthConfig } from '../services/auth/secureAuthConfig.js';
+import { userSecureAuthFlows } from '../services/auth/userSecureAuthFlows.js';
+
+/**
+ * SEC-3E.1 — trusted-origin enforcement is composed at the route level
+ * (`middleware/secureTrustedOrigin.js`), strictly before this controller is
+ * ever invoked, on every route that requires it. The original SEC-3E pass
+ * called an equivalent check by hand here, after this controller had
+ * already performed a database read/write — a real, if narrow, defect
+ * (documented in the SEC-3E report's correction record). No origin check
+ * is performed in this file anymore; retaining one here would be
+ * redundant at best and misleading at worst, since it could never protect
+ * anything that already ran before it in the same function.
+ */
+function writeUserRefreshCookie(res, token) {
+  secureAuthConfig.cookiePolicy.writeRefreshCookie({ res, realm: 'user', token });
+}
+
+function clearUserRefreshCookie(res) {
+  secureAuthConfig.cookiePolicy.clearRefreshCookie({ res, realm: 'user' });
+}
 
 function toSafeUser(user) {
   if (!user) return null;
@@ -161,9 +182,6 @@ export const login = asyncHandler(async (req, res) => {
   }
   user.lastLoginAt = new Date();
   await user.save({ validateBeforeSave: false });
-  const accessToken = signAccessToken({ userId: user._id.toString(), role: user.role });
-  const refreshToken = signRefreshToken({ userId: user._id.toString() });
-  await storeRefreshToken(user._id.toString(), refreshToken);
   const safe = toSafeUser(await User.findById(user._id));
   await logAudit({
     actor: { userId: user._id.toString(), email: user.email, role: user.role },
@@ -173,6 +191,27 @@ export const login = asyncHandler(async (req, res) => {
     targetLabel: user.email,
     ip: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '',
   });
+
+  if (secureAuthConfig.enabled) {
+    const sessionResult = await userSecureAuthFlows.issueLoginSession({
+      subjectId: user._id.toString(),
+      tokenVersion: user.tokenVersion,
+    });
+    if (sessionResult.code !== 'SESSION_ISSUED') {
+      return res.status(sessionResult.httpStatus).json(sessionResult.body);
+    }
+    writeUserRefreshCookie(res, sessionResult.refreshToken);
+    return res.json({
+      user: safe,
+      accessToken: sessionResult.accessToken,
+      expiresIn: '15m',
+      mustChangePassword: !!user.mustChangePassword,
+    });
+  }
+
+  const accessToken = signAccessToken({ userId: user._id.toString(), role: user.role });
+  const refreshToken = signRefreshToken({ userId: user._id.toString() });
+  await storeRefreshToken(user._id.toString(), refreshToken);
   res.json({
     user: safe,
     accessToken,
@@ -195,6 +234,29 @@ export const me = asyncHandler(async (req, res) => {
 export const logout = asyncHandler(async (req, res) => {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
+
+  if (secureAuthConfig.enabled) {
+    const principal = req.user;
+    const result = await userSecureAuthFlows.logoutCurrent({
+      principal: { subjectId: principal.userId, sid: principal.sid, jti: principal.jti },
+      presentedAccessTokenExp: principal.exp,
+      origin: req.headers.origin,
+      referer: req.headers.referer,
+    });
+    if (result.code !== 'LOGGED_OUT') {
+      return res.status(result.httpStatus).json(result.body);
+    }
+    clearUserRefreshCookie(res);
+    await logAudit({
+      ...auditFromRequest(req),
+      actor: { userId: principal.userId, role: principal.role },
+      action: 'auth.logout',
+      targetType: 'user',
+      targetId: principal.userId,
+    });
+    return res.json({ message: 'Logged out' });
+  }
+
   if (req.user?.userId) {
     const user = await User.findById(req.user.userId).select('email role');
     await revokeRefreshToken(req.user.userId);
@@ -215,7 +277,62 @@ export const logout = asyncHandler(async (req, res) => {
   res.json({ message: 'Logged out' });
 });
 
+export const logoutAll = asyncHandler(async (req, res) => {
+  if (!secureAuthConfig.enabled) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  const principal = req.user;
+  const result = await userSecureAuthFlows.logoutAll({
+    principal: {
+      subjectId: principal.userId,
+      sid: principal.sid,
+      jti: principal.jti,
+      tokenVersion: principal.tokenVersion,
+    },
+    presentedAccessTokenExp: principal.exp,
+    origin: req.headers.origin,
+    referer: req.headers.referer,
+  });
+  if (result.code !== 'LOGGED_OUT_ALL') {
+    return res.status(result.httpStatus).json(result.body);
+  }
+  clearUserRefreshCookie(res);
+  await logAudit({
+    ...auditFromRequest(req),
+    actor: { userId: principal.userId, role: principal.role },
+    action: 'auth.logout_all',
+    targetType: 'user',
+    targetId: principal.userId,
+  });
+  res.json({ message: 'Logged out of all sessions' });
+});
+
 export const refreshToken = asyncHandler(async (req, res) => {
+  if (secureAuthConfig.enabled) {
+    const extraction = secureAuthConfig.cookiePolicy.extractRefreshToken({
+      cookieHeader: req.headers.cookie,
+      realm: 'user',
+    });
+    const cookieToken = extraction.code === 'COOKIE_FOUND' ? extraction.token : null;
+    const result = await userSecureAuthFlows.refresh({
+      cookieToken,
+      origin: req.headers.origin,
+      referer: req.headers.referer,
+    });
+    if (result.clearCookie) {
+      clearUserRefreshCookie(res);
+    }
+    if (result.code === 'REFRESH_ROTATED') {
+      writeUserRefreshCookie(res, result.refreshToken);
+      return res.json({ accessToken: result.accessToken, expiresIn: '15m' });
+    }
+    if (result.code === 'CONFLICT_BENIGN') {
+      res.set('Retry-After', String(result.retryAfterSeconds));
+      return res.status(result.httpStatus).json(result.body);
+    }
+    return res.status(result.httpStatus).json(result.body);
+  }
+
   const token = req.body.refreshToken || req.headers['x-refresh-token'];
   if (!token) return res.status(401).json({ error: 'Refresh token required' });
   let decoded;
@@ -324,6 +441,17 @@ export const resetPassword = asyncHandler(async (req, res) => {
   if (!user) {
     return res.status(400).json({ error: 'Invalid or expired reset link. Please request a new password reset.' });
   }
+  if (secureAuthConfig.enabled) {
+    const result = await userSecureAuthFlows.resetPassword({
+      hashedToken: hashResetToken(token),
+      newPassword: req.body.password,
+    });
+    if (result.clearCookie) clearUserRefreshCookie(res);
+    return res
+      .status(200)
+      .json({ message: 'Password reset successfully. You can now sign in with your new password.' });
+  }
+
   user.password = req.body.password;
   user.passwordResetToken = undefined;
   user.passwordResetExpires = undefined;
@@ -347,6 +475,28 @@ export const changePassword = asyncHandler(async (req, res) => {
   if (!(await user.comparePassword(req.body.currentPassword))) {
     return res.status(401).json({ error: 'Current password is incorrect' });
   }
+
+  if (secureAuthConfig.enabled) {
+    const principal = req.user;
+    const result = await userSecureAuthFlows.changePassword({
+      principal: { subjectId: user._id.toString(), tokenVersion: principal.tokenVersion, jti: principal.jti },
+      newPassword: req.body.newPassword,
+      presentedAccessTokenExp: principal.exp,
+    });
+    if (result.code !== 'PASSWORD_CHANGED') {
+      return res.status(result.httpStatus).json(result.body || { error: 'Could not change password' });
+    }
+    clearUserRefreshCookie(res);
+    await logAudit({
+      ...auditFromRequest(req),
+      action: 'auth.change_password',
+      targetType: 'user',
+      targetId: user._id,
+      targetLabel: user.email,
+    });
+    return res.json({ message: 'Password changed successfully' });
+  }
+
   user.password = req.body.newPassword;
   user.mustChangePassword = false;
   user.tempPasswordExpires = undefined;

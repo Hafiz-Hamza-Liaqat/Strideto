@@ -8,6 +8,26 @@ import {
 } from '../utils/tokenStore.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { logAudit, auditFromRequest } from '../services/auditService.js';
+import { secureAuthConfig } from '../services/auth/secureAuthConfig.js';
+import { employerSecureAuthFlows } from '../services/auth/employerSecureAuthFlows.js';
+
+/**
+ * SEC-3E.1 — trusted-origin enforcement is composed at the route level
+ * (`middleware/secureTrustedOrigin.js`), strictly before this controller is
+ * ever invoked. The original SEC-3E pass called an equivalent check by
+ * hand inside `issueSecureEmployerSession`, which `employerRegister` only
+ * reached *after* `Employer.create` had already run — a real account
+ * creation could occur before a forged cross-site request was rejected
+ * (documented in the SEC-3E report's correction record). No origin check
+ * is performed in this file anymore.
+ */
+function writeEmployerRefreshCookie(res, token) {
+  secureAuthConfig.cookiePolicy.writeRefreshCookie({ res, realm: 'employer', token });
+}
+
+function clearEmployerRefreshCookie(res) {
+  secureAuthConfig.cookiePolicy.clearRefreshCookie({ res, realm: 'employer' });
+}
 
 function toSafeEmployer(employer) {
   if (!employer) return null;
@@ -29,6 +49,30 @@ async function issueEmployerSession(employer) {
   };
 }
 
+/**
+ * SEC-3E — secure-mode session issuance. Returns `null` on issuance
+ * failure so the caller can map it to the shared HTTP-mapping result
+ * instead of guessing a status/body itself.
+ */
+async function issueSecureEmployerSession(res, employer) {
+  const sessionResult = await employerSecureAuthFlows.issueLoginSession({
+    subjectId: employer._id.toString(),
+    tokenVersion: employer.tokenVersion,
+  });
+  if (sessionResult.code !== 'SESSION_ISSUED') {
+    return { ok: false, status: sessionResult.httpStatus, body: sessionResult.body };
+  }
+  writeEmployerRefreshCookie(res, sessionResult.refreshToken);
+  return {
+    ok: true,
+    body: {
+      employer: toSafeEmployer(employer),
+      accessToken: sessionResult.accessToken,
+      expiresIn: '15m',
+    },
+  };
+}
+
 export const employerRegister = asyncHandler(async (req, res) => {
   const { companyName, email, phone, website, companyDescription, password } = req.body;
   if (!companyName || !email || !password) {
@@ -47,7 +91,15 @@ export const employerRegister = asyncHandler(async (req, res) => {
     companyDescription: (companyDescription || '').trim(),
     password,
   });
-  const session = await issueEmployerSession(await Employer.findById(employer._id));
+  const freshEmployer = await Employer.findById(employer._id);
+
+  if (secureAuthConfig.enabled) {
+    const result = await issueSecureEmployerSession(res, freshEmployer);
+    if (!result.ok) return res.status(result.status).json(result.body);
+    return res.status(201).json(result.body);
+  }
+
+  const session = await issueEmployerSession(freshEmployer);
   res.status(201).json(session);
 });
 
@@ -61,7 +113,15 @@ export const employerLogin = asyncHandler(async (req, res) => {
   if (!employer || !(await employer.comparePassword(password))) {
     return res.status(401).json({ error: 'Invalid email or password' });
   }
-  const session = await issueEmployerSession(await Employer.findById(employer._id));
+  const freshEmployer = await Employer.findById(employer._id);
+
+  if (secureAuthConfig.enabled) {
+    const result = await issueSecureEmployerSession(res, freshEmployer);
+    if (!result.ok) return res.status(result.status).json(result.body);
+    return res.json(result.body);
+  }
+
+  const session = await issueEmployerSession(freshEmployer);
   res.json(session);
 });
 
@@ -75,6 +135,29 @@ export const employerLogout = asyncHandler(async (req, res) => {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   const employerId = req.employer?.employerId;
+
+  if (secureAuthConfig.enabled) {
+    const principal = req.employer;
+    const result = await employerSecureAuthFlows.logoutCurrent({
+      principal: { subjectId: principal.employerId, sid: principal.sid, jti: principal.jti },
+      presentedAccessTokenExp: principal.exp,
+      origin: req.headers.origin,
+      referer: req.headers.referer,
+    });
+    if (result.code !== 'LOGGED_OUT') {
+      return res.status(result.httpStatus).json(result.body);
+    }
+    clearEmployerRefreshCookie(res);
+    await logAudit({
+      ...auditFromRequest(req),
+      actor: { employerId: principal.employerId, role: 'employer' },
+      action: 'auth.employer.logout',
+      targetType: 'employer',
+      targetId: principal.employerId,
+    });
+    return res.json({ message: 'Logged out' });
+  }
+
   if (employerId) {
     await revokeRefreshToken(employerId, 'employer');
     const employer = await Employer.findById(employerId).select('email companyName');
@@ -95,7 +178,62 @@ export const employerLogout = asyncHandler(async (req, res) => {
   res.json({ message: 'Logged out' });
 });
 
+export const employerLogoutAll = asyncHandler(async (req, res) => {
+  if (!secureAuthConfig.enabled) {
+    return res.status(404).json({ error: 'Not found' });
+  }
+  const principal = req.employer;
+  const result = await employerSecureAuthFlows.logoutAll({
+    principal: {
+      subjectId: principal.employerId,
+      sid: principal.sid,
+      jti: principal.jti,
+      tokenVersion: principal.tokenVersion,
+    },
+    presentedAccessTokenExp: principal.exp,
+    origin: req.headers.origin,
+    referer: req.headers.referer,
+  });
+  if (result.code !== 'LOGGED_OUT_ALL') {
+    return res.status(result.httpStatus).json(result.body);
+  }
+  clearEmployerRefreshCookie(res);
+  await logAudit({
+    ...auditFromRequest(req),
+    actor: { employerId: principal.employerId, role: 'employer' },
+    action: 'auth.employer.logout_all',
+    targetType: 'employer',
+    targetId: principal.employerId,
+  });
+  res.json({ message: 'Logged out of all sessions' });
+});
+
 export const employerRefreshToken = asyncHandler(async (req, res) => {
+  if (secureAuthConfig.enabled) {
+    const extraction = secureAuthConfig.cookiePolicy.extractRefreshToken({
+      cookieHeader: req.headers.cookie,
+      realm: 'employer',
+    });
+    const cookieToken = extraction.code === 'COOKIE_FOUND' ? extraction.token : null;
+    const result = await employerSecureAuthFlows.refresh({
+      cookieToken,
+      origin: req.headers.origin,
+      referer: req.headers.referer,
+    });
+    if (result.clearCookie) {
+      clearEmployerRefreshCookie(res);
+    }
+    if (result.code === 'REFRESH_ROTATED') {
+      writeEmployerRefreshCookie(res, result.refreshToken);
+      return res.json({ accessToken: result.accessToken, expiresIn: '15m' });
+    }
+    if (result.code === 'CONFLICT_BENIGN') {
+      res.set('Retry-After', String(result.retryAfterSeconds));
+      return res.status(result.httpStatus).json(result.body);
+    }
+    return res.status(result.httpStatus).json(result.body);
+  }
+
   const token = req.body.refreshToken || req.headers['x-refresh-token'];
   if (!token) return res.status(401).json({ error: 'Refresh token required' });
   let decoded;

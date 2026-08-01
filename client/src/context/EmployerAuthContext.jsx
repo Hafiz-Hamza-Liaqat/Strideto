@@ -1,11 +1,25 @@
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+} from 'react';
+import { useLocation } from 'react-router-dom';
 import {
   employerAuthApi,
-  EMPLOYER_TOKEN_STORAGE,
-  EMPLOYER_REFRESH_STORAGE,
   resetEmployerAxiosAuthState,
+  getEmployerAccessToken,
+  setEmployerAccessToken,
+  clearEmployerAccessToken,
 } from '../services/employerService';
+import { isEmployerRoutePrefix } from '../auth/authRealm';
 
+/**
+ * SEC-3E — mirrors `AuthContext.jsx`'s secure contract: the Employer
+ * access token lives only in `employerService.js`'s in-memory store;
+ * `edurozgaar-employer` remains a non-authoritative UI cache only.
+ */
 const STORAGE_EMPLOYER = 'edurozgaar-employer';
 
 const EmployerAuthContext = createContext(null);
@@ -20,13 +34,13 @@ function readStoredEmployer() {
 }
 
 function clearEmployerSessionLocal() {
-  localStorage.removeItem(EMPLOYER_TOKEN_STORAGE);
-  localStorage.removeItem(EMPLOYER_REFRESH_STORAGE);
+  clearEmployerAccessToken();
   localStorage.removeItem(STORAGE_EMPLOYER);
   resetEmployerAxiosAuthState();
 }
 
 export function EmployerAuthProvider({ children }) {
+  const { pathname } = useLocation();
   const [employer, setEmployer] = useState(readStoredEmployer);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -37,27 +51,26 @@ export function EmployerAuthProvider({ children }) {
     else localStorage.removeItem(STORAGE_EMPLOYER);
   }, []);
 
-  const setSessionTokens = useCallback((accessToken, refreshToken) => {
-    if (accessToken) localStorage.setItem(EMPLOYER_TOKEN_STORAGE, accessToken);
-    else localStorage.removeItem(EMPLOYER_TOKEN_STORAGE);
-    if (refreshToken) localStorage.setItem(EMPLOYER_REFRESH_STORAGE, refreshToken);
-    else localStorage.removeItem(EMPLOYER_REFRESH_STORAGE);
-  }, []);
+  const login = useCallback(
+    async (email, password) => {
+      setError(null);
+      const { data } = await employerAuthApi.login(email, password);
+      setEmployerAccessToken(data.accessToken);
+      persistEmployer(data.employer);
+      return data.employer;
+    },
+    [persistEmployer]
+  );
 
-  const login = useCallback(async (email, password) => {
-    setError(null);
-    const { data } = await employerAuthApi.login(email, password);
-    setSessionTokens(data.accessToken, data.refreshToken);
-    persistEmployer(data.employer);
-    return data.employer;
-  }, [persistEmployer, setSessionTokens]);
-
-  const register = useCallback(async (payload) => {
-    const { data } = await employerAuthApi.register(payload);
-    setSessionTokens(data.accessToken, data.refreshToken);
-    persistEmployer(data.employer);
-    return data.employer;
-  }, [persistEmployer, setSessionTokens]);
+  const register = useCallback(
+    async (payload) => {
+      const { data } = await employerAuthApi.register(payload);
+      setEmployerAccessToken(data.accessToken);
+      persistEmployer(data.employer);
+      return data.employer;
+    },
+    [persistEmployer]
+  );
 
   const refreshEmployer = useCallback(async () => {
     const { data } = await employerAuthApi.me();
@@ -67,7 +80,7 @@ export function EmployerAuthProvider({ children }) {
 
   const logout = useCallback(async () => {
     try {
-      if (localStorage.getItem(EMPLOYER_TOKEN_STORAGE)) {
+      if (getEmployerAccessToken()) {
         await employerAuthApi.logout();
       }
     } catch {
@@ -77,31 +90,65 @@ export function EmployerAuthProvider({ children }) {
     persistEmployer(null);
   }, [persistEmployer]);
 
-  useEffect(() => {
-    const token = localStorage.getItem(EMPLOYER_TOKEN_STORAGE);
-    if (!token) {
-      setLoading(false);
-      return;
+  const logoutAll = useCallback(async () => {
+    try {
+      await employerAuthApi.logoutAll();
+    } finally {
+      clearEmployerSessionLocal();
+      persistEmployer(null);
     }
-    employerAuthApi
-      .me()
-      .then(({ data }) => persistEmployer(data.employer))
-      .catch(() => {
-        clearEmployerSessionLocal();
-        persistEmployer(null);
-      })
-      .finally(() => setLoading(false));
   }, [persistEmployer]);
+
+  useEffect(() => {
+    // Never attempt an employer cookie refresh from a User-only page —
+    // mirrors AuthContext.jsx's reciprocal `shouldSkipUserAuthBootstrap`
+    // guard so neither realm's bootstrap ever touches the other's route.
+    if (!isEmployerRoutePrefix(pathname)) {
+      setLoading(false);
+      return undefined;
+    }
+
+    let cancelled = false;
+    setLoading(true);
+
+    // Secure bootstrap: attempt a silent cookie-based refresh first, then
+    // hydrate the profile only on success — never trusts a stored token.
+    employerAuthApi
+      .refresh()
+      .then(({ data }) => {
+        if (cancelled) return null;
+        setEmployerAccessToken(data.accessToken);
+        return employerAuthApi.me();
+      })
+      .then((res) => {
+        if (!cancelled && res) persistEmployer(res.data.employer);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          clearEmployerSessionLocal();
+          persistEmployer(null);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const value = {
     employer,
     loading,
     error,
     setError,
-    isAuthenticated: !!employer,
+    isAuthenticated: !!employer && !!getEmployerAccessToken(),
     login,
     register,
     logout,
+    logoutAll,
     refreshEmployer,
   };
 
@@ -114,6 +161,7 @@ export function EmployerAuthProvider({ children }) {
 
 export function useEmployerAuth() {
   const ctx = useContext(EmployerAuthContext);
-  if (!ctx) throw new Error('useEmployerAuth must be used within EmployerAuthProvider');
+  if (!ctx)
+    throw new Error('useEmployerAuth must be used within EmployerAuthProvider');
   return ctx;
 }

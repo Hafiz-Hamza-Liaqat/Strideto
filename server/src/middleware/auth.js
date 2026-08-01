@@ -1,7 +1,61 @@
 import { verifyToken } from '../utils/jwt.js';
 import { isAccessTokenRevoked } from '../utils/tokenStore.js';
+import { secureAuthConfig } from '../services/auth/secureAuthConfig.js';
+import { secureAccessAuthorization } from '../services/auth/secureAccessAuthorization.js';
 
-export function requireAuth(req, res, next) {
+/**
+ * SEC-3E — maps a `secureAccessAuthorization` principal onto the exact
+ * `req.user`/`req.employer` shapes every existing, unrelated handler
+ * already reads (`userId`/`employerId`, `role`) — `requireUserAuth`,
+ * `requireEmployerAuth`, `requireRole`, `requireAdmin`, `requireUser`, and
+ * every non-auth route/controller need no change at all, in either mode.
+ * `sid`/`jti`/`tokenVersion`/`exp` are attached too — only the auth
+ * controllers (logout/logout-all/change-password) read them.
+ */
+function attachSecurePrincipal(req, principal) {
+  if (principal.realm === 'employer') {
+    req.employer = {
+      employerId: principal.subjectId,
+      role: 'employer',
+      sid: principal.sid,
+      jti: principal.jti,
+      tokenVersion: principal.tokenVersion,
+      exp: principal.exp,
+    };
+  } else {
+    req.user = {
+      userId: principal.subjectId,
+      role: principal.role,
+      sid: principal.sid,
+      jti: principal.jti,
+      tokenVersion: principal.tokenVersion,
+      exp: principal.exp,
+    };
+  }
+}
+
+async function secureRequireAuth(req, res, next) {
+  const result = await secureAccessAuthorization.authorizeRequest({
+    authorizationHeader: req.headers.authorization,
+  });
+  if (result.code !== 'ACCESS_AUTHORIZED') {
+    return res.status(result.httpStatus).json(result.body);
+  }
+  attachSecurePrincipal(req, result.principal);
+  next();
+}
+
+async function secureOptionalAuth(req, res, next) {
+  const authHeader = req.headers.authorization;
+  if (!authHeader?.startsWith('Bearer ')) return next();
+  const result = await secureAccessAuthorization.authorizeRequest({ authorizationHeader: authHeader });
+  if (result.code === 'ACCESS_AUTHORIZED') {
+    attachSecurePrincipal(req, result.principal);
+  }
+  next();
+}
+
+function legacyRequireAuth(req, res, next) {
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!token) {
@@ -30,6 +84,13 @@ export function requireAuth(req, res, next) {
     .catch(() => res.status(401).json({ error: 'Authentication failed' }));
 }
 
+export function requireAuth(req, res, next) {
+  if (secureAuthConfig.enabled) {
+    return secureRequireAuth(req, res, next);
+  }
+  return legacyRequireAuth(req, res, next);
+}
+
 /** Requires a User token (not Employer). Use for candidate-facing routes. */
 export function requireUserAuth(req, res, next) {
   if (req.employer) {
@@ -42,7 +103,10 @@ export function requireUserAuth(req, res, next) {
 }
 
 /** Optional auth — attaches user/employer when valid token present; never rejects. */
-export function optionalAuth(req, _res, next) {
+export function optionalAuth(req, res, next) {
+  if (secureAuthConfig.enabled) {
+    return secureOptionalAuth(req, res, next);
+  }
   const authHeader = req.headers.authorization;
   const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
   if (!token) return next();

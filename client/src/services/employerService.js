@@ -1,8 +1,25 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../constants';
 
-const EMPLOYER_TOKEN_KEY = 'edurozgaar-employer-token';
-const EMPLOYER_REFRESH_KEY = 'edurozgaar-employer-refresh-token';
+/**
+ * SEC-3E — secure Employer-realm client contract, mirroring
+ * `axiosBase.js`'s User-realm cutover exactly: access token in memory
+ * only, refresh token exclusively as an `HttpOnly` cookie via
+ * `withCredentials: true`, never a body/header refresh token.
+ */
+let inMemoryEmployerAccessToken = null;
+
+export function getEmployerAccessToken() {
+  return inMemoryEmployerAccessToken;
+}
+
+export function setEmployerAccessToken(token) {
+  inMemoryEmployerAccessToken = token || null;
+}
+
+export function clearEmployerAccessToken() {
+  inMemoryEmployerAccessToken = null;
+}
 
 const EMPLOYER_NO_REFRESH = [
   '/auth/employer/login',
@@ -18,6 +35,7 @@ function isEmployerNoRefreshUrl(url = '') {
 const employerAxios = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
+  withCredentials: true,
   headers: { 'Content-Type': 'application/json' },
 });
 
@@ -29,8 +47,7 @@ export function resetEmployerAxiosAuthState() {
 
 employerAxios.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem(EMPLOYER_TOKEN_KEY);
-    if (token) config.headers.Authorization = `Bearer ${token}`;
+    if (inMemoryEmployerAccessToken) config.headers.Authorization = `Bearer ${inMemoryEmployerAccessToken}`;
     return config;
   },
   (e) => Promise.reject(e)
@@ -48,17 +65,8 @@ employerAxios.interceptors.response.use(
 
     if (status !== 401 || original._retry || isEmployerNoRefreshUrl(original.url)) {
       if (status === 401 && !isEmployerNoRefreshUrl(original.url)) {
-        localStorage.removeItem(EMPLOYER_TOKEN_KEY);
-        localStorage.removeItem(EMPLOYER_REFRESH_KEY);
-        localStorage.removeItem('edurozgaar-employer');
+        clearEmployerAccessToken();
       }
-      return Promise.reject(err);
-    }
-
-    const refresh = localStorage.getItem(EMPLOYER_REFRESH_KEY);
-    if (!refresh) {
-      localStorage.removeItem(EMPLOYER_TOKEN_KEY);
-      localStorage.removeItem('edurozgaar-employer');
       return Promise.reject(err);
     }
 
@@ -66,12 +74,10 @@ employerAxios.interceptors.response.use(
 
     if (!employerRefreshPromise) {
       employerRefreshPromise = axios
-        .post(`${API_BASE_URL}/auth/employer/refresh-token`, { refreshToken: refresh })
+        .post(`${API_BASE_URL}/auth/employer/refresh-token`, {}, { withCredentials: true })
         .then((res) => {
-          const { accessToken, refreshToken: newRefresh, employer } = res.data;
-          localStorage.setItem(EMPLOYER_TOKEN_KEY, accessToken);
-          if (newRefresh) localStorage.setItem(EMPLOYER_REFRESH_KEY, newRefresh);
-          if (employer) localStorage.setItem('edurozgaar-employer', JSON.stringify(employer));
+          const { accessToken } = res.data;
+          setEmployerAccessToken(accessToken);
           return accessToken;
         })
         .finally(() => {
@@ -84,25 +90,20 @@ employerAxios.interceptors.response.use(
       original.headers.Authorization = `Bearer ${newToken}`;
       return employerAxios(original);
     } catch (refreshErr) {
-      localStorage.removeItem(EMPLOYER_TOKEN_KEY);
-      localStorage.removeItem(EMPLOYER_REFRESH_KEY);
-      localStorage.removeItem('edurozgaar-employer');
+      clearEmployerAccessToken();
       resetEmployerAxiosAuthState();
       return Promise.reject(refreshErr);
     }
   }
 );
 
-export const EMPLOYER_TOKEN_STORAGE = EMPLOYER_TOKEN_KEY;
-export const EMPLOYER_REFRESH_STORAGE = EMPLOYER_REFRESH_KEY;
-
 export const employerAuthApi = {
-  register: (payload) => axios.post(`${API_BASE_URL}/auth/employer/register`, payload),
-  login: (email, password) => axios.post(`${API_BASE_URL}/auth/employer/login`, { email, password }),
+  register: (payload) => employerAxios.post('/auth/employer/register', payload),
+  login: (email, password) => employerAxios.post('/auth/employer/login', { email, password }),
   me: () => employerAxios.get('/employer/me'),
   logout: () => employerAxios.post('/auth/employer/logout'),
-  refresh: (refreshToken) =>
-    axios.post(`${API_BASE_URL}/auth/employer/refresh-token`, { refreshToken }),
+  logoutAll: () => employerAxios.post('/auth/employer/logout-all'),
+  refresh: () => employerAxios.post('/auth/employer/refresh-token', {}),
 };
 
 export const employerApi = {

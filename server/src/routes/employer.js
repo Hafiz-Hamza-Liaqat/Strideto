@@ -1,5 +1,6 @@
 import { Router } from 'express';
 import { requireAuth, requireEmployerAuth } from '../middleware/auth.js';
+import { secureTrustedOrigin } from '../middleware/secureTrustedOrigin.js';
 import { employerAuthLimiter, refreshLimiter } from '../middleware/rateLimit.js';
 import * as employerAuth from '../controllers/employerAuthController.js';
 import * as employer from '../controllers/employerController.js';
@@ -7,14 +8,37 @@ import { createJobCheckout } from '../controllers/paymentsController.js';
 
 export const employerRouter = Router();
 
-employerRouter.post('/auth/employer/register', employerAuthLimiter, employerAuth.employerRegister);
-employerRouter.post('/auth/employer/login', employerAuthLimiter, employerAuth.employerLogin);
-employerRouter.post('/auth/employer/refresh-token', refreshLimiter, employerAuth.employerRefreshToken);
+employerRouter.post(
+  '/auth/employer/register',
+  employerAuthLimiter,
+  secureTrustedOrigin,
+  employerAuth.employerRegister
+);
+employerRouter.post(
+  '/auth/employer/login',
+  employerAuthLimiter,
+  secureTrustedOrigin,
+  employerAuth.employerLogin
+);
+employerRouter.post(
+  '/auth/employer/refresh-token',
+  refreshLimiter,
+  secureTrustedOrigin,
+  employerAuth.employerRefreshToken
+);
 employerRouter.post(
   '/auth/employer/logout',
+  secureTrustedOrigin,
   requireAuth,
   requireEmployerAuth,
   employerAuth.employerLogout
+);
+employerRouter.post(
+  '/auth/employer/logout-all',
+  secureTrustedOrigin,
+  requireAuth,
+  requireEmployerAuth,
+  employerAuth.employerLogoutAll
 );
 
 employerRouter.get('/employer/me', requireAuth, requireEmployerAuth, employerAuth.employerMe);

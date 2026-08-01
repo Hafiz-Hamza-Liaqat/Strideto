@@ -1,12 +1,29 @@
-import { createContext, useContext, useState, useCallback, useEffect } from 'react';
+import {
+  createContext,
+  useContext,
+  useState,
+  useCallback,
+  useEffect,
+} from 'react';
 import { useLocation } from 'react-router-dom';
 import { authApi } from '../services/authService';
-import { resetAxiosAuthState } from '../services/axiosBase';
+import {
+  resetAxiosAuthState,
+  getAccessToken,
+  setAccessToken,
+  clearAccessToken,
+} from '../services/axiosBase';
 import { resetPermissionsCache } from '../hooks/usePermissions';
 import { shouldSkipUserAuthBootstrap } from '../auth/authRealm';
 
-const STORAGE_TOKEN = 'edurozgaar-token';
-const STORAGE_REFRESH = 'edurozgaar-refresh-token';
+/**
+ * SEC-3E — the access token lives in `axiosBase.js`'s in-memory store
+ * only; this context never writes a token to `localStorage`. `edurozgaar-user`
+ * remains a non-authoritative UI cache (avoids a name/avatar flash before
+ * bootstrap resolves) — it is never treated as proof of authentication;
+ * `isAuthenticated` reflects only the in-memory access-token + bootstrap
+ * state below.
+ */
 const STORAGE_USER = 'edurozgaar-user';
 
 const AuthContext = createContext(null);
@@ -32,16 +49,10 @@ export function AuthProvider({ children }) {
     else localStorage.removeItem(STORAGE_USER);
   }, []);
 
-  const setTokens = useCallback((accessToken, refreshToken) => {
-    if (accessToken) localStorage.setItem(STORAGE_TOKEN, accessToken);
-    if (refreshToken) localStorage.setItem(STORAGE_REFRESH, refreshToken);
-  }, []);
-
   const clearAuth = useCallback(() => {
     resetAxiosAuthState();
     resetPermissionsCache();
-    localStorage.removeItem(STORAGE_TOKEN);
-    localStorage.removeItem(STORAGE_REFRESH);
+    clearAccessToken();
     localStorage.removeItem(STORAGE_USER);
     setUser(null);
   }, []);
@@ -51,11 +62,14 @@ export function AuthProvider({ children }) {
       setError(null);
       resetAxiosAuthState();
       const { data } = await authApi.login({ email, password });
-      setTokens(data.accessToken, data.refreshToken);
-      persistUser({ ...data.user, mustChangePassword: !!data.mustChangePassword });
+      setAccessToken(data.accessToken);
+      persistUser({
+        ...data.user,
+        mustChangePassword: !!data.mustChangePassword,
+      });
       return { user: data.user, mustChangePassword: !!data.mustChangePassword };
     },
-    [persistUser, setTokens]
+    [persistUser]
   );
 
   const register = useCallback(
@@ -72,35 +86,43 @@ export function AuthProvider({ children }) {
           expiresInMinutes: data.expiresInMinutes,
         };
       }
-      setTokens(data.accessToken, data.refreshToken);
+      setAccessToken(data.accessToken);
       persistUser(data.user);
       return { user: data.user, requiresVerification: false };
     },
-    [persistUser, setTokens]
+    [persistUser]
   );
 
   const logout = useCallback(async () => {
     try {
-      await authApi.logout();
+      if (getAccessToken()) {
+        await authApi.logout();
+      }
     } catch {
       // ignore
     }
     clearAuth();
   }, [clearAuth]);
 
-  const refreshToken = useCallback(async () => {
-    const refresh = localStorage.getItem(STORAGE_REFRESH);
-    if (!refresh) return null;
+  const logoutAll = useCallback(async () => {
     try {
-      const { data } = await authApi.refreshToken(refresh);
-      setTokens(data.accessToken, data.refreshToken);
-      persistUser(data.user);
+      await authApi.logoutAll();
+    } finally {
+      clearAuth();
+    }
+  }, [clearAuth]);
+
+  /** Silent refresh via the HttpOnly cookie — never reads/writes a stored refresh token. */
+  const refreshToken = useCallback(async () => {
+    try {
+      const { data } = await authApi.refreshToken();
+      setAccessToken(data.accessToken);
       return data.accessToken;
     } catch {
       clearAuth();
       return null;
     }
-  }, [clearAuth, persistUser, setTokens]);
+  }, [clearAuth]);
 
   useEffect(() => {
     if (shouldSkipUserAuthBootstrap(pathname)) {
@@ -108,17 +130,23 @@ export function AuthProvider({ children }) {
       return undefined;
     }
 
-    const token = localStorage.getItem(STORAGE_TOKEN);
-    if (!token) {
-      setLoading(false);
-      return undefined;
-    }
     setLoading(true);
     let cancelled = false;
-    authApi
-      .me()
-      .then(({ data }) => {
-        if (!cancelled) persistUser(data.user);
+
+    // Secure bootstrap: attempt a silent cookie-based refresh first (the
+    // page reload starts with no in-memory access token by construction),
+    // then hydrate the profile via /auth/me only on success.
+    refreshToken()
+      .then((token) => {
+        if (cancelled) return null;
+        if (!token) {
+          persistUser(null);
+          return null;
+        }
+        return authApi.me();
+      })
+      .then((res) => {
+        if (!cancelled && res) persistUser(res.data.user);
       })
       .catch(() => {
         if (!cancelled) clearAuth();
@@ -126,21 +154,24 @@ export function AuthProvider({ children }) {
       .finally(() => {
         if (!cancelled) setLoading(false);
       });
+
     return () => {
       cancelled = true;
     };
-  }, [pathname, clearAuth, persistUser]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
 
   const value = {
     user,
     loading,
     error,
     setError,
-    isAuthenticated: !!user,
+    isAuthenticated: !!user && !!getAccessToken(),
     isAdmin: user?.role === 'Admin',
     login,
     register,
     logout,
+    logoutAll,
     refreshToken,
     updateUser: persistUser,
   };

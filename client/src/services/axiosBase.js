@@ -1,10 +1,37 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../constants';
 
-const TOKEN_KEY = 'edurozgaar-token';
-const REFRESH_KEY = 'edurozgaar-refresh-token';
+/**
+ * SEC-3E — secure User-realm client contract. The access token lives in
+ * this module's own in-memory variable only — never `localStorage`,
+ * `sessionStorage`, or `IndexedDB`. The refresh token never reaches
+ * JavaScript at all: it travels exclusively as an `HttpOnly` cookie,
+ * attached automatically by the browser via `withCredentials: true`. No
+ * request ever sends a refresh token in a body or header.
+ */
+let inMemoryAccessToken = null;
 
-const AUTH_NO_REFRESH = ['/auth/login', '/auth/register', '/auth/refresh-token', '/auth/logout', '/auth/forgot-password', '/auth/reset-password', '/auth/verify-email'];
+export function getAccessToken() {
+  return inMemoryAccessToken;
+}
+
+export function setAccessToken(token) {
+  inMemoryAccessToken = token || null;
+}
+
+export function clearAccessToken() {
+  inMemoryAccessToken = null;
+}
+
+const AUTH_NO_REFRESH = [
+  '/auth/login',
+  '/auth/register',
+  '/auth/refresh-token',
+  '/auth/logout',
+  '/auth/forgot-password',
+  '/auth/reset-password',
+  '/auth/verify-email',
+];
 
 /** Endpoints that accept anonymous requests; do not refresh or clear session on 401. */
 const OPTIONAL_AUTH_PATHS = ['/feedback'];
@@ -20,6 +47,7 @@ function isOptionalAuthUrl(url = '') {
 const axiosInstance = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
+  withCredentials: true,
   headers: {
     'Content-Type': 'application/json',
   },
@@ -33,8 +61,8 @@ export function resetAxiosAuthState() {
 
 axiosInstance.interceptors.request.use(
   (config) => {
-    const token = localStorage.getItem(TOKEN_KEY);
-    if (token) config.headers.Authorization = `Bearer ${token}`;
+    if (inMemoryAccessToken)
+      config.headers.Authorization = `Bearer ${inMemoryAccessToken}`;
     return config;
   },
   (err) => Promise.reject(err)
@@ -60,18 +88,13 @@ axiosInstance.interceptors.response.use(
     }
 
     if (status !== 401 || original._retry || isAuthNoRefreshUrl(original.url)) {
-      if (status === 401 && !isAuthNoRefreshUrl(original.url) && !isOptionalAuthUrl(original.url)) {
-        localStorage.removeItem(TOKEN_KEY);
-        localStorage.removeItem(REFRESH_KEY);
-        localStorage.removeItem('edurozgaar-user');
+      if (
+        status === 401 &&
+        !isAuthNoRefreshUrl(original.url) &&
+        !isOptionalAuthUrl(original.url)
+      ) {
+        clearAccessToken();
       }
-      return Promise.reject(err);
-    }
-
-    const refresh = localStorage.getItem(REFRESH_KEY);
-    if (!refresh) {
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem('edurozgaar-user');
       return Promise.reject(err);
     }
 
@@ -79,12 +102,14 @@ axiosInstance.interceptors.response.use(
 
     if (!refreshPromise) {
       refreshPromise = axios
-        .post(`${API_BASE_URL}/auth/refresh-token`, { refreshToken: refresh })
+        .post(
+          `${API_BASE_URL}/auth/refresh-token`,
+          {},
+          { withCredentials: true }
+        )
         .then((res) => {
-          const { accessToken, refreshToken: newRefresh, user } = res.data;
-          localStorage.setItem(TOKEN_KEY, accessToken);
-          if (newRefresh) localStorage.setItem(REFRESH_KEY, newRefresh);
-          if (user) localStorage.setItem('edurozgaar-user', JSON.stringify(user));
+          const { accessToken } = res.data;
+          setAccessToken(accessToken);
           return accessToken;
         })
         .finally(() => {
@@ -97,9 +122,7 @@ axiosInstance.interceptors.response.use(
       original.headers.Authorization = `Bearer ${newToken}`;
       return axiosInstance(original);
     } catch (refreshErr) {
-      localStorage.removeItem(TOKEN_KEY);
-      localStorage.removeItem(REFRESH_KEY);
-      localStorage.removeItem('edurozgaar-user');
+      clearAccessToken();
       resetAxiosAuthState();
       return Promise.reject(refreshErr);
     }
