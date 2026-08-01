@@ -471,8 +471,17 @@ together, which this audit report had not previously stated in one place.
 ## 5. Security mutation event matrix
 
 _(Preserved from the original pass — no contradiction found in the matrix
-itself; corrections apply to the atomic-mutation mechanics in §5.4/§8, not
-to which events do what.)_
+itself; corrections apply to the atomic-mutation mechanics in §5.4/§8, and
+the exact ownership boundary between SEC-3D.1 and SEC-3D.2 is stated
+explicitly below, consolidated from the SEC-3D.2-A2 through SEC-3D.2-A6.2
+audit sequence: SEC-3D.2 never calls SEC-3D.1 at runtime for any event in
+this table — this is a dormant-primitive boundary, not an event-by-event
+exception. Where the "Revoke all/current families" column says "Yes," the
+family sweep is provided by SEC-3D.1's `revokeCurrentFamily`/
+`revokeAllFamilies` and is composed with SEC-3D.2's own subject-document
+mutation only by **SEC-3E**, per §7's Strategy B ordering. Logout-all and
+admin-revoke (all-family scope) additionally use two **distinct** SEC-3D.2
+method contracts, not one shared primitive — see §8.5/§8.5.1.)_
 
 | Event                                    | Revoke current family             | Revoke all families           | Increment `tokenVersion`            | Account-status mutation           | Role/claim invalidation                                   |
 | ---------------------------------------- | --------------------------------- | ----------------------------- | ----------------------------------- | --------------------------------- | --------------------------------------------------------- |
@@ -481,23 +490,42 @@ to which events do what.)_
 | Password change (self)                   | No                                | Yes, best-effort              | Yes                                 | No                                | Yes, incidentally                                         |
 | Password reset (unauthenticated)         | No                                | Yes, best-effort              | Yes                                 | No                                | Yes, incidentally                                         |
 | Account suspension                       | No                                | Yes, best-effort              | Yes                                 | Yes (`accountStatus:'suspended'`) | Yes, incidentally                                         |
-| Account reactivation                     | No                                | No (see §5.1)                 | No (see §5.1)                       | Yes (`accountStatus:'active'`)    | No                                                        |
-| Account deletion                         | No                                | Yes                           | **Not applicable — see §5.4**       | Yes (document removed)            | Yes, incidentally                                         |
+| Account reactivation                     | No                                | No (see §5.1)                 | Mode-dependent (see §5.1)           | Yes (`accountStatus:'active'`)    | No                                                        |
+| Account deletion                         | No                                | Yes, optional (see §5.4/§8.4) | **Not applicable — see §5.4**       | Yes (document removed)            | Yes, incidentally                                         |
 | Role change                              | No                                | No                            | **Yes, only**                       | No                                | Yes (the point of the bump)                               |
 | Permission change (`UserRoleAssignment`) | No                                | No                            | **No — not required** (A5)          | No                                | Already immediate where consulted                         |
 | Admin revoke (explicit)                  | Either, admin choice              | Either, admin choice          | Only if "revoke all" chosen         | No                                | Depends on scope chosen                                   |
 | Refresh replay                           | Yes (already implemented, SEC-3B) | No                            | No                                  | No                                | No                                                        |
 
-### 5.1 Account reactivation
+### 5.1 Account reactivation — two explicit modes
 
 Not named anywhere in §29's event table (only suspension is named). This
 is security-correct by direction of effect: reactivation restores access
-to a legitimately-owned account; there is no session to protect against.
-Recommendation, unchanged from the original pass: expose an explicit,
-admin-chosen "also revoke existing sessions" flag rather than a hardcoded
-default, for the case where a suspension followed a compromise rather than
-a policy violation — this remains a product/operational choice, not a
-security-mandatory default.
+to a legitimately-owned account; there is no session to protect against in
+the ordinary case. **Corrected from the original pass's single implicit
+behavior into two explicit, named modes**, selected by one caller-supplied
+boolean input, `alsoInvalidateAccessTokens` (default `false`):
+
+- **Mode A — `alsoInvalidateAccessTokens: false`** (the default, ordinary
+  case: a suspension followed by a routine, non-compromise reactivation).
+  `accountStatus` transitions to `'active'`; `tokenVersion` is **not**
+  read, guarded, classified, or mutated at all — this mode's write and
+  every one of its classification branches are entirely independent of
+  `tokenVersion`.
+- **Mode B — `alsoInvalidateAccessTokens: true`** (an admin-chosen flag
+  for the case where a suspension followed a compromise rather than a
+  policy violation, restoring access while still forcing every
+  outstanding access token — including any issued before the compromise
+  was discovered — to be re-authenticated). `accountStatus` transitions to
+  `'active'` **and** `tokenVersion` increments, atomically, in the same
+  conditional write as suspend's own shape (§8.3).
+
+Neither mode calls SEC-3D.1 or mutates any `RefreshSession` document — any
+accompanying session-family cleanup for Mode B remains SEC-3E composition
+work, exactly like every other event in this table. This remains a
+product/operational choice of which mode to invoke, not a
+security-mandatory default; the default (Mode A) is deliberately the
+narrower, non-invalidating behavior.
 
 ### 5.2 Role changes must invalidate existing access claims
 
@@ -577,24 +605,91 @@ alongside the existing `min`/integer validators) and may be included in a
 dormant SEC-3D.2 slice, since it changes no currently-stored value and
 gates only a boundary no write has ever approached.
 
-**Increment guard, exact strategy**: every mutation that increments
-`tokenVersion` must use a filter that fails closed before exceeding the
-bound, not merely rely on the schema validator (which only fires on
-`.save()`/document-validated paths, not on a raw `$inc` via
-`findOneAndUpdate` unless `runValidators: true` is explicitly set — and
-even with that flag, Mongoose's `$inc` validators check the **post-update**
-value, which is the correct semantics needed here). Concretely:
+**Schema invariant, stated precisely**: `tokenVersion` must be a safe,
+non-negative integer no greater than `Number.MAX_SAFE_INTEGER`. The
+additive model change carrying this at the schema-validation layer is:
 
 ```js
-{ _id: subjectId, tokenVersion: { $lt: Number.MAX_SAFE_INTEGER } }
+max: Number.MAX_SAFE_INTEGER
 ```
 
-as an additional filter clause on every `$inc`-based mutation (§8.2, §8.3).
-If the filter fails to match specifically because of this clause (subject
-exists, but is already at the bound), the mutation must return a distinct
-`TOKEN_VERSION_AT_MAXIMUM` result rather than the generic
-`SUBJECT_MISSING` — this is a genuine anomaly (not reachable at any
-plausible increment rate) that should alert, not silently no-op.
+added to the existing `tokenVersion` definition in both
+`server/src/models/User.js` and `server/src/models/Employer.js`, alongside
+the existing `type: Number`, `default: 0`, `min: 0`, `required: true`, and
+`Number.isInteger` validator — all five of which are preserved unchanged.
+This schema bound governs only `.save()`/`runValidators:true`-validated
+paths; it does **not** replace query-level protection for a raw `$inc` via
+`findOneAndUpdate`, which never runs schema validators unless
+`runValidators: true` is explicitly set.
+
+**Increment guard, corrected (SEC-3D.2-A3/A4/A5 finding): a bare
+`{tokenVersion: {$lt: Number.MAX_SAFE_INTEGER}}` filter clause is not a
+sufficient guard.** MongoDB's query-predicate comparison semantics permit
+this bare clause to match several malformed stored states it was intended
+to reject — most notably a `null` stored value and a stored array
+containing a matching element (query-operator array-reach-in behavior) —
+and, independent of that, a `$mod`-based well-formedness check placed
+unguarded inside an aggregation `$and` risks throwing on a non-numeric
+operand rather than failing closed, since MongoDB's aggregation framework
+does not guarantee short-circuit evaluation of `$and`'s array elements.
+The corrected, selected guard closes both problems with one nested `$cond`
+expression, evaluated inside `$expr`, so that the modulo check is reached
+only after the value is already proven to be a genuine numeric BSON type
+within bounds:
+
+```js
+const validTokenVersionExpr = {
+  $cond: [
+    { $isNumber: '$tokenVersion' },
+    {
+      $cond: [
+        {
+          $and: [
+            { $gte: ['$tokenVersion', 0] },
+            { $lt: ['$tokenVersion', Number.MAX_SAFE_INTEGER] },
+          ],
+        },
+        { $eq: [{ $mod: ['$tokenVersion', 1] }, 0] },
+        false,
+      ],
+    },
+    false,
+  ],
+};
+```
+
+Confirmed properties of this expression:
+
+- `$mod` is evaluated only inside the branch already gated by
+  `$isNumber === true` and the range check `=== true` — no path reaches
+  `$mod` with a non-numeric operand, so no expression error is possible.
+- Missing, `null`, string, array, and object stored values are rejected at
+  the outer `$isNumber` gate (an aggregation-expression type check, not a
+  query-operator match — it does not "reach into" arrays the way ordinary
+  query-operator predicates do).
+- Negative, fractional, `NaN`, and both positive and negative infinite
+  values fail closed — negative/fractional are excluded by the range or
+  modulo check; `NaN`/`±Infinity` are excluded because `$mod` applied to
+  either yields `NaN` under ordinary floating-point semantics, and `NaN`
+  is never `$eq` to `0`, regardless of how the range check itself resolves
+  for those values.
+- The exact maximum (`tokenVersion === Number.MAX_SAFE_INTEGER`) does not
+  match this expression (the strict `$lt` excludes it) — this filter miss
+  alone does not distinguish "malformed" from "exhausted"; that
+  distinction is made separately by the bounded classification read
+  (§8.5.1), not by this guard.
+- Values above the maximum do not match, for the same reason.
+- Every well-formed safe non-negative integer strictly below the maximum
+  matches.
+- The expression is one filter clause (`$expr: validTokenVersionExpr`)
+  combined with whatever other precondition clauses a given mutation
+  requires — it never introduces a second write or a second round trip,
+  and one atomic conditional `findOneAndUpdate` remains the mechanism for
+  every mutation below.
+- It is applied uniformly to every SEC-3D.2 write that increments
+  `tokenVersion` — logout-all, admin-revoke, password change, password
+  reset, suspend, reactivate (Mode B only), and role change — with no
+  operation-specific exception.
 
 ### 8.2 Password change / password reset / admin-reset-password — corrected: `__v` is not full optimistic concurrency by default
 
@@ -669,32 +764,63 @@ A.** Both options were evaluated:
   User.findOneAndUpdate(
     {
       _id: subjectId,
-      tokenVersion: { $eq: expectedTokenVersion, $lt: Number.MAX_SAFE_INTEGER },
+      tokenVersion: { $eq: expectedTokenVersion },
+      $expr: validTokenVersionExpr,
     },
     {
       $set: { password: newHash },
       $inc: { tokenVersion: 1 },
     },
-    { new: true }
+    { new: false, projection: { _id: 1 } }
   );
   ```
 
-  `expectedTokenVersion` is the `tokenVersion` claim already present on
-  the caller's own, already-verified access token that authenticated this
-  very request (§12) — no new client-observed state is required, and no
-  schema change beyond §8.1's additive bound validator is needed. This
-  does **not** bypass hashing — the password is still hashed with the
-  same algorithm and cost factor before being written, only via an
-  explicit call instead of the model's hook. **Selected.**
+  **Realm: User only** — no live Employer self-service password-change
+  route exists anywhere in `server/src/routes/`, confirmed by direct
+  inspection. `expectedTokenVersion` is the `tokenVersion` claim already
+  present on the caller's own, already-verified access token that
+  authenticated this very request (§12) — no new client-observed state is
+  required. Required input validation, before any hashing call:
+  `Number.isSafeInteger(expectedTokenVersion) && expectedTokenVersion >=
+  0`. This does **not** bypass hashing — the password is still hashed
+  with the same algorithm (`bcryptjs`) and cost factor (`12`) before being
+  written, only via an explicit call instead of the model's hook, which is
+  intentionally not fired since this write uses `findOneAndUpdate`
+  (query-middleware), not `.save()`. Current-password re-verification and
+  password-policy enforcement remain **outside this dormant primitive** —
+  both are, and remain, the existing live controller's responsibility, to
+  be composed with this primitive only in SEC-3E. A caller-supplied
+  precomputed hash is never accepted; only plaintext `newPassword` is,
+  hashed internally. The write projects only `{_id: 1}` on success — no
+  password, hash, or other field is read back. **Selected.**
 
-**On a filter-match failure (CAS loss)**: the mutation returns a
-distinct, internal-only conflict code (`VERSION_CONFLICT`, §14) and must
-not silently reread and blindly reapply the original instruction — the
-caller decides whether to resubmit, and if it does, the current-password
-re-verification step (unchanged, already required by the existing
-controller) independently gates that resubmission (§8.5 below explains
-why this closes the "repeated request" case without any additional
-mechanism).
+**Zero automatic retries (corrected, SEC-3D.2-A5/A6 finding).** Unlike the
+tokenVersion-only operations below, password change never retries — a
+concurrent, unrelated `tokenVersion` advancement never proves that *this*
+password write occurred, so there is no safe basis for treating a CAS miss
+as anything but a terminal result. On a filter-match failure, exactly one
+bounded classification read (`{tokenVersion: 1}` projection) determines
+the exact terminal code:
+
+```text
+subject missing                              → SUBJECT_MISSING
+tokenVersion fails the well-formedness guard  → SUBJECT_STATE_MALFORMED
+tokenVersion well-formed, exactly the maximum → VERSION_EXHAUSTED
+tokenVersion well-formed, current > expected  → VERSION_CONFLICT
+tokenVersion well-formed, current == expected → VERSION_CONFLICT
+tokenVersion well-formed, current < expected  → VERSION_REGRESSION
+```
+
+No tokenVersion observation — including one that shows `current ==
+expected` after the write missed — can prove that this specific password
+mutation occurred; `VERSION_CONFLICT` is returned for both of those cases,
+never `VERSION_ALREADY_ADVANCED` (that code is reserved for the
+tokenVersion-only operations, §8.5.1). The caller decides whether to
+resubmit as a wholly fresh request; the current-password re-verification
+step (unchanged, already required by the existing controller, but outside
+this primitive) independently gates any resubmission at the controller
+layer. Maximum model calls for this operation: 2 (one write, one
+classification read on miss).
 
 **Password reset — one-write contract.** The existing
 `authController.resetPassword` already reads
@@ -708,7 +834,7 @@ User.findOneAndUpdate(
   {
     passwordResetToken: hashedToken,
     passwordResetExpires: { $gt: now },
-    tokenVersion: { $lt: Number.MAX_SAFE_INTEGER },
+    $expr: validTokenVersionExpr,
   },
   {
     $set: { password: newHash, mustChangePassword: false },
@@ -719,53 +845,214 @@ User.findOneAndUpdate(
     },
     $inc: { tokenVersion: 1 },
   },
-  { new: true }
+  { new: false, projection: { _id: 1 } }
 );
 ```
+
+**Realm: User only.** `hashedToken` must be the canonical, already-hashed
+form the existing, unmodified controller already produces
+(`server/src/utils/tokenStore.js:7-9`, `hashResetToken` →
+`crypto.createHash('sha256').update(token).digest('hex')`) — a lowercase
+64-character hex SHA-256 digest, `/^[0-9a-f]{64}$/`. This primitive
+receives the already-hashed token; it does not hash the raw token itself
+and does not own that hashing algorithm choice. `newPassword` is
+plaintext, hashed internally with `bcryptjs` at cost `12`, exactly as in
+password change.
+
+**Design 1 — frozen, no classification read, no retry (SEC-3D.2-A4/A5/A6
+finding).** Primary writes: 1. Classification reads: 0, always. Retries:
+0, always. Every filter miss — for any reason — returns
+`RESET_TOKEN_INVALID`, uniformly. A "classification read" is mechanically
+incoherent for this operation in any case: after a filter miss there is no
+subject identifier to read by (token-only lookup, by construction), so
+Design 2 (a distinguishing reread) was assessed and rejected — it would
+require a second, subject-identifying lookup this primitive's accepted
+inputs do not provide, and would create an enumeration risk this design
+deliberately avoids.
 
 **The one-time reset token is itself the natural idempotency boundary,
 confirmed by repository evidence, not assumed**: the filter's
 `passwordResetToken: hashedToken` clause only matches a document whose
-reset token has **not yet** been cleared. Because the clear
-(`$unset`) and the password/`tokenVersion` change commit in the **same**
-atomic `findOneAndUpdate`, there is no intermediate state in which the
-token is cleared but the password/version change has not yet applied (or
-vice versa). A repeated submission of the same, now-already-consumed
-token therefore finds no matching document at all — `findOneAndUpdate`
-returns `null`, classified as `SUBJECT_MISSING`-equivalent (in this
-context, more precisely a distinct `RESET_TOKEN_INVALID` — reusing the
-existing controller's own generic "Invalid or expired reset link"
-framing) — and **cannot** increment `tokenVersion` a second time, because
-the filter that gates the `$inc` is the same filter that gates the token
-consumption. No separate idempotency mechanism is required for this
-event; the existing token-consumption design already provides one.
+reset token has **not yet** been cleared. Because the clear (`$unset`)
+and the password/`tokenVersion` change commit in the **same** atomic
+`findOneAndUpdate`, there is no intermediate state in which the token is
+cleared but the password/version change has not yet applied (or vice
+versa). A repeated submission of the same, now-already-consumed token
+therefore finds no matching document at all — `findOneAndUpdate` returns
+`null`, classified as `RESET_TOKEN_INVALID` (reusing the existing
+controller's own generic "Invalid or expired reset link" framing) — and
+**cannot** increment `tokenVersion` a second time, because the filter that
+gates the `$inc` is the same filter that gates the token consumption. No
+separate idempotency mechanism is required for this event.
+
+**Malformed and exhausted `tokenVersion` are intentionally, permanently
+not publicly distinguished for this operation** — both fold into the same
+`RESET_TOKEN_INVALID` miss code, by design, for enumeration safety.
+`SUBJECT_STATE_MALFORMED` and `VERSION_EXHAUSTED` are **not** reachable
+from password reset. Maximum model calls for this operation: 1.
 
 ### 8.3 Account suspension / reactivation / role change — atomic, non-hashing mutations
 
 These events touch no hashed field, so they do not need `.save()`'s
 document round-trip at all — the safe, simpler, natively atomic contract
-is a single `findOneAndUpdate` combining every changed field:
+is a single `findOneAndUpdate` combining every changed field. **Corrected
+(SEC-3D.2-A4/A5 finding): none of these three operations bind an
+`expectedTokenVersion` equality clause.** An earlier draft of this
+correction added one, reasoning by analogy with logout-all/admin-revoke —
+but doing so would let a concurrent, unrelated, legitimate event (e.g. a
+password reset advancing `tokenVersion` between this operation's own
+preceding observation and its write) spuriously block a suspend/
+reactivate/role-change write that should otherwise succeed, which
+directly conflicts with this design's own required different-event
+concurrency guarantee (§8.5). The only precondition these three operations
+bind is the field they are actually changing
+(`accountStatus`/`role`), plus the value-independent well-formedness
+guard (§8.1) — never an exact expected `tokenVersion`.
+
+**Suspend** — realm: User and Employer.
 
 ```js
 User.findOneAndUpdate(
   {
     _id: subjectId,
-    accountStatus: expectedPriorStatus,
-    tokenVersion: { $lt: Number.MAX_SAFE_INTEGER },
+    accountStatus: 'active',
+    $expr: validTokenVersionExpr,
   },
   { $set: { accountStatus: 'suspended' }, $inc: { tokenVersion: 1 } },
-  { new: true }
+  { new: false, projection: { _id: 1 } }
+);
+```
+
+**Reactivation, Mode A — `alsoInvalidateAccessTokens: false`** (§5.1).
+`tokenVersion` is not read, guarded, or mutated on this path at all:
+
+```js
+User.findOneAndUpdate(
+  { _id: subjectId, accountStatus: 'suspended' },
+  { $set: { accountStatus: 'active' } },
+  { new: false, projection: { _id: 1 } }
+);
+```
+
+**Reactivation, Mode B — `alsoInvalidateAccessTokens: true`** (§5.1),
+identical shape to suspend, targeting `'active'`:
+
+```js
+User.findOneAndUpdate(
+  {
+    _id: subjectId,
+    accountStatus: 'suspended',
+    $expr: validTokenVersionExpr,
+  },
+  { $set: { accountStatus: 'active' }, $inc: { tokenVersion: 1 } },
+  { new: false, projection: { _id: 1 } }
+);
+```
+
+`alsoInvalidateAccessTokens` is a strict boolean input, default `false`;
+any non-boolean value is `INVALID_INPUT`. It controls access-token
+invalidation only — it never calls SEC-3D.1 and never mutates a
+`RefreshSession` document (§5.1).
+
+**Role change** — realm: **User only** (`Employer.js` has no `role` field
+at all, confirmed by direct inspection — zero matches for `role` anywhere
+in that schema).
+
+```js
+User.findOneAndUpdate(
+  {
+    _id: subjectId,
+    role: expectedPriorRole,
+    $expr: validTokenVersionExpr,
+  },
+  { $set: { role: newRole }, $inc: { tokenVersion: 1 } },
+  { new: false, projection: { _id: 1 } }
 );
 ```
 
 `accountStatus`/`role` (whichever the event changes) and `tokenVersion`
-change together in one MongoDB operation — there is no window in which
-one has committed and the other has not, and no separate call is needed.
-The `expectedPriorStatus`/`expectedPriorRole` filter clause is the
-state-conditioned CAS this audit selects for idempotency (§8.5) — it is
-the same pattern already accepted and shipped in
-`RefreshSessionRotationService`'s own CAS/replay-revoke filters, reused
-here rather than inventing a new mechanism.
+(when the operation touches it at all) change together in one MongoDB
+operation — there is no window in which one has committed and the other
+has not, and no separate call is needed. The `expectedPriorStatus`/
+`expectedPriorRole` filter clause is the state-conditioned CAS this audit
+selects for idempotency (§8.5) — the same pattern already accepted and
+shipped in `RefreshSessionRotationService`'s own CAS/replay-revoke
+filters, reused here rather than inventing a new mechanism.
+
+**Success result, corrected (SEC-3D.2-A6 finding): none of these four
+writes returns `VERSION_INCREMENTED`.** That code is reserved for the
+genuinely tokenVersion-focused operations (logout-all, admin-revoke,
+password change, password reset); returning it for a no-tokenVersion-
+change reactivation (Mode A) would be false on its face, and using it
+inconsistently for the other three (which do also increment) would
+misdescribe the operation's actual primary objective, which is the
+`accountStatus`/`role` transition itself. All four use one unified,
+tokenVersion-agnostic success code instead: `SUBJECT_STATE_UPDATED` — "the
+requested `accountStatus`/`role` transition was performed; no claim is
+made about whether `tokenVersion` also changed."
+
+**State classification precedence, frozen (SEC-3D.2-A6/A6.1 finding).**
+For suspend, reactivate Mode B, and role change, on a primary-write miss,
+exactly one classification read decides the outcome, in this fixed order:
+
+```text
+1. Subject missing                              → SUBJECT_MISSING
+2. tokenVersion fails the well-formedness guard  → SUBJECT_STATE_MALFORMED
+3. tokenVersion well-formed, exactly the maximum → VERSION_EXHAUSTED
+4. accountStatus/role outside its known enum     → SUBJECT_STATE_INVALID
+5. target state already applied                  → SUBJECT_STATE_ALREADY_APPLIED
+6. expected prior state remains                   → eligible for one bounded retry
+7. a third, valid, different state                → SUBJECT_STATE_CONFLICT
+```
+
+Integrity checks (steps 2–4) always precede state-comparison checks
+(steps 5–7) — an alert-worthy data-integrity anomaly must never be masked
+by a coincidentally-matching state field. For reactivate Mode A (no
+`tokenVersion` involvement at all), the same principle applies to the
+smaller check set:
+
+```text
+1. Subject missing                    → SUBJECT_MISSING
+2. accountStatus outside its enum     → SUBJECT_STATE_INVALID
+3. already active                     → SUBJECT_STATE_ALREADY_APPLIED
+4. still suspended (expected prior)   → eligible for one bounded retry
+5. a third, valid, different status   → SUBJECT_STATE_CONFLICT
+```
+
+No `tokenVersion`-related code (`SUBJECT_STATE_MALFORMED`,
+`VERSION_EXHAUSTED`, `VERSION_REGRESSION`) is ever reachable from Mode A —
+`tokenVersion` is neither read nor mutated on that path.
+
+**`SUBJECT_STATE_INVALID` — malformed `accountStatus`/`role` (SEC-3D.2-A6.1
+finding): reuses an existing, checkpointed precedent rather than a new
+term.** `server/src/services/auth/SessionSubjectStateProvider.js:117-120`
+(SEC-3C, checkpointed) already returns this exact code for an
+`accountStatus` outside `{'active','suspended'}` — "Unknown/malformed
+status — never treated as active." SEC-3D.2 reuses the same name for the
+same concept, extended to cover a `role` outside
+`['User','Editor','Moderator','Admin','SuperAdmin']` as well.
+`SUBJECT_STATE_MALFORMED` remains scoped **narrowly** to `tokenVersion`
+numeric well-formedness only — it is never returned for a malformed
+`accountStatus`/`role`, and `SUBJECT_STATE_INVALID` is never returned for
+a malformed `tokenVersion`; the two names are kept deliberately distinct.
+
+Because `accountStatus`'s enum has exactly two values, `SUBJECT_STATE_
+CONFLICT` (step 7 / step 5) is **structurally unreachable today** for
+suspend and either reactivation mode — any valid stored value is
+necessarily either the expected-prior or the target, with no third valid
+option — and is defined for schema-forward-compatibility only. For role
+change, whose enum has five values, `SUBJECT_STATE_CONFLICT` **is**
+reachable, and is distinguished explicitly from `SUBJECT_STATE_INVALID`: a
+different, valid enum role is a legitimate concurrent conflict; a role
+outside the enum entirely, of the wrong type, `null`, or missing is a
+data-integrity anomaly.
+
+Minimal classification projections: tokenVersion-only reads project
+`{tokenVersion: 1}`; `accountStatus` reads with Mode B/suspend project
+`{accountStatus: 1, tokenVersion: 1}`; `accountStatus` reads for Mode A
+project `{accountStatus: 1}` only (no `tokenVersion` field); `role` reads
+project `{role: 1, tokenVersion: 1}`. No classification read ever selects
+`password`, `passwordResetToken`, or any other unrelated field.
 
 ### 8.4 Account deletion
 
@@ -787,6 +1074,10 @@ no document left to read at all. A pre-delete `tokenVersion` bump would
 add no security value; this audit does not recommend one, correcting the
 original pass's vaguer "moot, but defense-in-depth" language into a
 precise conclusion: **not applicable**, not "moot but recommended anyway."
+SEC-3D.1's `account_deleted` all-family revoke reason remains permitted,
+for an operator who chooses to run a defense-in-depth session sweep
+alongside a deletion (SEC-3E composition only) — it is **not** required by
+SEC-3D.2, which performs no mutation of any kind for this event.
 
 ### 8.5 Retry and idempotency semantics — corrected in full, including the SEC-3D-A.2 event matrix
 
@@ -842,56 +1133,172 @@ version itself: `tokenVersion: expectedTokenVersion`.
 
 **No new collection or event ledger is required even with this
 correction.** `expectedTokenVersion` is either already available for free
-(the caller's own currently-verified access-token claim, for any
-self-service event — logout-all, password change) or obtained by the
-service performing its own immediately-preceding read before issuing the
-conditioned write (for admin-initiated events with no natural caller-side
-observation, e.g. admin-revoke) — the same "read, then condition the
-write on exactly what was read" pattern already used throughout this
-design (§8.3, §11.2), not a new durable operation-identity ledger. A
-ledger collection was considered and is not selected: it adds a new
-authoritative collection and new required infrastructure for a risk this
-narrower, already-established pattern already closes to the same residual
-window every other non-transactional part of this design accepts.
+(the caller's own currently-verified access-token claim, for logout-all)
+or obtained by the service performing its own immediately-preceding read
+before issuing the conditioned write (for admin-initiated events with no
+natural caller-side observation, e.g. admin-revoke) — the same "read, then
+condition the write on exactly what was read" pattern already used
+throughout this design (§8.3, §11.2), not a new durable operation-identity
+ledger. A ledger collection was considered and is not selected: it adds a
+new authoritative collection and new required infrastructure for a risk
+this narrower, already-established pattern already closes to the same
+residual window every other non-transactional part of this design
+accepts.
+
+**Logout-all and admin-revoke are two distinct method contracts, not one
+shared primitive (SEC-3D.2-A6 correction).** Both perform a guarded
+tokenVersion-only `$inc`, but their `expectedTokenVersion` sources differ
+structurally, and this changes their idempotency guarantees — collapsing
+them into one function with an optional parameter would obscure that
+difference from callers who need to know which guarantee they are
+getting.
+
+- **`incrementTokenVersionForLogoutAll({realm, subjectId,
+  expectedTokenVersion})`** — `expectedTokenVersion` is **caller-supplied**,
+  from the caller's own verified access-token claim, which does not change
+  across repeated calls presenting the same token. This makes logout-all
+  idempotent across **both concurrent and sequential** duplicate calls
+  that present the same claim: the second call's `$eq` clause misses
+  against the already-advanced value and classifies
+  `VERSION_ALREADY_ADVANCED`.
+- **`incrementTokenVersionForAdminRevoke({realm, subjectId})`** — no
+  `expectedTokenVersion` is accepted from the caller at all; the service
+  performs its own fresh preceding read (`{tokenVersion: 1}` projection)
+  on **every single invocation**. Concurrent calls that happen to preread
+  the identical stale baseline collapse the same way logout-all's do. But
+  **sequential, separately-authorized invocations do not** — a second
+  admin-revoke call beginning after the first has already completed
+  performs its own fresh preread, which observes the already-current
+  (already-advanced) value, and proceeds to increment again from that new
+  baseline. Admin-revoke is therefore **invocation-based, not generally
+  idempotent across sequential invocations**; only concurrent calls
+  sharing an identical stale baseline collapse. This is not a discovered
+  defect — extra increments beyond the minimum necessary one are harmless,
+  since any single advancement already invalidates every token issued
+  before it — it is a corrected, truthful characterization of what the
+  already-accepted preread-then-guarded-`$inc` mechanism actually
+  guarantees, replacing an earlier draft's overstated "same as logout-all"
+  framing.
 
 ### 8.5.1 Event idempotency matrix
 
 | Event                                   | Natural precondition                                                                                                                        | Atomic mutation                                                                          | Retry after known failure (CAS loss)                                                                                                              | Retry after uncertain outcome                                                                                                                                                                    |
 | --------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
 | Current-family logout                   | `sid` + `subjectType`/`subjectId` binding (§9)                                                                                              | Single-document revoke, `revokedAt: null` filter                                         | Filter no longer matches → classify `ALREADY_REVOKED`, treat as success                                                                           | Reread `revokedAt`; if set, `ALREADY_REVOKED`; if still `null`, retry once                                                                                                                       |
-| Logout-all                              | `tokenVersion: expectedTokenVersion` (from the caller's own verified access claim)                                                          | Guarded `$inc` (§ below)                                                                 | Reread; `current > expected` → `VERSION_ALREADY_ADVANCED`, do **not** increment again, objective already satisfied by whatever advanced it        | Reread; `current == expected` (write never landed) → retry once with the same expected value; `current > expected` → `VERSION_ALREADY_ADVANCED`, stop                                            |
-| Password change                         | Current-password proof (existing) + `tokenVersion: expectedTokenVersion` (§8.2)                                                             | Single `findOneAndUpdate`, password hash + `$inc` together                               | `VERSION_CONFLICT` — caller must re-authenticate/re-observe state before resubmitting, no silent retry                                            | A repeated identical request self-rejects: the second attempt's current-password check fails against the now-already-changed password (§8.2) — no CAS-specific handling needed for this sub-case |
-| Password reset                          | Valid, unused reset token (§8.2)                                                                                                            | Single `findOneAndUpdate`, token-match filter gates password + cleanup + `$inc` together | Token already cleared → filter no longer matches → `RESET_TOKEN_INVALID`, generic, matches the existing controller's "invalid or expired" framing | Reread by looking up the (now-consumed) token again — a genuine no-op, since the filter can never match twice by construction                                                                    |
-| Suspension                              | Prior `accountStatus` (§8.3)                                                                                                                | `findOneAndUpdate`, `$set` + `$inc` together                                             | Filter no longer matches (status already changed by an intervening event) → `SUBJECT_STATE_CONFLICT`, do not reapply                              | Reread `accountStatus`; if already `'suspended'`, treat as success (idempotent outcome achieved); otherwise retry once with the freshly-observed prior status                                    |
-| Reactivation                            | Prior `accountStatus` (when the optional "also revoke sessions" flag, §5.1, is exercised — otherwise no tokenVersion involvement at all)    | Same pattern as suspension, only when the flag is set                                    | Same as suspension                                                                                                                                | Same as suspension                                                                                                                                                                               |
-| Role change                             | Prior `role` (§8.3)                                                                                                                         | `findOneAndUpdate`, `$set` + `$inc` together                                             | Filter no longer matches → `SUBJECT_STATE_CONFLICT`                                                                                               | Reread `role`; if already the target value, treat as success; otherwise retry once                                                                                                               |
+| Logout-all                              | `tokenVersion: expectedTokenVersion` (from the caller's own verified access claim)                                                          | Guarded `$inc` (§ below)                                                                 | Reread; `current > expected` → `VERSION_ALREADY_ADVANCED`, do **not** increment again, objective already satisfied by whatever advanced it        | Reread; `current == expected` (write never landed) → retry once with the same expected value; retry miss → `CLASSIFICATION_STALE` (§8.5.1 below)                                                  |
+| Password change                         | Current-password proof (existing, outside this primitive) + `tokenVersion: expectedTokenVersion` (§8.2)                                    | Single `findOneAndUpdate`, password hash + `$inc` together                               | `VERSION_CONFLICT` — caller must re-authenticate/re-observe state before resubmitting; **zero automatic retries**, always                        | One classification read produces the terminal code directly (§8.2) — no retry is attempted for this operation under any outcome                                                                  |
+| Password reset                          | Valid, unused reset token (§8.2)                                                                                                            | Single `findOneAndUpdate`, token-match filter gates password + cleanup + `$inc` together | Token already cleared → filter no longer matches → `RESET_TOKEN_INVALID`, generic, matches the existing controller's "invalid or expired" framing | Design 1: zero classification reads, zero retries, always (§8.2)                                                                                                                                   |
+| Suspension                              | `accountStatus: 'active'` (§8.3)                                                                                                            | `findOneAndUpdate`, `$set` + `$inc` together                                             | Filter no longer matches → one classification read, fixed precedence (§8.3) → retry-eligible only if still `'active'`                             | Retry miss → `CLASSIFICATION_STALE` (§8.5.1 below)                                                                                                                                                 |
+| Reactivation                            | `accountStatus: 'suspended'` — Mode B only binds the tokenVersion guard; Mode A never involves `tokenVersion` at all (§5.1/§8.3)            | Mode A: `$set` only. Mode B: same pattern as suspension                                  | Same as suspension (Mode B); Mode A: filter miss → one classification read, no tokenVersion branch reachable                                       | Same as suspension (Mode B); Mode A: retry miss → `CLASSIFICATION_STALE`                                                                                                                           |
+| Role change                             | `role: expectedPriorRole` (§8.3)                                                                                                            | `findOneAndUpdate`, `$set` + `$inc` together                                             | Filter no longer matches → one classification read, fixed precedence (§8.3)                                                                       | Retry miss → `CLASSIFICATION_STALE` (§8.5.1 below)                                                                                                                                                 |
 | Account deletion                        | Existing subject identity (trivial — `findByIdAndDelete` either matches or does not)                                                        | Physical deletion, no `tokenVersion` step (§8.4)                                         | N/A — deletion of an already-deleted subject is a no-op by construction                                                                           | Reread by ID; missing → already achieved, no retry needed                                                                                                                                        |
-| Admin revoke                            | `tokenVersion: expectedTokenVersion`, obtained by the service's own immediately-preceding read (no external client-observed value required) | Guarded `$inc`, identical shape to logout-all                                            | Same as logout-all — reread, classify `VERSION_ALREADY_ADVANCED` if the objective is already satisfied                                            | Same as logout-all                                                                                                                                                                               |
+| Admin revoke                            | `tokenVersion: expectedTokenVersion`, obtained by the service's own immediately-preceding read (no external client-observed value accepted) | Guarded `$inc`, `incrementTokenVersionForAdminRevoke` (§8.5, distinct from logout-all)    | Reread; `current > expected` → `VERSION_ALREADY_ADVANCED` (concurrent-same-baseline case only — not general sequential idempotency, §8.5)          | Retry miss → `CLASSIFICATION_STALE` (§8.5.1 below)                                                                                                                                                 |
 | Session cleanup (all-family sweep, §10) | `subjectType`/`subjectId` + `revokedAt: null`                                                                                               | `updateMany`                                                                             | Re-running matches fewer/zero documents — naturally idempotent, no special handling                                                               | Same — a full resubmission of the sweep is always safe                                                                                                                                           |
 
 **Guarded `tokenVersion`-only increment, exact shape** (logout-all,
-admin-revoke):
+admin-revoke — same write shape, two distinct callers/method contracts
+per §8.5):
 
 ```js
 User.findOneAndUpdate(
   {
     _id: subjectId,
-    tokenVersion: { $eq: expectedTokenVersion, $lt: Number.MAX_SAFE_INTEGER },
+    tokenVersion: { $eq: expectedTokenVersion },
+    $expr: validTokenVersionExpr,
   },
   { $inc: { tokenVersion: 1 } },
-  { new: true }
+  { new: false, projection: { _id: 1 } }
 );
 ```
 
 No `accountStatus` precondition is needed for a pure version bump —
 subject existence (the `_id` match itself) is the only other precondition
 that matters, and a missing subject is already correctly classified as
-`SUBJECT_MISSING` by the filter returning `null`.
+`SUBJECT_MISSING` by the first classification read.
+
+**TokenVersion-only classification precedence** (logout-all, admin-revoke,
+and password change's own miss classification), on a primary-write miss:
+
+```text
+1. Subject missing                              → SUBJECT_MISSING
+2. tokenVersion fails the well-formedness guard  → SUBJECT_STATE_MALFORMED
+3. tokenVersion well-formed, exactly the maximum → VERSION_EXHAUSTED
+4. current well-formed, > expected               → VERSION_ALREADY_ADVANCED (logout-all/admin-revoke) or VERSION_CONFLICT (password change)
+5. current well-formed, === expected              → eligible for one bounded retry (not applicable to password change)
+6. current well-formed, < expected                → VERSION_REGRESSION
+```
+
+`VERSION_REGRESSION` (SEC-3D.2-A6 addition): a **well-formed** stored
+counter lower than a previously-authoritative observation violates this
+design's own monotonicity invariant (every mutation only ever `$inc`s
+`tokenVersion`, never decrements or resets it) — this is a distinct,
+alert-worthy anomaly class from `SUBJECT_STATE_MALFORMED` (which is
+reserved strictly for a value that fails the numeric guard itself, never
+for a well-formed value that is merely lower than expected) and from
+ordinary `VERSION_CONFLICT`/CAS-miss handling (an expected, routine
+outcome of legitimate concurrent advancement). Not reachable from
+suspend/reactivate/role-change, which bind no `expectedTokenVersion`
+equality clause to regress against.
+
+**Retry-miss policy — Policy B, frozen (SEC-3D.2-A6.2 correction).** A
+retry-eligible operation (logout-all, admin-revoke, suspend, either
+reactivation mode, role change) performs **at most one** bounded retry
+using the same original precondition, after its one classification read
+proves that precondition still holds. If that retry **also** misses, no
+second classification read is performed — checkpointed text above already
+establishes that "none requires more than one additional read to classify
+and decide," which caps additional reads at exactly one; a second read
+after the retry would exceed that cap. Instead, the operation returns:
+
+```text
+CLASSIFICATION_STALE
+```
+
+reusing the existing, checkpointed SEC-3D.1 code and concept
+(`SessionFamilyRevocationService.js`'s `classifyMiss`, which already
+returns this code when a classification read finds nothing wrong yet the
+primary write still didn't match — "the state changed between the two
+reads... never falls back to an unconditional write"). SEC-3D.2's
+retry-miss case is the same underlying situation one step later in the
+sequence: a read-then-act step proved stale relative to a subsequent
+write attempt, and rather than chase it with another read, the operation
+stops and reports honestly. `CLASSIFICATION_STALE` means precisely: **this
+invocation performed no matching mutation; a concurrent invocation may
+have mutated the subject; no claim is made about whether the target was
+ultimately applied, conflicted, became malformed, disappeared, or was
+otherwise changed.** It is terminal, not internally retryable, and safe
+for the caller to handle by issuing a wholly fresh operation (which
+performs its own fresh classification) rather than the primitive guessing
+on the caller's behalf. Returning a precise-but-unproven code here
+(`VERSION_CONFLICT`/`SUBJECT_STATE_CONFLICT`, as an earlier draft of this
+correction did) is rejected: a bare retry-write `null` result cannot by
+itself distinguish an ordinary conflict from a deleted subject, a
+corrupted counter, a regressed counter, or an exhausted counter — all of
+which remain equally possible causes, none of them observed.
+
+**Exact per-operation call bounds, frozen:**
+
+| Operation                     | Pre-read | Primary write | Classification read | Retry | Final read | Maximum calls |
+| ------------------------------ | -------: | -------------: | -------------------: | ----: | ----------: | -------------: |
+| Logout-all                    |        0 |              1 |                    1 |     1 |           0 |              3 |
+| Admin revoke                  |        1 |              1 |                    1 |     1 |           0 |              4 |
+| Password change               |        0 |              1 |                    1 |     0 |           0 |              2 |
+| Password reset                |        0 |              1 |                    0 |     0 |           0 |              1 |
+| Suspend                       |        0 |              1 |                    1 |     1 |           0 |              3 |
+| Reactivate, Mode A            |        0 |              1 |                    1 |     1 |           0 |              3 |
+| Reactivate, Mode B            |        0 |              1 |                    1 |     1 |           0 |              3 |
+| Role change                   |        0 |              1 |                    1 |     1 |           0 |              3 |
+
+Fallback writes: zero for every operation, structurally — no code path in
+this design issues an unconditioned write under any outcome, and no
+operation ever performs a third write or a second classification read.
 
 **Per the task's exact required list**:
 
 - **Idempotent by filter**: every event in the matrix above, without
-  exception — this is the corrected position; no event is exempt.
+  exception — no event is exempt. Admin-revoke's idempotency is
+  correctly scoped to concurrent same-baseline duplicates only, not to
+  general sequential invocation (§8.5).
 - **May increment `tokenVersion` more than once across independently
   legitimate concurrent events**: yes, and correctly so — two different
   legitimate events (e.g., an admin suspend and a concurrent self-service
@@ -900,29 +1307,36 @@ that matters, and a missing subject is already correctly classified as
   reapplying itself after the version has already moved on for any
   reason.
 - **Filter preventing duplicate application**: the `expectedTokenVersion`/
-  prior-field-value clause per event, as tabulated above.
-- **After a known CAS loss**: reread, classify, and either recognize the
-  security objective as already satisfied (`VERSION_ALREADY_ADVANCED`) or
-  surface a conflict — never a blind, unconditioned reapplication.
+  prior-field-value clause per event, as tabulated above — never bound
+  for suspend/reactivate/role-change, to preserve different-event
+  concurrency (§8.3).
+- **After a known CAS loss**: reread, classify via the fixed precedence
+  above, and either recognize the security objective as already satisfied
+  or surface a conflict — never a blind, unconditioned reapplication.
 - **After an uncertain network outcome**: reread first, always; a retry
   is only issued when the reread shows the original expected precondition
-  still holds.
+  still holds; if that one bounded retry also misses,
+  `CLASSIFICATION_STALE` is returned rather than a guessed precise code.
 - **Is a reread sufficient?** Yes, for every event in this design — none
   requires more than one additional read to classify and decide,
   consistent with the "no transaction, bounded extra reads" posture
-  established in §7/§11.
+  established in §7/§11; this is also the exact textual basis for
+  capping retry-miss handling at zero additional reads (Policy B above).
 - **Is a durable operation ID required?** No — the state-conditioned
   filter (self-observed for self-service events, service-observed
   immediately before the write for admin-initiated events) is sufficient
   and reuses an already-accepted repository pattern; see the "no new
   ledger" conclusion above.
 - **Is the security objective already satisfied when the version has
-  advanced due to any concurrent, unrelated security event?** Yes, always
-  — a higher observed `tokenVersion` than expected means _something_
-  already invalidated the relevant claims, regardless of which event did
-  it; re-incrementing adds no additional security value and is
-  explicitly skipped (`VERSION_ALREADY_ADVANCED`), not silently
-  performed anyway.
+  advanced due to any concurrent, unrelated security event?** Yes, for
+  the tokenVersion-only operations (logout-all, admin-revoke) — a higher
+  observed `tokenVersion` than expected means _something_ already
+  invalidated the relevant claims, regardless of which event did it;
+  re-incrementing adds no additional security value and is explicitly
+  skipped (`VERSION_ALREADY_ADVANCED`). **Not** for password change: an
+  unrelated advance never proves that specific password mutation
+  occurred, so password change's own unrelated-advancement case is
+  `VERSION_CONFLICT`, never `VERSION_ALREADY_ADVANCED` (§8.2).
 
 ## 9. Single-family (current-session) revocation design
 
@@ -1340,16 +1754,35 @@ discipline already established across every SEC-3B/3C module.
 | `REVOKED_ALL_FAMILIES`     | All-family sweep completed, including the zero-matched case                                                                                                                                     | Yes (idempotent — `updateMany` re-matches fewer/zero documents) | N/A — internal completion signal                                                           | Yes                  | No                                                                                   |
 | `REVOCATION_PARTIAL`       | The all-family `updateMany` itself failed, **after** the authoritative `tokenVersion` bump already committed                                                                                    | Yes (safe to retry the sweep alone)                             | N/A — never surfaces as event failure (§7, §10)                                            | Yes (internal alert) | Yes — logged for reconciliation, does not block the primary event's reported success |
 
-### 14.3 `tokenVersion` mutation (§8)
+### 14.3 `tokenVersion` and subject-security mutation (§8) — final SEC-3D.2 result taxonomy, 15 codes
 
-| Code                       | Meaning                                                                                                                                                                                                       | Retry-safe?                                                                                                                    | Future HTTP mapping                                           | Internal only?                    | Cleanup/reconciliation?                |
-| -------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ | ------------------------------------------------------------- | --------------------------------- | -------------------------------------- |
-| `VERSION_INCREMENTED`      | The guarded `$inc` (and any combined `$set`, e.g. `accountStatus`/`role`/password hash) matched and committed                                                                                                 | Yes (idempotent by the filter that gated it)                                                                                   | 200 (event-specific success shape)                            | No — caller-facing                | No                                     |
-| `VERSION_ALREADY_ADVANCED` | Reread after a filter-match failure shows `current > expected` — some concurrent event already achieved the invalidation objective; no second increment is performed                                          | Yes — this **is** the safe outcome of a retry, not a failure                                                                   | 200 (treated as success — the objective is met)               | No — caller-facing (as a success) | No                                     |
-| `VERSION_CONFLICT`         | Reread after a filter-match failure shows `current == expected` still, or the mismatch cannot be classified as already-advanced (e.g. a concurrent, different-direction change)                               | No — caller must re-observe state before resubmitting; at most one bounded automatic retry when `current == expected` (§8.5.1) | 409 internal / generic failure externally                     | Yes                               | No — never silently reapplied          |
-| `SUBJECT_STATE_CONFLICT`   | Same as `VERSION_CONFLICT`, specifically for the `accountStatus`/`role`-conditioned mutations (§8.3) where the _other_ field's prior-value precondition is what failed to match, not `tokenVersion` itself    | No                                                                                                                             | 409 internal / generic failure externally                     | Yes                               | No                                     |
-| `VERSION_EXHAUSTED`        | The increment filter's `{$lt: Number.MAX_SAFE_INTEGER}` clause is what caused the match failure — subject exists and is otherwise eligible, but is already at the bound (§8.1)                                | No — this is a genuine anomaly, not reachable at any plausible increment rate                                                  | 500 — a server-side anomaly, not a client error               | Yes                               | Yes — should alert, not silently no-op |
-| `RESET_TOKEN_INVALID`      | Password-reset filter found no document with a matching, unexpired, unconsumed reset token (§8.2) — covers "never existed," "expired," and "already consumed by a prior request," indistinguishable by design | Yes                                                                                                                            | 400/401 (generic — matches the existing controller's framing) | No — caller-facing                | No                                     |
+_(Replaces the original 6-code table in full — consolidated from the
+SEC-3D.2-A2 through SEC-3D.2-A6.2 audit sequence. Every SEC-3D.2 public
+result is exactly `{code}` — no `tokenVersion` value, subject ID, realm,
+password, password hash, reset token, model document, raw error, stack,
+filter, update, collection name, or SEC-3D.1-style `matchedCount`/
+`modifiedCount`/`revokedCount` ever appears in any SEC-3D.2 result; every
+SEC-3D.2 write is a single `findOneAndUpdate` — document-or-null — never
+`updateMany`, so no count-bearing result concept applies here at all.)_
+
+| Code | Meaning | Reachable operations | Mutation occurred | Retry-safe? | Terminal? |
+| --- | --- | --- | --- | --- | --- |
+| `VERSION_INCREMENTED` | A tokenVersion-focused conditional write succeeded | logout-all, admin-revoke, password change, password reset | Yes | N/A — success | Yes |
+| `VERSION_ALREADY_ADVANCED` | Any advancement beyond the observed expected version already satisfies the token-invalidation objective; no second increment is performed | logout-all, admin-revoke **only** | No | Yes — idempotent success | Yes |
+| `VERSION_CONFLICT` | The password-change objective cannot be proven after its conditional write miss, including the case where `current == expected` after the miss | password change **only** | No | No — caller must resubmit as a fresh request | Yes |
+| `VERSION_REGRESSION` | A well-formed stored `tokenVersion` is lower than a previously-authoritative observation — a monotonicity-invariant violation, distinct from malformation | logout-all, admin-revoke, password change | No | No — alert-worthy anomaly | Yes |
+| `SUBJECT_STATE_UPDATED` | The requested `accountStatus`/`role` transition occurred; no claim is made about whether `tokenVersion` also changed | suspend, reactivate (either mode), role change | Yes | N/A — success | Yes |
+| `SUBJECT_STATE_ALREADY_APPLIED` | The requested target `accountStatus`/`role` was already present | suspend, reactivate, role change | No | Yes — idempotent success | Yes |
+| `SUBJECT_STATE_CONFLICT` | A valid, authoritative state differs from both the caller's expected prior state and the requested target | role change (live path); suspend/reactivate defined for forward-compatibility, structurally unreachable under the current two-value `accountStatus` enum | No | No | Yes |
+| `SUBJECT_STATE_INVALID` | Stored `accountStatus`/`role` lies outside its accepted schema enum or type — reuses the existing checkpointed SEC-3C code/concept (`SessionSubjectStateProvider.js`) | suspend, reactivate (either mode), role change | No | No — alert-worthy anomaly | Yes |
+| `SUBJECT_STATE_MALFORMED` | Stored `tokenVersion` fails the numeric well-formedness guard (§8.1) — scoped **narrowly** to `tokenVersion` only; never returned for a malformed `accountStatus`/`role`, and does not represent a valid monotonicity regression | logout-all, admin-revoke, password change, suspend, reactivate Mode B, role change | No | No — alert-worthy anomaly | Yes |
+| `VERSION_EXHAUSTED` | Stored `tokenVersion` is well-formed and exactly `Number.MAX_SAFE_INTEGER` | same set as `SUBJECT_STATE_MALFORMED` | No | No — alert-worthy anomaly | Yes |
+| `RESET_TOKEN_INVALID` | The password-reset write did not match, for any reason — the public result deliberately does not distinguish invalid/expired/consumed token, malformed `tokenVersion`, exhausted `tokenVersion`, or missing subject | password reset **only** | No | Yes (caller may retry with a fresh token) | Yes |
+| `SUBJECT_MISSING` | An `_id`-addressed subject cannot be found | every `_id`-addressed operation; not reachable from token-only password reset | No | Yes (idempotent — reread confirms) | Yes |
+| `CLASSIFICATION_STALE` | The retrying operation exhausted its one-read/one-retry classification budget (§8.5.1, Policy B); the final post-retry state is intentionally unclaimed | logout-all, admin-revoke, suspend, reactivate (either mode), role change | No | No — caller may issue a wholly fresh operation | Yes |
+| `INVALID_INPUT` | Caller-supplied input failed validation before any model or hashing access | every operation | No | Yes, after correcting the input | Yes |
+| `STORAGE_FAILURE` | A model, hashing, or storage operation threw or rejected — does not expose whether an uncertain remote commit may have occurred | every operation | Unknown | No | Yes |
+
 
 ### 14.4 Refresh coordination (§11)
 
@@ -1372,15 +1805,25 @@ discipline already established across every SEC-3B/3C module.
 | `ACCESS_VERSION_MISMATCH` | Authoritative `tokenVersion` does not equal the claim's `tokenVersion`                                                                    | No                                         | 401 (generic)               | Yes                             | No                      |
 | `ACCESS_STORAGE_FAILURE`  | The authoritative subject-state read itself failed                                                                                        | No — fails closed, never defaults to allow | 503 or generic 401          | Yes                             | No                      |
 
-**Idempotency summary, corrected and complete** (replacing both the
-original pass's blanket "double-increment is availability-only" claim and
-the SEC-3D-A.1 pass's narrower "only the accountStatus/role cases need a
-filter" claim): every `tokenVersion`-incrementing mutation, without
-exception, is idempotent-by-filter (§8.5, §8.5.1) — the two previously
-"exempt" cases (logout-all, admin-revoke) are corrected to also require
-an `expectedTokenVersion` precondition. No operation in this design can
-silently reverse an intervening legitimate change once its filter is
-applied.
+**Idempotency summary, corrected and complete** (replacing the original
+pass's blanket "double-increment is availability-only" claim, the
+SEC-3D-A.1 pass's narrower "only the accountStatus/role cases need a
+filter" claim, and an intermediate draft's overstated "logout-all and
+admin-revoke are identically idempotent" claim): every `tokenVersion`-
+incrementing mutation, without exception, is idempotent-by-filter (§8.5,
+§8.5.1) — no operation in this design can silently reverse an intervening
+legitimate change once its filter is applied. This does **not** mean
+every operation is idempotent across *sequential, separately-authorized*
+invocations in the same sense: logout-all is, because its
+`expectedTokenVersion` is a caller-held, invocation-independent claim;
+admin-revoke is not generally, because its `expectedTokenVersion` is a
+fresh per-invocation preread (§8.5) — both are equally safe (extra
+increments are harmless), but only logout-all's repeated-request behavior
+collapses to a single effective increment. Suspend/reactivate/role-change
+bind no `tokenVersion` equality clause at all, preserving different-event
+concurrency (§8.3). Any retry that exhausts its one bounded attempt
+without resolving returns `CLASSIFICATION_STALE` rather than a precise
+but unproven result (§8.5.1).
 
 ## 15. Index and query readiness
 
@@ -1461,45 +1904,86 @@ not any SEC-3D slice.
 
 ### SEC-3D.2 — Dormant bounded tokenVersion and atomic subject-security mutation primitives
 
-- **Goal**: the `$inc`-with-bound-guard mutation contract (§8.1), the
-  **selected Design B** pre-hashed conditional-update contract for
-  password change (§8.2), the single-write reset-token-gated contract for
-  password reset (§8.2), the state-conditioned `findOneAndUpdate` contract
-  for suspend/reactivate/role-change (§8.3), the guarded
-  `tokenVersion`-only increment for logout-all/admin-revoke (§8.5.1), and
-  the deletion non-requirement documented (§8.4) as a design note only
-  (deletion itself is not touched by this slice — `deleteUser` remains
-  unmodified, per the dormancy rule).
-- **Allowed files**: one or two new service files, `User.js`/`Employer.js`
-  — **additive only**: the `max: Number.MAX_SAFE_INTEGER` validator
-  (§8.1) and nothing else — **not** `optimisticConcurrency: true`, which
-  §8.2 explicitly rejected as too wide a blast radius for a dormant phase.
-  New unit tests only.
-- **Prohibited files**: `controllers/`, `routes/`, `middleware/`; any
-  non-additive change to `User.js`/`Employer.js`.
-- **Dependencies**: none required, though SEC-3D.1's revoke primitive may
-  be referenced by this slice's own tests for end-to-end scenario
-  coverage.
-- **Tests**: the complete §8.5.1 event-idempotency matrix reproduced
-  against doubles, event by event (`VERSION_INCREMENTED` on first
-  application, `VERSION_ALREADY_ADVANCED` on a stale-but-superseded retry,
-  `VERSION_CONFLICT`/`SUBJECT_STATE_CONFLICT` on a genuine CAS loss);
-  `$inc` atomicity under concurrent-double simulation; max-bound rejection
-  (`VERSION_EXHAUSTED`); missing-subject handling; the exact
-  stale-retry-after-reactivation scenario from §8.5 and its logout-all/
-  admin-revoke equivalent (stale retry after an intervening relogin)
-  reproduced against doubles and confirmed **not** to reverse the
-  intervening change in either case; the password-reset consumed-token
-  scenario confirmed to return `RESET_TOKEN_INVALID` without a second
-  increment; explicit confirmation that no test in this slice depends on
+- **Goal**: the hardened `validTokenVersionExpr` nested-`$cond` guard
+  (§8.1); two **distinct** tokenVersion-only method contracts,
+  `incrementTokenVersionForLogoutAll`/`incrementTokenVersionForAdminRevoke`
+  (§8.5); the **selected Design B** pre-hashed conditional-update contract
+  for password change, User-only (§8.2); the Design-1 single-write
+  reset-token-gated contract for password reset, User-only (§8.2); the
+  state-conditioned `findOneAndUpdate` contracts for suspend (User and
+  Employer), the two explicit reactivation modes (§5.1/§8.3), and role
+  change (User-only, §8.3); the frozen classification-precedence order and
+  the `CLASSIFICATION_STALE` retry-miss policy (§8.5.1); the 15-code
+  result taxonomy (§14.3); and the deletion non-requirement documented
+  (§8.4) as a design note only (deletion itself is not touched by this
+  slice — `deleteUser` remains unmodified, per the dormancy rule).
+- **Exact new files**:
+  `server/src/services/auth/AccountSecurityMutationContracts.js`,
+  `server/src/services/auth/AccountSecurityMutationService.js`,
+  `server/src/__tests__/accountSecurityMutation.test.js`,
+  `docs/STRIDETO_SEC_3D_2_DORMANT_ACCOUNT_SECURITY_MUTATION_REPORT.md` —
+  filenames frozen, not left as "one or two files, for example."
+- **Allowed existing-file changes**: `User.js`/`Employer.js` — **additive
+  only**: the `max: Number.MAX_SAFE_INTEGER` validator (§8.1) and nothing
+  else — **not** `optimisticConcurrency: true`, which §8.2 explicitly
+  rejected as too wide a blast radius for a dormant phase.
+- **Prohibited files**: `controllers/`, `routes/`, `middleware/`,
+  `startup/`; any non-additive change to `User.js`/`Employer.js`;
+  `RefreshSessionContracts.js`, `RefreshSessionRotationService.js`,
+  `SessionSubjectStateProvider.js`, `SessionFamilyRevocationContracts.js`,
+  `SessionFamilyRevocationService.js` (SEC-3B/3C/3D.1 files, unmodified);
+  `utils/tokenStore.js`, `config/redis.js`; `client/`, `mobile/`; package
+  manifests, lockfiles, environment files, deployment files.
+- **Dependencies**: none required at runtime — confirmed, no SEC-3D.2
+  production code imports `SessionFamilyRevocationService` — though
+  SEC-3D.1's revoke primitive may be referenced by this slice's own tests
+  for end-to-end scenario coverage.
+- **Tests**: every malformed-`tokenVersion` value against
+  `validTokenVersionExpr` (missing, `null`, string, array, object,
+  negative, fractional, `NaN`, `±Infinity`, greater-than-maximum) proven
+  rejected without throwing, plus exactly-maximum classified
+  `VERSION_EXHAUSTED` and every safe non-negative integer below it
+  accepted; the complete §8.5.1 event-idempotency matrix reproduced
+  against doubles, event by event, including `VERSION_INCREMENTED`,
+  `VERSION_ALREADY_ADVANCED` (logout-all/admin-revoke only),
+  `VERSION_CONFLICT`, `VERSION_REGRESSION`, `SUBJECT_STATE_UPDATED`,
+  `SUBJECT_STATE_ALREADY_APPLIED`, `SUBJECT_STATE_CONFLICT` (role change
+  only, live), `SUBJECT_STATE_INVALID`, `SUBJECT_STATE_MALFORMED`,
+  `CLASSIFICATION_STALE`; exact per-operation call-count assertions
+  matching the §8.5.1 bounds table exactly (no third write, no second
+  classification read, no unbounded retry); a classify-to-retry race,
+  exercised via a model double capable of a deterministic state mutation
+  between the classification read and the retry write, not merely between
+  the primary write and the classification read; logout-all's
+  concurrent-and-sequential duplicate collapse versus admin-revoke's
+  concurrent-only collapse; both reactivation modes, including proof that
+  Mode A never reads/guards/mutates `tokenVersion`; role-change's
+  distinction between a valid-different-role conflict
+  (`SUBJECT_STATE_CONFLICT`) and a malformed role
+  (`SUBJECT_STATE_INVALID`); password-change/reset's hashing boundary
+  (validation before hashing, cost 12, no plaintext/hash exposure, no
+  `pre('save')` hook reliance, zero automatic retries for password
+  change); explicit confirmation that no test in this slice depends on
   Mongoose `optimisticConcurrency`/`__v` behavior, since Design B does not
-  use it.
+  use it; explicit confirmation every public result is exactly `{code}`.
 - **Database needed**: No.
 - **Stop conditions**: same as SEC-3D.1; additionally, any change to
-  `User.js`/`Employer.js` beyond the single additive validator.
+  `User.js`/`Employer.js` beyond the single additive validator; any
+  runtime import of SEC-3D.1.
 - **Dormancy proof**: same grep pattern as SEC-3D.1; additionally confirm
   `User.js`/`Employer.js`'s diff contains only the one additive validator
-  line.
+  line per model.
+- **Required regression suites**: `sessionFamilyRevocation.test.js`,
+  `refreshSessionSchema.test.js`, `refreshTokenHash.test.js`,
+  `jwtSessionProvider.test.js`, `refreshSessionRotation.test.js`,
+  `authCookiePolicy.test.js`, `trustedRequestOriginPolicy.test.js`,
+  `sessionSubjectStateProvider.test.js`, `auth.test.js`,
+  `authRealm.test.js`, `employerAuthRealmIsolation.test.js`,
+  `emailVerification.test.js`, `duplicateEmailUserIdIndexes.test.js`, plus
+  the full safe test sweep, `npm run lint`, `npx prettier --check` on the
+  new files, `git diff --check` — no database connection at any point.
+- **Live-wiring owner**: SEC-3E exclusively — no route, controller,
+  middleware, or startup file is touched by this slice.
 
 ### SEC-3D.3 — Dormant refresh-eligibility and post-rotation revalidation coordinator
 
