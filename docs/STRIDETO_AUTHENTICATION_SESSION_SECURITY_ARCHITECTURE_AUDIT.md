@@ -25,6 +25,27 @@ follows, the live cutover), rollback strategy, and the final 10/10 gate
 were corrected in P2 (§18B, §23, §33, §34, §35). No other file was
 modified to produce any part of this revision (see §37).
 
+**Revision note (SEC-3A.3 correction pass — Macro Phase 2A bounded
+authority correction).** The Macro Phase 2A live-cutover readiness audit
+found two authority defects, neither in application code: (1) §18A/§19A
+had frozen a single audience value per realm for both access and refresh
+tokens, which directly contradicts the already-checkpointed, already-tested
+`JwtSessionProvider.js` (SEC-3B), whose construction-time guard requires
+`accessAudience !== refreshAudience` — no realm could ever be configured
+against the literal prior text without that call throwing. Resolved by
+freezing **four** exact audience values (one per realm per token type),
+not by relaxing the provider (§18A, §19A). (2) The same audit's own
+draft report proposed an unauthorized rollback path — "re-enabling the
+boot-time flag's old branch" after secure production activation — which
+directly conflicts with §34's own already-accepted rule that the
+browser-readable-refresh-token architecture is never an allowed
+production rollback target. §34 itself required no correction (it was
+already right); a new §34A is added to state the transitional-flag
+boundary explicitly, closing the ambiguity that produced the erroneous
+external proposal, and §33's SEC-3E phase text cross-references it. No
+application, test, package-manifest, lockfile, or environment file was
+touched to produce this pass (see §37).
+
 ## 1. Executive verdict
 
 **AUTHENTICATION SESSION REDESIGN READY FOR PHASED IMPLEMENTATION.** The
@@ -389,7 +410,8 @@ controller is authoritative for each realm.
 | Logout authentication        | Bearer access token (`Authorization` header), **not** the refresh cookie                                | Same                                                                                   |
 | Session claim read at logout | `sid` from the verified access token (§19A) → looked up directly by `_id` in `RefreshSession`           | Same, realm-checked                                                                    |
 | Issuer                       | `strideto-api`                                                                                          | `strideto-api` (shared issuer, realm is a claim — §19A)                                |
-| Audience                     | `strideto-user`                                                                                         | `strideto-employer`                                                                    |
+| Access-token audience (SEC-3A.3) | `strideto-user-access`                                                                              | `strideto-employer-access`                                                             |
+| Refresh-token audience (SEC-3A.3) | `strideto-user-refresh`                                                                             | `strideto-employer-refresh`                                                            |
 | Reading controller           | `authController.refreshToken` (reads the cookie); `authController.logout` (reads the bearer token only) | `employerAuthController.employerRefreshToken`; `employerAuthController.employerLogout` |
 | Setting controller           | `authController.login`, `authController.refreshToken`                                                   | `employerAuthController.employerLogin`, `employerAuthController.employerRefreshToken`  |
 
@@ -593,15 +615,41 @@ individual token's `jti` (per-token identity).
 
 **Access token claims**: `sub` (subjectId), `realm` (`'user'` |
 `'employer'`), `sid`, `jti`, `tokenVersion` (snapshot at issuance), `iss`
-(`strideto-api`), `aud` (`strideto-user` | `strideto-employer`), `exp`.
+(`strideto-api`), `aud` (`strideto-user-access` | `strideto-employer-access`),
+`exp`.
 
 **Refresh token claims**: `sub`, `realm`, `sid`, `jti`, `type: 'refresh'`,
-`tokenVersion`, `iss`, `aud`, `exp`.
+`tokenVersion`, `iss`, `aud` (`strideto-user-refresh` |
+`strideto-employer-refresh`), `exp`.
+
+**Audience is both realm-specific and token-type-specific — corrected,
+SEC-3A.3.** The prior text specified one audience per realm shared by both
+token types (`strideto-user` for all User-realm tokens); that value is
+withdrawn. Four exact values are frozen instead: `strideto-user-access`,
+`strideto-user-refresh`, `strideto-employer-access`,
+`strideto-employer-refresh` (§18A). This is not a new design choice
+invented to close a gap — it is the value already required by
+`JwtSessionProvider.js` (SEC-3B), whose `assertValidConfig` refuses
+construction when `accessAudience === refreshAudience`; the architecture
+text simply had not yet been reconciled with that already-checkpointed,
+already-tested module. `JwtSessionProvider.js` and
+`jwtSessionProvider.test.js` are unchanged by this correction — their
+existing behavior is the selected, authoritative behavior, not a
+constraint to relax.
 
 **Verification, both token types**: explicit `algorithms` allowlist
-(`['HS256']`), `issuer`, `audience` (realm-specific — an employer token
-presented against a user-audience check fails outright), and, for refresh
-tokens, `type === 'refresh'`.
+(`['HS256']`), `issuer`, `audience` (realm- **and** token-type-specific,
+per the table above — an employer token presented against a user
+audience fails outright, and a refresh token presented against the
+access audience fails outright, and vice versa), and, for refresh tokens,
+`type === 'refresh'`. A token signed with the correct secret but carrying
+the wrong audience fails verification; a token carrying a correct-looking
+audience but signed with the wrong secret fails at the signature step
+before the audience is even compared. A refresh token can never verify
+through the access-token verification operation (wrong secret, wrong
+audience, wrong type, all three independently sufficient to reject it),
+and an access token can never verify through the refresh-token
+verification operation, for the same three independent reasons.
 
 **Before rotation (§22), verify, in addition to signature/issuer/
 audience/type**: the loaded `RefreshSession.subjectType` equals the
@@ -1465,7 +1513,9 @@ Goal: The single coordinated cutover (§32): integrate both realms' login,
   (§23); **activate account-state/tokenVersion enforcement (SEC-3D) and
   refresh-time version checking (§22 step 5) as part of this same
   change** — not deferred to a later phase. Server and client change
-  together.
+  together. A boot-time selector between the legacy and secure paths may
+  be used only as a pre-activation rollout mechanism, under the exact
+  bounded rules of §34A — it is never a post-activation rollback device.
 Allowed files: server auth controllers/routes/middleware; requireAuth/
   requireEmployerAuth; AuthContext.jsx, EmployerAuthContext.jsx,
   axiosBase.js, employerService.js; related server and client tests
@@ -1539,7 +1589,11 @@ task's instruction is explicit and is adopted without exception: **the
 known-critical browser-readable-refresh-token architecture is never an
 allowed production rollback target**, once secure production activation
 (post-SEC-3G) has occurred. Availability degradation is preferable to
-restoring that weakness.
+restoring that weakness. Stated in the exact terms the task requires:
+**after secure production activation, the legacy JSON/localStorage token
+path must never be re-enabled as rollback** — not by reverting a commit
+into that state, not by flipping a runtime flag, not by any other
+mechanism (§34A).
 
 **Before production deployment** (all of SEC-3B–3F, and any local SEC-3E
 cutover commits that have not yet passed SEC-3F/SEC-3G): dormant and local
@@ -1576,6 +1630,54 @@ refresh signing secret, or restores a state where account-status checks
 are absent from authentication. No long-lived runtime feature-flag toggle
 is used as the rollback mechanism.
 
+## 34A. Transitional cutover flag contract
+
+**New section (SEC-3A.3)**, added to close the exact ambiguity that
+produced an external, non-authoritative proposal to use a boot-time flag
+as a rollback device — never a gap in §34 itself, but a gap in how the
+pre-activation rollout mechanism's boundary was stated. A boot-time
+selector between the legacy and secure authentication paths may exist
+**only** under these bounded rules:
+
+**Before secure activation.** The server may be deployed with SEC-3E code
+present but its live path disabled, while: no client depending on the
+secure path is active; the currently deployed system remains on its
+unchanged pre-cutover contract; no single request is ever served by a mix
+of legacy and secure token shapes; no per-request selection of mode
+exists (the flag is boot-time only, read once, never re-evaluated
+mid-request or per-caller).
+
+**At secure activation.** For each realm, server and client activate
+together, in the same coordinated change (§32, §33). The activated mode
+is secure end to end: `HttpOnly` refresh cookie, memory-only access
+token, `RefreshSession` rotation, trusted-origin enforcement (§19),
+authoritative subject-state enforcement (§22 step 5, §24) — never a
+refresh token in JSON, never a browser-persisted token.
+
+**After secure activation.** The legacy branch, if it remains present in
+the deployed artifact only pending SEC-3G's deletion, must be
+**structurally unreachable** from production configuration, not merely
+undocumented or discouraged:
+
+- production startup **fails closed** if configuration ever resolves to
+  legacy mode — this is a boot-time hard-fail (extending the
+  `validateEnv.js` pattern of §18B), not a warning;
+- the legacy branch is not an available runtime switch — no environment
+  variable, admin action, or request header may select it once secure
+  activation has occurred;
+- the legacy branch accepts no new login or refresh request in
+  production — it exists only as unreachable code pending SEC-3G
+  deletion, never as an emergency fallback;
+- no automatic fallback from the secure path to the legacy path is ever
+  implemented, for any error condition.
+
+**Consequence for §34**: because the legacy branch is fail-closed and
+unreachable once secure activation has occurred, "flip the flag back" is
+not a member of §34's list of permitted rollback responses under any
+circumstance — it was never a valid instance of "roll forward" or
+"revert to a previously secure release," and is stated here as an
+explicit non-option to remove any remaining ambiguity.
+
 ## 35. Final 10/10 authentication acceptance criteria (active scope)
 
 **Corrected and expanded in full (SEC-3A.2-P2)**. Scoped to the currently
@@ -1600,7 +1702,9 @@ JWT contract
   Separate access/refresh signing keys:        Required (§19A) — JWT_SECRET vs REFRESH_SECRET, boot hard-fail if equal/unset
   Stable sid, unique per-token jti:             Required (§19A) — sid never reused as jti
   Issuer validation:                            Required
-  Audience validation (realm-specific):         Required
+  Audience validation (realm- and token-
+    type-specific, four distinct values,
+    §18A/§19A — SEC-3A.3):                      Required
   Algorithm allowlist:                          Required
   Token-type validation (refresh tokens):       Required
   Realm/subject/session-document match:         Required, checked before CAS (§22 step 5)
@@ -1640,7 +1744,7 @@ Infrastructure and operations
   Redis requirement enforced where depended on: Required, hard-fail not merely warned, only where the final design actually uses it (§24 Option B, rate limiting)
   MongoDB outage fails closed:                  Required, both refresh (§22) and access-token (§24) paths
   Replay events monitored:                      Required
-  Secure rollback only:                         Required — no rollback to browser-readable refresh tokens (§34)
+  Secure rollback only:                         Required — no rollback to browser-readable refresh tokens, no post-activation legacy-flag reuse (§34, §34A)
   No deployment before SEC-3G acceptance:        Required (§33)
 
 Inactive surfaces
@@ -1666,6 +1770,8 @@ is not required by, and not part of, this specific gate (§21, §30).
 | Access-token invalidation: Option A (direct MongoDB, zero staleness) required baseline; Option B (write-through Redis) optional later layer | Architecture decision (§24)                                                                                                                                         |
 | No JavaScript-readable CSRF cookie; Origin/Referer validation + SameSite=Lax + bearer-authenticated logout                                  | Architecture decision, replacing a design proven non-executable by cookie host/Path scoping rules (§19)                                                             |
 | Separate access/refresh signing keys; sid/jti separation                                                                                    | Architecture decision, correcting F-H1 precisely (§19A)                                                                                                             |
+| Four distinct audiences (per realm, per token type), matching `JwtSessionProvider.js`'s already-checkpointed structural guard                | Authority correction (SEC-3A.3) — reconciles prior text with already-tested SEC-3B code, not a source change (§18A, §19A)                                          |
+| Boot-time legacy/secure selector is pre-activation-only, fail-closed after activation, never a rollback device                              | Authority correction (SEC-3A.3), closing an ambiguity that produced an unauthorized external rollback proposal (§34A)                                              |
 | Account-state enforcement (SEC-3D) built and required before the live cutover (SEC-3E)                                                      | Architecture decision, closing the "deployable state with live sessions but no enforcement" gap (§33)                                                               |
 | Production deployment does not occur until SEC-3G completes                                                                                 | Architecture decision, per explicit task instruction (§33, §35)                                                                                                     |
 | OAuth and mobile remain out of required scope                                                                                               | Product-scope decision, consistent with the task's own instruction not to expand attack surface for inactive surfaces (§26, §27)                                    |
@@ -1702,8 +1808,9 @@ host or an unmatching document path) and replaced with mandatory Origin/
 Referer validation, `SameSite=Lax` defense-in-depth, and
 bearer-authenticated logout (§19). Realm cookie isolation uses distinct
 names and non-overlapping, route-exact Paths (§18A). Access and refresh
-tokens use separate signing keys, with `sid` (session identity) and `jti`
-(per-token identity) kept strictly distinct (§19A). Refresh rotation
+tokens use separate signing keys and four distinct realm-and-type-specific
+audiences, with `sid` (session identity) and `jti` (per-token identity)
+kept strictly distinct (§19A, §18A — SEC-3A.3). Refresh rotation
 verifies subject existence, realm, account status, and `tokenVersion`
 before CAS runs, failing closed (§22 step 5) — independent of the
 best-effort bulk cleanup used for logout-all. Access-token invalidation
@@ -1721,7 +1828,9 @@ live enforcement (§32, §33). Production deployment does not occur until
 SEC-3G completes, not after SEC-3E or SEC-3F alone (§33). Rollback after
 secure activation is restricted to forward fixes, maintenance mode, secure
 cookie-based reverts, or forced reauthentication — never a return to
-browser-readable refresh tokens (§34). OAuth and mobile remain correctly
+browser-readable refresh tokens and never a post-activation reuse of a
+legacy-mode boot flag, which is fail-closed and unreachable in production
+once activated (§34, §34A). OAuth and mobile remain correctly
 out of scope as inactive, unreachable surfaces (§26, §27). The one fact
 this report cannot resolve from the repository — whether
 `api.strideto.com` is currently DNS-live — is verified in SEC-3F and gates

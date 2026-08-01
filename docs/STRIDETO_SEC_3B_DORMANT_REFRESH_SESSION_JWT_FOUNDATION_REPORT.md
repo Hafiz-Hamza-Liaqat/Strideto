@@ -131,6 +131,24 @@ weak-secret policy), `HS256`-only algorithm pinning, issuer/audience/type
 validation, stable caller-supplied `sid`, fresh internally-generated `jti`
 per issuance.
 
+**Authority reconciliation (SEC-3A.3, documentation-only — no source
+change).** `assertValidConfig` has always required `accessSecret !==
+refreshSecret` **and** `accessAudience !== refreshAudience` at
+construction time — this was correct from the original SEC-3B pass and
+remains unchanged. The architecture report's §18A/§19A text had, until
+the SEC-3A.3 correction, specified only one audience per realm shared by
+both token types, which no caller could ever supply to this provider
+without triggering that guard. The Macro Phase 2A live-cutover readiness
+audit found this contradiction and resolved it by correcting the
+architecture text to freeze four distinct realm-and-type-specific
+audience values (`strideto-user-access`, `strideto-user-refresh`,
+`strideto-employer-access`, `strideto-employer-refresh`), matching what
+this module already required and already tested — not by relaxing this
+module's guard. `JwtSessionProvider.js` and `jwtSessionProvider.test.js`
+required, and received, zero changes as a result; its existing 66-assertion
+equality-rejection coverage remains the authoritative verification of this
+contract.
+
 **Corrected in SEC-3B.1**: `tokenVersion` is now validated as a
 non-negative integer (`assertNonNegativeIntegerClaim`, shared between
 issuance and verification) at **issuance time**, not only at verification
