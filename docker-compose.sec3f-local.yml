@@ -13,6 +13,9 @@ services:
       default:
         aliases:
           - backend
+    depends_on:
+      mailpit:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       APP_ENV: production
@@ -24,12 +27,21 @@ services:
       API_ORIGIN: https://localhost:8443
       CORS_ORIGINS: https://localhost:8443
       CORS_ALLOW_VERCEL_PREVIEWS: "0"
+      MAIL_HOST: mailpit
+      MAIL_PORT: "1025"
+      MAIL_SECURE: "false"
+      MAIL_USER: strideto-local
+      MAIL_PASS: strideto-local
+      MAIL_FROM: Strideto Local <noreply@strideto.test>
 
   api-b:
     networks:
       default:
         aliases:
           - backend
+    depends_on:
+      mailpit:
+        condition: service_healthy
     environment:
       NODE_ENV: production
       APP_ENV: production
@@ -41,6 +53,12 @@ services:
       API_ORIGIN: https://localhost:8443
       CORS_ORIGINS: https://localhost:8443
       CORS_ALLOW_VERCEL_PREVIEWS: "0"
+      MAIL_HOST: mailpit
+      MAIL_PORT: "1025"
+      MAIL_SECURE: "false"
+      MAIL_USER: strideto-local
+      MAIL_PASS: strideto-local
+      MAIL_FROM: Strideto Local <noreply@strideto.test>
 
   worker:
     profiles:
@@ -48,6 +66,21 @@ services:
 
   frontend:
     ports: !override []
+
+  mailpit:
+    image: axllent/mailpit:latest
+    restart: "on-failure:3"
+    environment:
+      MP_MAX_MESSAGES: "50"
+      MP_SMTP_AUTH_ACCEPT_ANY: "1"
+      MP_SMTP_AUTH_ALLOW_INSECURE: "1"
+    ports:
+      - "127.0.0.1:8025:8025"
+    healthcheck:
+      test: ["CMD", "/mailpit", "readyz"]
+      interval: 2s
+      timeout: 2s
+      retries: 15
 
   caddy:
     image: caddy:2-alpine
