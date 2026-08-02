@@ -90,6 +90,14 @@ function fakeAccountSecurityMutation(overrides = {}) {
       calls.push(['logoutAll', args]);
       return overrides.logoutAll || { code: 'VERSION_INCREMENTED' };
     },
+    async changePassword(args) {
+      calls.push(['changePassword', args]);
+      return overrides.changePassword || { code: 'VERSION_INCREMENTED' };
+    },
+    async resetPassword(args) {
+      calls.push(['resetPassword', args]);
+      return overrides.resetPassword || { code: 'VERSION_INCREMENTED' };
+    },
     async suspend(args) {
       calls.push(['suspend', args]);
       return overrides.suspend || { code: 'SUBJECT_STATE_UPDATED' };
@@ -142,6 +150,11 @@ function buildFlows(overrides = {}) {
     accountSecurityMutationService:
       overrides.accountSecurityMutation || fakeAccountSecurityMutation(),
     denylistService: overrides.denylist || fakeDenylist(),
+    employerModel: overrides.employerModel || {
+      async findOne() {
+        return { _id: SUBJECT_ID };
+      },
+    },
   });
 }
 
@@ -333,17 +346,128 @@ function buildFlows(overrides = {}) {
 {
   const flows = buildFlows();
   check(
-    typeof flows.changePassword === 'undefined',
+    typeof flows.changePassword === 'function',
     'no changePassword — Employer has no live password-change route'
   );
   check(
-    typeof flows.resetPassword === 'undefined',
+    typeof flows.resetPassword === 'function',
     'no resetPassword — Employer has no live reset route'
   );
   check(
     typeof flows.changeUserRole === 'undefined' &&
       typeof flows.changeEmployerRole === 'undefined',
     'no role-change API — Employer has no role field'
+  );
+}
+
+// --- Realm-bound password change and global revocation ---------------------------
+{
+  const accountSecurityMutation = fakeAccountSecurityMutation();
+  const familyRevocation = fakeFamilyRevocation();
+  const flows = buildFlows({ accountSecurityMutation, familyRevocation });
+  const result = await flows.changePassword({
+    principal: { subjectId: SUBJECT_ID, tokenVersion: 4, jti: JTI },
+    newPassword: 'NewPassword1',
+    presentedAccessTokenExp: Math.floor(Date.now() / 1000) + 900,
+  });
+  check(
+    result.code === 'PASSWORD_CHANGED' && result.clearCookie,
+    'Employer password change succeeds'
+  );
+  check(
+    accountSecurityMutation.calls[0][1].realm === 'employer' &&
+      accountSecurityMutation.calls[0][1].expectedTokenVersion === 4,
+    'password and tokenVersion mutation is Employer-bound'
+  );
+  check(
+    familyRevocation.calls[0][1].realm === 'employer' &&
+      familyRevocation.calls[0][1].reason === 'password_change',
+    'password change revokes all Employer refresh families'
+  );
+  check(
+    !('accessToken' in result) && !('refreshToken' in result),
+    'change returns no credential'
+  );
+}
+
+// --- Shared-state failure precedes every password mutation ------------------------
+{
+  const accountSecurityMutation = fakeAccountSecurityMutation();
+  const familyRevocation = fakeFamilyRevocation();
+  const flows = buildFlows({
+    accountSecurityMutation,
+    familyRevocation,
+    denylist: fakeDenylist({ code: 'DENYLISTED' }, { code: 'STORAGE_FAILURE' }),
+  });
+  const result = await flows.changePassword({
+    principal: { subjectId: SUBJECT_ID, tokenVersion: 0, jti: JTI },
+    newPassword: 'NewPassword1',
+    presentedAccessTokenExp: 0,
+  });
+  check(
+    result.code === 'STORAGE_FAILURE' && result.httpStatus === 503,
+    'Redis failure is safe'
+  );
+  check(
+    accountSecurityMutation.calls.length === 0,
+    'Redis failure causes no password mutation'
+  );
+  check(
+    familyRevocation.calls.length === 0,
+    'Redis failure causes no session mutation'
+  );
+}
+
+// --- Atomic reset consumption and global revocation -------------------------------
+{
+  const accountSecurityMutation = fakeAccountSecurityMutation();
+  const familyRevocation = fakeFamilyRevocation();
+  const flows = buildFlows({ accountSecurityMutation, familyRevocation });
+  const result = await flows.resetPassword({
+    hashedToken: 'a'.repeat(64),
+    newPassword: 'ResetPassword1',
+  });
+  check(
+    result.code === 'PASSWORD_RESET' && result.clearCookie,
+    'valid Employer reset succeeds'
+  );
+  check(
+    accountSecurityMutation.calls[0][1].realm === 'employer',
+    'reset is Employer-bound'
+  );
+  check(
+    familyRevocation.calls[0][1].realm === 'employer' &&
+      familyRevocation.calls[0][1].reason === 'password_reset',
+    'reset revokes all Employer refresh families'
+  );
+  check(
+    !('accessToken' in result) && !('refreshToken' in result),
+    'reset returns no credential'
+  );
+}
+
+// --- Invalid, expired, or reused reset tokens do not reach mutation ----------------
+{
+  const accountSecurityMutation = fakeAccountSecurityMutation();
+  const flows = buildFlows({
+    accountSecurityMutation,
+    employerModel: {
+      async findOne() {
+        return null;
+      },
+    },
+  });
+  const result = await flows.resetPassword({
+    hashedToken: 'b'.repeat(64),
+    newPassword: 'ResetPassword1',
+  });
+  check(
+    result.code === 'RESET_TOKEN_INVALID' && result.httpStatus === 400,
+    'invalid token rejected'
+  );
+  check(
+    accountSecurityMutation.calls.length === 0,
+    'invalid token causes no write'
   );
 }
 

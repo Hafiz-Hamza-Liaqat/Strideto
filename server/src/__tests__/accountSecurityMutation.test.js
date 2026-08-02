@@ -2077,6 +2077,76 @@ async function fixedHash() {
 // Cross-cutting: no SEC-3D.1 runtime import, exact result-key shape everywhere
 // =======================================================================
 {
+  const hashedToken = 'e'.repeat(64);
+  const future = new Date(Date.now() + 60_000);
+  const employerModel = createFakeModel({
+    seed: [
+      seedUser({
+        tokenVersion: 2,
+        passwordResetToken: hashedToken,
+        passwordResetExpires: future,
+      }),
+    ],
+  });
+  const userModel = createFakeModel({ seed: [seedUser()] });
+  const service = createAccountSecurityMutationService({
+    userModel,
+    employerModel,
+    hashPassword: async (plain) => `employer-hash:${plain}`,
+  });
+
+  deepEqual(
+    await service.changePassword({
+      realm: 'employer',
+      subjectId: USER_ID,
+      expectedTokenVersion: 2,
+      newPassword: 'EmployerPassword1',
+    }),
+    { code: 'VERSION_INCREMENTED' },
+    'Employer password and tokenVersion change atomically'
+  );
+  equal(
+    employerModel.store.get(USER_ID).tokenVersion,
+    3,
+    'Employer version advanced'
+  );
+  equal(
+    userModel.store.get(USER_ID).tokenVersion,
+    5,
+    'User realm remains untouched'
+  );
+
+  deepEqual(
+    await service.resetPassword({
+      realm: 'employer',
+      hashedToken,
+      newPassword: 'EmployerReset1',
+    }),
+    { code: 'VERSION_INCREMENTED' },
+    'Employer reset token is atomically consumed'
+  );
+  const employer = employerModel.store.get(USER_ID);
+  equal(employer.tokenVersion, 4, 'Employer reset advances tokenVersion');
+  check(
+    !('passwordResetToken' in employer),
+    'Employer reset token hash is cleared'
+  );
+  check(
+    !('passwordResetExpires' in employer),
+    'Employer reset expiry is cleared'
+  );
+  deepEqual(
+    await service.resetPassword({
+      realm: 'employer',
+      hashedToken,
+      newPassword: 'EmployerReset2',
+    }),
+    { code: 'RESET_TOKEN_INVALID' },
+    'Employer reset token is single-use'
+  );
+}
+
+{
   const source = await import('node:fs').then((fs) =>
     fs.readFileSync(
       new URL(

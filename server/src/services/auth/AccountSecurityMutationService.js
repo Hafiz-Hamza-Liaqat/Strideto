@@ -232,13 +232,15 @@ export function createAccountSecurityMutationService({
   }
 
   // ---------------------------------------------------------------------
-  // Password change — User only, zero automatic retries (§8.2).
+  // Password change — realm-bound, zero automatic retries (§8.2).
   // ---------------------------------------------------------------------
   async function changePassword({
+    realm = 'user',
     subjectId,
     expectedTokenVersion,
     newPassword,
   }) {
+    if (!isKnownRealm(realm)) return Object.freeze({ code: 'INVALID_INPUT' });
     if (!isValidObjectIdString(subjectId))
       return Object.freeze({ code: 'INVALID_INPUT' });
     if (!isSafeNonNegativeInteger(expectedTokenVersion))
@@ -263,8 +265,9 @@ export function createAccountSecurityMutationService({
     };
     const update = { $set: { password: newHash }, $inc: { tokenVersion: 1 } };
 
+    const model = modelsByRealm[realm];
     const writeError = await attemptConditionalWrite({
-      model: userModel,
+      model,
       filter,
       update,
     });
@@ -277,7 +280,7 @@ export function createAccountSecurityMutationService({
 
     // Exactly one classification read, never retried, never for this operation.
     const classification = await readAndClassifyTokenVersion({
-      model: userModel,
+      model,
       subjectId,
       expected: expectedTokenVersion,
     });
@@ -293,9 +296,10 @@ export function createAccountSecurityMutationService({
   }
 
   // ---------------------------------------------------------------------
-  // Password reset — User only, Design 1 (§8.2): 1 write, 0 reads, 0 retries.
+  // Password reset — realm-bound, Design 1 (§8.2): 1 write, 0 reads, 0 retries.
   // ---------------------------------------------------------------------
-  async function resetPassword({ hashedToken, newPassword }) {
+  async function resetPassword({ realm = 'user', hashedToken, newPassword }) {
+    if (!isKnownRealm(realm)) return Object.freeze({ code: 'INVALID_INPUT' });
     if (!isValidResetTokenHash(hashedToken))
       return Object.freeze({ code: 'INVALID_INPUT' });
     if (!isNonEmptyString(newPassword))
@@ -320,17 +324,17 @@ export function createAccountSecurityMutationService({
       $expr: VALID_TOKEN_VERSION_EXPR,
     };
     const update = {
-      $set: { password: newHash, mustChangePassword: false },
-      $unset: {
-        passwordResetToken: '',
-        passwordResetExpires: '',
-        tempPasswordExpires: '',
-      },
+      $set: { password: newHash },
+      $unset: { passwordResetToken: '', passwordResetExpires: '' },
       $inc: { tokenVersion: 1 },
     };
+    if (realm === 'user') {
+      update.$set.mustChangePassword = false;
+      update.$unset.tempPasswordExpires = '';
+    }
 
     const writeError = await attemptConditionalWrite({
-      model: userModel,
+      model: modelsByRealm[realm],
       filter,
       update,
     });

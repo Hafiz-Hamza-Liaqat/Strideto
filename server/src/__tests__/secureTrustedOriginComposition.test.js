@@ -209,6 +209,21 @@ const REQUIRED_EMPLOYER_ROUTES = [
   },
   { path: '/auth/employer/logout', method: 'post', authenticated: true },
   { path: '/auth/employer/logout-all', method: 'post', authenticated: true },
+  {
+    path: '/auth/employer/change-password',
+    method: 'post',
+    authenticated: true,
+  },
+  {
+    path: '/auth/employer/reset-password',
+    method: 'post',
+    authenticated: false,
+  },
+  {
+    path: '/auth/employer/forgot-password',
+    method: 'post',
+    authenticated: false,
+  },
 ];
 
 for (const { path, method, authenticated } of REQUIRED_USER_ROUTES) {
@@ -275,6 +290,9 @@ for (const { path, method, authenticated } of REQUIRED_EMPLOYER_ROUTES) {
     ['/auth/reset-password', authRouter],
     ['/auth/employer/register', employerRouter],
     ['/auth/employer/login', employerRouter],
+    ['/auth/employer/change-password', employerRouter],
+    ['/auth/employer/reset-password', employerRouter],
+    ['/auth/employer/forgot-password', employerRouter],
   ];
   for (const [path, router] of provenRoutes) {
     const layer = findRouteLayer(router, path, 'post');

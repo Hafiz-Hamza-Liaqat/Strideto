@@ -10,7 +10,7 @@ import { REFRESH_SESSION_SUBJECT_TYPES } from './RefreshSessionContracts.js';
 
 export const ACCOUNT_SECURITY_MUTATION_REALMS = REFRESH_SESSION_SUBJECT_TYPES;
 
-/** Password change/reset and role change have no live Employer route (§8.2/§8.3). */
+/** Role change remains User-only because Employer has no role field. */
 export const USER_ONLY_REALM = 'user';
 
 /**

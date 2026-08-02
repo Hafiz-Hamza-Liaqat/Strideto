@@ -1,15 +1,29 @@
+import crypto from 'crypto';
 import { Employer } from '../models/Employer.js';
-import { signEmployerToken, signRefreshToken, verifyToken } from '../utils/jwt.js';
+import {
+  signEmployerToken,
+  signRefreshToken,
+  verifyToken,
+} from '../utils/jwt.js';
 import {
   storeRefreshToken,
   validateRefreshToken,
   revokeRefreshToken,
   revokeAccessToken,
+  hashResetToken,
 } from '../utils/tokenStore.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { logAudit, auditFromRequest } from '../services/auditService.js';
 import { secureAuthConfig } from '../services/auth/secureAuthConfig.js';
 import { employerSecureAuthFlows } from '../services/auth/employerSecureAuthFlows.js';
+import {
+  validateChangePassword,
+  validateForgotPassword,
+  validateResetPassword,
+} from '../validators/authValidator.js';
+import { queueEmail } from '../services/automationService.js';
+import { isSmtpConfigured } from '../services/emailService.js';
+import { frontendBaseUrl } from '../utils/emailVerification.js';
 
 /**
  * SEC-3E.1 — trusted-origin enforcement is composed at the route level
@@ -22,7 +36,11 @@ import { employerSecureAuthFlows } from '../services/auth/employerSecureAuthFlow
  * is performed in this file anymore.
  */
 function writeEmployerRefreshCookie(res, token) {
-  secureAuthConfig.cookiePolicy.writeRefreshCookie({ res, realm: 'employer', token });
+  secureAuthConfig.cookiePolicy.writeRefreshCookie({
+    res,
+    realm: 'employer',
+    token,
+  });
 }
 
 function clearEmployerRefreshCookie(res) {
@@ -33,8 +51,15 @@ function toSafeEmployer(employer) {
   if (!employer) return null;
   const e = employer.toObject ? employer.toObject() : employer;
   delete e.password;
+  delete e.passwordResetToken;
+  delete e.passwordResetExpires;
   return e;
 }
+
+const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000;
+const FRONTEND_BASE = frontendBaseUrl();
+const GENERIC_RESET_MESSAGE =
+  'If an account exists with this email, you will receive a password reset link shortly.';
 
 async function issueEmployerSession(employer) {
   const employerId = employer._id.toString();
@@ -60,7 +85,11 @@ async function issueSecureEmployerSession(res, employer) {
     tokenVersion: employer.tokenVersion,
   });
   if (sessionResult.code !== 'SESSION_ISSUED') {
-    return { ok: false, status: sessionResult.httpStatus, body: sessionResult.body };
+    return {
+      ok: false,
+      status: sessionResult.httpStatus,
+      body: sessionResult.body,
+    };
   }
   writeEmployerRefreshCookie(res, sessionResult.refreshToken);
   return {
@@ -74,14 +103,19 @@ async function issueSecureEmployerSession(res, employer) {
 }
 
 export const employerRegister = asyncHandler(async (req, res) => {
-  const { companyName, email, phone, website, companyDescription, password } = req.body;
+  const { companyName, email, phone, website, companyDescription, password } =
+    req.body;
   if (!companyName || !email || !password) {
-    return res.status(400).json({ error: 'companyName, email and password are required' });
+    return res
+      .status(400)
+      .json({ error: 'companyName, email and password are required' });
   }
   const emailNorm = email.trim().toLowerCase();
   const existing = await Employer.findOne({ email: emailNorm });
   if (existing) {
-    return res.status(409).json({ error: 'Email already registered as employer' });
+    return res
+      .status(409)
+      .json({ error: 'Email already registered as employer' });
   }
   const employer = await Employer.create({
     companyName: (companyName || '').trim(),
@@ -109,7 +143,9 @@ export const employerLogin = asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'Email and password are required' });
   }
   const emailNorm = email.trim().toLowerCase();
-  const employer = await Employer.findOne({ email: emailNorm }).select('+password');
+  const employer = await Employer.findOne({ email: emailNorm }).select(
+    '+password'
+  );
   if (!employer || !(await employer.comparePassword(password))) {
     return res.status(401).json({ error: 'Invalid email or password' });
   }
@@ -139,7 +175,11 @@ export const employerLogout = asyncHandler(async (req, res) => {
   if (secureAuthConfig.enabled) {
     const principal = req.employer;
     const result = await employerSecureAuthFlows.logoutCurrent({
-      principal: { subjectId: principal.employerId, sid: principal.sid, jti: principal.jti },
+      principal: {
+        subjectId: principal.employerId,
+        sid: principal.sid,
+        jti: principal.jti,
+      },
       presentedAccessTokenExp: principal.exp,
       origin: req.headers.origin,
       referer: req.headers.referer,
@@ -160,7 +200,8 @@ export const employerLogout = asyncHandler(async (req, res) => {
 
   if (employerId) {
     await revokeRefreshToken(employerId, 'employer');
-    const employer = await Employer.findById(employerId).select('email companyName');
+    const employer =
+      await Employer.findById(employerId).select('email companyName');
     if (employer) {
       await logAudit({
         ...auditFromRequest(req),
@@ -208,13 +249,120 @@ export const employerLogoutAll = asyncHandler(async (req, res) => {
   res.json({ message: 'Logged out of all sessions' });
 });
 
+export const employerForgotPassword = asyncHandler(async (req, res) => {
+  const { emailError } = validateForgotPassword(req.body);
+  if (emailError) {
+    return res
+      .status(400)
+      .json({ error: 'Validation failed', details: { email: emailError } });
+  }
+  const email = req.body.email.trim().toLowerCase();
+  const employer = await Employer.findOne({ email }).select(
+    '+passwordResetToken +passwordResetExpires'
+  );
+  if (!employer)
+    return res.status(200).json({ message: GENERIC_RESET_MESSAGE });
+
+  const token = crypto.randomBytes(32).toString('hex');
+  employer.passwordResetToken = hashResetToken(token);
+  employer.passwordResetExpires = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
+  await employer.save({ validateBeforeSave: false });
+  if (isSmtpConfigured()) {
+    await queueEmail({
+      to: employer.email,
+      templateKey: 'passwordReset',
+      vars: {
+        url: `${FRONTEND_BASE}/employer/reset-password?token=${encodeURIComponent(token)}`,
+        expiresMinutes: 60,
+      },
+      dedupKey: `employer_password_reset:${employer._id}:${Date.now()}`,
+    });
+  }
+  return res.status(200).json({ message: GENERIC_RESET_MESSAGE });
+});
+
+export const employerResetPassword = asyncHandler(async (req, res) => {
+  const { tokenError, passwordError } = validateResetPassword(req.body);
+  if (tokenError || passwordError) {
+    return res.status(400).json({
+      error: 'Validation failed',
+      details: { token: tokenError, password: passwordError },
+    });
+  }
+  if (!secureAuthConfig.enabled)
+    return res.status(404).json({ error: 'Not found' });
+
+  const result = await employerSecureAuthFlows.resetPassword({
+    hashedToken: hashResetToken(req.body.token.trim()),
+    newPassword: req.body.password,
+  });
+  if (result.code !== 'PASSWORD_RESET') {
+    if (result.code === 'STORAGE_FAILURE') {
+      return res.status(result.httpStatus).json(result.body);
+    }
+    return res.status(400).json({
+      error:
+        'Invalid or expired reset link. Please request a new password reset.',
+    });
+  }
+  clearEmployerRefreshCookie(res);
+  return res.status(200).json({
+    message:
+      'Password reset successfully. You can now sign in with your new password.',
+  });
+});
+
+export const employerChangePassword = asyncHandler(async (req, res) => {
+  const { currentError, passwordError } = validateChangePassword(req.body);
+  if (currentError || passwordError) {
+    return res.status(400).json({
+      error: 'Validation failed',
+      details: { currentPassword: currentError, newPassword: passwordError },
+    });
+  }
+  if (!secureAuthConfig.enabled)
+    return res.status(404).json({ error: 'Not found' });
+
+  const employer = await Employer.findById(req.employer.employerId).select(
+    '+password'
+  );
+  if (!employer) return res.status(404).json({ error: 'Employer not found' });
+  if (!(await employer.comparePassword(req.body.currentPassword))) {
+    return res.status(401).json({ error: 'Current password is incorrect' });
+  }
+
+  const principal = req.employer;
+  const result = await employerSecureAuthFlows.changePassword({
+    principal: {
+      subjectId: employer._id.toString(),
+      tokenVersion: principal.tokenVersion,
+      jti: principal.jti,
+    },
+    newPassword: req.body.newPassword,
+    presentedAccessTokenExp: principal.exp,
+  });
+  if (result.code !== 'PASSWORD_CHANGED') {
+    return res.status(result.httpStatus).json(result.body);
+  }
+  clearEmployerRefreshCookie(res);
+  await logAudit({
+    ...auditFromRequest(req),
+    actor: { employerId: employer._id, role: 'employer' },
+    action: 'auth.employer.change_password',
+    targetType: 'employer',
+    targetId: employer._id,
+  });
+  return res.json({ message: 'Password changed successfully' });
+});
+
 export const employerRefreshToken = asyncHandler(async (req, res) => {
   if (secureAuthConfig.enabled) {
     const extraction = secureAuthConfig.cookiePolicy.extractRefreshToken({
       cookieHeader: req.headers.cookie,
       realm: 'employer',
     });
-    const cookieToken = extraction.code === 'COOKIE_FOUND' ? extraction.token : null;
+    const cookieToken =
+      extraction.code === 'COOKIE_FOUND' ? extraction.token : null;
     const result = await employerSecureAuthFlows.refresh({
       cookieToken,
       origin: req.headers.origin,
@@ -242,17 +390,28 @@ export const employerRefreshToken = asyncHandler(async (req, res) => {
   } catch {
     return res.status(401).json({ error: 'Invalid or expired refresh token' });
   }
-  if (decoded.type !== 'refresh' || !decoded.employerId || decoded.role !== 'employer') {
+  if (
+    decoded.type !== 'refresh' ||
+    !decoded.employerId ||
+    decoded.role !== 'employer'
+  ) {
     return res.status(401).json({ error: 'Invalid refresh token' });
   }
-  const valid = await validateRefreshToken(decoded.employerId, token, 'employer');
+  const valid = await validateRefreshToken(
+    decoded.employerId,
+    token,
+    'employer'
+  );
   if (!valid) {
     return res.status(401).json({ error: 'Refresh token revoked or expired' });
   }
   const employer = await Employer.findById(decoded.employerId);
   if (!employer) return res.status(401).json({ error: 'Employer not found' });
   const accessToken = signEmployerToken(employer._id);
-  const newRefreshToken = signRefreshToken({ employerId: employer._id.toString(), role: 'employer' });
+  const newRefreshToken = signRefreshToken({
+    employerId: employer._id.toString(),
+    role: 'employer',
+  });
   await storeRefreshToken(employer._id.toString(), newRefreshToken, 'employer');
   res.json({
     employer: toSafeEmployer(employer),

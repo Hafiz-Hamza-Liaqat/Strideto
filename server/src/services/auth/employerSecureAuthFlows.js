@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import { Employer } from '../../models/Employer.js';
 import { RefreshSession } from '../../models/RefreshSession.js';
 import { createInitialSessionIssuanceService } from './initialSessionIssuance.js';
 import { createRefreshEligibilityCoordinator } from './RefreshEligibilityCoordinator.js';
@@ -37,6 +38,7 @@ export function createEmployerSecureAuthFlows({
   sessionFamilyRevocationService,
   accountSecurityMutationService,
   denylistService,
+  employerModel = Employer,
 } = {}) {
   if (!jwtProvider || typeof jwtProvider.issueAccessToken !== 'function') {
     throw new TypeError('jwtProvider is required');
@@ -269,6 +271,115 @@ export function createEmployerSecureAuthFlows({
     });
   }
 
+  async function changePassword({
+    principal,
+    newPassword,
+    presentedAccessTokenExp,
+  }) {
+    if (!(await sharedSecurityStateAvailable())) {
+      return Object.freeze({
+        code: 'STORAGE_FAILURE',
+        httpStatus: 503,
+        body: SAFE_BODIES.SERVICE_UNAVAILABLE,
+        clearCookie: false,
+      });
+    }
+    const result = await accountSecurityMutation.changePassword({
+      realm: REALM,
+      subjectId: principal.subjectId,
+      expectedTokenVersion: principal.tokenVersion,
+      newPassword,
+    });
+    if (result.code !== 'VERSION_INCREMENTED') {
+      return Object.freeze({
+        code: result.code,
+        httpStatus: result.code === 'STORAGE_FAILURE' ? 503 : 409,
+        body:
+          result.code === 'STORAGE_FAILURE'
+            ? SAFE_BODIES.SERVICE_UNAVAILABLE
+            : SAFE_BODIES.REFRESH_CONFLICT,
+        clearCookie: false,
+      });
+    }
+    await familyRevocation.revokeAllFamilies({
+      realm: REALM,
+      subjectId: principal.subjectId,
+      reason: 'password_change',
+    });
+    await denylist.denylistJti(
+      principal.jti,
+      remainingTtlSeconds(presentedAccessTokenExp)
+    );
+    return Object.freeze({
+      code: 'PASSWORD_CHANGED',
+      httpStatus: 200,
+      clearCookie: true,
+    });
+  }
+
+  async function resetPassword({ hashedToken, newPassword }) {
+    if (!(await sharedSecurityStateAvailable())) {
+      return Object.freeze({
+        code: 'STORAGE_FAILURE',
+        httpStatus: 503,
+        body: SAFE_BODIES.SERVICE_UNAVAILABLE,
+        clearCookie: false,
+      });
+    }
+
+    let subject;
+    try {
+      subject = await employerModel.findOne(
+        {
+          passwordResetToken: hashedToken,
+          passwordResetExpires: { $gt: new Date() },
+        },
+        { _id: 1 }
+      );
+    } catch {
+      return Object.freeze({
+        code: 'STORAGE_FAILURE',
+        httpStatus: 503,
+        body: SAFE_BODIES.SERVICE_UNAVAILABLE,
+        clearCookie: false,
+      });
+    }
+    if (!subject?._id) {
+      return Object.freeze({
+        code: 'RESET_TOKEN_INVALID',
+        httpStatus: 400,
+        clearCookie: false,
+      });
+    }
+
+    const result = await accountSecurityMutation.resetPassword({
+      realm: REALM,
+      hashedToken,
+      newPassword,
+    });
+    if (result.code !== 'VERSION_INCREMENTED') {
+      return Object.freeze({
+        code: result.code,
+        httpStatus: result.code === 'STORAGE_FAILURE' ? 503 : 400,
+        body:
+          result.code === 'STORAGE_FAILURE'
+            ? SAFE_BODIES.SERVICE_UNAVAILABLE
+            : undefined,
+        clearCookie: false,
+      });
+    }
+    await familyRevocation.revokeAllFamilies({
+      realm: REALM,
+      subjectId: subject._id.toString(),
+      reason: 'password_reset',
+    });
+    return Object.freeze({
+      code: 'PASSWORD_RESET',
+      httpStatus: 200,
+      clearCookie: true,
+    });
+  }
+
   async function suspendEmployer({ subjectId }) {
     const result = await accountSecurityMutation.suspend({
       realm: REALM,
@@ -300,6 +411,8 @@ export function createEmployerSecureAuthFlows({
     refresh,
     logoutCurrent,
     logoutAll,
+    changePassword,
+    resetPassword,
     suspendEmployer,
     reactivateEmployer,
   });

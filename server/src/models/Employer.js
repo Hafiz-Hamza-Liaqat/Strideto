@@ -5,7 +5,13 @@ const employerSchema = new mongoose.Schema(
   {
     companyName: { type: String, required: true, trim: true },
     slug: { type: String, unique: true, sparse: true },
-    email: { type: String, required: true, unique: true, trim: true, lowercase: true },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      lowercase: true,
+    },
     phone: { type: String, trim: true, default: '' },
     website: { type: String, trim: true, default: '' },
     companyDescription: { type: String, trim: true, default: '' },
@@ -22,9 +28,19 @@ const employerSchema = new mongoose.Schema(
       facebook: { type: String, default: '' },
     },
     password: { type: String, required: true, select: false },
+    passwordResetToken: { type: String, select: false },
+    passwordResetExpires: { type: Date, select: false },
     verified: { type: Boolean, default: false },
-    accountStatus: { type: String, enum: ['active', 'suspended'], default: 'active' },
-    verificationLevel: { type: String, enum: ['basic', 'verified', 'trusted'], default: 'basic' },
+    accountStatus: {
+      type: String,
+      enum: ['active', 'suspended'],
+      default: 'active',
+    },
+    verificationLevel: {
+      type: String,
+      enum: ['basic', 'verified', 'trusted'],
+      default: 'basic',
+    },
     totalJobsPosted: { type: Number, default: 0 },
     isPublicProfile: { type: Boolean, default: true },
     /**
@@ -39,7 +55,10 @@ const employerSchema = new mongoose.Schema(
       min: 0,
       max: Number.MAX_SAFE_INTEGER,
       required: true,
-      validate: { validator: Number.isInteger, message: 'tokenVersion must be an integer' },
+      validate: {
+        validator: Number.isInteger,
+        message: 'tokenVersion must be an integer',
+      },
     },
   },
   { timestamps: true }
