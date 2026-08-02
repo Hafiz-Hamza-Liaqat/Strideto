@@ -33,6 +33,7 @@ const employerService = read('services/employerService.js');
 const authContext = read('context/AuthContext.jsx');
 const employerAuthContext = read('context/EmployerAuthContext.jsx');
 const authService = read('services/authService.js');
+const mediaLibraryParts = read('components/media/MediaLibraryParts.jsx');
 
 // --- No token ever written to localStorage/sessionStorage/IndexedDB -----------
 {
@@ -203,6 +204,80 @@ const authService = read('services/authService.js');
   check(
     /logoutAll:/.test(employerService),
     'employerService.js: exposes logoutAll()'
+  );
+}
+
+// --- Admin media upload uses only current User-realm in-memory authority --------
+{
+  check(
+    /import\s*\{\s*getAccessToken\s*\}\s*from\s*['"]\.\.\/\.\.\/services\/axiosBase['"]/.test(
+      mediaLibraryParts
+    ),
+    'MediaLibraryParts.jsx: imports the canonical User-realm in-memory authority'
+  );
+  check(
+    /const token = getAccessToken\(\)/.test(mediaLibraryParts),
+    'MediaLibraryParts.jsx: reads current in-memory User/Admin access authority'
+  );
+  check(
+    !/localStorage\./.test(mediaLibraryParts),
+    'MediaLibraryParts.jsx: does not read or write localStorage'
+  );
+  check(
+    !/sessionStorage\./.test(mediaLibraryParts),
+    'MediaLibraryParts.jsx: does not read or write sessionStorage'
+  );
+  check(
+    !/\bindexedDB\./.test(mediaLibraryParts),
+    'MediaLibraryParts.jsx: does not use IndexedDB for authentication authority'
+  );
+  check(
+    /if \(!token\)\s*\{\s*reject\(new Error\('Authentication required'\)\);\s*return;/s.test(
+      mediaLibraryParts
+    ),
+    'MediaLibraryParts.jsx: missing in-memory authority fails before upload'
+  );
+  check(
+    /xhr\.open\('POST', `\$\{base\}\/admin\/media\/upload`\)/.test(
+      mediaLibraryParts
+    ),
+    'MediaLibraryParts.jsx: preserves the Admin media upload method and URL'
+  );
+  check(
+    /xhr\.setRequestHeader\('Authorization', `Bearer \$\{token\}`\)/.test(
+      mediaLibraryParts
+    ),
+    'MediaLibraryParts.jsx: Authorization uses only the current in-memory token'
+  );
+  check(
+    /form\.append\('files', file\)/.test(mediaLibraryParts) &&
+      /if \(folder\) form\.append\('folder', folder\)/.test(mediaLibraryParts),
+    'MediaLibraryParts.jsx: preserves upload payload fields'
+  );
+  check(
+    /xhr\.upload\.onprogress/.test(mediaLibraryParts) &&
+      /onProgress\(Math\.round\(\(e\.loaded \/ e\.total\) \* 100\)\)/.test(
+        mediaLibraryParts
+      ),
+    'MediaLibraryParts.jsx: preserves XHR upload progress behavior'
+  );
+  check(
+    /signal\.addEventListener\(\s*'abort',\s*\(\) => \{\s*xhr\.abort\(\)/s.test(
+      mediaLibraryParts
+    ),
+    'MediaLibraryParts.jsx: preserves upload cancellation behavior'
+  );
+  check(
+    /xhr\.status === 409 && data\.duplicate/.test(mediaLibraryParts),
+    'MediaLibraryParts.jsx: preserves duplicate-upload handling'
+  );
+  check(
+    !/refreshToken|x-refresh-token/i.test(mediaLibraryParts),
+    'MediaLibraryParts.jsx: has no JavaScript-visible refresh credential compatibility'
+  );
+  check(
+    !/(adminToken|admin-token|admin_token)/i.test(mediaLibraryParts),
+    'MediaLibraryParts.jsx: creates no separate Admin token authority'
   );
 }
 
