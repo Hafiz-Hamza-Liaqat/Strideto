@@ -237,9 +237,9 @@ refresh_session_current_token_hash_unique    { currentTokenHash: 1 }, unique
 refresh_session_previous_token_hash          { previousTokenHash: 1 }, sparse
 ```
 
-**Current verified state**: no evidence in the repository confirms these indexes exist in any live database (production or staging). Given `autoCreate: false`, they will **not** silently appear.
+**Current verified state**: a safe `provisionRefreshSessionIndexes.js` utility now implements verification-only-by-default inspection and confirmation-gated creation of missing schema-defined indexes. It never drops or replaces indexes, and its output is limited to safe index names and statuses. No database connection occurred in this implementation phase, no indexes were created, and no evidence yet confirms these indexes exist in any live database (production or staging). Given `autoCreate: false`, they will **not** silently appear.
 
-**Deployment gate**: index provisioning must be an explicit, bounded, evidenced step — performed and verified with the read-only commands named in the SEC-3F contract (`getIndexes`, bounded `countDocuments`) — before any SEC-3F browser scenario begins, in whichever database (staging first) is targeted for that scenario. No index creation was performed by this documentation-only phase.
+**Deployment gate**: index provisioning must be an explicit, bounded, evidenced step using the implemented verify/apply utility before any SEC-3F browser scenario begins, in whichever database (staging first) is targeted for that scenario. Live staging verification remains pending, and no index creation was performed by this phase.
 
 ---
 
@@ -259,7 +259,7 @@ Production is never used for SEC-3F outage testing.
 
 No code deployment occurred in this phase. The following order is frozen for a later operator to execute:
 
-**Step 1 — Infrastructure preparation**: provision production Redis; provision isolated staging MongoDB; provision isolated staging Redis; provision/confirm the configured dual-instance staging frontend+API stack; verify both configured staging API instances run concurrently; prepare an index-provisioning method; prepare maintenance/rollback controls.
+**Step 1 — Infrastructure preparation**: provision production Redis; provision isolated staging MongoDB; provision isolated staging Redis; provision/confirm the configured dual-instance staging frontend+API stack; verify both configured staging API instances run concurrently; use the guarded index-readiness utility against staging; prepare maintenance/rollback controls.
 
 **Step 2 — Domain preparation**: bind `api.strideto.com` to the Render API service; configure DNS; enable TLS; verify no redirect to the provider hostname; verify `www.strideto.com` remains canonical; verify the apex redirects to `www`.
 
@@ -313,7 +313,7 @@ Authorized responses to a staging boot failure: correct missing staging variable
 | INFRA-A10 | Provision isolated staging MongoDB | Staging | Infra/DB admin | Distinct DB name/cluster from production, confirmed via read-only inspection | Staging points at the production database | UNRESOLVED |
 | INFRA-A11 | Provision isolated staging Redis | Staging | Infra admin | Distinct instance/namespace from production | Staging points at the production Redis instance | UNRESOLVED |
 | INFRA-A12 | Run two staging API instances | Staging | Infra/deploy admin | Two distinct, identifiable running processes sharing staging Mongo/Redis/secrets | Only one process, or two processes with unshared state | NOT EXECUTED — `api-a`, `api-b`, shared staging MongoDB/Redis, distinct loopback access, and Caddy dual-upstream routing are configured; live concurrent execution remains unverified |
-| INFRA-A13 | Provision `RefreshSession` indexes | Staging (then production, separately) | DB admin | `getIndexes()` output matching §10's five required indexes | Any required index missing before browser execution begins | UNRESOLVED |
+| INFRA-A13 | Provision `RefreshSession` indexes | Staging (then production, separately) | DB admin | Utility verification output matching §10's five required indexes | Any required index missing before browser execution begins | NOT EXECUTED — guarded verify/apply tooling is implemented, but no database connection or index creation occurred and live staging verification remains pending |
 | INFRA-A14 | Prepare outage controls | Staging | Infra admin | Documented, tested stop/start procedure for Mongo/Redis/API containers, isolated from production | Any outage test touches production | UNRESOLVED |
 | INFRA-A15 | Prepare staging test accounts | Staging | QA/infra admin | Staging-only User/Employer/staff accounts, no real personal data, cleanup plan | Reuse of any production account | NOT EXECUTED |
 | INFRA-A16 | Prepare maintenance/rollback control | Production + staging | Infra admin | Documented maintenance-mode toggle; confirmed it does not require legacy-mode fallback | Rollback plan relies on a prohibited legacy path (§13) | NOT EXECUTED |
@@ -325,9 +325,9 @@ Action status counts after the dual-instance repository correction:
 ```text
 CONFIRMED:           0
 PARTIALLY CONFIRMED: 1
-UNRESOLVED:         12
+UNRESOLVED:         11
 BLOCKED:             0
-NOT EXECUTED:        3
+NOT EXECUTED:        4
 TOTAL:              16
 ```
 
@@ -363,7 +363,8 @@ Gate E — Two-instance capability
 
 Gate F — Index readiness
   Pass only when all committed RefreshSession indexes exist in staging.
-  Status: NOT MET (INFRA-A13 unresolved)
+  Status: NOT MET (INFRA-A13 NOT EXECUTED — safe tooling exists, but live
+  staging verification and any required index creation remain pending)
 
 Gate G — Outage-control readiness
   Pass only when MongoDB/Redis/API outages can be simulated safely in

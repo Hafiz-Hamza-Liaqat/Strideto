@@ -10,6 +10,8 @@
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "worker": "node src/worker.js",
+    "auth:indexes:verify": "node src/scripts/provisionRefreshSessionIndexes.js --verify",
+    "auth:indexes:apply": "node src/scripts/provisionRefreshSessionIndexes.js --apply",
     "seed:users": "node src/scripts/seedUsers.js",
     "seed:listings": "node src/scripts/archive/seed-legacy/seedListings.js",
     "seed:phase4": "node src/scripts/archive/seed-legacy/seedPhase4.js",
