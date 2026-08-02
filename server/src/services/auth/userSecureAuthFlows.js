@@ -15,7 +15,7 @@ import { secureAuthConfig } from './secureAuthConfig.js';
 
 /**
  * SEC-3E — User-realm secure authentication flow composition. Orchestrates
- * the already-checkpointed dormant services (never reimplementing any of
+ * the canonical security services (never reimplementing any of
  * their logic) into the exact sequences the accepted architecture and this
  * cutover's own task authority require. Framework-agnostic: every function
  * returns a plain result object; the controller layer is the only place
@@ -380,6 +380,51 @@ export function createUserSecureAuthFlows({
     });
   }
 
+  async function adminResetPassword({
+    subjectId,
+    newPassword,
+    tempPasswordExpires,
+  }) {
+    if (!(await sharedSecurityStateAvailable())) {
+      return Object.freeze({
+        code: 'STORAGE_FAILURE',
+        httpStatus: 503,
+        body: SAFE_BODIES.SERVICE_UNAVAILABLE,
+      });
+    }
+
+    const result = await accountSecurityMutation.adminResetUserPassword({
+      subjectId,
+      newPassword,
+      tempPasswordExpires,
+    });
+    if (result.code !== 'VERSION_INCREMENTED') {
+      return Object.freeze({
+        code: result.code,
+        httpStatus: result.code === 'STORAGE_FAILURE' ? 503 : 409,
+        body:
+          result.code === 'STORAGE_FAILURE'
+            ? SAFE_BODIES.SERVICE_UNAVAILABLE
+            : SAFE_BODIES.REFRESH_CONFLICT,
+      });
+    }
+
+    const revocation = await familyRevocation.revokeAllFamilies({
+      realm: REALM,
+      subjectId,
+      reason: 'admin_revoked',
+    });
+    if (revocation.code !== 'REVOKED_ALL_FAMILIES') {
+      return Object.freeze({
+        code: 'STORAGE_FAILURE',
+        httpStatus: 503,
+        body: SAFE_BODIES.SERVICE_UNAVAILABLE,
+      });
+    }
+
+    return Object.freeze({ code: 'PASSWORD_RESET', httpStatus: 200 });
+  }
+
   async function suspendUser({ subjectId }) {
     const result = await accountSecurityMutation.suspend({
       realm: REALM,
@@ -433,6 +478,7 @@ export function createUserSecureAuthFlows({
     logoutAll,
     changePassword,
     resetPassword,
+    adminResetPassword,
     suspendUser,
     reactivateUser,
     changeUserRole,
@@ -450,10 +496,8 @@ function decodeExp(token) {
 
 export const userSecureAuthFlowsHelpers = Object.freeze({ decodeExp });
 
-/** Real singleton — constructed only when secure auth is enabled. */
-export const userSecureAuthFlows = secureAuthConfig.enabled
-  ? createUserSecureAuthFlows({
-      jwtProvider: secureAuthConfig.userJwtProvider,
-      originPolicy: secureAuthConfig.originPolicy,
-    })
-  : null;
+/** Canonical runtime singleton. */
+export const userSecureAuthFlows = createUserSecureAuthFlows({
+  jwtProvider: secureAuthConfig.userJwtProvider,
+  originPolicy: secureAuthConfig.originPolicy,
+});

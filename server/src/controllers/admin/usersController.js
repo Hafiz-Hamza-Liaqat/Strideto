@@ -7,17 +7,24 @@ import { AuditLog } from '../../models/AuditLog.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { listResponse, paginate } from '../../utils/apiResponse.js';
 import { getPermissionsForRole, STAFF_ROLES } from '../../config/rbac.js';
-import { getEffectivePermissions, getEffectiveRoles } from '../../services/workflow/PermissionService.js';
+import {
+  getEffectivePermissions,
+  getEffectiveRoles,
+} from '../../services/workflow/PermissionService.js';
 import { logAudit, auditFromRequest } from '../../services/auditService.js';
-import { onEmployerVerificationChange, queueEmail } from '../../services/automationService.js';
+import {
+  onEmployerVerificationChange,
+  queueEmail,
+} from '../../services/automationService.js';
 import { sanitizeString } from '../../utils/sanitize.js';
 import { validIds } from '../../utils/adminBulkHelper.js';
-import { revokeRefreshToken } from '../../utils/tokenStore.js';
-import { secureAuthConfig } from '../../services/auth/secureAuthConfig.js';
 import { userSecureAuthFlows } from '../../services/auth/userSecureAuthFlows.js';
 import { employerSecureAuthFlows } from '../../services/auth/employerSecureAuthFlows.js';
 
-const SUBJECT_STATE_MUTATION_OK = new Set(['SUBJECT_STATE_UPDATED', 'SUBJECT_STATE_ALREADY_APPLIED']);
+const SUBJECT_STATE_MUTATION_OK = new Set([
+  'SUBJECT_STATE_UPDATED',
+  'SUBJECT_STATE_ALREADY_APPLIED',
+]);
 
 const ASSIGNABLE_ROLES = ['User', 'Editor', 'Moderator', 'Admin', 'SuperAdmin'];
 
@@ -48,7 +55,12 @@ export const listUsers = asyncHandler(async (req, res) => {
   }
 
   const [data, total] = await Promise.all([
-    User.find(filter).select('-password -refreshToken').sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    User.find(filter)
+      .select('-password')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
     User.countDocuments(filter),
   ]);
 
@@ -56,7 +68,7 @@ export const listUsers = asyncHandler(async (req, res) => {
 });
 
 export const getUser = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id).select('-password -refreshToken').lean();
+  const user = await User.findById(req.params.id).select('-password').lean();
   if (!user) return res.status(404).json({ error: 'User not found' });
   res.json(user);
 });
@@ -79,27 +91,23 @@ export const updateUser = asyncHandler(async (req, res) => {
       return res.status(403).json({ error: 'Cannot suspend Super Admin' });
     }
     if (body.accountStatus !== user.accountStatus) {
-      if (secureAuthConfig.enabled) {
-        // SEC-3E — routed through the SEC-3D.2/SEC-3D.1 primitives so the
-        // mutation is atomic and tokenVersion-bumped/session-swept
-        // correctly; the account-status field itself is never written
-        // independently by this document's own `.save()` below.
-        const result =
-          body.accountStatus === 'suspended'
-            ? await userSecureAuthFlows.suspendUser({ subjectId: id })
-            : await userSecureAuthFlows.reactivateUser({ subjectId: id });
-        if (!SUBJECT_STATE_MUTATION_OK.has(result.code)) {
-          return res.status(503).json({ error: 'Could not update account status' });
-        }
-      } else {
-        user.accountStatus = body.accountStatus;
+      const result =
+        body.accountStatus === 'suspended'
+          ? await userSecureAuthFlows.suspendUser({ subjectId: id })
+          : await userSecureAuthFlows.reactivateUser({ subjectId: id });
+      if (!SUBJECT_STATE_MUTATION_OK.has(result.code)) {
+        return res
+          .status(503)
+          .json({ error: 'Could not update account status' });
       }
       accountStatusChanged = body.accountStatus;
     }
   }
   if (body.name !== undefined) user.name = sanitizeString(body.name);
-  if (body.province !== undefined) user.province = sanitizeString(body.province);
-  if (body.emailVerified !== undefined) user.emailVerified = !!body.emailVerified;
+  if (body.province !== undefined)
+    user.province = sanitizeString(body.province);
+  if (body.emailVerified !== undefined)
+    user.emailVerified = !!body.emailVerified;
 
   await user.save({ validateBeforeSave: false });
   const after = user.toObject();
@@ -127,7 +135,9 @@ export const deleteUser = asyncHandler(async (req, res) => {
   if (user.role === 'SuperAdmin') {
     const superCount = await countSuperAdmins();
     if (superCount <= 1) {
-      return res.status(403).json({ error: 'Cannot delete the only Super Admin' });
+      return res
+        .status(403)
+        .json({ error: 'Cannot delete the only Super Admin' });
     }
   }
   if (String(user._id) === String(req.user.userId)) {
@@ -149,17 +159,19 @@ export const deleteUser = asyncHandler(async (req, res) => {
 });
 
 export const adminResetPassword = asyncHandler(async (req, res) => {
-  const user = await User.findById(req.params.id).select('+password');
+  const user = await User.findById(req.params.id);
   if (!user) return res.status(404).json({ error: 'User not found' });
 
   const tempPassword = crypto.randomBytes(8).toString('base64url').slice(0, 12);
   const tempExpires = new Date(Date.now() + 72 * 60 * 60 * 1000);
-  user.password = tempPassword;
-  user.mustChangePassword = true;
-  user.tempPasswordExpires = tempExpires;
-  await user.save();
-  // RC-1: invalidate existing sessions after admin password reset
-  await revokeRefreshToken(String(user._id));
+  const resetResult = await userSecureAuthFlows.adminResetPassword({
+    subjectId: user._id.toString(),
+    newPassword: tempPassword,
+    tempPasswordExpires: tempExpires,
+  });
+  if (resetResult.code !== 'PASSWORD_RESET') {
+    return res.status(resetResult.httpStatus).json(resetResult.body);
+  }
 
   const loginUrl = `${(process.env.FRONTEND_URL || process.env.SITE_URL || 'http://localhost:5173').replace(/\/$/, '')}/auth/login`;
   const { isSmtpConfigured } = await import('../../services/emailService.js');
@@ -177,7 +189,11 @@ export const adminResetPassword = asyncHandler(async (req, res) => {
 
   const emailMeta = isSmtpConfigured()
     ? { emailQueued: true, emailMode: 'live' }
-    : { emailQueued: true, emailMode: 'placeholder', emailNotice: 'Email queued (SMTP not configured)' };
+    : {
+        emailQueued: true,
+        emailMode: 'placeholder',
+        emailNotice: 'Email queued (SMTP not configured)',
+      };
 
   await logAudit({
     ...auditFromRequest(req),
@@ -200,10 +216,14 @@ export const adminResetPassword = asyncHandler(async (req, res) => {
 
 export const bulkAssignRole = asyncHandler(async (req, res) => {
   const { ids = [], role } = req.body || {};
-  if (!Array.isArray(ids) || !ids.length) return res.status(400).json({ error: 'ids required' });
-  if (!ASSIGNABLE_ROLES.includes(role)) return res.status(400).json({ error: 'Invalid role' });
+  if (!Array.isArray(ids) || !ids.length)
+    return res.status(400).json({ error: 'ids required' });
+  if (!ASSIGNABLE_ROLES.includes(role))
+    return res.status(400).json({ error: 'Invalid role' });
   if (role === 'SuperAdmin' && req.user.role !== 'SuperAdmin') {
-    return res.status(403).json({ error: 'Only Super Admin can assign Super Admin role' });
+    return res
+      .status(403)
+      .json({ error: 'Only Super Admin can assign Super Admin role' });
   }
 
   const users = await User.find({ _id: { $in: ids } });
@@ -215,17 +235,12 @@ export const bulkAssignRole = asyncHandler(async (req, res) => {
       const superCount = await countSuperAdmins(user._id);
       if (superCount < 1) continue;
     }
-    if (secureAuthConfig.enabled) {
-      const result = await userSecureAuthFlows.changeUserRole({
-        subjectId: user._id.toString(),
-        expectedPriorRole: prev,
-        newRole: role,
-      });
-      if (!SUBJECT_STATE_MUTATION_OK.has(result.code)) continue;
-    } else {
-      user.role = role;
-      await user.save({ validateBeforeSave: false });
-    }
+    const result = await userSecureAuthFlows.changeUserRole({
+      subjectId: user._id.toString(),
+      expectedPriorRole: prev,
+      newRole: role,
+    });
+    if (!SUBJECT_STATE_MUTATION_OK.has(result.code)) continue;
     updated += 1;
     await logAudit({
       ...auditFromRequest(req),
@@ -252,7 +267,11 @@ export const getUserActivity = asyncHandler(async (req, res) => {
   };
 
   const [data, total] = await Promise.all([
-    AuditLog.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    AuditLog.find(filter)
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
     AuditLog.countDocuments(filter),
   ]);
 
@@ -274,7 +293,12 @@ export const listEmployers = asyncHandler(async (req, res) => {
   }
 
   const [data, total] = await Promise.all([
-    Employer.find(filter).select('-password').sort({ createdAt: -1 }).skip(skip).limit(limit).lean(),
+    Employer.find(filter)
+      .select('-password')
+      .sort({ createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
     Employer.countDocuments(filter),
   ]);
 
@@ -282,7 +306,9 @@ export const listEmployers = asyncHandler(async (req, res) => {
 });
 
 export const getEmployer = asyncHandler(async (req, res) => {
-  const employer = await Employer.findById(req.params.id).select('-password').lean();
+  const employer = await Employer.findById(req.params.id)
+    .select('-password')
+    .lean();
   if (!employer) return res.status(404).json({ error: 'Employer not found' });
   const [jobCount, applicationCount] = await Promise.all([
     Job.countDocuments({ employerId: req.params.id }),
@@ -307,35 +333,49 @@ export const updateEmployer = asyncHandler(async (req, res) => {
   const employer = await Employer.findById(req.params.id);
   if (!employer) return res.status(404).json({ error: 'Employer not found' });
   const body = req.body || {};
-  const before = { verified: employer.verified, accountStatus: employer.accountStatus, verificationLevel: employer.verificationLevel };
+  const before = {
+    verified: employer.verified,
+    accountStatus: employer.accountStatus,
+    verificationLevel: employer.verificationLevel,
+  };
   let accountStatusChanged = null;
-  if (body.accountStatus !== undefined && ['active', 'suspended'].includes(body.accountStatus)) {
+  if (
+    body.accountStatus !== undefined &&
+    ['active', 'suspended'].includes(body.accountStatus)
+  ) {
     if (body.accountStatus !== employer.accountStatus) {
-      if (secureAuthConfig.enabled) {
-        const result =
-          body.accountStatus === 'suspended'
-            ? await employerSecureAuthFlows.suspendEmployer({ subjectId: employer._id.toString() })
-            : await employerSecureAuthFlows.reactivateEmployer({ subjectId: employer._id.toString() });
-        if (!SUBJECT_STATE_MUTATION_OK.has(result.code)) {
-          return res.status(503).json({ error: 'Could not update account status' });
-        }
-      } else {
-        employer.accountStatus = body.accountStatus;
+      const result =
+        body.accountStatus === 'suspended'
+          ? await employerSecureAuthFlows.suspendEmployer({
+              subjectId: employer._id.toString(),
+            })
+          : await employerSecureAuthFlows.reactivateEmployer({
+              subjectId: employer._id.toString(),
+            });
+      if (!SUBJECT_STATE_MUTATION_OK.has(result.code)) {
+        return res
+          .status(503)
+          .json({ error: 'Could not update account status' });
       }
       accountStatusChanged = body.accountStatus;
     }
   }
   if (body.verified !== undefined) employer.verified = !!body.verified;
-  if (body.verificationLevel !== undefined) employer.verificationLevel = body.verificationLevel;
-  if (body.companyName !== undefined) employer.companyName = sanitizeString(body.companyName);
+  if (body.verificationLevel !== undefined)
+    employer.verificationLevel = body.verificationLevel;
+  if (body.companyName !== undefined)
+    employer.companyName = sanitizeString(body.companyName);
   await employer.save({ validateBeforeSave: false });
   if (accountStatusChanged) employer.accountStatus = accountStatusChanged;
   const verificationChanged =
-    before.verified !== employer.verified || before.verificationLevel !== employer.verificationLevel;
+    before.verified !== employer.verified ||
+    before.verificationLevel !== employer.verificationLevel;
   if (verificationChanged) {
     onEmployerVerificationChange({
       employerId: employer._id,
-      verificationLevel: employer.verificationLevel || (employer.verified ? 'verified' : 'basic'),
+      verificationLevel:
+        employer.verificationLevel ||
+        (employer.verified ? 'verified' : 'basic'),
       companyName: employer.companyName,
     }).catch(() => {});
   }
@@ -346,7 +386,11 @@ export const updateEmployer = asyncHandler(async (req, res) => {
     targetId: employer._id,
     targetLabel: employer.companyName,
     before,
-    after: { verified: employer.verified, accountStatus: employer.accountStatus, verificationLevel: employer.verificationLevel },
+    after: {
+      verified: employer.verified,
+      accountStatus: employer.accountStatus,
+      verificationLevel: employer.verificationLevel,
+    },
     reason: body.reason || '',
   });
   const out = employer.toObject();
@@ -362,7 +406,9 @@ export const bulkVerifyEmployers = asyncHandler(async (req, res) => {
     { _id: { $in: ids } },
     { $set: { verified: true, verificationLevel: level } }
   );
-  const employers = await Employer.find({ _id: { $in: ids } }).select('_id companyName verificationLevel').lean();
+  const employers = await Employer.find({ _id: { $in: ids } })
+    .select('_id companyName verificationLevel')
+    .lean();
   for (const emp of employers) {
     onEmployerVerificationChange({
       employerId: emp._id,
@@ -384,42 +430,31 @@ export const bulkSuspendEmployers = asyncHandler(async (req, res) => {
   if (!ids.length) return res.status(400).json({ error: 'ids required' });
   const status = req.body?.accountStatus || 'suspended';
 
-  if (secureAuthConfig.enabled && ['active', 'suspended'].includes(status)) {
-    // SEC-3E — bounded per-subject calls (no unbounded retry, no silent
-    // skip): every id is attempted exactly once via the SEC-3D.2/SEC-3D.1
-    // primitives; failures are counted, not hidden.
-    let modified = 0;
-    let failed = 0;
-    for (const id of ids) {
-      const result =
-        status === 'suspended'
-          ? await employerSecureAuthFlows.suspendEmployer({ subjectId: id })
-          : await employerSecureAuthFlows.reactivateEmployer({ subjectId: id });
-      if (SUBJECT_STATE_MUTATION_OK.has(result.code)) {
-        modified += 1;
-      } else {
-        failed += 1;
-      }
-    }
-    await logAudit({
-      ...auditFromRequest(req),
-      action: 'employer.bulk_suspend',
-      targetType: 'employer',
-      metadata: { ids, modified, failed, accountStatus: status },
-      reason: req.body?.reason || '',
-    });
-    return res.json({ affected: modified, failed });
+  if (!['active', 'suspended'].includes(status)) {
+    return res.status(400).json({ error: 'Invalid account status' });
   }
 
-  const result = await Employer.updateMany({ _id: { $in: ids } }, { $set: { accountStatus: status } });
+  let modified = 0;
+  let failed = 0;
+  for (const id of ids) {
+    const result =
+      status === 'suspended'
+        ? await employerSecureAuthFlows.suspendEmployer({ subjectId: id })
+        : await employerSecureAuthFlows.reactivateEmployer({ subjectId: id });
+    if (SUBJECT_STATE_MUTATION_OK.has(result.code)) {
+      modified += 1;
+    } else {
+      failed += 1;
+    }
+  }
   await logAudit({
     ...auditFromRequest(req),
     action: 'employer.bulk_suspend',
     targetType: 'employer',
-    metadata: { ids, modified: result.modifiedCount, accountStatus: status },
+    metadata: { ids, modified, failed, accountStatus: status },
     reason: req.body?.reason || '',
   });
-  res.json({ affected: result.modifiedCount });
+  return res.json({ affected: modified, failed });
 });
 
 export const assignRole = asyncHandler(async (req, res) => {
@@ -429,7 +464,9 @@ export const assignRole = asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'Invalid role' });
   }
   if (role === 'SuperAdmin' && req.user.role !== 'SuperAdmin') {
-    return res.status(403).json({ error: 'Only Super Admin can assign Super Admin role' });
+    return res
+      .status(403)
+      .json({ error: 'Only Super Admin can assign Super Admin role' });
   }
   const user = await User.findById(id);
   if (!user) return res.status(404).json({ error: 'User not found' });
@@ -437,24 +474,21 @@ export const assignRole = asyncHandler(async (req, res) => {
   if (user.role === 'SuperAdmin' && role !== 'SuperAdmin') {
     const superCount = await countSuperAdmins(user._id);
     if (superCount < 1) {
-      return res.status(403).json({ error: 'Cannot demote the only Super Admin' });
+      return res
+        .status(403)
+        .json({ error: 'Cannot demote the only Super Admin' });
     }
   }
 
   const prev = user.role;
   if (prev !== role) {
-    if (secureAuthConfig.enabled) {
-      const result = await userSecureAuthFlows.changeUserRole({
-        subjectId: user._id.toString(),
-        expectedPriorRole: prev,
-        newRole: role,
-      });
-      if (!SUBJECT_STATE_MUTATION_OK.has(result.code)) {
-        return res.status(503).json({ error: 'Could not update role' });
-      }
-    } else {
-      user.role = role;
-      await user.save({ validateBeforeSave: false });
+    const result = await userSecureAuthFlows.changeUserRole({
+      subjectId: user._id.toString(),
+      expectedPriorRole: prev,
+      newRole: role,
+    });
+    if (!SUBJECT_STATE_MUTATION_OK.has(result.code)) {
+      return res.status(503).json({ error: 'Could not update role' });
     }
   }
   await logAudit({
@@ -466,7 +500,14 @@ export const assignRole = asyncHandler(async (req, res) => {
     metadata: { from: prev, to: role },
     reason: req.body?.reason || '',
   });
-  res.json({ user: { _id: user._id, email: user.email, role, permissions: getPermissionsForRole(role) } });
+  res.json({
+    user: {
+      _id: user._id,
+      email: user.email,
+      role,
+      permissions: getPermissionsForRole(role),
+    },
+  });
 });
 
 export const getMyPermissions = asyncHandler(async (req, res) => {

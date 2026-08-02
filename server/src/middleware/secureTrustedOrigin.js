@@ -14,17 +14,8 @@ import { SAFE_BODIES } from '../services/auth/secureAuthResultMapping.js';
  * Delegates entirely to the already-checkpointed, unmodified
  * `TrustedRequestOriginPolicy` (SEC-3C) via `secureAuthConfig.originPolicy`
  * — no origin-matching algorithm is duplicated here.
- *
- * In legacy mode (`secureAuthConfig.enabled === false`), this middleware is
- * a no-op that always calls `next()`, preserving the existing legacy route
- * behavior exactly (legacy routes never had trusted-origin enforcement and
- * this correction does not add it retroactively to the legacy path).
  */
 export function secureTrustedOrigin(req, res, next) {
-  if (!secureAuthConfig.enabled) {
-    return next();
-  }
-
   const result = secureAuthConfig.originPolicy.evaluateRequestOrigin({
     origin: req.headers.origin,
     referer: req.headers.referer,

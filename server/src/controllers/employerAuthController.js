@@ -1,17 +1,6 @@
 import crypto from 'crypto';
 import { Employer } from '../models/Employer.js';
-import {
-  signEmployerToken,
-  signRefreshToken,
-  verifyToken,
-} from '../utils/jwt.js';
-import {
-  storeRefreshToken,
-  validateRefreshToken,
-  revokeRefreshToken,
-  revokeAccessToken,
-  hashResetToken,
-} from '../utils/tokenStore.js';
+import { hashResetToken } from '../utils/tokenStore.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { logAudit, auditFromRequest } from '../services/auditService.js';
 import { secureAuthConfig } from '../services/auth/secureAuthConfig.js';
@@ -61,21 +50,8 @@ const FRONTEND_BASE = frontendBaseUrl();
 const GENERIC_RESET_MESSAGE =
   'If an account exists with this email, you will receive a password reset link shortly.';
 
-async function issueEmployerSession(employer) {
-  const employerId = employer._id.toString();
-  const accessToken = signEmployerToken(employerId);
-  const refreshToken = signRefreshToken({ employerId, role: 'employer' });
-  await storeRefreshToken(employerId, refreshToken, 'employer');
-  return {
-    employer: toSafeEmployer(employer),
-    accessToken,
-    refreshToken,
-    expiresIn: process.env.JWT_EXPIRES_IN || '1h',
-  };
-}
-
 /**
- * SEC-3E — secure-mode session issuance. Returns `null` on issuance
+ * Canonical session issuance. Returns a safe failure result on issuance
  * failure so the caller can map it to the shared HTTP-mapping result
  * instead of guessing a status/body itself.
  */
@@ -127,14 +103,9 @@ export const employerRegister = asyncHandler(async (req, res) => {
   });
   const freshEmployer = await Employer.findById(employer._id);
 
-  if (secureAuthConfig.enabled) {
-    const result = await issueSecureEmployerSession(res, freshEmployer);
-    if (!result.ok) return res.status(result.status).json(result.body);
-    return res.status(201).json(result.body);
-  }
-
-  const session = await issueEmployerSession(freshEmployer);
-  res.status(201).json(session);
+  const result = await issueSecureEmployerSession(res, freshEmployer);
+  if (!result.ok) return res.status(result.status).json(result.body);
+  return res.status(201).json(result.body);
 });
 
 export const employerLogin = asyncHandler(async (req, res) => {
@@ -151,14 +122,9 @@ export const employerLogin = asyncHandler(async (req, res) => {
   }
   const freshEmployer = await Employer.findById(employer._id);
 
-  if (secureAuthConfig.enabled) {
-    const result = await issueSecureEmployerSession(res, freshEmployer);
-    if (!result.ok) return res.status(result.status).json(result.body);
-    return res.json(result.body);
-  }
-
-  const session = await issueEmployerSession(freshEmployer);
-  res.json(session);
+  const result = await issueSecureEmployerSession(res, freshEmployer);
+  if (!result.ok) return res.status(result.status).json(result.body);
+  return res.json(result.body);
 });
 
 export const employerMe = asyncHandler(async (req, res) => {
@@ -168,61 +134,32 @@ export const employerMe = asyncHandler(async (req, res) => {
 });
 
 export const employerLogout = asyncHandler(async (req, res) => {
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  const employerId = req.employer?.employerId;
-
-  if (secureAuthConfig.enabled) {
-    const principal = req.employer;
-    const result = await employerSecureAuthFlows.logoutCurrent({
-      principal: {
-        subjectId: principal.employerId,
-        sid: principal.sid,
-        jti: principal.jti,
-      },
-      presentedAccessTokenExp: principal.exp,
-      origin: req.headers.origin,
-      referer: req.headers.referer,
-    });
-    if (result.code !== 'LOGGED_OUT') {
-      return res.status(result.httpStatus).json(result.body);
-    }
-    clearEmployerRefreshCookie(res);
-    await logAudit({
-      ...auditFromRequest(req),
-      actor: { employerId: principal.employerId, role: 'employer' },
-      action: 'auth.employer.logout',
-      targetType: 'employer',
-      targetId: principal.employerId,
-    });
-    return res.json({ message: 'Logged out' });
+  const principal = req.employer;
+  const result = await employerSecureAuthFlows.logoutCurrent({
+    principal: {
+      subjectId: principal.employerId,
+      sid: principal.sid,
+      jti: principal.jti,
+    },
+    presentedAccessTokenExp: principal.exp,
+    origin: req.headers.origin,
+    referer: req.headers.referer,
+  });
+  if (result.code !== 'LOGGED_OUT') {
+    return res.status(result.httpStatus).json(result.body);
   }
-
-  if (employerId) {
-    await revokeRefreshToken(employerId, 'employer');
-    const employer =
-      await Employer.findById(employerId).select('email companyName');
-    if (employer) {
-      await logAudit({
-        ...auditFromRequest(req),
-        actor: { employerId, email: employer.email, role: 'employer' },
-        action: 'auth.employer.logout',
-        targetType: 'employer',
-        targetId: employerId,
-        targetLabel: employer.email,
-      });
-    }
-  }
-  if (token) {
-    await revokeAccessToken(token);
-  }
-  res.json({ message: 'Logged out' });
+  clearEmployerRefreshCookie(res);
+  await logAudit({
+    ...auditFromRequest(req),
+    actor: { employerId: principal.employerId, role: 'employer' },
+    action: 'auth.employer.logout',
+    targetType: 'employer',
+    targetId: principal.employerId,
+  });
+  return res.json({ message: 'Logged out' });
 });
 
 export const employerLogoutAll = asyncHandler(async (req, res) => {
-  if (!secureAuthConfig.enabled) {
-    return res.status(404).json({ error: 'Not found' });
-  }
   const principal = req.employer;
   const result = await employerSecureAuthFlows.logoutAll({
     principal: {
@@ -289,9 +226,6 @@ export const employerResetPassword = asyncHandler(async (req, res) => {
       details: { token: tokenError, password: passwordError },
     });
   }
-  if (!secureAuthConfig.enabled)
-    return res.status(404).json({ error: 'Not found' });
-
   const result = await employerSecureAuthFlows.resetPassword({
     hashedToken: hashResetToken(req.body.token.trim()),
     newPassword: req.body.password,
@@ -320,9 +254,6 @@ export const employerChangePassword = asyncHandler(async (req, res) => {
       details: { currentPassword: currentError, newPassword: passwordError },
     });
   }
-  if (!secureAuthConfig.enabled)
-    return res.status(404).json({ error: 'Not found' });
-
   const employer = await Employer.findById(req.employer.employerId).select(
     '+password'
   );
@@ -356,67 +287,27 @@ export const employerChangePassword = asyncHandler(async (req, res) => {
 });
 
 export const employerRefreshToken = asyncHandler(async (req, res) => {
-  if (secureAuthConfig.enabled) {
-    const extraction = secureAuthConfig.cookiePolicy.extractRefreshToken({
-      cookieHeader: req.headers.cookie,
-      realm: 'employer',
-    });
-    const cookieToken =
-      extraction.code === 'COOKIE_FOUND' ? extraction.token : null;
-    const result = await employerSecureAuthFlows.refresh({
-      cookieToken,
-      origin: req.headers.origin,
-      referer: req.headers.referer,
-    });
-    if (result.clearCookie) {
-      clearEmployerRefreshCookie(res);
-    }
-    if (result.code === 'REFRESH_ROTATED') {
-      writeEmployerRefreshCookie(res, result.refreshToken);
-      return res.json({ accessToken: result.accessToken, expiresIn: '15m' });
-    }
-    if (result.code === 'CONFLICT_BENIGN') {
-      res.set('Retry-After', String(result.retryAfterSeconds));
-      return res.status(result.httpStatus).json(result.body);
-    }
+  const extraction = secureAuthConfig.cookiePolicy.extractRefreshToken({
+    cookieHeader: req.headers.cookie,
+    realm: 'employer',
+  });
+  const cookieToken =
+    extraction.code === 'COOKIE_FOUND' ? extraction.token : null;
+  const result = await employerSecureAuthFlows.refresh({
+    cookieToken,
+    origin: req.headers.origin,
+    referer: req.headers.referer,
+  });
+  if (result.clearCookie) {
+    clearEmployerRefreshCookie(res);
+  }
+  if (result.code === 'REFRESH_ROTATED') {
+    writeEmployerRefreshCookie(res, result.refreshToken);
+    return res.json({ accessToken: result.accessToken, expiresIn: '15m' });
+  }
+  if (result.code === 'CONFLICT_BENIGN') {
+    res.set('Retry-After', String(result.retryAfterSeconds));
     return res.status(result.httpStatus).json(result.body);
   }
-
-  const token = req.body.refreshToken || req.headers['x-refresh-token'];
-  if (!token) return res.status(401).json({ error: 'Refresh token required' });
-  let decoded;
-  try {
-    decoded = verifyToken(token);
-  } catch {
-    return res.status(401).json({ error: 'Invalid or expired refresh token' });
-  }
-  if (
-    decoded.type !== 'refresh' ||
-    !decoded.employerId ||
-    decoded.role !== 'employer'
-  ) {
-    return res.status(401).json({ error: 'Invalid refresh token' });
-  }
-  const valid = await validateRefreshToken(
-    decoded.employerId,
-    token,
-    'employer'
-  );
-  if (!valid) {
-    return res.status(401).json({ error: 'Refresh token revoked or expired' });
-  }
-  const employer = await Employer.findById(decoded.employerId);
-  if (!employer) return res.status(401).json({ error: 'Employer not found' });
-  const accessToken = signEmployerToken(employer._id);
-  const newRefreshToken = signRefreshToken({
-    employerId: employer._id.toString(),
-    role: 'employer',
-  });
-  await storeRefreshToken(employer._id.toString(), newRefreshToken, 'employer');
-  res.json({
-    employer: toSafeEmployer(employer),
-    accessToken,
-    refreshToken: newRefreshToken,
-    expiresIn: process.env.JWT_EXPIRES_IN || '1h',
-  });
+  return res.status(result.httpStatus).json(result.body);
 });

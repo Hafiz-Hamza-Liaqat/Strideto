@@ -13,13 +13,6 @@ function check(cond, msg) {
   count += 1;
 }
 
-/**
- * SEC-3E.1 — importing `routes/auth.js`/`routes/employer.js` transitively
- * imports `secureAuthConfig.js` (via the auth controllers), so the flag
- * must be set before those imports evaluate. See the identical note in
- * `secureAuthConfig.test.js`.
- */
-process.env.STRIDETO_SECURE_AUTH_ENABLED = '1';
 process.env.JWT_SECRET = 'z'.repeat(32);
 process.env.REFRESH_SECRET = 'y'.repeat(32);
 
@@ -142,33 +135,91 @@ function fakeReqRes({ origin, referer, method = 'POST' } = {}) {
   );
 }
 
-// --- Legacy mode: middleware is a no-op, preserves existing route behavior ------
+// --- No secure-auth-disabled trusted-origin bypass remains -----------------------
 {
-  const legacyMiddlewareModule =
-    await import('../middleware/secureTrustedOrigin.js');
-  // Cannot flip the already-constructed singleton's `enabled` flag (by
-  // design — boot-time, immutable, §6); instead confirm the exact
-  // documented behavior directly against the module's own logic path by
-  // constructing a disabled config object and calling the underlying
-  // decision with it would require internal access this module
-  // intentionally does not expose. The behavioral contract (`if
-  // (!secureAuthConfig.enabled) return next();`) is instead verified via
-  // direct source inspection here, since the running process has already
-  // committed to secure mode for the rest of this file's tests — a
-  // second process-level assertion (legacy mode leaves the composition
-  // layer inert) is already covered by `secureAuthConfig.test.js`.
   const fs = await import('node:fs');
   const src = fs.readFileSync(
     new URL('../middleware/secureTrustedOrigin.js', import.meta.url),
     'utf8'
   );
   check(
-    /if \(!secureAuthConfig\.enabled\) \{\s*return next\(\);/.test(src),
-    'legacy mode is an unconditional next() no-op, confirmed by source structure alongside the behavioral secure-mode tests above'
+    !/secureAuthConfig\.enabled/.test(src),
+    'trusted-origin middleware has no secure-auth-disabled branch'
+  );
+  check(typeof secureTrustedOrigin === 'function', 'module loads correctly');
+}
+
+// --- Secure-only controller, middleware, and helper source contracts -------------
+{
+  const fs = await import('node:fs');
+  const read = (relative) =>
+    fs.readFileSync(new URL(relative, import.meta.url), 'utf8');
+  const userController = read('../controllers/authController.js');
+  const employerController = read('../controllers/employerAuthController.js');
+  const authMiddleware = read('../middleware/auth.js');
+  const secureConfig = read('../services/auth/secureAuthConfig.js');
+  const tokenStore = read('../utils/tokenStore.js');
+  const adminUsers = read('../controllers/admin/usersController.js');
+
+  const exportedHandlerSource = (source, exportName, nextExportName) => {
+    const start = source.indexOf(`export const ${exportName}`);
+    const end = source.indexOf(`export const ${nextExportName}`, start + 1);
+    return source.slice(start, end === -1 ? source.length : end);
+  };
+
+  const userRefresh = exportedHandlerSource(
+    userController,
+    'refreshToken',
+    'forgotPassword'
+  );
+  const employerRefresh = exportedHandlerSource(
+    employerController,
+    'employerRefreshToken',
+    '__end__'
+  );
+  const refreshSources = `${userRefresh}\n${employerRefresh}`;
+
+  check(
+    !/req\.body\.refreshToken|x-refresh-token/i.test(refreshSources),
+    'refresh handlers have no body or custom-header credential compatibility'
   );
   check(
-    typeof legacyMiddlewareModule.secureTrustedOrigin === 'function',
-    'module loads correctly'
+    !/req\.query|headers\.authorization/i.test(refreshSources),
+    'refresh handlers have no query-string or Authorization credential compatibility'
+  );
+  check(
+    !/\brefreshToken\s*:/.test(refreshSources),
+    'refresh handlers never place a refresh token in response JSON'
+  );
+  check(
+    !/utils\/jwt\.js|storeRefreshToken|validateRefreshToken|revokeRefreshToken/.test(
+      `${userController}\n${employerController}`
+    ),
+    'controllers cannot call legacy issuance or single-slot storage'
+  );
+  check(
+    !/secureAuthConfig\.enabled/.test(
+      `${userController}\n${employerController}\n${authMiddleware}`
+    ),
+    'controllers and access middleware have no secure-auth fallback selector'
+  );
+  check(
+    !/verifyToken|tokenStore\.js|legacyRequireAuth/.test(authMiddleware),
+    'access middleware has no legacy verifier or token source'
+  );
+  check(
+    !/STRIDETO_SECURE_AUTH_ENABLED/.test(secureConfig),
+    'secure composition does not read the removed selector'
+  );
+  check(
+    /^export function hashResetToken\(/m.test(tokenStore) &&
+      (tokenStore.match(/^export /gm) || []).length === 1,
+    'tokenStore retains only the reset-token hash export'
+  );
+  check(
+    !/revokeRefreshToken|tokenStore\.js/.test(adminUsers) &&
+      /adminResetPassword/.test(adminUsers),
+    'Admin reset has no single-slot revocation dependency'
   );
 }
 

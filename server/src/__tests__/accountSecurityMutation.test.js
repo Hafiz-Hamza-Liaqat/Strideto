@@ -1,5 +1,5 @@
 /**
- * SEC-3D.2 — dormant account-security mutation primitive tests, against
+ * Account-security mutation primitive tests, against
  * injected in-memory model doubles (no live MongoDB connection).
  * Run: node src/__tests__/accountSecurityMutation.test.js
  */
@@ -2071,6 +2071,91 @@ async function fixedHash() {
       'role change missing subject'
     );
   }
+}
+
+// =======================================================================
+// Admin temporary-password reset: password + tokenVersion are one write
+// =======================================================================
+{
+  const future = new Date(Date.now() + 60_000);
+  const userModel = createFakeModel({ seed: [seedUser({ tokenVersion: 5 })] });
+  const employerModel = createFakeModel({
+    seed: [seedUser({ tokenVersion: 9 })],
+  });
+  const service = createAccountSecurityMutationService({
+    userModel,
+    employerModel,
+    hashPassword: fixedHash,
+  });
+
+  deepEqual(
+    await service.adminResetUserPassword({
+      subjectId: USER_ID,
+      newPassword: 'TemporaryPassword1',
+      tempPasswordExpires: future,
+    }),
+    { code: 'VERSION_INCREMENTED' },
+    'Admin reset atomically changes password and advances access authority'
+  );
+  const user = userModel.store.get(USER_ID);
+  equal(user.password, 'fixed-hash-value', 'Admin reset stores only the hash');
+  equal(user.tokenVersion, 6, 'Admin reset advances tokenVersion exactly once');
+  equal(user.mustChangePassword, true, 'Admin reset requires password change');
+  equal(
+    user.tempPasswordExpires,
+    future,
+    'Admin reset records the bounded temporary-password expiry'
+  );
+  equal(userModel.callCounts.findOneAndUpdate, 1, 'Admin reset uses one write');
+  equal(
+    employerModel.store.get(USER_ID).tokenVersion,
+    9,
+    'Admin User reset cannot mutate the Employer realm'
+  );
+}
+
+{
+  const userModel = createFakeModel({ seed: [seedUser()] });
+  const service = createAccountSecurityMutationService({
+    userModel,
+    employerModel: createFakeModel(),
+    hashPassword: fixedHash,
+  });
+  deepEqual(
+    await service.adminResetUserPassword({
+      subjectId: USER_ID,
+      newPassword: 'TemporaryPassword1',
+      tempPasswordExpires: new Date(Date.now() - 1),
+    }),
+    { code: 'INVALID_INPUT' },
+    'Expired Admin temporary-password authority is rejected before writing'
+  );
+  equal(
+    userModel.callCounts.findOneAndUpdate,
+    0,
+    'Invalid Admin reset writes nothing'
+  );
+}
+
+{
+  const userModel = createFakeModel({
+    seed: [seedUser()],
+    throwOn: 'findOneAndUpdate',
+  });
+  const service = createAccountSecurityMutationService({
+    userModel,
+    employerModel: createFakeModel(),
+    hashPassword: fixedHash,
+  });
+  deepEqual(
+    await service.adminResetUserPassword({
+      subjectId: USER_ID,
+      newPassword: 'TemporaryPassword1',
+      tempPasswordExpires: new Date(Date.now() + 60_000),
+    }),
+    { code: 'STORAGE_FAILURE' },
+    'Admin reset fails closed on subject storage failure'
+  );
 }
 
 // =======================================================================

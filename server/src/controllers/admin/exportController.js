@@ -23,7 +23,7 @@ import { getPlatformInsightsDashboard } from '../../services/analytics/Analytics
 import { flattenDashboardForExport } from '../../../../shared/analytics/exportHelpers.js';
 
 const EXPORTERS = {
-  users: async () => User.find().select('-password -refreshToken -fcmToken').lean(),
+  users: async () => User.find().select('-password -fcmToken').lean(),
   employers: async () => Employer.find().select('-password').lean(),
   jobs: async () => Job.find().lean(),
   scholarships: async () => Scholarship.find().lean(),
@@ -38,11 +38,21 @@ const EXPORTERS = {
   'contact-messages': async () => ContactMessage.find().lean(),
   institutions: async () => Institution.find().lean(),
   'newsletter-subscribers': async () => NewsletterSubscriber.find().lean(),
-  applications: async () => Application.find().populate('job', 'title').populate('user', 'email name').lean(),
+  applications: async () =>
+    Application.find()
+      .populate('job', 'title')
+      .populate('user', 'email name')
+      .lean(),
   payments: async () => Payment.find().lean(),
   analytics: async () => {
     const metrics = await collectExecutiveMetrics();
-    return [{ ...metrics.cards, generatedAt: metrics.generatedAt, dataSource: metrics.dataSource }];
+    return [
+      {
+        ...metrics.cards,
+        generatedAt: metrics.generatedAt,
+        dataSource: metrics.dataSource,
+      },
+    ];
   },
   'content-insights': async () => {
     const dashboard = await getPlatformInsightsDashboard({ range: '30d' });
@@ -66,11 +76,16 @@ const EXPORTERS = {
  */
 const DANGEROUS_LEADING_CHARS = new Set(['=', '+', '-', '@', '\t', '\r', '\n']);
 const PURE_SIGNED_NUMERIC_STRING = /^[+-]?(\d+\.?\d*|\.\d+)$/;
-const DANGEROUS_OBJECT_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+const DANGEROUS_OBJECT_KEYS = new Set([
+  '__proto__',
+  'constructor',
+  'prototype',
+]);
 const MAX_NEUTRALIZE_DEPTH = 8;
 
 function isPlainNeutralizableObject(value) {
-  if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+  if (value === null || typeof value !== 'object' || Array.isArray(value))
+    return false;
   const proto = Object.getPrototypeOf(value);
   return proto === Object.prototype || proto === null;
 }
@@ -92,7 +107,10 @@ function neutralizeSpreadsheetString(value) {
   const lead = effective[0];
   if (!DANGEROUS_LEADING_CHARS.has(lead)) return value;
 
-  if ((lead === '+' || lead === '-') && PURE_SIGNED_NUMERIC_STRING.test(effective)) {
+  if (
+    (lead === '+' || lead === '-') &&
+    PURE_SIGNED_NUMERIC_STRING.test(effective)
+  ) {
     return value; // legitimate signed numeric string (e.g. "-5"), not a formula
   }
 
@@ -143,11 +161,18 @@ export function toCsv(rows) {
   const keys = Object.keys(rows[0]);
   const header = keys.join(',');
   const lines = rows.map((row) =>
-    keys.map((k) => {
-      const v = row[k];
-      const s = v == null ? '' : typeof v === 'object' ? JSON.stringify(v) : String(v);
-      return `"${s.replace(/"/g, '""')}"`;
-    }).join(',')
+    keys
+      .map((k) => {
+        const v = row[k];
+        const s =
+          v == null
+            ? ''
+            : typeof v === 'object'
+              ? JSON.stringify(v)
+              : String(v);
+        return `"${s.replace(/"/g, '""')}"`;
+      })
+      .join(',')
   );
   return [header, ...lines].join('\n');
 }
@@ -156,7 +181,10 @@ export const exportData = asyncHandler(async (req, res) => {
   const { resource } = req.params;
   const format = (req.query.format || 'csv').toLowerCase();
   const exporter = EXPORTERS[resource];
-  if (!exporter) return res.status(400).json({ error: `Unknown export resource: ${resource}` });
+  if (!exporter)
+    return res
+      .status(400)
+      .json({ error: `Unknown export resource: ${resource}` });
 
   const rows = await exporter();
   const flatRows = rows.map((r) => {
@@ -180,20 +208,32 @@ export const exportData = asyncHandler(async (req, res) => {
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, ws, resource);
     const buf = XLSX.write(wb, { type: 'buffer', bookType: 'xlsx' });
-    res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-    res.setHeader('Content-Disposition', `attachment; filename="${resource}-export.xlsx"`);
+    res.setHeader(
+      'Content-Type',
+      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    );
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${resource}-export.xlsx"`
+    );
     return res.send(buf);
   }
 
   if (format === 'pdf') {
     const html = `<html><head><title>${resource} export</title></head><body><h1>${resource}</h1><pre>${toCsv(safeRows).replace(/</g, '&lt;')}</pre></body></html>`;
     res.setHeader('Content-Type', 'text/html');
-    res.setHeader('Content-Disposition', `attachment; filename="${resource}-export.html"`);
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename="${resource}-export.html"`
+    );
     return res.send(html);
   }
 
   const csv = toCsv(safeRows);
   res.setHeader('Content-Type', 'text/csv');
-  res.setHeader('Content-Disposition', `attachment; filename="${resource}-export.csv"`);
+  res.setHeader(
+    'Content-Disposition',
+    `attachment; filename="${resource}-export.csv"`
+  );
   res.send(csv);
 });

@@ -1,6 +1,3 @@
-import { verifyToken } from '../utils/jwt.js';
-import { isAccessTokenRevoked } from '../utils/tokenStore.js';
-import { secureAuthConfig } from '../services/auth/secureAuthConfig.js';
 import { secureAccessAuthorization } from '../services/auth/secureAccessAuthorization.js';
 
 /**
@@ -8,7 +5,7 @@ import { secureAccessAuthorization } from '../services/auth/secureAccessAuthoriz
  * `req.user`/`req.employer` shapes every existing, unrelated handler
  * already reads (`userId`/`employerId`, `role`) — `requireUserAuth`,
  * `requireEmployerAuth`, `requireRole`, `requireAdmin`, `requireUser`, and
- * every non-auth route/controller need no change at all, in either mode.
+ * every non-auth route/controller need no change at all.
  * `sid`/`jti`/`tokenVersion`/`exp` are attached too — only the auth
  * controllers (logout/logout-all/change-password) read them.
  */
@@ -48,53 +45,25 @@ async function secureRequireAuth(req, res, next) {
 async function secureOptionalAuth(req, res, next) {
   const authHeader = req.headers.authorization;
   if (!authHeader?.startsWith('Bearer ')) return next();
-  const result = await secureAccessAuthorization.authorizeRequest({ authorizationHeader: authHeader });
+  const result = await secureAccessAuthorization.authorizeRequest({
+    authorizationHeader: authHeader,
+  });
   if (result.code === 'ACCESS_AUTHORIZED') {
     attachSecurePrincipal(req, result.principal);
   }
   next();
 }
 
-function legacyRequireAuth(req, res, next) {
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  if (!token) {
-    return res.status(401).json({ error: 'Authentication required' });
-  }
-  isAccessTokenRevoked(token)
-    .then((revoked) => {
-      if (revoked) {
-        return res.status(401).json({ error: 'Token has been revoked' });
-      }
-      try {
-        const decoded = verifyToken(token);
-        if (decoded.type === 'refresh') {
-          return res.status(401).json({ error: 'Use access token for this request' });
-        }
-        if (decoded.employerId && decoded.role === 'employer') {
-          req.employer = { employerId: decoded.employerId, role: 'employer' };
-        } else {
-          req.user = { userId: decoded.userId, role: decoded.role };
-        }
-        next();
-      } catch {
-        return res.status(401).json({ error: 'Invalid or expired token' });
-      }
-    })
-    .catch(() => res.status(401).json({ error: 'Authentication failed' }));
-}
-
 export function requireAuth(req, res, next) {
-  if (secureAuthConfig.enabled) {
-    return secureRequireAuth(req, res, next);
-  }
-  return legacyRequireAuth(req, res, next);
+  return secureRequireAuth(req, res, next);
 }
 
 /** Requires a User token (not Employer). Use for candidate-facing routes. */
 export function requireUserAuth(req, res, next) {
   if (req.employer) {
-    return res.status(403).json({ error: 'Employer account cannot access this resource' });
+    return res
+      .status(403)
+      .json({ error: 'Employer account cannot access this resource' });
   }
   if (!req.user) {
     return res.status(401).json({ error: 'Authentication required' });
@@ -104,29 +73,7 @@ export function requireUserAuth(req, res, next) {
 
 /** Optional auth — attaches user/employer when valid token present; never rejects. */
 export function optionalAuth(req, res, next) {
-  if (secureAuthConfig.enabled) {
-    return secureOptionalAuth(req, res, next);
-  }
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-  if (!token) return next();
-  isAccessTokenRevoked(token)
-    .then((revoked) => {
-      if (revoked) return next();
-      try {
-        const decoded = verifyToken(token);
-        if (decoded.type === 'refresh') return next();
-        if (decoded.employerId && decoded.role === 'employer') {
-          req.employer = { employerId: decoded.employerId, role: 'employer' };
-        } else {
-          req.user = { userId: decoded.userId, role: decoded.role, email: decoded.email, name: decoded.name };
-        }
-      } catch {
-        /* ignore invalid token */
-      }
-      next();
-    })
-    .catch(() => next());
+  return secureOptionalAuth(req, res, next);
 }
 
 /** Requires an Employer token. Use for employer dashboard routes. */

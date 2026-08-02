@@ -429,9 +429,7 @@ function decodeExp(token) {
 
 export const employerSecureAuthFlowsHelpers = Object.freeze({ decodeExp });
 
-export const employerSecureAuthFlows = secureAuthConfig.enabled
-  ? createEmployerSecureAuthFlows({
-      jwtProvider: secureAuthConfig.employerJwtProvider,
-      originPolicy: secureAuthConfig.originPolicy,
-    })
-  : null;
+export const employerSecureAuthFlows = createEmployerSecureAuthFlows({
+  jwtProvider: secureAuthConfig.employerJwtProvider,
+  originPolicy: secureAuthConfig.originPolicy,
+});

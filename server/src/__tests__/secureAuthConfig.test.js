@@ -13,21 +13,7 @@ function check(cond, msg) {
   count += 1;
 }
 
-/**
- * SEC-3E.1 — `secureAuthConfig.js`'s own module-top-level code constructs a
- * runtime singleton from `process.env` at import time (`export const
- * secureAuthConfig = buildSecureAuthConfig(process.env)`). Since ESM
- * `import` statements are hoisted and evaluate before any other top-level
- * code in this file, `process.env.STRIDETO_SECURE_AUTH_ENABLED` must be
- * set *before* that import happens — a dynamic `import()` (not hoisted) is
- * used here specifically so this file can set the flag first, matching
- * the new "no environment may silently default to legacy mode" contract
- * this correction introduces (§14). `node src/__tests__/secureAuthConfig.test.js`
- * is otherwise run exactly like every other test file in this repository
- * — this is the only difference, and it is required by the contract under
- * test, not a convention change elsewhere.
- */
-process.env.STRIDETO_SECURE_AUTH_ENABLED = '1';
+// The runtime singleton requires canonical signing secrets at import time.
 process.env.JWT_SECRET = 'z'.repeat(32);
 process.env.REFRESH_SECRET = 'y'.repeat(32);
 
@@ -42,83 +28,54 @@ const {
 
 const BASE_ENV = Object.freeze({
   NODE_ENV: 'development',
-  STRIDETO_SECURE_AUTH_ENABLED: '1',
   JWT_SECRET: 'a'.repeat(32),
   REFRESH_SECRET: 'b'.repeat(32),
   SITE_URL: 'https://strideto.com',
   API_URL: 'https://api.strideto.com',
 });
 
-// --- Flag parsing: unset is always a configuration error, every environment ---
+// --- The removed selector cannot disable canonical secure authentication ---
+{
+  const unset = buildSecureAuthConfig(BASE_ENV);
+  const zero = buildSecureAuthConfig({
+    ...BASE_ENV,
+    STRIDETO_SECURE_AUTH_ENABLED: '0',
+  });
+  const malformed = buildSecureAuthConfig({
+    ...BASE_ENV,
+    STRIDETO_SECURE_AUTH_ENABLED: 'legacy',
+  });
+  check(
+    typeof unset.userJwtProvider.issueAccessToken === 'function',
+    'canonical secure authentication is active without a selector'
+  );
+  check(
+    typeof zero.userJwtProvider.issueAccessToken === 'function',
+    'obsolete selector value 0 cannot enable a fallback'
+  );
+  check(
+    typeof malformed.userJwtProvider.issueAccessToken === 'function',
+    'obsolete malformed selector cannot alter canonical composition'
+  );
+  check(
+    typeof zero.userJwtProvider.issueAccessToken === 'function',
+    'secure providers are always constructed'
+  );
+}
+
+// --- Missing canonical secrets fail in every environment -----------------
 {
   assert.throws(
     () => buildSecureAuthConfig({}),
-    /is required and must be set explicitly/,
-    'unset flag throws in development'
+    /JWT_SECRET is required/,
+    'missing canonical secrets fail in development'
   );
   count += 1;
 
-  assert.throws(
-    () => buildSecureAuthConfig({ NODE_ENV: 'test' }),
-    /is required and must be set explicitly/,
-    'unset flag throws in test (no NODE_ENV-specific carve-out)'
-  );
-  count += 1;
-
-  assert.throws(
-    () => buildSecureAuthConfig({ STRIDETO_SECURE_AUTH_ENABLED: 'yes' }),
-    /must be "1" or "0"/,
-    'malformed flag throws'
-  );
-  count += 1;
-}
-
-// --- Explicit '0' -> legacy mode, with exactly one startup warning, no secrets in it ---
-{
-  const originalWarn = console.warn;
-  const warnCalls = [];
-  console.warn = (...args) => warnCalls.push(args.join(' '));
-  let zero;
-  try {
-    zero = buildSecureAuthConfig({
-      NODE_ENV: 'development',
-      STRIDETO_SECURE_AUTH_ENABLED: '0',
-    });
-  } finally {
-    console.warn = originalWarn;
-  }
-  check(zero.enabled === false, 'explicit flag=0 -> disabled (legacy mode)');
-  check(
-    warnCalls.length === 1,
-    'exactly one startup warning emitted for explicit legacy mode'
-  );
-  check(
-    /secure authentication only/i.test(warnCalls[0] || ''),
-    'warning mentions the client is secure-only'
-  );
-  check(
-    !/[A-Za-z0-9]{32}/.test(warnCalls[0] || ''),
-    'warning contains no secret-shaped value'
-  );
-}
-
-// --- Production requires the flag -----------------------------------------
-{
   assert.throws(
     () => buildSecureAuthConfig({ NODE_ENV: 'production' }),
-    /is required and must be set explicitly/,
-    'production without flag throws the same required-configuration error'
-  );
-  count += 1;
-
-  assert.throws(
-    () =>
-      buildSecureAuthConfig({
-        NODE_ENV: 'production',
-        STRIDETO_SECURE_AUTH_ENABLED: '0',
-      }),
-    /must equal "1" in production/,
-    'production with flag=0 throws'
+    /JWT_SECRET is required/,
+    'missing canonical secrets fail in production'
   );
   count += 1;
 }
@@ -151,7 +108,7 @@ const BASE_ENV = Object.freeze({
 // --- Successful construction -----------------------------------------------
 {
   const config = buildSecureAuthConfig(BASE_ENV);
-  check(config.enabled === true, 'enabled true');
+  check(Object.isFrozen(config), 'canonical config is frozen');
   check(config.mode === 'development', 'mode resolved');
   check(
     typeof config.userJwtProvider.issueAccessToken === 'function',
@@ -244,30 +201,7 @@ const BASE_ENV = Object.freeze({
   );
 }
 
-// --- Legacy mode leaves the composition layer entirely inert ---------------
-{
-  const originalWarn = console.warn;
-  console.warn = () => {};
-  let config;
-  try {
-    config = buildSecureAuthConfig({
-      NODE_ENV: 'development',
-      STRIDETO_SECURE_AUTH_ENABLED: '0',
-    });
-  } finally {
-    console.warn = originalWarn;
-  }
-  check(
-    Object.keys(config).length === 2,
-    'legacy config exposes only enabled/production, nothing secure'
-  );
-  check(
-    'userJwtProvider' in config === false,
-    'no provider constructed in legacy mode'
-  );
-}
-
-// --- Boot-time-only, no per-request re-evaluation, no automatic fallback ---
+// --- Boot-time-only, no per-request re-evaluation or fallback --------------
 {
   // buildSecureAuthConfig is a pure function of its input snapshot; calling
   // it twice with the same env produces independently-constructed but
@@ -279,7 +213,8 @@ const BASE_ENV = Object.freeze({
   const first = buildSecureAuthConfig(BASE_ENV);
   const second = buildSecureAuthConfig(BASE_ENV);
   check(
-    first.enabled === true && second.enabled === true,
+    typeof first.userJwtProvider.issueAccessToken === 'function' &&
+      typeof second.userJwtProvider.issueAccessToken === 'function',
     'repeated calls remain consistent'
   );
   check(
@@ -309,7 +244,6 @@ const BASE_ENV = Object.freeze({
 
   try {
     process.env.NODE_ENV = 'development';
-    process.env.STRIDETO_SECURE_AUTH_ENABLED = '1';
     process.env.JWT_SECRET = 'q'.repeat(32);
     process.env.REFRESH_SECRET = 'p'.repeat(32);
     delete process.env.REDIS_URL;
@@ -335,19 +269,18 @@ const BASE_ENV = Object.freeze({
       'the actual exported runtime singleton (not buildSecureAuthConfig) is captured'
     );
     check(
-      singleton.enabled === true,
-      'singleton.enabled is true immediately after module evaluation'
+      typeof singleton.userJwtProvider.issueAccessToken === 'function',
+      'singleton is canonical immediately after module evaluation'
     );
 
-    // Mutate process.env *after* the singleton above has already been
-    // constructed and captured.
+    // The removed selector cannot affect an already-constructed singleton.
     process.env.STRIDETO_SECURE_AUTH_ENABLED = '0';
 
     const reread = imported.secureAuthConfig;
 
     check(
-      reread.enabled === true,
-      'singleton.enabled remains true after process.env is mutated to "0" post-construction'
+      typeof reread.userJwtProvider.issueAccessToken === 'function',
+      'singleton remains canonical after the obsolete selector is changed'
     );
     check(
       reread === singleton,

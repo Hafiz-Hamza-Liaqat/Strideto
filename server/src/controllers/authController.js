@@ -1,7 +1,12 @@
 import crypto from 'crypto';
 import { User } from '../models/User.js';
-import { signAccessToken, signRefreshToken, verifyToken } from '../utils/jwt.js';
-import { validateAuthRegister, validateAuthLogin, validateForgotPassword, validateResetPassword, validateChangePassword } from '../validators/authValidator.js';
+import {
+  validateAuthRegister,
+  validateAuthLogin,
+  validateForgotPassword,
+  validateResetPassword,
+  validateChangePassword,
+} from '../validators/authValidator.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { ensureReferralCode } from '../utils/referralCode.js';
 import { awardBadge } from './badgesController.js';
@@ -9,13 +14,7 @@ import { queueEmail } from '../services/automationService.js';
 import { isSmtpConfigured } from '../services/emailService.js';
 import { logAudit, auditFromRequest } from '../services/auditService.js';
 import { getPermissionsForRole } from '../config/rbac.js';
-import {
-  storeRefreshToken,
-  validateRefreshToken,
-  revokeRefreshToken,
-  revokeAccessToken,
-  hashResetToken,
-} from '../utils/tokenStore.js';
+import { hashResetToken } from '../utils/tokenStore.js';
 import {
   applyVerificationTokenFields,
   buildVerifyEmailUrl,
@@ -40,7 +39,11 @@ import { userSecureAuthFlows } from '../services/auth/userSecureAuthFlows.js';
  * anything that already ran before it in the same function.
  */
 function writeUserRefreshCookie(res, token) {
-  secureAuthConfig.cookiePolicy.writeRefreshCookie({ res, realm: 'user', token });
+  secureAuthConfig.cookiePolicy.writeRefreshCookie({
+    res,
+    realm: 'user',
+    token,
+  });
 }
 
 function clearUserRefreshCookie(res) {
@@ -51,8 +54,6 @@ function toSafeUser(user) {
   if (!user) return null;
   const u = user.toObject ? user.toObject() : { ...user };
   delete u.password;
-  delete u.refreshToken;
-  delete u.refreshTokenExpires;
   delete u.passwordResetToken;
   delete u.passwordResetExpires;
   delete u.emailVerificationToken;
@@ -123,10 +124,21 @@ export const register = asyncHandler(async (req, res) => {
   const REFEREE_POINTS = 10;
   if (referredBy) {
     await User.findByIdAndUpdate(referredBy, {
-      $inc: { referralCount: 1, totalPoints: REFERRER_POINTS, rewardPoints: REFERRER_POINTS },
+      $inc: {
+        referralCount: 1,
+        totalPoints: REFERRER_POINTS,
+        rewardPoints: REFERRER_POINTS,
+      },
     });
-    await User.findByIdAndUpdate(user._id, { $inc: { totalPoints: REFEREE_POINTS, rewardPoints: REFEREE_POINTS } });
-    await awardBadge(referredBy, 'referral', 'Referral Champion', 'Referred a friend');
+    await User.findByIdAndUpdate(user._id, {
+      $inc: { totalPoints: REFEREE_POINTS, rewardPoints: REFEREE_POINTS },
+    });
+    await awardBadge(
+      referredBy,
+      'referral',
+      'Referral Champion',
+      'Referred a friend'
+    );
   }
 
   const { smtpOk } = await issueAndQueueVerification(user);
@@ -149,7 +161,8 @@ export const register = asyncHandler(async (req, res) => {
     requiresVerification: true,
     emailQueued: true,
     emailMode: 'live',
-    message: 'Account created. Check your email for a verification link before signing in.',
+    message:
+      'Account created. Check your email for a verification link before signing in.',
     expiresInMinutes: Math.round(VERIFY_TOKEN_TTL_MS / 60000),
   });
 });
@@ -163,7 +176,9 @@ export const login = asyncHandler(async (req, res) => {
     });
   }
   const email = req.body.email.trim().toLowerCase();
-  const user = await User.findOne({ email }).select('+password +tempPasswordExpires');
+  const user = await User.findOne({ email }).select(
+    '+password +tempPasswordExpires'
+  );
   if (!user || !(await user.comparePassword(req.body.password))) {
     return res.status(401).json({ error: 'Invalid email or password' });
   }
@@ -171,7 +186,9 @@ export const login = asyncHandler(async (req, res) => {
     return res.status(403).json({ error: 'Account suspended' });
   }
   if (user.tempPasswordExpires && user.tempPasswordExpires < new Date()) {
-    return res.status(403).json({ error: 'Temporary password has expired. Contact an administrator.' });
+    return res.status(403).json({
+      error: 'Temporary password has expired. Contact an administrator.',
+    });
   }
   if (isEmailVerificationRequired(user)) {
     return res.status(403).json({
@@ -189,34 +206,24 @@ export const login = asyncHandler(async (req, res) => {
     targetType: 'user',
     targetId: user._id.toString(),
     targetLabel: user.email,
-    ip: req.headers['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '',
+    ip:
+      req.headers['x-forwarded-for']?.split(',')[0]?.trim() ||
+      req.socket?.remoteAddress ||
+      '',
   });
 
-  if (secureAuthConfig.enabled) {
-    const sessionResult = await userSecureAuthFlows.issueLoginSession({
-      subjectId: user._id.toString(),
-      tokenVersion: user.tokenVersion,
-    });
-    if (sessionResult.code !== 'SESSION_ISSUED') {
-      return res.status(sessionResult.httpStatus).json(sessionResult.body);
-    }
-    writeUserRefreshCookie(res, sessionResult.refreshToken);
-    return res.json({
-      user: safe,
-      accessToken: sessionResult.accessToken,
-      expiresIn: '15m',
-      mustChangePassword: !!user.mustChangePassword,
-    });
+  const sessionResult = await userSecureAuthFlows.issueLoginSession({
+    subjectId: user._id.toString(),
+    tokenVersion: user.tokenVersion,
+  });
+  if (sessionResult.code !== 'SESSION_ISSUED') {
+    return res.status(sessionResult.httpStatus).json(sessionResult.body);
   }
-
-  const accessToken = signAccessToken({ userId: user._id.toString(), role: user.role });
-  const refreshToken = signRefreshToken({ userId: user._id.toString() });
-  await storeRefreshToken(user._id.toString(), refreshToken);
-  res.json({
+  writeUserRefreshCookie(res, sessionResult.refreshToken);
+  return res.json({
     user: safe,
-    accessToken,
-    refreshToken,
-    expiresIn: process.env.JWT_EXPIRES_IN || '1h',
+    accessToken: sessionResult.accessToken,
+    expiresIn: '15m',
     mustChangePassword: !!user.mustChangePassword,
   });
 });
@@ -232,55 +239,32 @@ export const me = asyncHandler(async (req, res) => {
 });
 
 export const logout = asyncHandler(async (req, res) => {
-  const authHeader = req.headers.authorization;
-  const token = authHeader?.startsWith('Bearer ') ? authHeader.slice(7) : null;
-
-  if (secureAuthConfig.enabled) {
-    const principal = req.user;
-    const result = await userSecureAuthFlows.logoutCurrent({
-      principal: { subjectId: principal.userId, sid: principal.sid, jti: principal.jti },
-      presentedAccessTokenExp: principal.exp,
-      origin: req.headers.origin,
-      referer: req.headers.referer,
-    });
-    if (result.code !== 'LOGGED_OUT') {
-      return res.status(result.httpStatus).json(result.body);
-    }
-    clearUserRefreshCookie(res);
-    await logAudit({
-      ...auditFromRequest(req),
-      actor: { userId: principal.userId, role: principal.role },
-      action: 'auth.logout',
-      targetType: 'user',
-      targetId: principal.userId,
-    });
-    return res.json({ message: 'Logged out' });
+  const principal = req.user;
+  const result = await userSecureAuthFlows.logoutCurrent({
+    principal: {
+      subjectId: principal.userId,
+      sid: principal.sid,
+      jti: principal.jti,
+    },
+    presentedAccessTokenExp: principal.exp,
+    origin: req.headers.origin,
+    referer: req.headers.referer,
+  });
+  if (result.code !== 'LOGGED_OUT') {
+    return res.status(result.httpStatus).json(result.body);
   }
-
-  if (req.user?.userId) {
-    const user = await User.findById(req.user.userId).select('email role');
-    await revokeRefreshToken(req.user.userId);
-    if (user) {
-      await logAudit({
-        ...auditFromRequest(req),
-        actor: { userId: req.user.userId, email: user.email, role: user.role },
-        action: 'auth.logout',
-        targetType: 'user',
-        targetId: req.user.userId,
-        targetLabel: user.email,
-      });
-    }
-  }
-  if (token) {
-    await revokeAccessToken(token);
-  }
-  res.json({ message: 'Logged out' });
+  clearUserRefreshCookie(res);
+  await logAudit({
+    ...auditFromRequest(req),
+    actor: { userId: principal.userId, role: principal.role },
+    action: 'auth.logout',
+    targetType: 'user',
+    targetId: principal.userId,
+  });
+  return res.json({ message: 'Logged out' });
 });
 
 export const logoutAll = asyncHandler(async (req, res) => {
-  if (!secureAuthConfig.enabled) {
-    return res.status(404).json({ error: 'Not found' });
-  }
   const principal = req.user;
   const result = await userSecureAuthFlows.logoutAll({
     principal: {
@@ -308,75 +292,44 @@ export const logoutAll = asyncHandler(async (req, res) => {
 });
 
 export const refreshToken = asyncHandler(async (req, res) => {
-  if (secureAuthConfig.enabled) {
-    const extraction = secureAuthConfig.cookiePolicy.extractRefreshToken({
-      cookieHeader: req.headers.cookie,
-      realm: 'user',
-    });
-    const cookieToken = extraction.code === 'COOKIE_FOUND' ? extraction.token : null;
-    const result = await userSecureAuthFlows.refresh({
-      cookieToken,
-      origin: req.headers.origin,
-      referer: req.headers.referer,
-    });
-    if (result.clearCookie) {
-      clearUserRefreshCookie(res);
-    }
-    if (result.code === 'REFRESH_ROTATED') {
-      writeUserRefreshCookie(res, result.refreshToken);
-      return res.json({ accessToken: result.accessToken, expiresIn: '15m' });
-    }
-    if (result.code === 'CONFLICT_BENIGN') {
-      res.set('Retry-After', String(result.retryAfterSeconds));
-      return res.status(result.httpStatus).json(result.body);
-    }
+  const extraction = secureAuthConfig.cookiePolicy.extractRefreshToken({
+    cookieHeader: req.headers.cookie,
+    realm: 'user',
+  });
+  const cookieToken =
+    extraction.code === 'COOKIE_FOUND' ? extraction.token : null;
+  const result = await userSecureAuthFlows.refresh({
+    cookieToken,
+    origin: req.headers.origin,
+    referer: req.headers.referer,
+  });
+  if (result.clearCookie) {
+    clearUserRefreshCookie(res);
+  }
+  if (result.code === 'REFRESH_ROTATED') {
+    writeUserRefreshCookie(res, result.refreshToken);
+    return res.json({ accessToken: result.accessToken, expiresIn: '15m' });
+  }
+  if (result.code === 'CONFLICT_BENIGN') {
+    res.set('Retry-After', String(result.retryAfterSeconds));
     return res.status(result.httpStatus).json(result.body);
   }
-
-  const token = req.body.refreshToken || req.headers['x-refresh-token'];
-  if (!token) return res.status(401).json({ error: 'Refresh token required' });
-  let decoded;
-  try {
-    decoded = verifyToken(token);
-  } catch {
-    return res.status(401).json({ error: 'Invalid or expired refresh token' });
-  }
-  if (decoded.type !== 'refresh' || !decoded.userId) {
-    return res.status(401).json({ error: 'Invalid refresh token' });
-  }
-  const valid = await validateRefreshToken(decoded.userId, token);
-  if (!valid) {
-    return res.status(401).json({ error: 'Refresh token revoked or expired' });
-  }
-  const user = await User.findById(decoded.userId);
-  if (!user) return res.status(401).json({ error: 'User not found' });
-  if (isEmailVerificationRequired(user)) {
-    await revokeRefreshToken(decoded.userId);
-    return res.status(403).json({
-      error: 'Please verify your email before continuing.',
-      code: 'email_verification_required',
-      email: user.email,
-    });
-  }
-  const accessToken = signAccessToken({ userId: user._id.toString(), role: user.role });
-  const newRefreshToken = signRefreshToken({ userId: user._id.toString() });
-  await storeRefreshToken(user._id.toString(), newRefreshToken);
-  res.json({
-    user: toSafeUser(user),
-    accessToken,
-    refreshToken: newRefreshToken,
-    expiresIn: process.env.JWT_EXPIRES_IN || '1h',
-  });
+  return res.status(result.httpStatus).json(result.body);
 });
 
 export const forgotPassword = asyncHandler(async (req, res) => {
   const { emailError } = validateForgotPassword(req.body);
   if (emailError) {
-    return res.status(400).json({ error: 'Validation failed', details: { email: emailError } });
+    return res
+      .status(400)
+      .json({ error: 'Validation failed', details: { email: emailError } });
   }
   const email = req.body.email.trim().toLowerCase();
-  const user = await User.findOne({ email }).select('+passwordResetToken +passwordResetExpires');
-  const message = 'If an account exists with this email, you will receive a password reset link shortly.';
+  const user = await User.findOne({ email }).select(
+    '+passwordResetToken +passwordResetExpires'
+  );
+  const message =
+    'If an account exists with this email, you will receive a password reset link shortly.';
   if (!user) {
     return res.status(200).json({ message });
   }
@@ -399,14 +352,18 @@ export const forgotPassword = asyncHandler(async (req, res) => {
 
 export const verifyEmail = asyncHandler(async (req, res) => {
   const token = (req.query.token || req.body?.token || '').trim();
-  if (!token) return res.status(400).json({ error: 'Verification token is required' });
+  if (!token)
+    return res.status(400).json({ error: 'Verification token is required' });
 
   const user = await User.findOne({
     emailVerificationToken: hashVerificationToken(token),
     emailVerificationExpires: { $gt: new Date() },
   }).select('+emailVerificationToken +emailVerificationExpires');
 
-  if (!user) return res.status(400).json({ error: 'Invalid or expired verification link' });
+  if (!user)
+    return res
+      .status(400)
+      .json({ error: 'Invalid or expired verification link' });
 
   user.emailVerified = true;
   clearVerificationTokenFields(user);
@@ -436,30 +393,22 @@ export const resetPassword = asyncHandler(async (req, res) => {
   const user = await User.findOne({
     passwordResetToken: hashResetToken(token),
     passwordResetExpires: { $gt: new Date() },
-  })
-    .select('+password +passwordResetToken +passwordResetExpires');
+  }).select('+password +passwordResetToken +passwordResetExpires');
   if (!user) {
-    return res.status(400).json({ error: 'Invalid or expired reset link. Please request a new password reset.' });
-  }
-  if (secureAuthConfig.enabled) {
-    const result = await userSecureAuthFlows.resetPassword({
-      hashedToken: hashResetToken(token),
-      newPassword: req.body.password,
+    return res.status(400).json({
+      error:
+        'Invalid or expired reset link. Please request a new password reset.',
     });
-    if (result.clearCookie) clearUserRefreshCookie(res);
-    return res
-      .status(200)
-      .json({ message: 'Password reset successfully. You can now sign in with your new password.' });
   }
-
-  user.password = req.body.password;
-  user.passwordResetToken = undefined;
-  user.passwordResetExpires = undefined;
-  user.mustChangePassword = false;
-  user.tempPasswordExpires = undefined;
-  await user.save();
-  await revokeRefreshToken(String(user._id));
-  return res.status(200).json({ message: 'Password reset successfully. You can now sign in with your new password.' });
+  const result = await userSecureAuthFlows.resetPassword({
+    hashedToken: hashResetToken(token),
+    newPassword: req.body.password,
+  });
+  if (result.clearCookie) clearUserRefreshCookie(res);
+  return res.status(200).json({
+    message:
+      'Password reset successfully. You can now sign in with your new password.',
+  });
 });
 
 export const changePassword = asyncHandler(async (req, res) => {
@@ -476,36 +425,22 @@ export const changePassword = asyncHandler(async (req, res) => {
     return res.status(401).json({ error: 'Current password is incorrect' });
   }
 
-  if (secureAuthConfig.enabled) {
-    const principal = req.user;
-    const result = await userSecureAuthFlows.changePassword({
-      principal: { subjectId: user._id.toString(), tokenVersion: principal.tokenVersion, jti: principal.jti },
-      newPassword: req.body.newPassword,
-      presentedAccessTokenExp: principal.exp,
-    });
-    if (result.code !== 'PASSWORD_CHANGED') {
-      return res.status(result.httpStatus).json(result.body || { error: 'Could not change password' });
-    }
-    clearUserRefreshCookie(res);
-    await logAudit({
-      ...auditFromRequest(req),
-      action: 'auth.change_password',
-      targetType: 'user',
-      targetId: user._id,
-      targetLabel: user.email,
-    });
-    return res.json({ message: 'Password changed successfully' });
+  const principal = req.user;
+  const result = await userSecureAuthFlows.changePassword({
+    principal: {
+      subjectId: user._id.toString(),
+      tokenVersion: principal.tokenVersion,
+      jti: principal.jti,
+    },
+    newPassword: req.body.newPassword,
+    presentedAccessTokenExp: principal.exp,
+  });
+  if (result.code !== 'PASSWORD_CHANGED') {
+    return res
+      .status(result.httpStatus)
+      .json(result.body || { error: 'Could not change password' });
   }
-
-  user.password = req.body.newPassword;
-  user.mustChangePassword = false;
-  user.tempPasswordExpires = undefined;
-  await user.save();
-  await revokeRefreshToken(String(user._id));
-  const authHeader = req.headers.authorization;
-  if (authHeader?.startsWith('Bearer ')) {
-    await revokeAccessToken(authHeader.slice(7));
-  }
+  clearUserRefreshCookie(res);
   await logAudit({
     ...auditFromRequest(req),
     action: 'auth.change_password',
@@ -513,7 +448,7 @@ export const changePassword = asyncHandler(async (req, res) => {
     targetId: user._id,
     targetLabel: user.email,
   });
-  res.json({ message: 'Password changed successfully' });
+  return res.json({ message: 'Password changed successfully' });
 });
 
 export const resendVerification = asyncHandler(async (req, res) => {
@@ -521,16 +456,23 @@ export const resendVerification = asyncHandler(async (req, res) => {
   let user = null;
 
   if (req.user?.userId) {
-    user = await User.findById(req.user.userId).select('+emailVerificationToken +emailVerificationExpires');
+    user = await User.findById(req.user.userId).select(
+      '+emailVerificationToken +emailVerificationExpires'
+    );
     if (!user) return res.status(404).json({ error: 'User not found' });
     if (user.emailVerified) {
-      return res.json({ message: 'Email is already verified', emailVerified: true });
+      return res.json({
+        message: 'Email is already verified',
+        emailVerified: true,
+      });
     }
   } else {
     if (!emailFromBody) {
       return res.status(400).json({ error: 'Email is required' });
     }
-    user = await User.findOne({ email: emailFromBody }).select('+emailVerificationToken +emailVerificationExpires');
+    user = await User.findOne({ email: emailFromBody }).select(
+      '+emailVerificationToken +emailVerificationExpires'
+    );
     if (!user || user.emailVerified) {
       return res.json({ message: GENERIC_RESEND_MESSAGE });
     }

@@ -98,6 +98,12 @@ function fakeAccountSecurityMutation(overrides = {}) {
       calls.push(['resetPassword', args]);
       return overrides.resetPassword || { code: 'VERSION_INCREMENTED' };
     },
+    async adminResetUserPassword(args) {
+      calls.push(['adminResetUserPassword', args]);
+      return (
+        overrides.adminResetUserPassword || { code: 'VERSION_INCREMENTED' }
+      );
+    },
     async suspend(args) {
       calls.push(['suspend', args]);
       return overrides.suspend || { code: 'SUBJECT_STATE_UPDATED' };
@@ -288,7 +294,10 @@ function buildFlows(overrides = {}) {
     result.code === 'STORAGE_FAILURE' && result.httpStatus === 503,
     'Redis outage maps User refresh to safe 503'
   );
-  check(result.clearCookie === false, 'transient outage preserves the User cookie');
+  check(
+    result.clearCookie === false,
+    'transient outage preserves the User cookie'
+  );
   check(
     !('accessToken' in result) && !('refreshToken' in result),
     'User outage refresh issues no credential'
@@ -540,6 +549,80 @@ function buildFlows(overrides = {}) {
   );
 }
 
+// --- Admin password reset: Redis gate, atomic authority, all-family sweep ---------
+{
+  const accountSecurityMutation = fakeAccountSecurityMutation();
+  const familyRevocation = fakeFamilyRevocation();
+  const flows = buildFlows({ accountSecurityMutation, familyRevocation });
+  const expires = new Date(Date.now() + 60_000);
+  const result = await flows.adminResetPassword({
+    subjectId: SUBJECT_ID,
+    newPassword: 'TemporaryPassword1',
+    tempPasswordExpires: expires,
+  });
+  check(
+    result.code === 'PASSWORD_RESET',
+    'Admin reset succeeds through canonical flow'
+  );
+  check(
+    accountSecurityMutation.calls[0][0] === 'adminResetUserPassword',
+    'Admin reset delegates password and tokenVersion mutation to the canonical primitive'
+  );
+  check(
+    accountSecurityMutation.calls[0][1].tempPasswordExpires === expires,
+    'Admin reset preserves the exact temporary-password expiry'
+  );
+  check(
+    familyRevocation.calls[0][0] === 'all' &&
+      familyRevocation.calls[0][1].reason === 'admin_revoked',
+    'Admin reset revokes every User refresh family'
+  );
+}
+
+{
+  const accountSecurityMutation = fakeAccountSecurityMutation();
+  const familyRevocation = fakeFamilyRevocation();
+  const flows = buildFlows({
+    accountSecurityMutation,
+    familyRevocation,
+    denylist: fakeDenylist({ code: 'DENYLISTED' }, { code: 'STORAGE_FAILURE' }),
+  });
+  const result = await flows.adminResetPassword({
+    subjectId: SUBJECT_ID,
+    newPassword: 'TemporaryPassword1',
+    tempPasswordExpires: new Date(Date.now() + 60_000),
+  });
+  check(
+    result.code === 'STORAGE_FAILURE',
+    'Admin reset fails closed without Redis'
+  );
+  check(
+    accountSecurityMutation.calls.length === 0,
+    'Redis failure prevents Admin password mutation'
+  );
+  check(
+    familyRevocation.calls.length === 0,
+    'Redis failure prevents partial session work'
+  );
+}
+
+{
+  const familyRevocation = fakeFamilyRevocation(
+    { code: 'REVOKED_CURRENT_FAMILY' },
+    { code: 'STORAGE_FAILURE' }
+  );
+  const flows = buildFlows({ familyRevocation });
+  const result = await flows.adminResetPassword({
+    subjectId: SUBJECT_ID,
+    newPassword: 'TemporaryPassword1',
+    tempPasswordExpires: new Date(Date.now() + 60_000),
+  });
+  check(
+    result.code === 'STORAGE_FAILURE' && result.httpStatus === 503,
+    'Admin reset never reports success when all-family revocation fails'
+  );
+}
+
 // --- role change: Redis failure precedes account and session mutation -------------
 {
   const accountSecurityMutation = fakeAccountSecurityMutation();
@@ -547,10 +630,7 @@ function buildFlows(overrides = {}) {
   const flows = buildFlows({
     accountSecurityMutation,
     familyRevocation,
-    denylist: fakeDenylist(
-      { code: 'DENYLISTED' },
-      { code: 'STORAGE_FAILURE' }
-    ),
+    denylist: fakeDenylist({ code: 'DENYLISTED' }, { code: 'STORAGE_FAILURE' }),
   });
   const result = await flows.changeUserRole({
     subjectId: SUBJECT_ID,

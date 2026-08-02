@@ -14,9 +14,8 @@ import {
 } from './AccountSecurityMutationContracts.js';
 
 /**
- * SEC-3D.2 — dormant bounded tokenVersion and atomic subject-security
- * mutation primitives. Not imported by any live route, controller, or
- * middleware. Models are dependency-injected (mirrors
+ * Bounded tokenVersion and atomic subject-security mutation primitives.
+ * Models are dependency-injected (mirrors
  * `SessionFamilyRevocationService.js`'s convention) so tests never need a
  * live MongoDB connection. Authority:
  * docs/STRIDETO_SEC_3D_REVOCATION_ACCOUNT_STATE_READINESS_AUDIT.md (§8, §14.3).
@@ -229,6 +228,70 @@ export function createAccountSecurityMutationService({
     }
 
     return guardedIncrement({ model, subjectId, expected: tokenVersion });
+  }
+
+  // ---------------------------------------------------------------------
+  // Admin temporary-password reset — one atomic User write.
+  // ---------------------------------------------------------------------
+  async function adminResetUserPassword({
+    subjectId,
+    newPassword,
+    tempPasswordExpires,
+  }) {
+    if (!isValidObjectIdString(subjectId)) {
+      return Object.freeze({ code: 'INVALID_INPUT' });
+    }
+    if (!isNonEmptyString(newPassword) || !isValidDate(tempPasswordExpires)) {
+      return Object.freeze({ code: 'INVALID_INPUT' });
+    }
+    const nowValue = now();
+    if (!isValidDate(nowValue) || tempPasswordExpires <= nowValue) {
+      return Object.freeze({ code: 'INVALID_INPUT' });
+    }
+
+    let newHash;
+    try {
+      newHash = await hashPassword(newPassword);
+    } catch {
+      return Object.freeze({ code: 'STORAGE_FAILURE' });
+    }
+    if (!isNonEmptyString(newHash)) {
+      return Object.freeze({ code: 'STORAGE_FAILURE' });
+    }
+
+    const writeError = await attemptConditionalWrite({
+      model: userModel,
+      filter: { _id: subjectId, $expr: VALID_TOKEN_VERSION_EXPR },
+      update: {
+        $set: {
+          password: newHash,
+          mustChangePassword: true,
+          tempPasswordExpires,
+        },
+        $inc: { tokenVersion: 1 },
+      },
+    });
+    if (writeError === null) {
+      return Object.freeze({ code: 'VERSION_INCREMENTED' });
+    }
+    if (writeError) {
+      return writeError;
+    }
+
+    let doc;
+    try {
+      doc = await userModel.findById(subjectId, { tokenVersion: 1 });
+    } catch {
+      return Object.freeze({ code: 'STORAGE_FAILURE' });
+    }
+    if (!doc) return Object.freeze({ code: 'SUBJECT_MISSING' });
+    if (!isWellFormedTokenVersion(doc.tokenVersion)) {
+      return Object.freeze({ code: 'SUBJECT_STATE_MALFORMED' });
+    }
+    if (!isBelowTokenVersionMaximum(doc.tokenVersion)) {
+      return Object.freeze({ code: 'VERSION_EXHAUSTED' });
+    }
+    return Object.freeze({ code: 'CLASSIFICATION_STALE' });
   }
 
   // ---------------------------------------------------------------------
@@ -559,6 +622,7 @@ export function createAccountSecurityMutationService({
   return Object.freeze({
     incrementTokenVersionForLogoutAll,
     incrementTokenVersionForAdminRevoke,
+    adminResetUserPassword,
     changePassword,
     resetPassword,
     suspend,

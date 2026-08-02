@@ -4,10 +4,24 @@ import bcrypt from 'bcryptjs';
 const userSchema = new mongoose.Schema(
   {
     name: { type: String, trim: true, default: '' },
-    email: { type: String, required: true, unique: true, trim: true, lowercase: true },
+    email: {
+      type: String,
+      required: true,
+      unique: true,
+      trim: true,
+      lowercase: true,
+    },
     password: { type: String, required: true, select: false },
-    role: { type: String, enum: ['User', 'Editor', 'Moderator', 'Admin', 'SuperAdmin'], default: 'User' },
-    accountStatus: { type: String, enum: ['active', 'suspended'], default: 'active' },
+    role: {
+      type: String,
+      enum: ['User', 'Editor', 'Moderator', 'Admin', 'SuperAdmin'],
+      default: 'User',
+    },
+    accountStatus: {
+      type: String,
+      enum: ['active', 'suspended'],
+      default: 'active',
+    },
     emailVerified: { type: Boolean, default: false },
     province: { type: String, trim: true, default: '' },
     interests: {
@@ -21,8 +35,6 @@ const userSchema = new mongoose.Schema(
       whatsapp: { type: Boolean, default: false },
       telegram: { type: Boolean, default: false },
     },
-    refreshToken: { type: String, select: false },
-    refreshTokenExpires: { type: Date, select: false },
     passwordResetToken: { type: String, select: false },
     passwordResetExpires: { type: Date, select: false },
     emailVerificationToken: { type: String, select: false },
@@ -31,20 +43,36 @@ const userSchema = new mongoose.Schema(
     tempPasswordExpires: { type: Date, select: false },
     lastLoginAt: { type: Date },
     savedJobs: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Job' }],
-    savedScholarships: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Scholarship' }],
-    savedAdmissions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Admission' }],
-    savedInternships: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Internship' }],
-    savedIntlScholarships: [{ type: mongoose.Schema.Types.ObjectId, ref: 'IntlScholarship' }],
+    savedScholarships: [
+      { type: mongoose.Schema.Types.ObjectId, ref: 'Scholarship' },
+    ],
+    savedAdmissions: [
+      { type: mongoose.Schema.Types.ObjectId, ref: 'Admission' },
+    ],
+    savedInternships: [
+      { type: mongoose.Schema.Types.ObjectId, ref: 'Internship' },
+    ],
+    savedIntlScholarships: [
+      { type: mongoose.Schema.Types.ObjectId, ref: 'IntlScholarship' },
+    ],
     totalPoints: { type: Number, default: 0 },
     referralCode: { type: String, unique: true, sparse: true },
     referredBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     referralCount: { type: Number, default: 0 },
     rewardPoints: { type: Number, default: 0 },
     recentlyViewedJobs: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Job' }],
-    recentlyViewedScholarships: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Scholarship' }],
-    recentlyViewedAdmissions: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Admission' }],
+    recentlyViewedScholarships: [
+      { type: mongoose.Schema.Types.ObjectId, ref: 'Scholarship' },
+    ],
+    recentlyViewedAdmissions: [
+      { type: mongoose.Schema.Types.ObjectId, ref: 'Admission' },
+    ],
     fcmToken: { type: String, select: false },
-    preferredLanguage: { type: String, enum: ['en', 'ur', 'ar'], default: 'en' },
+    preferredLanguage: {
+      type: String,
+      enum: ['en', 'ur', 'ar'],
+      default: 'en',
+    },
     /** First-time product tour (Phase B.2) — additive, optional */
     onboardingCompleted: { type: Boolean, default: false },
     onboardingGoal: { type: String, trim: true, default: '' },
@@ -56,9 +84,8 @@ const userSchema = new mongoose.Schema(
     careerPreferences: { type: mongoose.Schema.Types.Mixed, default: null },
     // OAuth: googleId, avatar (future GOOGLE_CLIENT_ID integration)
     /**
-     * SEC-3B — additive, dormant field. Not yet read, incremented, or
-     * enforced by any live code path; reserved for the future access-token
-     * invalidation contract defined in
+     * Canonical access-authority version used for global access-token and
+     * refresh-session invalidation, as defined in
      * docs/STRIDETO_AUTHENTICATION_SESSION_SECURITY_ARCHITECTURE_AUDIT.md.
      */
     tokenVersion: {
@@ -67,7 +94,10 @@ const userSchema = new mongoose.Schema(
       min: 0,
       max: Number.MAX_SAFE_INTEGER,
       required: true,
-      validate: { validator: Number.isInteger, message: 'tokenVersion must be an integer' },
+      validate: {
+        validator: Number.isInteger,
+        message: 'tokenVersion must be an integer',
+      },
     },
   },
   { timestamps: true }

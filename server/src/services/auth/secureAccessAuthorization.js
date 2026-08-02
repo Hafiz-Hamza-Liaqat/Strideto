@@ -72,7 +72,7 @@ async function loadVersionBoundUserRole(userModel, subjectId, tokenVersion) {
  *        (SEC-3B, unchanged).
  *   3. Check the mandatory shared denylist using `jti` (§12.1).
  *   4. Fail closed on denylist storage failure.
- *   5-7. Authoritative subject-state + tokenVersion check — the dormant
+ *   5-7. Authoritative subject-state + tokenVersion check — the canonical
  *        `AccessAuthorizationCoordinator` (SEC-3D.4, unchanged).
  *   8. Authorize only once every prior step has passed.
  *
@@ -309,13 +309,11 @@ export function createSecureAccessAuthorization({
   return Object.freeze({ authorizeRequest });
 }
 
-/** Real singleton — constructed only when secure auth is enabled. */
-export const secureAccessAuthorization = secureAuthConfig.enabled
-  ? createSecureAccessAuthorization({
-      userJwtProvider: secureAuthConfig.userJwtProvider,
-      employerJwtProvider: secureAuthConfig.employerJwtProvider,
-      denylistService: createAccessDenylistService({
-        requireSharedStore: secureAuthConfig.requireSharedDenylistStore,
-      }),
-    })
-  : null;
+/** Canonical runtime singleton. */
+export const secureAccessAuthorization = createSecureAccessAuthorization({
+  userJwtProvider: secureAuthConfig.userJwtProvider,
+  employerJwtProvider: secureAuthConfig.employerJwtProvider,
+  denylistService: createAccessDenylistService({
+    requireSharedStore: secureAuthConfig.requireSharedDenylistStore,
+  }),
+});
