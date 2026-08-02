@@ -43,16 +43,22 @@ function trustingOrigin(trusted = true) {
 }
 
 function fakeIssuance(result) {
+  const calls = [];
   return {
-    async issueInitialSession() {
+    calls,
+    async issueInitialSession(args) {
+      calls.push(args);
       return result;
     },
   };
 }
 
 function fakeRefreshCoordinator(result) {
+  const calls = [];
   return {
-    async attemptRefresh() {
+    calls,
+    async attemptRefresh(args) {
+      calls.push(args);
       return result;
     },
   };
@@ -95,8 +101,17 @@ function fakeAccountSecurityMutation(overrides = {}) {
   };
 }
 
-function fakeDenylist(result = { code: 'DENYLISTED' }) {
+function fakeDenylist(
+  result = { code: 'DENYLISTED' },
+  availability = { code: 'AVAILABLE' }
+) {
+  const availabilityCalls = [];
   return {
+    availabilityCalls,
+    async assertAvailable() {
+      availabilityCalls.push(true);
+      return availability;
+    },
     async denylistJti() {
       return result;
     },
@@ -143,6 +158,40 @@ function buildFlows(overrides = {}) {
   );
 }
 
+// --- issueLoginSession: required Redis unavailable before issuance ---------
+{
+  const issuance = fakeIssuance({
+    code: 'SESSION_ISSUED',
+    accessToken: 'must-not-escape',
+    refreshToken: 'must-not-escape',
+  });
+  const denylist = fakeDenylist(
+    { code: 'DENYLISTED' },
+    { code: 'STORAGE_FAILURE' }
+  );
+  const flows = buildFlows({ issuance, denylist });
+  const result = await flows.issueLoginSession({
+    subjectId: SUBJECT_ID,
+    tokenVersion: 0,
+  });
+  check(
+    result.code === 'STORAGE_FAILURE' && result.httpStatus === 503,
+    'Redis outage maps Employer initial issuance to safe 503'
+  );
+  check(
+    result.body?.error === 'Service temporarily unavailable',
+    'Employer issuance reuses the existing safe public error'
+  );
+  check(
+    !('accessToken' in result) && !('refreshToken' in result),
+    'Employer outage result contains no authenticated credential'
+  );
+  check(
+    issuance.calls.length === 0,
+    'Employer token signing and RefreshSession creation are never reached'
+  );
+}
+
 // --- refresh: realm-scoped rotation, no cookie confusion with the user realm --
 {
   const flows = buildFlows();
@@ -151,6 +200,42 @@ function buildFlows(overrides = {}) {
   check(
     result.accessToken === 'a2' && result.refreshToken === 'r2',
     'rotated tokens returned'
+  );
+}
+
+// --- refresh: required Redis unavailable before any session mutation -------
+{
+  const refreshCoordinator = fakeRefreshCoordinator({
+    code: 'REFRESH_ROTATED',
+    accessToken: 'must-not-escape',
+    refreshToken: 'must-not-escape',
+  });
+  const familyRevocation = fakeFamilyRevocation();
+  const denylist = fakeDenylist(
+    { code: 'DENYLISTED' },
+    { code: 'STORAGE_FAILURE' }
+  );
+  const flows = buildFlows({ refreshCoordinator, familyRevocation, denylist });
+  const result = await flows.refresh({ cookieToken: 'unchanged-cookie' });
+  check(
+    result.code === 'STORAGE_FAILURE' && result.httpStatus === 503,
+    'Redis outage maps Employer refresh to safe 503'
+  );
+  check(
+    result.clearCookie === false,
+    'transient outage preserves the Employer cookie'
+  );
+  check(
+    !('accessToken' in result) && !('refreshToken' in result),
+    'Employer outage refresh issues no credential'
+  );
+  check(
+    refreshCoordinator.calls.length === 0,
+    'Employer rotation and token generation are never reached'
+  );
+  check(
+    familyRevocation.calls.length === 0,
+    'Employer outage performs no revoke or family mutation'
   );
 }
 

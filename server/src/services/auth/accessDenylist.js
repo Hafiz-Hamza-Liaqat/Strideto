@@ -60,6 +60,37 @@ export function createAccessDenylistService({
   }
 
   /**
+   * Prove required shared security state is available before credentials
+   * are created or rotated. A cached socket flag is not sufficient: only
+   * a real Redis PING succeeds. The existing client dependency is reused;
+   * this method never constructs another client or reads its configuration.
+   */
+  async function assertAvailable() {
+    let client;
+    try {
+      client = await getClient();
+    } catch {
+      client = null;
+    }
+
+    if (!client) {
+      return Object.freeze({
+        code: requireSharedStore ? 'STORAGE_FAILURE' : 'AVAILABLE',
+      });
+    }
+
+    try {
+      if (typeof client.ping !== 'function') {
+        return Object.freeze({ code: 'STORAGE_FAILURE' });
+      }
+      await client.ping();
+    } catch {
+      return Object.freeze({ code: 'STORAGE_FAILURE' });
+    }
+    return Object.freeze({ code: 'AVAILABLE' });
+  }
+
+  /**
    * Denylist one access token's `jti` for exactly its own remaining
    * lifetime. `ttlSeconds` must be the caller's own computed
    * `exp - nowSeconds` — this module never derives it independently. A
@@ -131,5 +162,9 @@ export function createAccessDenylistService({
     return Object.freeze({ code: 'CHECKED', denylisted: Boolean(value) });
   }
 
-  return Object.freeze({ denylistJti, isJtiDenylisted });
+  return Object.freeze({
+    assertAvailable,
+    denylistJti,
+    isJtiDenylisted,
+  });
 }

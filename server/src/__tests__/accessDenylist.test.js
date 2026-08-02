@@ -18,6 +18,9 @@ function fakeRedisClient() {
   const store = new Map();
   return {
     store,
+    async ping() {
+      return 'PONG';
+    },
     async set(key, value, mode, ttlSeconds) {
       assert.strictEqual(mode, 'EX');
       store.set(key, { value, expiresAt: Date.now() + ttlSeconds * 1000 });
@@ -32,6 +35,78 @@ function fakeRedisClient() {
       return entry.value;
     },
   };
+}
+
+// --- Shared-security-state availability uses a real command -----------------
+{
+  const client = fakeRedisClient();
+  const svc = createAccessDenylistService({
+    requireSharedStore: true,
+    getClient: async () => client,
+  });
+  const result = await svc.assertAvailable();
+  check(result.code === 'AVAILABLE', 'successful PING proves availability');
+}
+
+// --- A stale ready flag cannot override a failed Redis command ---------------
+{
+  const client = {
+    status: 'ready',
+    async ping() {
+      throw new Error('private redis connection detail');
+    },
+  };
+  const svc = createAccessDenylistService({
+    requireSharedStore: true,
+    getClient: async () => client,
+  });
+  const result = await svc.assertAvailable();
+  check(
+    result.code === 'STORAGE_FAILURE',
+    'failed PING is unavailable despite a stale ready flag'
+  );
+  check(
+    Object.keys(result).length === 1,
+    'availability failure returns only the typed safe code'
+  );
+  check(
+    !JSON.stringify(result).includes('private redis'),
+    'raw Redis errors are never returned'
+  );
+}
+
+// --- Required store missing fails closed; restored command succeeds ----------
+{
+  let available = false;
+  const client = {
+    async ping() {
+      if (!available) throw new Error('unavailable');
+      return 'PONG';
+    },
+  };
+  const svc = createAccessDenylistService({
+    requireSharedStore: true,
+    getClient: async () => client,
+  });
+  const before = await svc.assertAvailable();
+  check(before.code === 'STORAGE_FAILURE', 'unavailable command fails closed');
+  available = true;
+  const after = await svc.assertAvailable();
+  check(after.code === 'AVAILABLE', 'a subsequent request succeeds after recovery');
+}
+
+// --- Programming/configuration errors remain constructor errors --------------
+{
+  let constructorError;
+  try {
+    createAccessDenylistService({ getClient: null });
+  } catch (error) {
+    constructorError = error;
+  }
+  check(
+    constructorError instanceof TypeError,
+    'invalid dependency is not mislabeled as a Redis outage'
+  );
 }
 
 // --- Input validation --------------------------------------------------------

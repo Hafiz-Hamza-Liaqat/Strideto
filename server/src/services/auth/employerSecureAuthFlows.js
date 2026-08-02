@@ -60,6 +60,14 @@ export function createEmployerSecureAuthFlows({
     createAccessDenylistService({
       requireSharedStore: secureAuthConfig.requireSharedDenylistStore || false,
     });
+  if (typeof denylist.assertAvailable !== 'function') {
+    throw new TypeError('denylistService exposing assertAvailable is required');
+  }
+
+  async function sharedSecurityStateAvailable() {
+    const result = await denylist.assertAvailable();
+    return result && result.code === 'AVAILABLE';
+  }
 
   function checkOrigin({ origin, referer }) {
     if (!originPolicy) return { trusted: true };
@@ -70,6 +78,13 @@ export function createEmployerSecureAuthFlows({
   }
 
   async function issueLoginSession({ subjectId, tokenVersion }) {
+    if (!(await sharedSecurityStateAvailable())) {
+      return Object.freeze({
+        code: 'STORAGE_FAILURE',
+        httpStatus: 503,
+        body: SAFE_BODIES.SERVICE_UNAVAILABLE,
+      });
+    }
     const result = await issuance.issueInitialSession({
       realm: REALM,
       subjectId,
@@ -106,6 +121,15 @@ export function createEmployerSecureAuthFlows({
         httpStatus: 401,
         body: SAFE_BODIES.REFRESH_UNAUTHORIZED,
         clearCookie: true,
+      });
+    }
+
+    if (!(await sharedSecurityStateAvailable())) {
+      return Object.freeze({
+        code: 'STORAGE_FAILURE',
+        httpStatus: 503,
+        body: SAFE_BODIES.SERVICE_UNAVAILABLE,
+        clearCookie: false,
       });
     }
 
