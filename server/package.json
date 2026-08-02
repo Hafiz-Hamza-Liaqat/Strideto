@@ -12,6 +12,8 @@
     "worker": "node src/worker.js",
     "auth:indexes:verify": "node src/scripts/provisionRefreshSessionIndexes.js --verify",
     "auth:indexes:apply": "node src/scripts/provisionRefreshSessionIndexes.js --apply",
+    "auth:superadmin:verify": "node src/scripts/provisionLocalSuperAdmin.js --verify",
+    "auth:superadmin:apply": "node src/scripts/provisionLocalSuperAdmin.js --apply",
     "seed:users": "node src/scripts/seedUsers.js",
     "seed:listings": "node src/scripts/archive/seed-legacy/seedListings.js",
     "seed:phase4": "node src/scripts/archive/seed-legacy/seedPhase4.js",

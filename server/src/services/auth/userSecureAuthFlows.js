@@ -408,11 +408,22 @@ export function createUserSecureAuthFlows({
   }
 
   async function changeUserRole({ subjectId, expectedPriorRole, newRole }) {
-    return accountSecurityMutation.changeRole({
+    if (!(await sharedSecurityStateAvailable())) {
+      return Object.freeze({ code: 'STORAGE_FAILURE' });
+    }
+    const result = await accountSecurityMutation.changeRole({
       subjectId,
       expectedPriorRole,
       newRole,
     });
+    if (result.code === 'SUBJECT_STATE_UPDATED') {
+      await familyRevocation.revokeAllFamilies({
+        realm: REALM,
+        subjectId,
+        reason: 'role_changed',
+      });
+    }
+    return result;
   }
 
   return Object.freeze({

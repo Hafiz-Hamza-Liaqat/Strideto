@@ -530,7 +530,44 @@ function buildFlows(overrides = {}) {
   });
   check(
     roleResult.code === 'SUBJECT_STATE_UPDATED',
-    'role change delegates to the primitive, no session sweep'
+    'role change delegates to the primitive'
+  );
+  check(
+    familyRevocation.calls.some(
+      ([kind, args]) => kind === 'all' && args.reason === 'role_changed'
+    ),
+    'role change sweeps all User refresh families'
+  );
+}
+
+// --- role change: Redis failure precedes account and session mutation -------------
+{
+  const accountSecurityMutation = fakeAccountSecurityMutation();
+  const familyRevocation = fakeFamilyRevocation();
+  const flows = buildFlows({
+    accountSecurityMutation,
+    familyRevocation,
+    denylist: fakeDenylist(
+      { code: 'DENYLISTED' },
+      { code: 'STORAGE_FAILURE' }
+    ),
+  });
+  const result = await flows.changeUserRole({
+    subjectId: SUBJECT_ID,
+    expectedPriorRole: 'Admin',
+    newRole: 'SuperAdmin',
+  });
+  check(
+    result.code === 'STORAGE_FAILURE',
+    'role change fails closed without Redis'
+  );
+  check(
+    accountSecurityMutation.calls.length === 0,
+    'failed Redis gate prevents role mutation'
+  );
+  check(
+    familyRevocation.calls.length === 0,
+    'failed Redis gate prevents session mutation'
   );
 }
 

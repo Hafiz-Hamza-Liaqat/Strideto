@@ -5,7 +5,7 @@ import { logger } from '../utils/logger.js';
  * Create or promote an Admin user when ADMIN_EMAIL + ADMIN_PASSWORD are set.
  * Safe to call on every boot (idempotent). Does nothing if password env is missing.
  */
-export async function ensureAdminOnBoot() {
+export async function ensureAdminOnBoot({ logIdentity = true } = {}) {
   const email = (process.env.ADMIN_EMAIL || '').trim().toLowerCase();
   const password = process.env.ADMIN_PASSWORD;
   if (!email || !password) {
@@ -19,11 +19,23 @@ export async function ensureAdminOnBoot() {
     user.password = password;
     user.emailVerified = true;
     await user.save();
-    logger.info('admin_ensured', { email, action: 'updated' });
+    logger.info('admin_ensured', {
+      ...(logIdentity ? { email } : {}),
+      action: 'updated',
+    });
     return { skipped: false, action: 'updated', email };
   }
 
-  await User.create({ name, email, password, role: 'Admin', emailVerified: true });
-  logger.info('admin_ensured', { email, action: 'created' });
+  await User.create({
+    name,
+    email,
+    password,
+    role: 'Admin',
+    emailVerified: true,
+  });
+  logger.info('admin_ensured', {
+    ...(logIdentity ? { email } : {}),
+    action: 'created',
+  });
   return { skipped: false, action: 'created', email };
 }
