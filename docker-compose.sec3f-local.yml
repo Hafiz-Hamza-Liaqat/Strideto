@@ -1,0 +1,66 @@
+# Local-only SEC-3F acceptance overlay.
+# Uses .env.staging for secrets and never publishes MongoDB or Redis.
+
+services:
+  mongodb:
+    ports: !override []
+
+  redis:
+    ports: !override []
+
+  api-a:
+    networks:
+      default:
+        aliases:
+          - backend
+    environment:
+      NODE_ENV: production
+      APP_ENV: production
+      STRIDETO_SECURE_AUTH_ENABLED: "1"
+      REQUIRE_REDIS: "1"
+      SITE_URL: https://localhost:8443
+      FRONTEND_URL: https://localhost:8443
+      APP_URL: https://localhost:8443
+      API_ORIGIN: https://localhost:8443
+      CORS_ORIGINS: https://localhost:8443
+      CORS_ALLOW_VERCEL_PREVIEWS: "0"
+
+  api-b:
+    networks:
+      default:
+        aliases:
+          - backend
+    environment:
+      NODE_ENV: production
+      APP_ENV: production
+      STRIDETO_SECURE_AUTH_ENABLED: "1"
+      REQUIRE_REDIS: "1"
+      SITE_URL: https://localhost:8443
+      FRONTEND_URL: https://localhost:8443
+      APP_URL: https://localhost:8443
+      API_ORIGIN: https://localhost:8443
+      CORS_ORIGINS: https://localhost:8443
+      CORS_ALLOW_VERCEL_PREVIEWS: "0"
+
+  worker:
+    profiles:
+      - sec3f-worker-disabled
+
+  frontend:
+    ports: !override []
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: edurozgaar-sec3f-local-caddy
+    restart: unless-stopped
+    depends_on:
+      api-a:
+        condition: service_healthy
+      api-b:
+        condition: service_healthy
+      frontend:
+        condition: service_started
+    ports:
+      - "127.0.0.1:8443:443"
+    volumes:
+      - ./deploy/Caddyfile.sec3f-local:/etc/caddy/Caddyfile:ro

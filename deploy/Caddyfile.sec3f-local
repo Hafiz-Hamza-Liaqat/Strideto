@@ -1,0 +1,16 @@
+https://localhost {
+	tls internal
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy api-a:5000 api-b:5000 {
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Real-IP {remote}
+		}
+	}
+
+	# The frontend container retains the application's SPA fallback behavior.
+	handle {
+		reverse_proxy frontend:80
+	}
+}

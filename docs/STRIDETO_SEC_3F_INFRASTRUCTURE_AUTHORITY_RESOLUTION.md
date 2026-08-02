@@ -1,6 +1,6 @@
 # STRIDETO SEC-3F-A — Infrastructure Authority Resolution
 
-**Status**: documentation only. No external infrastructure was changed, created, or contacted to produce this document. Nothing described as "selected authority" below is claimed to be live unless a section explicitly marks it "Current verified state: CONFIRMED" with cited evidence.
+**Status**: infrastructure authority record. Production DNS/HTTPS evidence and isolated local staging evidence are recorded below. No production infrastructure was changed or deployed by these repository phases.
 
 **Authority for this document**: the SEC-3F real-infrastructure acceptance contract audit does not exist as a committed repository file — no `docs/STRIDETO_SEC_3F_REAL_INFRASTRUCTURE_ACCEPTANCE_CONTRACT_AUDIT.md` was found in this repository at the time of writing. This document instead uses the complete accepted SEC-3F contract-audit output produced earlier in this engagement (verdict: `SEC-3F CONTRACT REQUIRES BOUNDED INFRASTRUCTURE AUTHORITY CORRECTION`) as its authority, alongside `docs/STRIDETO_AUTHENTICATION_SESSION_SECURITY_ARCHITECTURE_AUDIT.md` and `docs/STRIDETO_SEC_3E_ATOMIC_AUTHENTICATION_CUTOVER_IMPLEMENTATION_REPORT.md`, both read in full for this document.
 
@@ -28,9 +28,7 @@ The custom API domain must, once bound:
 - preserve forwarded HTTPS information (`X-Forwarded-Proto`) to the API process;
 - remain compatible with the existing `trust proxy: 1` single-hop configuration (`server/src/config/proxy.js`) — no additional untrusted hop may be introduced by whatever binds the custom domain.
 
-**Current verified state**: `https://www.strideto.com` is live (Vercel-served SPA, confirmed by `docs/POST_RELEASE_PRODUCTION_ACCEPTANCE_REPORT.md`, dated 2026-07-27). `https://api.strideto.com` is **not** currently the live API host — the same report's own "Production targets" and health-check evidence both target `https://strideto.onrender.com/api` directly. `docs/DNS_CHECKLIST.md` and `docs/RENDER_CONFIGURATION.md` both describe `api.strideto.com` as an intended custom-domain binding, not a completed one. No DNS record for `api.strideto.com` is confirmed live anywhere in the repository's evidence.
-
-**External action required**: bind and verify the `api.strideto.com` custom domain on the Render web service, with DNS pointed and TLS issued, before any further SEC-3F progress that depends on same-site cookie behavior.
+**Current verified state**: `https://www.strideto.com` resolves and serves the Vercel SPA over HTTPS, and the apex redirects to `https://www.strideto.com/`. `api.strideto.com` resolves by CNAME to `strideto.onrender.com`; HTTPS certificate validation succeeds without bypass, `/api/health` returns HTTP 200, the final URL remains `https://api.strideto.com/api/health`, and the request performs zero redirects to the provider hostname.
 
 ---
 
@@ -173,9 +171,9 @@ This produces same-origin browser/API staging traffic, which is compatible with 
 
 **Client compatibility (verified this phase, no code change required)**: `client/src/constants/index.js` defines `API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'` (build-time inlined, per `docs/VERCEL_CONFIGURATION.md`'s own "Rebuild after any `VITE_*` change" note). Setting `VITE_API_URL=https://staging.strideto.com/api` (or a relative `/api`, if the staging frontend and API are ever served from literally the same host/port through Caddy) requires no source change — the client already supports this topology as-is.
 
-**Current verified state**: `docs/STAGING_DEPLOYMENT.md` itself describes pointing `staging.strideto.com` DNS and uncommenting the staging block in `deploy/Caddyfile` as outstanding setup steps ("1. Point `staging.strideto.com` DNS... 2. Uncomment staging block..."), not completed actions. No repository evidence confirms this stack is currently running or reachable. `docs/DNS_CHECKLIST.md` lists `staging.strideto.com` only as "Optional."
+**Current verified state**: the isolated local SEC-3F stack is running at `https://localhost:8443` through an internal Caddy certificate. Its frontend, MongoDB, Redis, `api-a`, and `api-b` services are healthy, and Caddy returns HTTP 200 for `/api/health`. Public `staging.strideto.com` DNS and reachability remain unresolved; local staging evidence is not public or production infrastructure acceptance.
 
-**External action required**: stand up (or confirm already running) the Docker Compose staging stack, point `staging.strideto.com` DNS to the VPS, uncomment and reload the Caddy staging block, and verify reachability — before SEC-3F Stage 1 execution.
+**External action required**: provision and verify public `staging.strideto.com` DNS/hosting separately. The running localhost stack is the authorized SEC-3F acceptance target for the next phase but does not satisfy public staging or production infrastructure acceptance.
 
 ---
 
@@ -193,13 +191,13 @@ RefreshSession records: staging-only
 Denylist keys:     staging-only
 ```
 
-Staging must never use production users, production employers, production staff accounts, the production MongoDB database, the production Redis instance, production secrets, or production session records. `docker-compose.staging.yml` already declares dedicated `mongodb` and `redis` services distinct from any production connection string, which is consistent with this requirement — but their actual live, reachable, provisioned status is unverified (§7).
+Staging must never use production users, production employers, production staff accounts, the production MongoDB database, the production Redis instance, production secrets, or production session records. The running local stack uses dedicated Compose `mongodb` and `redis` services with no host-public database ports; this proves local service isolation, not production provisioning or public staging authority.
 
 ---
 
 ## 9. Two-instance staging authority
 
-**Current verified state**: `docker-compose.staging.yml` now defines two API services, `api-a` and `api-b`, using shared staging configuration, MongoDB, Redis, secrets, and trusted-origin authority. Both expose distinct loopback-only ports for controlled direct testing. `deploy/Caddyfile` now configures staging `/api` traffic with both services as upstreams. The staging stack has not been started, so live concurrent execution and cross-instance behavior remain unverified.
+**Current verified state**: `api-a` and `api-b` are configured and running concurrently in isolated local staging. Their direct loopback health endpoints both return HTTP 200 with MongoDB and Redis reported `up`, and both use the same local Compose MongoDB and Redis services. Caddy dual-upstream routing is configured and its `/api/health` endpoint returns HTTP 200. Cross-instance authentication, logout, and concurrency behavior remain untested.
 
 Frozen requirement:
 
@@ -213,7 +211,7 @@ Both instances must share: staging MongoDB, staging Redis, `JWT_SECRET`, `REFRES
 
 **Not accepted as multi-instance evidence** (per the SEC-3F contract, restated here for this document's own gate in §13 below): one API container restarted twice; the Render worker process; two requests to one process; two browser tabs against one process.
 
-Repository configuration now satisfies the dual-service topology prerequisite. Live evidence still requires starting the isolated staging stack and proving two identifiable API processes run concurrently against the shared staging MongoDB and Redis services.
+Repository configuration and isolated local liveness evidence satisfy the dual-service topology prerequisite. Authentication-level cross-instance evidence is still required before Gate E can pass.
 
 ---
 
@@ -237,9 +235,9 @@ refresh_session_current_token_hash_unique    { currentTokenHash: 1 }, unique
 refresh_session_previous_token_hash          { previousTokenHash: 1 }, sparse
 ```
 
-**Current verified state**: a safe `provisionRefreshSessionIndexes.js` utility now implements verification-only-by-default inspection and confirmation-gated creation of missing schema-defined indexes. It never drops or replaces indexes, and its output is limited to safe index names and statuses. No database connection occurred in this implementation phase, no indexes were created, and no evidence yet confirms these indexes exist in any live database (production or staging). Given `autoCreate: false`, they will **not** silently appear.
+**Current verified state**: the safe `provisionRefreshSessionIndexes.js` utility implements verification-only-by-default inspection and confirmation-gated creation of missing schema-defined indexes. Against isolated local staging, guarded apply safely handled an absent first-run collection, invoked schema index creation, and verified implicit `_id` plus all four named indexes as matching. No index was dropped or replaced and no `RefreshSession` document was modified. Production indexes remain unverified.
 
-**Deployment gate**: index provisioning must be an explicit, bounded, evidenced step using the implemented verify/apply utility before any SEC-3F browser scenario begins, in whichever database (staging first) is targeted for that scenario. Live staging verification remains pending, and no index creation was performed by this phase.
+**Deployment gate**: index readiness is met for isolated local staging only. Production provisioning and verification remain separate explicit operator actions and have not occurred.
 
 ---
 
@@ -251,7 +249,7 @@ Staging must permit controlled simulation of: MongoDB unavailable; Redis unavail
 Production is never used for SEC-3F outage testing.
 ```
 
-**Current verified state**: the Docker Compose staging model, if actually running, would structurally support this (independent containers that can be stopped/started via `deploy/staging-down.sh`/`deploy/staging-up.sh`), but this capability is unverified until §7's staging-liveness action is completed. If the staging environment cannot be confirmed to provide safe, isolated outage control once live, SEC-3F remains blocked on this gate regardless of every other gate's status.
+**Current verified state**: the isolated local Docker Compose services are running independently, but controlled outage and recovery scenarios have not been executed. Gate G remains unmet until those bounded local-only tests prove safe outage control without touching production.
 
 ---
 
@@ -261,7 +259,7 @@ No code deployment occurred in this phase. The following order is frozen for a l
 
 **Step 1 — Infrastructure preparation**: provision production Redis; provision isolated staging MongoDB; provision isolated staging Redis; provision/confirm the configured dual-instance staging frontend+API stack; verify both configured staging API instances run concurrently; use the guarded index-readiness utility against staging; prepare maintenance/rollback controls.
 
-**Step 2 — Domain preparation**: bind `api.strideto.com` to the Render API service; configure DNS; enable TLS; verify no redirect to the provider hostname; verify `www.strideto.com` remains canonical; verify the apex redirects to `www`.
+**Step 2 — Domain preparation**: completed and evidenced for INFRA-A1 through INFRA-A4; continue treating `www.strideto.com` and `api.strideto.com` as the frozen production authority.
 
 **Step 3 — Environment preparation**: update production Render variables to the exact canonical origins (§3); update staging variables identically for the staging host; set `CORS_ALLOW_VERCEL_PREVIEWS=0`; verify all secrets present/valid-shape without printing values (§6).
 
@@ -301,10 +299,10 @@ Authorized responses to a staging boot failure: correct missing staging variable
 
 | ID | Action | Environment | Owner authority needed | Evidence required | Security stop condition | Status |
 |----|--------|-------------|------------------------|--------------------|--------------------------|--------|
-| INFRA-A1 | Confirm canonical `www` frontend | Production | Vercel/domain admin | DNS + HTTPS check against `www.strideto.com`; apex redirect confirmed | Apex serves the SPA directly without redirecting | PARTIALLY CONFIRMED — frontend host liveness is evidenced; apex-to-www redirect behavior has not yet been independently verified. |
-| INFRA-A2 | Bind `api.strideto.com` | Production | Render + DNS admin | DNS record + Render custom-domain dashboard screenshot; TLS cert issued | Requests silently resolve to `strideto.onrender.com` instead | UNRESOLVED |
-| INFRA-A3 | Configure API TLS | Production | Render/DNS admin | Valid cert for `api.strideto.com`, hostname match | Cert mismatch or HTTP fallback | UNRESOLVED |
-| INFRA-A4 | Verify no `onrender.com` redirect | Production | Render admin | Direct request to `api.strideto.com` shows no redirect to the provider domain | Any redirect/rewrite to `*.onrender.com` in a browser-visible response | UNRESOLVED |
+| INFRA-A1 | Confirm canonical `www` frontend | Production | Vercel/domain admin | DNS + HTTPS check against `www.strideto.com`; apex redirect confirmed | Apex serves the SPA directly without redirecting | CONFIRMED — `www` resolves and serves HTTPS; the apex redirects to `www` |
+| INFRA-A2 | Bind `api.strideto.com` | Production | Render + DNS admin | DNS record + Render custom-domain dashboard screenshot; TLS cert issued | Requests silently resolve to `strideto.onrender.com` instead | CONFIRMED — `api.strideto.com` resolves by CNAME to `strideto.onrender.com` |
+| INFRA-A3 | Configure API TLS | Production | Render/DNS admin | Valid cert for `api.strideto.com`, hostname match | Cert mismatch or HTTP fallback | CONFIRMED — certificate validation succeeds and `/api/health` returns HTTP 200 |
+| INFRA-A4 | Verify no `onrender.com` redirect | Production | Render admin | Direct request to `api.strideto.com` shows no redirect to the provider domain | Any redirect/rewrite to `*.onrender.com` in a browser-visible response | CONFIRMED — final URL remains on `api.strideto.com` with zero redirects |
 | INFRA-A5 | Correct exact frontend origins | Production | Render env admin | `SITE_URL`/`FRONTEND_URL`/`APP_URL` on the live Render dashboard equal `https://www.strideto.com` | Deployed values still equal the template's apex value | UNRESOLVED |
 | INFRA-A6 | Disable Vercel preview CORS | Production + staging | Render env admin | `CORS_ALLOW_VERCEL_PREVIEWS=0` set on both | Value left unset/`1` | UNRESOLVED |
 | INFRA-A7 | Provision production Redis | Production | Infra/DB admin | `REDIS_URL` present on Render; health check no longer reports `redis: disabled` | Deploy proceeds without Redis provisioned | UNRESOLVED |
@@ -312,22 +310,22 @@ Authorized responses to a staging boot failure: correct missing staging variable
 | INFRA-A9 | Confirm `staging.strideto.com` DNS | Staging | DNS admin | DNS resolves; Caddy staging block active | Staging traffic silently falls back to an unintended host | UNRESOLVED |
 | INFRA-A10 | Provision isolated staging MongoDB | Staging | Infra/DB admin | Distinct DB name/cluster from production, confirmed via read-only inspection | Staging points at the production database | UNRESOLVED |
 | INFRA-A11 | Provision isolated staging Redis | Staging | Infra admin | Distinct instance/namespace from production | Staging points at the production Redis instance | UNRESOLVED |
-| INFRA-A12 | Run two staging API instances | Staging | Infra/deploy admin | Two distinct, identifiable running processes sharing staging Mongo/Redis/secrets | Only one process, or two processes with unshared state | NOT EXECUTED — `api-a`, `api-b`, shared staging MongoDB/Redis, distinct loopback access, and Caddy dual-upstream routing are configured; live concurrent execution remains unverified |
-| INFRA-A13 | Provision `RefreshSession` indexes | Staging (then production, separately) | DB admin | Utility verification output matching §10's five required indexes | Any required index missing before browser execution begins | NOT EXECUTED — guarded verify/apply tooling is implemented, but no database connection or index creation occurred and live staging verification remains pending |
+| INFRA-A12 | Run two staging API instances | Staging | Infra/deploy admin | Two distinct, identifiable running processes sharing staging Mongo/Redis/secrets | Only one process, or two processes with unshared state | PARTIALLY CONFIRMED — both local APIs run and return HTTP 200 against shared local MongoDB/Redis; Caddy dual-upstream routing is configured; authentication-level cross-instance behavior remains untested |
+| INFRA-A13 | Provision `RefreshSession` indexes | Staging (then production, separately) | DB admin | Utility verification output matching §10's five required indexes | Any required index missing before browser execution begins | CONFIRMED FOR ISOLATED LOCAL STAGING — guarded first-run creation and verification matched `_id` plus all four named indexes; production indexes remain unverified |
 | INFRA-A14 | Prepare outage controls | Staging | Infra admin | Documented, tested stop/start procedure for Mongo/Redis/API containers, isolated from production | Any outage test touches production | UNRESOLVED |
 | INFRA-A15 | Prepare staging test accounts | Staging | QA/infra admin | Staging-only User/Employer/staff accounts, no real personal data, cleanup plan | Reuse of any production account | NOT EXECUTED |
 | INFRA-A16 | Prepare maintenance/rollback control | Production + staging | Infra admin | Documented maintenance-mode toggle; confirmed it does not require legacy-mode fallback | Rollback plan relies on a prohibited legacy path (§13) | NOT EXECUTED |
 
-No action is marked `CONFIRMED` without complete cited evidence. INFRA-A1 remains `PARTIALLY CONFIRMED` because frontend liveness is evidenced but apex-to-www redirect behavior remains unverified.
+Production domain actions INFRA-A1 through INFRA-A4 are confirmed by direct DNS and HTTPS evidence. INFRA-A13 is confirmed only for isolated local staging, not production.
 
-Action status counts after the dual-instance repository correction:
+Action status counts after the domain and isolated-local-staging evidence update:
 
 ```text
-CONFIRMED:           0
+CONFIRMED:           5
 PARTIALLY CONFIRMED: 1
-UNRESOLVED:         11
+UNRESOLVED:          8
 BLOCKED:             0
-NOT EXECUTED:        4
+NOT EXECUTED:        2
 TOTAL:              16
 ```
 
@@ -339,7 +337,7 @@ TOTAL:              16
 Gate A — Production domain authority
   Pass only when: www.strideto.com is canonical; api.strideto.com is bound;
   both are HTTPS; both share strideto.com; API requests stay on api.strideto.com.
-  Status: NOT MET (INFRA-A2/A3/A4 unresolved)
+  Status: MET (INFRA-A1/A2/A3/A4 confirmed)
 
 Gate B — Exact origin authority
   Pass only when deployed production configuration includes the real
@@ -358,13 +356,13 @@ Gate D — Staging availability
 Gate E — Two-instance capability
   Pass only when two real API processes can run concurrently against
   shared staging MongoDB/Redis.
-  Status: NOT MET (INFRA-A12 NOT EXECUTED — dual-service Compose and
-  Caddy routing are configured, but live concurrent execution is unverified)
+  Status: NOT MET (INFRA-A12 PARTIALLY CONFIRMED — local liveness is
+  proven, but cross-instance authentication/logout/concurrency is untested)
 
 Gate F — Index readiness
   Pass only when all committed RefreshSession indexes exist in staging.
-  Status: NOT MET (INFRA-A13 NOT EXECUTED — safe tooling exists, but live
-  staging verification and any required index creation remain pending)
+  Status: MET FOR ISOLATED LOCAL STAGING ONLY (INFRA-A13 confirmed locally;
+  production indexes remain unverified)
 
 Gate G — Outage-control readiness
   Pass only when MongoDB/Redis/API outages can be simulated safely in
@@ -372,7 +370,7 @@ Gate G — Outage-control readiness
   Status: NOT MET (INFRA-A14 unresolved, depends on Gate D)
 ```
 
-SEC-3F execution remains blocked until all seven gates pass. None currently pass.
+SEC-3F authentication acceptance remains pending until the remaining gates and cross-instance scenarios pass. SEC-3G remains blocked.
 
 ---
 
@@ -380,11 +378,10 @@ SEC-3F execution remains blocked until all seven gates pass. None currently pass
 
 This document does **not** claim, and no reader should infer, that:
 
-- `api.strideto.com` is currently bound — it is not, per §1's cited evidence;
 - Redis is currently provisioned for production — it is not, per §5's cited evidence;
-- staging is currently live — its liveness is unconfirmed, per §7;
-- two API instances are currently running anywhere — repository configuration exists, but live execution is unverified, per §9;
-- indexes currently exist in any staging database — unconfirmed, per §10;
+- public `staging.strideto.com` is currently live — public DNS remains unresolved; only isolated local staging is running, per §7;
+- cross-instance authentication behavior is accepted — only service liveness and shared-infrastructure health are proven, per §9;
+- production RefreshSession indexes exist — only isolated local staging indexes are verified, per §10;
 - SEC-3F is ready to execute — it is not; every gate in §15 is unmet;
 - production is ready to deploy this checkpoint — it is not, and deploying it in the current state would crash-loop the live API (§5).
 
@@ -392,4 +389,4 @@ This document does **not** claim, and no reader should infer, that:
 
 ## 17. Next safe step
 
-Run one strict read-only acceptance audit of this document. If accepted, checkpoint it (documentation-only commit) before any external operator action begins. The external actions in §14 must then be completed and evidenced — each moving from `UNRESOLVED`/`BLOCKED`/`NOT EXECUTED` to `CONFIRMED` with cited evidence — before the SEC-3F contract can be re-audited and potentially return an execution-ready verdict.
+Run SEC-3F-F real authentication acceptance against the running isolated local stack. Production Redis, production index verification, public staging DNS, and all remaining operator actions stay deferred; local evidence must not be treated as production acceptance.

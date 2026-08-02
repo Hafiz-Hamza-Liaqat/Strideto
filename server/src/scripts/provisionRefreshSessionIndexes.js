@@ -144,15 +144,50 @@ export function compareRefreshSessionIndexes(expected, actual) {
   };
 }
 
-export function buildSafeApplyPlan(comparison) {
+export function buildSafeApplyPlan(
+  comparison,
+  { collectionExists = true } = {}
+) {
   if (comparison.mismatched.length > 0) {
     throw new IndexReadinessError('MISMATCHED_INDEX_REQUIRES_OPERATOR_REVIEW');
   }
-  if (comparison.missing.some(({ implicit }) => implicit)) {
+  if (
+    collectionExists &&
+    comparison.missing.some(({ implicit }) => implicit)
+  ) {
     throw new IndexReadinessError('IMPLICIT_ID_INDEX_MISSING');
   }
 
   return comparison.missing.filter(({ implicit }) => !implicit);
+}
+
+export function isNamespaceNotFoundError(error) {
+  if (!error || typeof error !== 'object') return false;
+  const candidates = [error, error.errorResponse, error.cause].filter(
+    (candidate) => candidate && typeof candidate === 'object'
+  );
+
+  return candidates.some(
+    (candidate) =>
+      Number(candidate.code) === 26 ||
+      candidate.code === 'NamespaceNotFound' ||
+      candidate.codeName === 'NamespaceNotFound'
+  );
+}
+
+export async function inspectIndexesSafely(readIndexes) {
+  try {
+    return {
+      collectionExists: true,
+      indexes: await readIndexes(),
+    };
+  } catch (error) {
+    if (!isNamespaceNotFoundError(error)) throw error;
+    return {
+      collectionExists: false,
+      indexes: [],
+    };
+  }
 }
 
 export function assertApplyConfirmation(mode, environment = process.env) {
@@ -193,7 +228,36 @@ export function comparisonOutput(comparison) {
 }
 
 async function inspectCurrentIndexes() {
-  return RefreshSession.collection.indexes();
+  return inspectIndexesSafely(() => RefreshSession.collection.indexes());
+}
+
+export async function executeIndexReadiness({
+  mode,
+  expected,
+  inspectIndexes,
+  createSchemaIndexes,
+  output,
+}) {
+  let inspection = await inspectIndexes();
+  let comparison = compareRefreshSessionIndexes(expected, inspection.indexes);
+  output(comparisonOutput(comparison));
+
+  if (mode === 'verify') {
+    return { exitCode: comparison.ok ? 0 : 1, comparison };
+  }
+
+  const applyPlan = buildSafeApplyPlan(comparison, {
+    collectionExists: inspection.collectionExists,
+  });
+  if (applyPlan.length > 0) {
+    for (const index of applyPlan) output(`CREATE ${index.name}`);
+    await createSchemaIndexes();
+    inspection = await inspectIndexes();
+    comparison = compareRefreshSessionIndexes(expected, inspection.indexes);
+    output(comparisonOutput(comparison));
+  }
+
+  return { exitCode: comparison.ok ? 0 : 1, comparison };
 }
 
 async function executeDatabaseMode(mode, environment, output) {
@@ -205,26 +269,14 @@ async function executeDatabaseMode(mode, environment, output) {
   const expected = expectedRefreshSessionIndexes();
   try {
     await mongoose.connect(environment.MONGO_URI);
-    let comparison = compareRefreshSessionIndexes(
+    const result = await executeIndexReadiness({
+      mode,
       expected,
-      await inspectCurrentIndexes()
-    );
-    output(comparisonOutput(comparison));
-
-    if (mode === 'verify') return comparison.ok ? 0 : 1;
-
-    const applyPlan = buildSafeApplyPlan(comparison);
-    if (applyPlan.length > 0) {
-      for (const index of applyPlan) output(`CREATE ${index.name}`);
-      await RefreshSession.createIndexes();
-      comparison = compareRefreshSessionIndexes(
-        expected,
-        await inspectCurrentIndexes()
-      );
-      output(comparisonOutput(comparison));
-    }
-
-    return comparison.ok ? 0 : 1;
+      inspectIndexes: inspectCurrentIndexes,
+      createSchemaIndexes: () => RefreshSession.createIndexes(),
+      output,
+    });
+    return result.exitCode;
   } finally {
     await mongoose.disconnect().catch(() => undefined);
   }

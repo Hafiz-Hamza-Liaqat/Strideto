@@ -9,8 +9,11 @@ import {
   buildSafeApplyPlan,
   compareRefreshSessionIndexes,
   comparisonOutput,
+  executeIndexReadiness,
   expectedRefreshSessionIndexes,
   helpText,
+  inspectIndexesSafely,
+  isNamespaceNotFoundError,
   parseCliMode,
   REQUIRED_REFRESH_SESSION_INDEX_NAMES,
 } from '../scripts/provisionRefreshSessionIndexes.js';
@@ -169,6 +172,140 @@ strictEqual(
   'safe output may contain index names'
 );
 ok(safeText.includes('STATUS NOT_READY'), 'safe output must contain readiness status');
+
+strictEqual(
+  isNamespaceNotFoundError({ code: 26 }),
+  true,
+  'numeric NamespaceNotFound code must be recognized'
+);
+strictEqual(
+  isNamespaceNotFoundError({ codeName: 'NamespaceNotFound' }),
+  true,
+  'NamespaceNotFound codeName must be recognized'
+);
+strictEqual(
+  isNamespaceNotFoundError({ errorResponse: { code: 26 } }),
+  true,
+  'nested driver NamespaceNotFound shape must be recognized'
+);
+strictEqual(
+  isNamespaceNotFoundError({ code: 13, codeName: 'Unauthorized' }),
+  false,
+  'unrelated database errors must not be treated as collection absence'
+);
+
+const absentInspection = await inspectIndexesSafely(async () => {
+  throw Object.assign(new Error('safe test error'), {
+    code: 26,
+    codeName: 'NamespaceNotFound',
+  });
+});
+strictEqual(
+  absentInspection.collectionExists,
+  false,
+  'NamespaceNotFound must report an absent collection'
+);
+deepStrictEqual(
+  absentInspection.indexes,
+  [],
+  'absent collection must have no indexes'
+);
+
+const unrelatedError = Object.assign(new Error('unrelated safe test error'), {
+  code: 13,
+  codeName: 'Unauthorized',
+});
+await assert.rejects(
+  () =>
+    inspectIndexesSafely(async () => {
+      throw unrelatedError;
+    }),
+  (error) => error === unrelatedError
+);
+assertions += 1;
+
+const absentComparison = compareRefreshSessionIndexes(
+  expected,
+  absentInspection.indexes
+);
+strictEqual(
+  absentComparison.missing.length,
+  5,
+  'absent collection must report implicit and named indexes missing'
+);
+strictEqual(
+  comparisonOutput(absentComparison).includes('MISSING _id_'),
+  true,
+  'absent collection output must report implicit _id safely'
+);
+const firstRunPlan = buildSafeApplyPlan(absentComparison, {
+  collectionExists: false,
+});
+deepStrictEqual(
+  firstRunPlan.map(({ name }) => name),
+  REQUIRED_REFRESH_SESSION_INDEX_NAMES,
+  'first-run apply plan must contain only schema-defined named indexes'
+);
+strictEqual(
+  firstRunPlan.some(({ implicit }) => implicit),
+  false,
+  '_id must never be planned for manual creation'
+);
+
+let verifyCreates = 0;
+const verifyOutputs = [];
+const verifyAbsent = await executeIndexReadiness({
+  mode: 'verify',
+  expected,
+  inspectIndexes: async () => absentInspection,
+  createSchemaIndexes: async () => {
+    verifyCreates += 1;
+  },
+  output: (line) => verifyOutputs.push(line),
+});
+strictEqual(verifyAbsent.exitCode, 1, 'absent verify must fail readiness');
+strictEqual(verifyCreates, 0, 'verify mode must never request index creation');
+strictEqual(
+  verifyOutputs.join('\n').includes('STATUS NOT_READY'),
+  true,
+  'absent verify must emit a safe not-ready status'
+);
+
+let applyInspections = 0;
+let applyCreates = 0;
+const applyOutputs = [];
+const applyFirstRun = await executeIndexReadiness({
+  mode: 'apply',
+  expected,
+  inspectIndexes: async () => {
+    applyInspections += 1;
+    return applyInspections === 1
+      ? absentInspection
+      : { collectionExists: true, indexes: matchingActual };
+  },
+  createSchemaIndexes: async () => {
+    applyCreates += 1;
+  },
+  output: (line) => applyOutputs.push(line),
+});
+strictEqual(applyCreates, 1, 'first-run apply must request schema creation once');
+strictEqual(applyInspections, 2, 'first-run apply must re-inspect after creation');
+strictEqual(applyFirstRun.exitCode, 0, 'matching re-verification must pass');
+strictEqual(
+  applyFirstRun.comparison.ok,
+  true,
+  'post-creation comparison must be ready'
+);
+strictEqual(
+  applyOutputs.join('\n').includes('CREATE _id_'),
+  false,
+  'apply output must never claim manual _id creation'
+);
+strictEqual(
+  applyOutputs.join('\n').includes(secret),
+  false,
+  'first-run output must not expose credential text'
+);
 
 console.log(
   `provisionRefreshSessionIndexes tests passed (${assertions} assertions).`
