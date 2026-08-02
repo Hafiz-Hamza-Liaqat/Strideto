@@ -7,11 +7,9 @@ import {
 const { ObjectId } = mongoose.Schema.Types;
 
 /**
- * SEC-3B — dormant model. One document represents one complete refresh
+ * Canonical refresh-session model. One document represents one complete refresh
  * session family (not one document per rotation generation). `_id` is the
- * stable family identifier and doubles as the future JWT `sid` claim.
- *
- * Not imported by any live route, controller, or middleware. Authority:
+ * stable family identifier and doubles as the JWT `sid` claim. Authority:
  * docs/STRIDETO_AUTHENTICATION_SESSION_SECURITY_ARCHITECTURE_AUDIT.md §21.
  */
 const refreshSessionSchema = new mongoose.Schema(

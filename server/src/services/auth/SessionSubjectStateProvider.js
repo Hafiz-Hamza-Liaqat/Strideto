@@ -3,11 +3,10 @@ import { Employer } from '../../models/Employer.js';
 import { isKnownRealm } from './AuthSessionPrimitiveContracts.js';
 
 /**
- * SEC-3C — dormant, authoritative subject-state provider implementing the
+ * Canonical authoritative subject-state provider implementing the
  * §24 "Option A" baseline: a direct, minimal-projection MongoDB read on
  * every call, no cache, no Redis, no process-local fallback, zero
- * staleness by construction. Not imported by any live route, controller,
- * or middleware. Performs no writes. Authority:
+ * staleness by construction. Performs no writes. Authority:
  * docs/STRIDETO_AUTHENTICATION_SESSION_SECURITY_ARCHITECTURE_AUDIT.md §24.
  *
  * The models are dependency-injected (default to the real `User`/

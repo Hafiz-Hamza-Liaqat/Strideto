@@ -1,8 +1,8 @@
 /**
- * SEC-3B — dormant contracts shared by the RefreshSession model, the
+ * Canonical contracts shared by the RefreshSession model, the
  * rotation service, and the JWT session provider. Pure data/constants and
- * an error class only — no Mongoose, no I/O, no live route imports this
- * yet. Authority: docs/STRIDETO_AUTHENTICATION_SESSION_SECURITY_ARCHITECTURE_AUDIT.md
+ * an error class only — no Mongoose and no I/O. Authority:
+ * docs/STRIDETO_AUTHENTICATION_SESSION_SECURITY_ARCHITECTURE_AUDIT.md
  * (§21, §22, §19A).
  */
 
@@ -38,10 +38,10 @@ export const REFRESH_SESSION_REVOKE_REASONS = Object.freeze([
 /** §22/§23 — the accepted, tested benign-concurrency window. Not a guess. */
 export const REFRESH_SESSION_CONCURRENCY_WINDOW_MS = 15000;
 
-/** Default absolute session lifetime, matching today's REFRESH_EXPIRES_IN default (7d). */
+/** Source-controlled absolute refresh-session lifetime: seven days. */
 export const REFRESH_SESSION_DEFAULT_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
-/** Outcome codes returned by the dormant rotation service (§22 steps 5-8). */
+/** Outcome codes returned by the rotation service (§22 steps 5-8). */
 export const REFRESH_ROTATION_RESULT_CODES = Object.freeze([
   'ROTATED',
   'CONFLICT_BENIGN',

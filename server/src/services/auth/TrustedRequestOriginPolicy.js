@@ -1,6 +1,6 @@
 /**
- * SEC-3C — dormant trusted-request-origin policy. Pure, dependency-free
- * logic; not wired into Express, CORS, or any route. Authority:
+ * Canonical trusted-request-origin policy. Pure, dependency-free logic.
+ * Authority:
  * docs/STRIDETO_AUTHENTICATION_SESSION_SECURITY_ARCHITECTURE_AUDIT.md §19.
  *
  * Mirrors `config/cors.js`'s own exact-match-against-a-Set approach
@@ -13,8 +13,7 @@
  * the checkpointed architecture report directly (no other passage
  * declares it authoritative). This module therefore implements no marker
  * evaluator. Strict Origin/Referer validation below is the sole
- * authoritative dormant primitive this module provides; exact
- * forced-preflight marker selection, if any, is deferred to SEC-3E.
+ * authoritative primitive this module provides.
  */
 
 function isNonEmptyString(value) {

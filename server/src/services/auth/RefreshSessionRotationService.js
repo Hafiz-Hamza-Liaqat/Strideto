@@ -5,11 +5,10 @@ import {
 } from './RefreshSessionContracts.js';
 
 /**
- * SEC-3B — dormant rotation service implementing the exact one-successor
+ * Canonical rotation service implementing the exact one-successor
  * CAS contract from
  * docs/STRIDETO_AUTHENTICATION_SESSION_SECURITY_ARCHITECTURE_AUDIT.md §22.
- * Not imported by any live route, controller, or middleware. The model is
- * dependency-injected (mirrors
+ * The model is dependency-injected (mirrors
  * services/publishing/outbox/MongoosePublishingOutboxRepository.js) so
  * tests never need a live MongoDB connection.
  *

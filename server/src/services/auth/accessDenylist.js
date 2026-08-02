@@ -4,17 +4,14 @@ import { getRedisClient } from '../../config/redis.js';
  * SEC-3E — jti-keyed access-token denylist, built to the exact hardening
  * contract frozen in
  * docs/STRIDETO_SEC_3D_REVOCATION_ACCOUNT_STATE_READINESS_AUDIT.md §12.1.
- * Deliberately independent of the legacy `utils/tokenStore.js` denylist
- * (which keys on `sha256(rawToken)` and uses a fixed 1h TTL) — that module
- * is left completely untouched by this phase; its removal is SEC-3G's job,
- * not this one's. Key material here is the token's own `jti` claim, never
- * the raw token or a hash of it.
+ * Key material is the token's own `jti` claim, never the raw token or a
+ * hash of it.
  *
- * In production secure mode, a missing/unreachable shared store fails
+ * In production, a missing/unreachable shared store fails
  * every check and every write closed (`STORAGE_FAILURE`) — it never
  * silently falls back to a process-local `Map`, per §12.1's explicit
  * "no process-local fallback path may exist in the production code path
- * at all." Outside that mode (local development, or automated tests that
+ * at all." In local development or automated tests that
  * construct this service directly), an in-memory fallback keeps the
  * module usable without a real Redis instance.
  */

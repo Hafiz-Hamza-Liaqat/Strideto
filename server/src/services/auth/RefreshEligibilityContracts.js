@@ -1,9 +1,9 @@
 import { REFRESH_SESSION_SUBJECT_TYPES } from './RefreshSessionContracts.js';
 
 /**
- * SEC-3D.3 — dormant contracts for the refresh-eligibility and
- * post-rotation revalidation coordinator. Pure data/constants only — no
- * Mongoose, no I/O, no live route imports this yet. Authority:
+ * Canonical contracts for the refresh-eligibility and post-rotation
+ * revalidation coordinator. Pure data/constants only — no Mongoose and no
+ * I/O. Authority:
  * docs/STRIDETO_SEC_3D_REVOCATION_ACCOUNT_STATE_READINESS_AUDIT.md
  * (§11, §14.4, §18).
  */

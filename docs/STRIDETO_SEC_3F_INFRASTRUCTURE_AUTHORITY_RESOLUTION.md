@@ -135,7 +135,6 @@ REQUIRE_REDIS=<operationally recommended =1, for accurate health-probe reporting
 Before any deployment of this checkpoint to production, all of the following must be true on the live Render web (and worker, where applicable) service:
 
 ```text
-STRIDETO_SECURE_AUTH_ENABLED=1
 JWT_SECRET=<present, valid>
 REFRESH_SECRET=<present, valid>
 JWT_SECRET != REFRESH_SECRET
@@ -205,7 +204,7 @@ Frozen requirement:
 Two concurrently running API instances: api-a, api-b
 ```
 
-Both instances must share: staging MongoDB, staging Redis, `JWT_SECRET`, `REFRESH_SECRET`, the exact frozen audience constants, the issuer, the secure-auth flag, and the trusted-origin set. Each instance must expose a safe identifier in staging logs (e.g. a `HOSTNAME`/container-ID field already available to Docker, or an explicit log field added later) so evidence can attribute a given request/response to a specific instance.
+Both instances must share: staging MongoDB, staging Redis, `JWT_SECRET`, `REFRESH_SECRET`, the exact frozen audience constants, the issuer, and the trusted-origin set. Each instance must expose a safe identifier in staging logs (e.g. a `HOSTNAME`/container-ID field already available to Docker, or an explicit log field added later) so evidence can attribute a given request/response to a specific instance.
 
 `deploy/Caddyfile` is configured to route staging `/api` traffic to both instances. Controlled direct access to `api-a` and `api-b` is also configured through distinct loopback-only host ports, removing ambiguity about which instance serves direct acceptance evidence.
 
@@ -275,7 +274,7 @@ No public-staging or production code deployment occurred in this phase. The foll
 
 ## 13. Rollback and boot-failure handling
 
-Because `validateEnv.js` now requires `STRIDETO_SECURE_AUTH_ENABLED=1` and `REDIS_URL` unconditionally whenever `NODE_ENV=production`, this checkpoint has no "soft" in-place rollback once deployed — reducing the flag to `'0'` in production is itself a fatal configuration per the same file. Consequently:
+Secure authentication is now the unconditional canonical runtime architecture. `validateEnv.js` requires `REDIS_URL` whenever `NODE_ENV=production`, and there is no runtime selector or legacy-mode downgrade. Consequently:
 
 ```text
 Deploying SEC-3E before its required variables are configured is prohibited.

@@ -5,9 +5,7 @@ import {
 } from './AuthSessionPrimitiveContracts.js';
 
 /**
- * SEC-3C — dormant cookie policy. Not imported by any live route,
- * controller, or middleware, and not wired into Express, startup, or
- * `validateEnv.js`. Authority:
+ * Canonical realm-isolated refresh-cookie policy. Authority:
  * docs/STRIDETO_AUTHENTICATION_SESSION_SECURITY_ARCHITECTURE_AUDIT.md
  * §18, §18A, §18B.
  *
@@ -45,7 +43,7 @@ const COOKIE_DESCRIPTORS = Object.freeze({
 });
 
 /**
- * Pure resolver for the future runtime mode. Never reads `process.env`
+ * Pure resolver for the canonical runtime. Never reads `process.env`
  * itself — the caller supplies `nodeEnv`/`appEnv` explicitly. Production
  * is refused when the two disagree about production status (§18B's
  * "NODE_ENV/an equivalent app-env flag resolves ambiguously" hard-fail

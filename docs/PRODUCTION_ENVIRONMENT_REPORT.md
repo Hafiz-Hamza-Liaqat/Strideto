@@ -13,34 +13,34 @@ Templates exist; dedicated root `.env.production.example` is the production chec
 
 **Blockers before go-live (ops, not code):**
 
-1. Strong `JWT_SECRET` (≥32 chars) — API will refuse to start in production without it  
-2. Real `MONGO_URI` (Atlas recommended) — not localhost  
-3. SMTP (`MAIL_*`) — password reset / invites / contact will noop without it  
-4. Correct `SITE_URL` / `FRONTEND_URL` / `VITE_APP_URL` / `VITE_API_URL` for `strideto.com` + API host  
-5. Prefer `MEDIA_STORAGE_PROVIDER=s3|supabase` over local disk for durable uploads  
-6. Set `REQUIRE_REDIS=1` + `REDIS_URL` for token revoke / cache in production  
+1. Strong, distinct `JWT_SECRET` and `REFRESH_SECRET` values (≥32 chars) — API will refuse to start in production without them
+2. Real `MONGO_URI` (Atlas recommended) — not localhost
+3. SMTP (`MAIL_*`) — password reset / invites / contact will noop without it
+4. Correct `SITE_URL` / `FRONTEND_URL` / `VITE_APP_URL` / `VITE_API_URL` for `strideto.com` + API host
+5. Prefer `MEDIA_STORAGE_PROVIDER=s3|supabase` over local disk for durable uploads
+6. Set `REDIS_URL`; production boot and canonical session security require Redis
 
 ---
 
 ## Frontend (`VITE_*`)
 
-| Variable | Required | Default / fallback | Production notes |
-|----------|----------|--------------------|------------------|
-| `VITE_API_URL` | **Yes** | `http://localhost:5000/api` | Use `https://api.strideto.com/api` (or `/api` behind same-origin proxy) |
-| `VITE_APP_URL` | Strongly | Brand `https://strideto.com` | Canonical / OG / admin previews |
-| `VITE_ADSENSE_CLIENT_ID` | No | empty | Optional ads |
-| `VITE_TALENT_PROFILE_ENABLED` | No | ON | Career flags — keep aligned with server |
-| `VITE_TALENT_PROFILE_READ_CANONICAL` | No | OFF | |
-| `VITE_OPPORTUNITY_APPLICATION_ENABLED` | No | ON | |
-| `VITE_TIMELINE_ENABLED` | No | ON | |
-| `VITE_DOCUMENTS_PLATFORM_ENABLED` | No | ON | |
-| `VITE_CAREER_DASHBOARD_ENABLED` | No | ON | |
-| `VITE_CAREER_DASHBOARD_V2_ENABLED` | No | ON | |
-| `VITE_DASHBOARD_PERSONALIZATION_ENABLED` | No | OFF | |
-| `VITE_SCORING_ENABLED` | No | ON | |
-| `VITE_ASSESSMENTS_ENABLED` | No | ON | |
-| `VITE_EMPLOYER_INTELLIGENCE_ENABLED` | No | ON | |
-| `VITE_APPLICATION_READ_CANONICAL` | No | OFF | |
+| Variable                                 | Required | Default / fallback           | Production notes                                                        |
+| ---------------------------------------- | -------- | ---------------------------- | ----------------------------------------------------------------------- |
+| `VITE_API_URL`                           | **Yes**  | `http://localhost:5000/api`  | Use `https://api.strideto.com/api` (or `/api` behind same-origin proxy) |
+| `VITE_APP_URL`                           | Strongly | Brand `https://strideto.com` | Canonical / OG / admin previews                                         |
+| `VITE_ADSENSE_CLIENT_ID`                 | No       | empty                        | Optional ads                                                            |
+| `VITE_TALENT_PROFILE_ENABLED`            | No       | ON                           | Career flags — keep aligned with server                                 |
+| `VITE_TALENT_PROFILE_READ_CANONICAL`     | No       | OFF                          |                                                                         |
+| `VITE_OPPORTUNITY_APPLICATION_ENABLED`   | No       | ON                           |                                                                         |
+| `VITE_TIMELINE_ENABLED`                  | No       | ON                           |                                                                         |
+| `VITE_DOCUMENTS_PLATFORM_ENABLED`        | No       | ON                           |                                                                         |
+| `VITE_CAREER_DASHBOARD_ENABLED`          | No       | ON                           |                                                                         |
+| `VITE_CAREER_DASHBOARD_V2_ENABLED`       | No       | ON                           |                                                                         |
+| `VITE_DASHBOARD_PERSONALIZATION_ENABLED` | No       | OFF                          |                                                                         |
+| `VITE_SCORING_ENABLED`                   | No       | ON                           |                                                                         |
+| `VITE_ASSESSMENTS_ENABLED`               | No       | ON                           |                                                                         |
+| `VITE_EMPLOYER_INTELLIGENCE_ENABLED`     | No       | ON                           |                                                                         |
+| `VITE_APPLICATION_READ_CANONICAL`        | No       | OFF                          |                                                                         |
 
 **Analytics:** First-party platform analytics only at launch. No `VITE_GA_*` required. Optional AdSense via consent.  
 **Paid AI:** Do **not** set OpenAI/Anthropic keys — see `docs/AI_BUDGET_POLICY.md`.
@@ -49,23 +49,22 @@ Templates exist; dedicated root `.env.production.example` is the production chec
 
 ## Backend (critical)
 
-| Variable | Required in prod | Notes |
-|----------|------------------|-------|
-| `NODE_ENV` | **Yes** | `production` |
-| `JWT_SECRET` | **Fatal** | ≥32 chars; never commit |
-| `JWT_EXPIRES_IN` | No | Default `1h` |
-| `REFRESH_EXPIRES_IN` | No | Default `7d` |
-| `MONGO_URI` | **Fatal** | Atlas URI; DB name may remain `edurozgaar` internally (legacy) or `strideto` |
-| `SITE_URL` | **Fatal** | `https://strideto.com` |
-| `FRONTEND_URL` | Strongly | `https://strideto.com` (CORS) |
-| `APP_URL` | Optional alias | Same as FRONTEND_URL |
-| `PORT` | Host-provided | Render sets automatically |
-| `REDIS_URL` | Recommended | With `REQUIRE_REDIS=1` |
-| `MAIL_HOST/PORT/USER/PASS/FROM` | Strongly | Password reset / onboarding |
-| `MEDIA_STORAGE_PROVIDER` | Recommended | `s3` or `supabase` |
-| `CMS_SEED_ON_START` | Set `0` | Avoid accidental reseed |
-| `DISABLE_QUEUE_CRON` | `1` on API if worker runs | Prevent double jobs |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | For bootstrap script | Never use defaults in prod |
+| Variable                         | Required in prod          | Notes                                                                        |
+| -------------------------------- | ------------------------- | ---------------------------------------------------------------------------- |
+| `NODE_ENV`                       | **Yes**                   | `production`                                                                 |
+| `JWT_SECRET`                     | **Fatal**                 | ≥32 chars; never commit                                                      |
+| `REFRESH_SECRET`                 | **Fatal**                 | ≥32 chars, distinct from `JWT_SECRET`; never commit                          |
+| `MONGO_URI`                      | **Fatal**                 | Atlas URI; DB name may remain `edurozgaar` internally (legacy) or `strideto` |
+| `SITE_URL`                       | **Fatal**                 | `https://strideto.com`                                                       |
+| `FRONTEND_URL`                   | Strongly                  | `https://strideto.com` (CORS)                                                |
+| `APP_URL`                        | Optional alias            | Same as FRONTEND_URL                                                         |
+| `PORT`                           | Host-provided             | Render sets automatically                                                    |
+| `REDIS_URL`                      | **Fatal**                 | Required for production boot, session issuance, and access denylisting       |
+| `MAIL_HOST/PORT/USER/PASS/FROM`  | Strongly                  | Password reset / onboarding                                                  |
+| `MEDIA_STORAGE_PROVIDER`         | Recommended               | `s3` or `supabase`                                                           |
+| `CMS_SEED_ON_START`              | Set `0`                   | Avoid accidental reseed                                                      |
+| `DISABLE_QUEUE_CRON`             | `1` on API if worker runs | Prevent double jobs                                                          |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | For bootstrap script      | Never use defaults in prod                                                   |
 
 ### Career flags (server)
 
@@ -79,24 +78,24 @@ Stripe, Cloudinary, Sentry, captcha secrets, AWS/Supabase storage credentials.
 
 ## Feature flags / AI
 
-| Flag family | Launch posture |
-|-------------|----------------|
+| Flag family               | Launch posture                                                    |
+| ------------------------- | ----------------------------------------------------------------- |
 | Career Intelligence flags | ON for core product; dual-write/canonical reads OFF until cutover |
-| Paid LLM APIs | **OFF** — deterministic fallbacks only |
-| AdSense | Optional |
-| Sentry | Optional but recommended |
+| Paid LLM APIs             | **OFF** — deterministic fallbacks only                            |
+| AdSense                   | Optional                                                          |
+| Sentry                    | Optional but recommended                                          |
 
 ---
 
 ## Example file map
 
-| File | Purpose |
-|------|---------|
-| `.env.example` | Dev + Docker template |
-| `.env.template` | Duplicate template |
-| `docker/.env.production.example` | Compose production matrix |
-| `.env.production.example` | **New (C.3)** — Vercel/Render host checklist |
-| `docs/ENVIRONMENT_VARIABLES.md` | Human docs (keep in sync) |
+| File                             | Purpose                                      |
+| -------------------------------- | -------------------------------------------- |
+| `.env.example`                   | Dev + Docker template                        |
+| `.env.template`                  | Duplicate template                           |
+| `docker/.env.production.example` | Compose production matrix                    |
+| `.env.production.example`        | **New (C.3)** — Vercel/Render host checklist |
+| `docs/ENVIRONMENT_VARIABLES.md`  | Human docs (keep in sync)                    |
 
 ---
 
@@ -112,10 +111,10 @@ Stripe, Cloudinary, Sentry, captcha secrets, AWS/Supabase storage credentials.
 ### Render / API host (backend)
 
 - [ ] `NODE_ENV=production`
-- [ ] `JWT_SECRET` (generated)
+- [ ] Distinct `JWT_SECRET` and `REFRESH_SECRET` values (generated)
 - [ ] `MONGO_URI` (Atlas)
 - [ ] `SITE_URL` / `FRONTEND_URL`
-- [ ] `REDIS_URL` + `REQUIRE_REDIS=1`
+- [ ] `REDIS_URL` (`REQUIRE_REDIS=1` is recommended for accurate readiness reporting)
 - [ ] SMTP set and tested
 - [ ] Object storage configured
 - [ ] Worker process or crons configured
@@ -124,14 +123,14 @@ Stripe, Cloudinary, Sentry, captcha secrets, AWS/Supabase storage credentials.
 
 ## Remaining env debt (non-blocking)
 
-- Internal Mongo DB name / some localStorage keys still use `edurozgaar` prefix (sessions still work; rename is a migration project)
-- `REFRESH_SECRET` documented but unused for signing (refresh uses `JWT_SECRET`)
+- Internal Mongo DB naming and non-authentication profile/preference localStorage keys still use the `edurozgaar` prefix; renaming them is a separate migration project.
+- `REFRESH_SECRET` signs refresh JWTs and must remain distinct from `JWT_SECRET`.
 - Captcha env secrets exist but verification is stubbed — do not rely on captcha alone for spam
 
 ---
 
 ## Related docs
 
-- `docs/SECURITY_AUDIT_REPORT.md` (C.2)  
-- `.env.production.example` (C.3)  
+- `docs/SECURITY_AUDIT_REPORT.md` (C.2)
+- `.env.production.example` (C.3)
 - `docs/DNS_CHECKLIST.md` · `docs/RENDER_CONFIGURATION.md` · `docs/VERCEL_CONFIGURATION.md`

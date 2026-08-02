@@ -88,18 +88,17 @@ Use this URI as `MONGO_URI` in the server `.env` (see below).
 1. From the **project root**, open `.env.template` and copy the **SERVER** section into a new file `server/.env` (create the file if needed).
 2. Edit `server/.env` and set at least:
 
-| Variable        | Required | Description |
-|----------------|----------|-------------|
-| `MONGO_URI`    | Yes      | MongoDB connection string (local or Atlas). |
-| `JWT_SECRET`   | Yes      | Strong random string (e.g. 32+ chars) for signing tokens. **Must be set in production.** |
-| `PORT`         | No       | API port (default `5000`). |
-| `NODE_ENV`     | No       | `development` or `production`. |
-| `JWT_EXPIRES_IN` | No     | Access token expiry (default `1h`). |
-| `REFRESH_EXPIRES_IN` | No  | Refresh token expiry (default `7d`). |
-| `SITE_URL`     | No       | Public site URL (for sitemap, referrals; e.g. `https://strideto.com`). |
-| `FRONTEND_URL` | No       | Frontend app URL for password-reset emails (defaults to `http://localhost:5173` if unset). Set to your client URL in production (e.g. `https://strideto.com`). |
-| `DISABLE_SCRAPER_CRON` | No  | Set to `1` to disable the 6-hour scraper cron. |
-| `REDIS_URL`    | No       | Optional Redis; if not set, in-memory store is used. |
+| Variable               | Required               | Description                                                                                                                                                    |
+| ---------------------- | ---------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `MONGO_URI`            | Yes                    | MongoDB connection string (local or Atlas).                                                                                                                    |
+| `JWT_SECRET`           | Yes                    | Strong random string (32+ chars) for access-token signing. **Must be set in production.**                                                                      |
+| `REFRESH_SECRET`       | Yes                    | A different strong random string (32+ chars) for refresh-token signing. **Must differ from `JWT_SECRET`.**                                                     |
+| `PORT`                 | No                     | API port (default `5000`).                                                                                                                                     |
+| `NODE_ENV`             | No                     | `development` or `production`.                                                                                                                                 |
+| `SITE_URL`             | No                     | Public site URL (for sitemap, referrals; e.g. `https://strideto.com`).                                                                                         |
+| `FRONTEND_URL`         | No                     | Frontend app URL for password-reset emails (defaults to `http://localhost:5173` if unset). Set to your client URL in production (e.g. `https://strideto.com`). |
+| `DISABLE_SCRAPER_CRON` | No                     | Set to `1` to disable the 6-hour scraper cron.                                                                                                                 |
+| `REDIS_URL`            | Yes for authentication | Shared Redis used by session issuance, refresh availability checks, and the access-token denylist. It is mandatory in production.                              |
 
 Example minimal `.env` for local:
 
@@ -108,9 +107,16 @@ PORT=5000
 NODE_ENV=development
 MONGO_URI=mongodb://localhost:27017/edurozgaar
 JWT_SECRET=your-very-long-random-secret-at-least-32-characters
+REFRESH_SECRET=a-different-random-secret-at-least-32-characters
 SITE_URL=http://localhost:5173
 FRONTEND_URL=http://localhost:5173
+REDIS_URL=redis://localhost:6379
 ```
+
+The canonical secure-auth implementation uses 15-minute in-memory access
+tokens and seven-day HttpOnly refresh cookies backed by `RefreshSession`.
+These lifetimes are source-controlled rather than selected by environment
+variables.
 
 **Important:** Never commit `.env` files. Only the root `.env.template` (no secrets) is committed.
 
@@ -230,30 +236,30 @@ In production:
 
 The **only required API** for the app to work is **this Express backend**. It exposes all of the following under the base path `/api` (e.g. `http://localhost:5000/api`).
 
-| Area        | Path (prefix `/api`) | Description |
-|------------|----------------------|-------------|
-| Health     | `GET /health`        | Health check. |
-| Auth       | `/auth/*`            | Register, login, refresh, profile, dashboard, saved, recently viewed, FCM. |
-| Jobs       | `/jobs`, `/jobs/:id` | List jobs, get by id/slug, save/unsave, apply. |
-| Scholarships | `/scholarships`, `/scholarships/:id` | List, get, save/unsave. |
-| Admissions | `/admissions`, `/admissions/:id` | List, get, save/unsave. |
-| Blogs      | `/blogs`, `/blogs/:slug` | List, get, auto-generate (admin). |
-| Foreign studies | `/foreign-studies`, `/foreign-studies/:slug` | List, get. |
-| Trending   | `/trending/jobs`, `/trending/scholarships`, `/trending/admissions` | Trending listings. |
-| Newsletter | `/newsletter/subscribe`, `/newsletter/unsubscribe` | Subscribe/unsubscribe. |
-| Notifications | `/notifications/*` | Send/list (admin). |
-| Monetization | `/monetization/*` | Featured/sponsored listings, ad slots (admin). |
-| Users      | `/users/resume-analyze`, `/users/resume-scans`, `/users/cover-letter`, `/users/applications` | Resume scan, cover letter, applications. |
-| Exams      | `/exams`, `/exams/:slug`, `/exams/:examId/past-papers`, `/quizzes/*` | Exams, past papers, quizzes, submit, leaderboard. |
-| Internships | `/internships`, `/internships/:id`, apply, save | Internships. |
-| Chatbot    | `/chatbot/query`, `/chatbot/history` | Chat (auth). |
-| Webinars   | `/webinars`, `/webinars/:id`, register, my registrations | Webinars. |
-| Intl scholarships | `/intl-scholarships`, `/intl-scholarships/universities` | International scholarships. |
-| Badges     | `/badges/me`, `/badges/leaderboard`, `/badges/rank` | Badges and leaderboard. |
-| SEO        | `/seo/jobs-in/:slug`, `/seo/jobs-by-category/:slug`, `/seo/scholarships-in/:country` | SEO listing pages. |
-| Resumes    | `/resumes`, `/resumes/user`, `/resumes/:id`, `/resumes/ai-suggest`, `/resumes/optimize-for-job` | Resume CRUD, AI suggest, optimize for job. |
-| Admin      | `/admin/*`           | Growth, scraper, jobs/scholarships/admissions/blogs/exams/intl/notifications management. |
-| v1         | `/v1/*`              | Save job/scholarship/admission, recommendations, bookmarks, notifications, analytics. |
+| Area              | Path (prefix `/api`)                                                                            | Description                                                                              |
+| ----------------- | ----------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------- |
+| Health            | `GET /health`                                                                                   | Health check.                                                                            |
+| Auth              | `/auth/*`                                                                                       | Register, login, refresh, profile, dashboard, saved, recently viewed, FCM.               |
+| Jobs              | `/jobs`, `/jobs/:id`                                                                            | List jobs, get by id/slug, save/unsave, apply.                                           |
+| Scholarships      | `/scholarships`, `/scholarships/:id`                                                            | List, get, save/unsave.                                                                  |
+| Admissions        | `/admissions`, `/admissions/:id`                                                                | List, get, save/unsave.                                                                  |
+| Blogs             | `/blogs`, `/blogs/:slug`                                                                        | List, get, auto-generate (admin).                                                        |
+| Foreign studies   | `/foreign-studies`, `/foreign-studies/:slug`                                                    | List, get.                                                                               |
+| Trending          | `/trending/jobs`, `/trending/scholarships`, `/trending/admissions`                              | Trending listings.                                                                       |
+| Newsletter        | `/newsletter/subscribe`, `/newsletter/unsubscribe`                                              | Subscribe/unsubscribe.                                                                   |
+| Notifications     | `/notifications/*`                                                                              | Send/list (admin).                                                                       |
+| Monetization      | `/monetization/*`                                                                               | Featured/sponsored listings, ad slots (admin).                                           |
+| Users             | `/users/resume-analyze`, `/users/resume-scans`, `/users/cover-letter`, `/users/applications`    | Resume scan, cover letter, applications.                                                 |
+| Exams             | `/exams`, `/exams/:slug`, `/exams/:examId/past-papers`, `/quizzes/*`                            | Exams, past papers, quizzes, submit, leaderboard.                                        |
+| Internships       | `/internships`, `/internships/:id`, apply, save                                                 | Internships.                                                                             |
+| Chatbot           | `/chatbot/query`, `/chatbot/history`                                                            | Chat (auth).                                                                             |
+| Webinars          | `/webinars`, `/webinars/:id`, register, my registrations                                        | Webinars.                                                                                |
+| Intl scholarships | `/intl-scholarships`, `/intl-scholarships/universities`                                         | International scholarships.                                                              |
+| Badges            | `/badges/me`, `/badges/leaderboard`, `/badges/rank`                                             | Badges and leaderboard.                                                                  |
+| SEO               | `/seo/jobs-in/:slug`, `/seo/jobs-by-category/:slug`, `/seo/scholarships-in/:country`            | SEO listing pages.                                                                       |
+| Resumes           | `/resumes`, `/resumes/user`, `/resumes/:id`, `/resumes/ai-suggest`, `/resumes/optimize-for-job` | Resume CRUD, AI suggest, optimize for job.                                               |
+| Admin             | `/admin/*`                                                                                      | Growth, scraper, jobs/scholarships/admissions/blogs/exams/intl/notifications management. |
+| v1                | `/v1/*`                                                                                         | Save job/scholarship/admission, recommendations, bookmarks, notifications, analytics.    |
 
 Sitemap and robots are at **root**: `GET /sitemap.xml`, `GET /robots.txt`.
 
@@ -287,11 +293,13 @@ Recommended stack: **VPS + Docker Compose + Caddy (HTTPS)**.
 ### Quick production steps
 
 1. **VPS setup** (Ubuntu 22.04):
+
    ```bash
    sudo bash deploy/setup-vps.sh
    ```
 
 2. **Clone and configure env**:
+
    ```bash
    git clone https://github.com/SyedDaniyal31/Strideto.git
    cd Strideto
@@ -300,17 +308,20 @@ Recommended stack: **VPS + Docker Compose + Caddy (HTTPS)**.
    ```
 
 3. **Deploy**:
+
    ```bash
    bash deploy/deploy.sh
    ```
 
 4. **HTTPS** — edit `deploy/Caddyfile` with your domain, then:
+
    ```bash
    sudo cp deploy/Caddyfile /etc/caddy/Caddyfile
    sudo systemctl reload caddy
    ```
 
 5. **Seed DB + admin** (set `ADMIN_EMAIL` and `ADMIN_PASSWORD` in `.env`):
+
    ```bash
    bash scripts/production-setup.sh
    ```

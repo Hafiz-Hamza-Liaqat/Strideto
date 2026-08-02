@@ -30,7 +30,7 @@ The app stores jobs, users, resumes, and everything else in **MongoDB**. You mus
      ```
    - Or run manually: `mongod --dbpath C:\data\db` (create folder `C:\data\db` if needed).
 
-3. **Connection URL (use this in the next part)**  
+3. **Connection URL (use this in the next part)**
    ```
    mongodb://localhost:27017/strideto
    ```
@@ -58,7 +58,8 @@ The app stores jobs, users, resumes, and everything else in **MongoDB**. You mus
 The app reads settings from **env files**. You do **not** need any external paid APIs; the only “API” is your own backend. You **do** need to set:
 
 - **Database URL** (MongoDB)
-- **JWT secret** (for login/sessions)
+- **Distinct JWT and refresh-token signing secrets**
+- **Redis URL** (required by the canonical session and access-denylist architecture)
 - **Optional:** client API URL (for production)
 
 ### Step 1 – Create `server/.env`
@@ -72,17 +73,19 @@ PORT=5000
 NODE_ENV=development
 MONGO_URI=mongodb://localhost:27017/strideto
 JWT_SECRET=REPLACE_WITH_A_STRONG_SECRET_AT_LEAST_32_CHARS
-JWT_EXPIRES_IN=1h
-REFRESH_EXPIRES_IN=7d
+REFRESH_SECRET=REPLACE_WITH_A_DIFFERENT_STRONG_SECRET_AT_LEAST_32_CHARS
+REDIS_URL=redis://localhost:6379
 SITE_URL=http://localhost:5173
 ```
 
 **What to change:**
 
-| Variable       | What to put |
-|----------------|-------------|
-| **MONGO_URI**  | Your MongoDB URL from Part 1 (local: `mongodb://localhost:27017/strideto` or Atlas URI from above). |
-| **JWT_SECRET** | Any long random string (e.g. 32+ characters). Example: `mySuperSecretKeyForStrideto2024!@#` – in production use a strong random value. |
+| Variable           | What to put                                                                                                                            |
+| ------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
+| **MONGO_URI**      | Your MongoDB URL from Part 1 (local: `mongodb://localhost:27017/strideto` or Atlas URI from above).                                    |
+| **JWT_SECRET**     | Any long random string (e.g. 32+ characters). Example: `mySuperSecretKeyForStrideto2024!@#` – in production use a strong random value. |
+| **REFRESH_SECRET** | A second strong random string that must differ from `JWT_SECRET`.                                                                      |
+| **REDIS_URL**      | The Redis connection URL used by session issuance and access-token denylisting.                                                        |
 
 Leave the rest as-is for local run. Save the file.
 
@@ -176,25 +179,25 @@ If any step fails, see the “Troubleshooting” section at the end.
 
 ### APIs
 
-- **No external paid APIs are required.**  
+- **No external paid APIs are required.**
 - The **only API** the frontend needs is **your own backend** (the Express server you run with `npm run dev` in `server/`).
 - That backend exposes routes like:
   - `/api/auth/login`, `/api/auth/register` (auth)
   - `/api/jobs`, `/api/scholarships`, `/api/admissions` (listings)
   - `/api/resumes/*` (resume builder)
   - etc.  
-  All are listed in **DEPLOYMENT.md** under “APIs used by this project”.
+    All are listed in **DEPLOYMENT.md** under “APIs used by this project”.
 - You “add” them only by **setting the correct URL** in the client:
   - **Local:** `VITE_API_URL=http://localhost:5000/api` (or rely on default).
   - **Production:** `VITE_API_URL=https://your-api-domain.com/api`.
 
 ### JWT (JSON Web Token)
 
-- Used for **login sessions**: when a user logs in, the server returns a JWT. The frontend sends it with later requests so the server knows who the user is.
-- **You don’t “add” JWT** as a service – it’s built into the app. You only need to set **JWT_SECRET** in `server/.env`:
-  - A long, random string (e.g. 32+ characters).
-  - **Never** commit this secret to Git; keep it only in `server/.env`.
-- Optional: you can set `JWT_EXPIRES_IN=1h` and `REFRESH_EXPIRES_IN=7d` in `server/.env` to control how long tokens last.
+- Login returns a short-lived access JWT to the frontend, which keeps it in memory and sends it in the `Authorization` header.
+- Refresh credentials are separate seven-day JWTs held only in realm-specific HttpOnly cookies and backed by `RefreshSession` records.
+- Set distinct **JWT_SECRET** and **REFRESH_SECRET** values in `server/.env`; never commit either secret.
+- Access and refresh lifetimes are source-controlled at 15 minutes and seven days. They are not environment-variable overrides.
+- Redis is required for canonical session issuance and access-token denylisting.
 
 ---
 
@@ -206,6 +209,8 @@ When you deploy to a real server (e.g. Vercel, Railway, your own VPS):
    Same variables as `server/.env`, but:
    - **MONGO_URI** = your production MongoDB URL (e.g. Atlas).
    - **JWT_SECRET** = a new, strong random secret (not the one you use on localhost).
+   - **REFRESH_SECRET** = a different new, strong random secret.
+   - **REDIS_URL** = the production Redis URL.
    - **NODE_ENV** = `production`.
    - **SITE_URL** = your real site URL (e.g. `https://strideto.com`).
 
@@ -226,13 +231,13 @@ Full deployment details (build, process manager, CORS, etc.) are in **DEPLOYMENT
 
 ## Troubleshooting
 
-| Problem | What to do |
-|--------|------------|
-| “MongoDB connection failed” | Start MongoDB (Part 1). Check `MONGO_URI` in `server/.env` (no typos, correct password for Atlas). |
-| “Authentication required” or 401 on login | Ensure `JWT_SECRET` is set in `server/.env` and the server was restarted after changing it. |
+| Problem                                   | What to do                                                                                                                                                         |
+| ----------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| “MongoDB connection failed”               | Start MongoDB (Part 1). Check `MONGO_URI` in `server/.env` (no typos, correct password for Atlas).                                                                 |
+| “Authentication required” or 401 on login | Ensure distinct `JWT_SECRET` and `REFRESH_SECRET` values and `REDIS_URL` are set, then restart the server.                                                         |
 | Blank page or “Cannot connect” in browser | 1) Backend must be running on port 5000. 2) Client must be running (e.g. 5173). 3) For production, set `VITE_API_URL` and ensure CORS allows your frontend origin. |
-| No jobs/scholarships on homepage | Run `cd server && npm run seed` and refresh the page. |
-| Port 5000 or 5173 already in use | Change `PORT` in `server/.env` (e.g. 5001) and in `client/.env` set `VITE_API_URL=http://localhost:5001/api`. |
+| No jobs/scholarships on homepage          | Run `cd server && npm run seed` and refresh the page.                                                                                                              |
+| Port 5000 or 5173 already in use          | Change `PORT` in `server/.env` (e.g. 5001) and in `client/.env` set `VITE_API_URL=http://localhost:5001/api`.                                                      |
 
 ---
 
@@ -242,6 +247,8 @@ Full deployment details (build, process manager, CORS, etc.) are in **DEPLOYMENT
 # 1. Create server/.env with at least:
 #    MONGO_URI=mongodb://localhost:27017/strideto
 #    JWT_SECRET=your-long-random-secret-32-chars
+#    REFRESH_SECRET=a-different-long-random-secret
+#    REDIS_URL=redis://localhost:6379
 
 # 2. Install and seed
 cd server

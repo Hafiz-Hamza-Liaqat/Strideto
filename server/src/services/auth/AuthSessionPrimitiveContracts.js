@@ -1,10 +1,10 @@
 import { REFRESH_SESSION_SUBJECT_TYPES } from './RefreshSessionContracts.js';
 
 /**
- * SEC-3C — dormant contracts shared by the cookie policy, trusted-origin
+ * Canonical contracts shared by the cookie policy, trusted-origin
  * policy, and subject-state provider. Pure data/constants and an error
- * class only — no Express, no Mongoose, no I/O, no live route imports this
- * yet. Reuses SEC-3B's realm enum as the single source of truth rather
+ * class only — no Express, no Mongoose, and no I/O. Reuses the realm enum
+ * as the single source of truth rather
  * than redeclaring it. Authority:
  * docs/STRIDETO_AUTHENTICATION_SESSION_SECURITY_ARCHITECTURE_AUDIT.md
  * (§18, §18A, §18B, §19, §24).
@@ -29,9 +29,8 @@ export const COOKIE_RESULT_CODES = Object.freeze([
  * checkpointed architecture report declares it authoritative. SEC-3C
  * originally implemented it as if it were adopted; this was corrected
  * per the SEC-3C-A acceptance audit. No marker evaluator or marker result
- * code exists here — exact marker selection, if any, is deferred to
- * SEC-3E. Strict Origin/Referer validation (below) is the sole
- * authoritative dormant primitive from this module.
+ * code exists here. Strict Origin/Referer validation (below) is the
+ * authoritative origin-validation primitive from this module.
  */
 export const ORIGIN_RESULT_CODES = Object.freeze([
   'ORIGIN_TRUSTED',

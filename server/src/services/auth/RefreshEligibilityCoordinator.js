@@ -21,9 +21,8 @@ const FINAL_ELIGIBILITY_MISMATCH_CODES = Object.freeze([
 ]);
 
 /**
- * SEC-3D.3 — dormant refresh-eligibility and post-rotation revalidation
- * coordinator. Not imported by any live route, controller, or middleware.
- * Composes already-checkpointed dormant primitives (`JwtSessionProvider`,
+ * Canonical refresh-eligibility and post-rotation revalidation coordinator.
+ * Composes the canonical primitives (`JwtSessionProvider`,
  * a plain `RefreshSession` read, `SessionSubjectStateProvider`,
  * `RefreshSessionRotationService`, and — only on the post-rotation
  * mismatch path — `SessionFamilyRevocationService`) without reimplementing

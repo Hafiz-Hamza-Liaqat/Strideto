@@ -1,9 +1,9 @@
 import { REFRESH_SESSION_SUBJECT_TYPES } from './RefreshSessionContracts.js';
 
 /**
- * SEC-3D.2 — dormant contracts for the bounded tokenVersion and
- * atomic subject-security mutation primitives. Pure data/constants and an
- * error class only — no Mongoose, no I/O, no live route imports this yet.
+ * Canonical contracts for bounded tokenVersion and atomic subject-security
+ * mutation primitives. Pure data/constants and an error class only — no
+ * Mongoose and no I/O.
  * Authority: docs/STRIDETO_SEC_3D_REVOCATION_ACCOUNT_STATE_READINESS_AUDIT.md
  * (§8, §14.3, §18).
  */

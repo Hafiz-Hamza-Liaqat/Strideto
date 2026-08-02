@@ -6,8 +6,7 @@ import {
 } from './SessionFamilyRevocationContracts.js';
 
 /**
- * SEC-3D.1 — dormant session-family revocation service. Not imported by
- * any live route, controller, or middleware. The model is
+ * Canonical session-family revocation service. The model is
  * dependency-injected (mirrors `RefreshSessionRotationService.js`'s
  * convention) so tests never need a live MongoDB connection. Authority:
  * docs/STRIDETO_SEC_3D_REVOCATION_ACCOUNT_STATE_READINESS_AUDIT.md (§9, §10).

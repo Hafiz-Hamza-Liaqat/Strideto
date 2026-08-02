@@ -1,12 +1,10 @@
 import { createSessionSubjectStateProvider } from './SessionSubjectStateProvider.js';
 
 /**
- * SEC-3D.4 — dormant, subject-state-only access-authorization coordinator.
- * Not imported by any live route, controller, or middleware. Composes
- * only `JwtSessionProvider` (access-token verification) and
- * `SessionSubjectStateProvider` (already built, SEC-3C) — no denylist, no
- * Redis, no `RefreshSession` read, no SEC-3D.1 dependency, no SEC-3D.2
- * dependency, no mutation of any kind. Authority:
+ * Canonical subject-state-only access-authorization coordinator. Composes
+ * `SessionSubjectStateProvider`; denylist composition remains at the live
+ * middleware layer. This coordinator performs no Redis or `RefreshSession`
+ * read and no mutation of any kind. Authority:
  * docs/STRIDETO_SEC_3D_REVOCATION_ACCOUNT_STATE_READINESS_AUDIT.md
  * (§12, §14.5, §18).
  *

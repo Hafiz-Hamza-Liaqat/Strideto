@@ -4,9 +4,8 @@ import {
 } from './RefreshSessionContracts.js';
 
 /**
- * SEC-3D.1 — dormant contracts for session-family revocation. Pure
- * data/constants and an error class only — no Mongoose, no I/O, no live
- * route imports this yet. Reuses SEC-3B's realm enum and revoke-reason
+ * Canonical contracts for session-family revocation. Pure data/constants
+ * and an error class only — no Mongoose and no I/O. Reuses the realm enum and revoke-reason
  * enum as the single source of truth rather than redeclaring them.
  * Authority: docs/STRIDETO_SEC_3D_REVOCATION_ACCOUNT_STATE_READINESS_AUDIT.md
  * (§9, §10, §14.2).

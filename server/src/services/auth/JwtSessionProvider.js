@@ -6,14 +6,12 @@ import {
 } from './RefreshSessionContracts.js';
 
 /**
- * SEC-3B — dormant JWT/session-security module. Fully isolated from the
- * live `utils/jwt.js` helper (still unchanged, still what every current
- * route uses). No route or controller imports this yet.
+ * Canonical JWT/session-security provider for both authentication realms.
  *
  * Configuration is injected explicitly (never read from `process.env`
  * directly inside this module) so tests never depend on real secrets and
- * so a future wiring phase can supply production config without editing
- * this file. Authority:
+ * so production composition supplies validated config without editing this
+ * file. Authority:
  * docs/STRIDETO_AUTHENTICATION_SESSION_SECURITY_ARCHITECTURE_AUDIT.md §19A.
  */
 

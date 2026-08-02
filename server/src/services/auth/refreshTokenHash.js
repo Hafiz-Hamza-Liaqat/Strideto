@@ -1,10 +1,8 @@
 import crypto from 'crypto';
 
 /**
- * SEC-3B — dormant, narrowly scoped SHA-256 refresh-token hash primitive.
- * Deliberately separate from `utils/tokenStore.js`'s internal `hashToken`
- * (unexported there, and that module is part of the live path this phase
- * must not touch). Deterministic lowercase hex output, one-way only — no
+ * Canonical, narrowly scoped SHA-256 refresh-token hash primitive.
+ * Deterministic lowercase hex output, one-way only — no
  * reversible encryption, no plaintext persistence, never logs its input or
  * output.
  *
