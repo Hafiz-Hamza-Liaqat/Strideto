@@ -7,33 +7,62 @@
 
 name: edurozgaar-staging
 
+x-staging-api: &staging-api
+  extends:
+    file: docker-compose.yml
+    service: backend
+  env_file:
+    - path: .env.staging
+      required: true
+  environment:
+    NODE_ENV: production
+    APP_ENV: staging
+    REQUIRE_REDIS: ${REQUIRE_REDIS:-1}
+    MEDIA_STORAGE_PROVIDER: ${MEDIA_STORAGE_PROVIDER:-local}
+    LOG_LEVEL: ${LOG_LEVEL:-info}
+    CMS_SEED_ON_START: ${CMS_SEED_ON_START:-0}
+    DISABLE_QUEUE_CRON: "1"
+    DISABLE_REMINDER_CRON: "1"
+    # No paid AI keys — launch OpEx ≈ $0 (see docs/AI_BUDGET_POLICY.md)
+
 services:
   mongodb:
+    extends:
+      file: docker-compose.yml
+      service: mongodb
     ports:
       - "${STAGING_MONGO_PORT:-27018}:27017"
 
   redis:
+    extends:
+      file: docker-compose.yml
+      service: redis
     ports:
       - "${STAGING_REDIS_PORT:-6380}:6379"
 
-  backend:
-    env_file:
-      - path: .env.staging
-        required: true
-    environment:
-      NODE_ENV: production
-      APP_ENV: staging
-      REQUIRE_REDIS: ${REQUIRE_REDIS:-1}
-      MEDIA_STORAGE_PROVIDER: ${MEDIA_STORAGE_PROVIDER:-local}
-      LOG_LEVEL: ${LOG_LEVEL:-info}
-      CMS_SEED_ON_START: ${CMS_SEED_ON_START:-0}
-      DISABLE_QUEUE_CRON: "1"
-      DISABLE_REMINDER_CRON: "1"
-      # No paid AI keys — launch OpEx ≈ $0 (see docs/AI_BUDGET_POLICY.md)
-    ports:
-      - "${STAGING_API_PORT:-5001}:5000"
+  backend: !reset null
+
+  api-a:
+    <<: *staging-api
+    container_name: edurozgaar-staging-api-a
+    ports: !override
+      - "127.0.0.1:${STAGING_API_A_PORT:-5001}:5000"
+
+  api-b:
+    <<: *staging-api
+    container_name: edurozgaar-staging-api-b
+    ports: !override
+      - "127.0.0.1:${STAGING_API_B_PORT:-5002}:5000"
 
   worker:
+    extends:
+      file: docker-compose.yml
+      service: worker
+    depends_on: !override
+      api-a:
+        condition: service_healthy
+      api-b:
+        condition: service_healthy
     env_file:
       - path: .env.staging
         required: true
@@ -45,5 +74,18 @@ services:
       DISABLE_REMINDER_CRON: "0"
 
   frontend:
+    extends:
+      file: docker-compose.yml
+      service: frontend
+    depends_on: !override
+      api-a:
+        condition: service_healthy
+      api-b:
+        condition: service_healthy
     ports:
       - "${STAGING_FRONTEND_PORT:-8080}:80"
+
+volumes:
+  mongodb_data:
+  redis_data:
+  media_uploads:

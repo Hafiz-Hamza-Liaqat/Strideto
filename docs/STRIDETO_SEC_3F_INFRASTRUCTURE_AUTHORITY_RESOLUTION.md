@@ -199,7 +199,7 @@ Staging must never use production users, production employers, production staff 
 
 ## 9. Two-instance staging authority
 
-**Current verified state**: `docker-compose.staging.yml` declares exactly one `backend` service (plus `mongodb`, `redis`, `worker`, `frontend`) — no `replicas:` directive and no second backend service exist in the committed file. This is insufficient for SEC-3F multi-instance acceptance as specified.
+**Current verified state**: `docker-compose.staging.yml` now defines two API services, `api-a` and `api-b`, using shared staging configuration, MongoDB, Redis, secrets, and trusted-origin authority. Both expose distinct loopback-only ports for controlled direct testing. `deploy/Caddyfile` now configures staging `/api` traffic with both services as upstreams. The staging stack has not been started, so live concurrent execution and cross-instance behavior remain unverified.
 
 Frozen requirement:
 
@@ -209,22 +209,11 @@ Two concurrently running API instances: api-a, api-b
 
 Both instances must share: staging MongoDB, staging Redis, `JWT_SECRET`, `REFRESH_SECRET`, the exact frozen audience constants, the issuer, the secure-auth flag, and the trusted-origin set. Each instance must expose a safe identifier in staging logs (e.g. a `HOSTNAME`/container-ID field already available to Docker, or an explicit log field added later) so evidence can attribute a given request/response to a specific instance.
 
-`deploy/Caddyfile` must be capable of routing to both instances — either through controlled direct access to `api-a` and `api-b` individually (preferred, since it removes ambiguity about which instance served a given evidence entry), or through load-balancer routing with reliable instance-identification evidence if direct access is not practical.
+`deploy/Caddyfile` is configured to route staging `/api` traffic to both instances. Controlled direct access to `api-a` and `api-b` is also configured through distinct loopback-only host ports, removing ambiguity about which instance serves direct acceptance evidence.
 
 **Not accepted as multi-instance evidence** (per the SEC-3F contract, restated here for this document's own gate in §13 below): one API container restarted twice; the Render worker process; two requests to one process; two browser tabs against one process.
 
-**Files that would need a later implementation or operator change** (identified, not modified, by this document):
-
-```text
-docker-compose.staging.yml   — needs a second backend service definition (e.g. `backend-b`)
-                                sharing the same mongodb/redis service and environment,
-                                or a `deploy.replicas` equivalent if the compose tooling
-                                in use supports it for this project's setup
-deploy/Caddyfile             — needs the staging block extended with a load-balancing or
-                                dual-upstream directive routing to both backend containers
-```
-
-No change was made to either file in this documentation-only phase.
+Repository configuration now satisfies the dual-service topology prerequisite. Live evidence still requires starting the isolated staging stack and proving two identifiable API processes run concurrently against the shared staging MongoDB and Redis services.
 
 ---
 
@@ -270,7 +259,7 @@ Production is never used for SEC-3F outage testing.
 
 No code deployment occurred in this phase. The following order is frozen for a later operator to execute:
 
-**Step 1 — Infrastructure preparation**: provision production Redis; provision isolated staging MongoDB; provision isolated staging Redis; provision/confirm the staging frontend+API stack; add a second staging API instance; prepare an index-provisioning method; prepare maintenance/rollback controls.
+**Step 1 — Infrastructure preparation**: provision production Redis; provision isolated staging MongoDB; provision isolated staging Redis; provision/confirm the configured dual-instance staging frontend+API stack; verify both configured staging API instances run concurrently; prepare an index-provisioning method; prepare maintenance/rollback controls.
 
 **Step 2 — Domain preparation**: bind `api.strideto.com` to the Render API service; configure DNS; enable TLS; verify no redirect to the provider hostname; verify `www.strideto.com` remains canonical; verify the apex redirects to `www`.
 
@@ -323,13 +312,24 @@ Authorized responses to a staging boot failure: correct missing staging variable
 | INFRA-A9 | Confirm `staging.strideto.com` DNS | Staging | DNS admin | DNS resolves; Caddy staging block active | Staging traffic silently falls back to an unintended host | UNRESOLVED |
 | INFRA-A10 | Provision isolated staging MongoDB | Staging | Infra/DB admin | Distinct DB name/cluster from production, confirmed via read-only inspection | Staging points at the production database | UNRESOLVED |
 | INFRA-A11 | Provision isolated staging Redis | Staging | Infra admin | Distinct instance/namespace from production | Staging points at the production Redis instance | UNRESOLVED |
-| INFRA-A12 | Run two staging API instances | Staging | Infra/deploy admin | Two distinct, identifiable running processes sharing staging Mongo/Redis/secrets | Only one process, or two processes with unshared state | BLOCKED — `docker-compose.staging.yml` currently declares one `backend` service only |
+| INFRA-A12 | Run two staging API instances | Staging | Infra/deploy admin | Two distinct, identifiable running processes sharing staging Mongo/Redis/secrets | Only one process, or two processes with unshared state | NOT EXECUTED — `api-a`, `api-b`, shared staging MongoDB/Redis, distinct loopback access, and Caddy dual-upstream routing are configured; live concurrent execution remains unverified |
 | INFRA-A13 | Provision `RefreshSession` indexes | Staging (then production, separately) | DB admin | `getIndexes()` output matching §10's five required indexes | Any required index missing before browser execution begins | UNRESOLVED |
 | INFRA-A14 | Prepare outage controls | Staging | Infra admin | Documented, tested stop/start procedure for Mongo/Redis/API containers, isolated from production | Any outage test touches production | UNRESOLVED |
 | INFRA-A15 | Prepare staging test accounts | Staging | QA/infra admin | Staging-only User/Employer/staff accounts, no real personal data, cleanup plan | Reuse of any production account | NOT EXECUTED |
 | INFRA-A16 | Prepare maintenance/rollback control | Production + staging | Infra admin | Documented maintenance-mode toggle; confirmed it does not require legacy-mode fallback | Rollback plan relies on a prohibited legacy path (§13) | NOT EXECUTED |
 
 No action is marked `CONFIRMED` without complete cited evidence. INFRA-A1 remains `PARTIALLY CONFIRMED` because frontend liveness is evidenced but apex-to-www redirect behavior remains unverified.
+
+Action status counts after the dual-instance repository correction:
+
+```text
+CONFIRMED:           0
+PARTIALLY CONFIRMED: 1
+UNRESOLVED:         12
+BLOCKED:             0
+NOT EXECUTED:        3
+TOTAL:              16
+```
 
 ---
 
@@ -358,7 +358,8 @@ Gate D — Staging availability
 Gate E — Two-instance capability
   Pass only when two real API processes can run concurrently against
   shared staging MongoDB/Redis.
-  Status: NOT MET (INFRA-A12 BLOCKED — requires a compose/Caddy change)
+  Status: NOT MET (INFRA-A12 NOT EXECUTED — dual-service Compose and
+  Caddy routing are configured, but live concurrent execution is unverified)
 
 Gate F — Index readiness
   Pass only when all committed RefreshSession indexes exist in staging.
@@ -381,7 +382,7 @@ This document does **not** claim, and no reader should infer, that:
 - `api.strideto.com` is currently bound — it is not, per §1's cited evidence;
 - Redis is currently provisioned for production — it is not, per §5's cited evidence;
 - staging is currently live — its liveness is unconfirmed, per §7;
-- two API instances currently exist anywhere — they do not, per §9;
+- two API instances are currently running anywhere — repository configuration exists, but live execution is unverified, per §9;
 - indexes currently exist in any staging database — unconfirmed, per §10;
 - SEC-3F is ready to execute — it is not; every gate in §15 is unmet;
 - production is ready to deploy this checkpoint — it is not, and deploying it in the current state would crash-loop the live API (§5).

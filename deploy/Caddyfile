@@ -14,8 +14,18 @@ strideto.com, www.strideto.com {
 	reverse_proxy localhost:80
 }
 
-# Staging example (optional second host):
-# staging.strideto.com {
-# 	encode gzip
-# 	reverse_proxy localhost:8080
-# }
+# Staging TLS front door with dual API upstreams.
+staging.strideto.com {
+	encode gzip
+
+	handle /api/* {
+		reverse_proxy api-a:5000 api-b:5000 {
+			header_up X-Forwarded-Proto {scheme}
+			header_up X-Real-IP {remote}
+		}
+	}
+
+	handle {
+		reverse_proxy localhost:8080
+	}
+}
