@@ -1,6 +1,6 @@
 # STRIDETO SEC-3F-A — Infrastructure Authority Resolution
 
-**Status**: infrastructure authority record. Production DNS/HTTPS evidence and isolated local staging evidence are recorded below. No production infrastructure was changed or deployed by these repository phases.
+**Status**: SEC-3F engineering acceptance is **PASS FOR ISOLATED LOCAL STAGING**. The production activation gate is **NOT MET**. Production DNS/HTTPS evidence and isolated local staging evidence are recorded below. No production infrastructure was changed or deployed by these repository phases.
 
 **Authority for this document**: the SEC-3F real-infrastructure acceptance contract audit does not exist as a committed repository file — no `docs/STRIDETO_SEC_3F_REAL_INFRASTRUCTURE_ACCEPTANCE_CONTRACT_AUDIT.md` was found in this repository at the time of writing. This document instead uses the complete accepted SEC-3F contract-audit output produced earlier in this engagement (verdict: `SEC-3F CONTRACT REQUIRES BOUNDED INFRASTRUCTURE AUTHORITY CORRECTION`) as its authority, alongside `docs/STRIDETO_AUTHENTICATION_SESSION_SECURITY_ARCHITECTURE_AUDIT.md` and `docs/STRIDETO_SEC_3E_ATOMIC_AUTHENTICATION_CUTOVER_IMPLEMENTATION_REPORT.md`, both read in full for this document.
 
@@ -173,7 +173,7 @@ This produces same-origin browser/API staging traffic, which is compatible with 
 
 **Current verified state**: the isolated local SEC-3F stack is running at `https://localhost:8443` through an internal Caddy certificate. Its frontend, MongoDB, Redis, `api-a`, and `api-b` services are healthy, and Caddy returns HTTP 200 for `/api/health`. Public `staging.strideto.com` DNS and reachability remain unresolved; local staging evidence is not public or production infrastructure acceptance.
 
-**External action required**: provision and verify public `staging.strideto.com` DNS/hosting separately. The running localhost stack is the authorized SEC-3F acceptance target for the next phase but does not satisfy public staging or production infrastructure acceptance.
+**External action required**: provision and verify public `staging.strideto.com` DNS/hosting separately. The running localhost stack was the authorized SEC-3F engineering-acceptance target and has now passed that acceptance; it does not satisfy public staging or production infrastructure acceptance.
 
 ---
 
@@ -197,7 +197,7 @@ Staging must never use production users, production employers, production staff 
 
 ## 9. Two-instance staging authority
 
-**Current verified state**: `api-a` and `api-b` are configured and running concurrently in isolated local staging. Their direct loopback health endpoints both return HTTP 200 with MongoDB and Redis reported `up`, and both use the same local Compose MongoDB and Redis services. Caddy dual-upstream routing is configured and its `/api/health` endpoint returns HTTP 200. Cross-instance authentication, logout, and concurrency behavior remain untested.
+**Current verified state**: `api-a` and `api-b` are configured and running concurrently in isolated local staging. Their direct loopback health endpoints both return HTTP 200 with MongoDB and Redis reported `up`, and both use the same local Compose MongoDB and Redis services. Caddy dual-upstream routing is configured and its `/api/health` endpoint returns HTTP 200. Committed SEC-3F evidence confirms real browser authentication, concurrent refresh conflict handling, replay-family revocation, cross-instance logout and access denylisting, individual API restart continuity, datastore outage recovery, and account-state invalidation across both APIs.
 
 Frozen requirement:
 
@@ -211,7 +211,7 @@ Both instances must share: staging MongoDB, staging Redis, `JWT_SECRET`, `REFRES
 
 **Not accepted as multi-instance evidence** (per the SEC-3F contract, restated here for this document's own gate in §13 below): one API container restarted twice; the Render worker process; two requests to one process; two browser tabs against one process.
 
-Repository configuration and isolated local liveness evidence satisfy the dual-service topology prerequisite. Authentication-level cross-instance evidence is still required before Gate E can pass.
+Repository configuration, isolated local liveness, and completed authentication-level cross-instance evidence satisfy Gate E for isolated local staging.
 
 ---
 
@@ -249,13 +249,13 @@ Staging must permit controlled simulation of: MongoDB unavailable; Redis unavail
 Production is never used for SEC-3F outage testing.
 ```
 
-**Current verified state**: the isolated local Docker Compose services are running independently, but controlled outage and recovery scenarios have not been executed. Gate G remains unmet until those bounded local-only tests prove safe outage control without touching production.
+**Current verified state**: controlled Redis and MongoDB outage/recovery scenarios were completed against the isolated local Docker Compose stack. Both APIs failed closed during datastore unavailability and recovered automatically without API restart. Individual `api-a` and `api-b` restart-continuity scenarios also passed. No outage action touched production. Gate G is met for isolated local staging.
 
 ---
 
-## 12. Deployment order (frozen, not executed)
+## 12. Production/public-staging deployment order (frozen, not executed)
 
-No code deployment occurred in this phase. The following order is frozen for a later operator to execute:
+No public-staging or production code deployment occurred in this phase. The following order remains frozen for a later operator and is separate from the completed isolated-local acceptance:
 
 **Step 1 — Infrastructure preparation**: provision production Redis; provision isolated staging MongoDB; provision isolated staging Redis; provision/confirm the configured dual-instance staging frontend+API stack; verify both configured staging API instances run concurrently; use the guarded index-readiness utility against staging; prepare maintenance/rollback controls.
 
@@ -297,33 +297,33 @@ Authorized responses to a staging boot failure: correct missing staging variable
 
 ## 14. External operator action table
 
-| ID | Action | Environment | Owner authority needed | Evidence required | Security stop condition | Status |
-|----|--------|-------------|------------------------|--------------------|--------------------------|--------|
-| INFRA-A1 | Confirm canonical `www` frontend | Production | Vercel/domain admin | DNS + HTTPS check against `www.strideto.com`; apex redirect confirmed | Apex serves the SPA directly without redirecting | CONFIRMED — `www` resolves and serves HTTPS; the apex redirects to `www` |
-| INFRA-A2 | Bind `api.strideto.com` | Production | Render + DNS admin | DNS record + Render custom-domain dashboard screenshot; TLS cert issued | Requests silently resolve to `strideto.onrender.com` instead | CONFIRMED — `api.strideto.com` resolves by CNAME to `strideto.onrender.com` |
-| INFRA-A3 | Configure API TLS | Production | Render/DNS admin | Valid cert for `api.strideto.com`, hostname match | Cert mismatch or HTTP fallback | CONFIRMED — certificate validation succeeds and `/api/health` returns HTTP 200 |
-| INFRA-A4 | Verify no `onrender.com` redirect | Production | Render admin | Direct request to `api.strideto.com` shows no redirect to the provider domain | Any redirect/rewrite to `*.onrender.com` in a browser-visible response | CONFIRMED — final URL remains on `api.strideto.com` with zero redirects |
-| INFRA-A5 | Correct exact frontend origins | Production | Render env admin | `SITE_URL`/`FRONTEND_URL`/`APP_URL` on the live Render dashboard equal `https://www.strideto.com` | Deployed values still equal the template's apex value | UNRESOLVED |
-| INFRA-A6 | Disable Vercel preview CORS | Production + staging | Render env admin | `CORS_ALLOW_VERCEL_PREVIEWS=0` set on both | Value left unset/`1` | UNRESOLVED |
-| INFRA-A7 | Provision production Redis | Production | Infra/DB admin | `REDIS_URL` present on Render; health check no longer reports `redis: disabled` | Deploy proceeds without Redis provisioned | UNRESOLVED |
-| INFRA-A8 | Set production secure-auth variables | Production | Render env admin | Presence/shape check per §6, no values printed | Deploy occurs with any of §6's variables absent/invalid | UNRESOLVED |
-| INFRA-A9 | Confirm `staging.strideto.com` DNS | Staging | DNS admin | DNS resolves; Caddy staging block active | Staging traffic silently falls back to an unintended host | UNRESOLVED |
-| INFRA-A10 | Provision isolated staging MongoDB | Staging | Infra/DB admin | Distinct DB name/cluster from production, confirmed via read-only inspection | Staging points at the production database | UNRESOLVED |
-| INFRA-A11 | Provision isolated staging Redis | Staging | Infra admin | Distinct instance/namespace from production | Staging points at the production Redis instance | UNRESOLVED |
-| INFRA-A12 | Run two staging API instances | Staging | Infra/deploy admin | Two distinct, identifiable running processes sharing staging Mongo/Redis/secrets | Only one process, or two processes with unshared state | PARTIALLY CONFIRMED — both local APIs run and return HTTP 200 against shared local MongoDB/Redis; Caddy dual-upstream routing is configured; authentication-level cross-instance behavior remains untested |
-| INFRA-A13 | Provision `RefreshSession` indexes | Staging (then production, separately) | DB admin | Utility verification output matching §10's five required indexes | Any required index missing before browser execution begins | CONFIRMED FOR ISOLATED LOCAL STAGING — guarded first-run creation and verification matched `_id` plus all four named indexes; production indexes remain unverified |
-| INFRA-A14 | Prepare outage controls | Staging | Infra admin | Documented, tested stop/start procedure for Mongo/Redis/API containers, isolated from production | Any outage test touches production | UNRESOLVED |
-| INFRA-A15 | Prepare staging test accounts | Staging | QA/infra admin | Staging-only User/Employer/staff accounts, no real personal data, cleanup plan | Reuse of any production account | NOT EXECUTED |
-| INFRA-A16 | Prepare maintenance/rollback control | Production + staging | Infra admin | Documented maintenance-mode toggle; confirmed it does not require legacy-mode fallback | Rollback plan relies on a prohibited legacy path (§13) | NOT EXECUTED |
+| ID        | Action                               | Environment                           | Owner authority needed | Evidence required                                                                                 | Security stop condition                                                | Status                                                                                                                                                                                                                               |
+| --------- | ------------------------------------ | ------------------------------------- | ---------------------- | ------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| INFRA-A1  | Confirm canonical `www` frontend     | Production                            | Vercel/domain admin    | DNS + HTTPS check against `www.strideto.com`; apex redirect confirmed                             | Apex serves the SPA directly without redirecting                       | CONFIRMED — `www` resolves and serves HTTPS; the apex redirects to `www`                                                                                                                                                             |
+| INFRA-A2  | Bind `api.strideto.com`              | Production                            | Render + DNS admin     | DNS record + Render custom-domain dashboard screenshot; TLS cert issued                           | Requests silently resolve to `strideto.onrender.com` instead           | CONFIRMED — `api.strideto.com` resolves by CNAME to `strideto.onrender.com`                                                                                                                                                          |
+| INFRA-A3  | Configure API TLS                    | Production                            | Render/DNS admin       | Valid cert for `api.strideto.com`, hostname match                                                 | Cert mismatch or HTTP fallback                                         | CONFIRMED — certificate validation succeeds and `/api/health` returns HTTP 200                                                                                                                                                       |
+| INFRA-A4  | Verify no `onrender.com` redirect    | Production                            | Render admin           | Direct request to `api.strideto.com` shows no redirect to the provider domain                     | Any redirect/rewrite to `*.onrender.com` in a browser-visible response | CONFIRMED — final URL remains on `api.strideto.com` with zero redirects                                                                                                                                                              |
+| INFRA-A5  | Correct exact frontend origins       | Production                            | Render env admin       | `SITE_URL`/`FRONTEND_URL`/`APP_URL` on the live Render dashboard equal `https://www.strideto.com` | Deployed values still equal the template's apex value                  | UNRESOLVED                                                                                                                                                                                                                           |
+| INFRA-A6  | Disable Vercel preview CORS          | Production + staging                  | Render env admin       | `CORS_ALLOW_VERCEL_PREVIEWS=0` set on both                                                        | Value left unset/`1`                                                   | UNRESOLVED                                                                                                                                                                                                                           |
+| INFRA-A7  | Provision production Redis           | Production                            | Infra/DB admin         | `REDIS_URL` present on Render; health check no longer reports `redis: disabled`                   | Deploy proceeds without Redis provisioned                              | UNRESOLVED — production provisioning and persistence remain unverified                                                                                                                                                               |
+| INFRA-A8  | Set production secure-auth variables | Production                            | Render env admin       | Presence/shape check per §6, no values printed                                                    | Deploy occurs with any of §6's variables absent/invalid                | UNRESOLVED                                                                                                                                                                                                                           |
+| INFRA-A9  | Confirm `staging.strideto.com` DNS   | Staging                               | DNS admin              | DNS resolves; Caddy staging block active                                                          | Staging traffic silently falls back to an unintended host              | UNRESOLVED                                                                                                                                                                                                                           |
+| INFRA-A10 | Provision isolated staging MongoDB   | Staging                               | Infra/DB admin         | Distinct DB name/cluster from production, confirmed via read-only inspection                      | Staging points at the production database                              | CONFIRMED FOR ISOLATED LOCAL STAGING — the dedicated Compose MongoDB service is isolated from production and supported the complete acceptance run                                                                                   |
+| INFRA-A11 | Provision isolated staging Redis     | Staging                               | Infra admin            | Distinct instance/namespace from production                                                       | Staging points at the production Redis instance                        | CONFIRMED FOR ISOLATED LOCAL STAGING — the dedicated Compose Redis service is isolated from production and shared by both local API instances                                                                                        |
+| INFRA-A12 | Run two staging API instances        | Staging                               | Infra/deploy admin     | Two distinct, identifiable running processes sharing staging Mongo/Redis/secrets                  | Only one process, or two processes with unshared state                 | CONFIRMED FOR ISOLATED LOCAL STAGING — both APIs ran concurrently against shared local MongoDB/Redis; Caddy balanced both upstreams; cross-instance concurrency, replay, logout, restart, outage, and account-state scenarios passed |
+| INFRA-A13 | Provision `RefreshSession` indexes   | Staging (then production, separately) | DB admin               | Utility verification output matching §10's five required indexes                                  | Any required index missing before browser execution begins             | CONFIRMED FOR ISOLATED LOCAL STAGING — guarded first-run creation and verification matched `_id` plus all four named indexes; production indexes remain unverified                                                                   |
+| INFRA-A14 | Prepare outage controls              | Staging                               | Infra admin            | Documented, tested stop/start procedure for Mongo/Redis/API containers, isolated from production  | Any outage test touches production                                     | CONFIRMED FOR ISOLATED LOCAL STAGING — bounded Redis, MongoDB, and individual API stop/start recovery scenarios passed without production access                                                                                     |
+| INFRA-A15 | Prepare staging test accounts        | Staging                               | QA/infra admin         | Staging-only User/Employer/staff accounts, no real personal data, cleanup plan                    | Reuse of any production account                                        | NOT EXECUTED                                                                                                                                                                                                                         |
+| INFRA-A16 | Prepare maintenance/rollback control | Production + staging                  | Infra admin            | Documented maintenance-mode toggle; confirmed it does not require legacy-mode fallback            | Rollback plan relies on a prohibited legacy path (§13)                 | NOT EXECUTED                                                                                                                                                                                                                         |
 
-Production domain actions INFRA-A1 through INFRA-A4 are confirmed by direct DNS and HTTPS evidence. INFRA-A13 is confirmed only for isolated local staging, not production.
+Production domain actions INFRA-A1 through INFRA-A4 are confirmed by direct DNS and HTTPS evidence. INFRA-A10 through INFRA-A14 are confirmed only for isolated local staging, not public staging or production.
 
 Action status counts after the domain and isolated-local-staging evidence update:
 
 ```text
-CONFIRMED:           5
-PARTIALLY CONFIRMED: 1
-UNRESOLVED:          8
+CONFIRMED:           9
+PARTIALLY CONFIRMED: 0
+UNRESOLVED:          5
 BLOCKED:             0
 NOT EXECUTED:        2
 TOTAL:              16
@@ -351,26 +351,36 @@ Gate C — Production boot prerequisites
 
 Gate D — Staging availability
   Pass only when staging.strideto.com is reachable and isolated.
-  Status: NOT MET (INFRA-A9/A10/A11 unresolved)
+  Status: NOT MET FOR PUBLIC STAGING (INFRA-A9 unresolved; INFRA-A10/A11
+  are confirmed only for the isolated local stack)
 
 Gate E — Two-instance capability
   Pass only when two real API processes can run concurrently against
   shared staging MongoDB/Redis.
-  Status: NOT MET (INFRA-A12 PARTIALLY CONFIRMED — local liveness is
-  proven, but cross-instance authentication/logout/concurrency is untested)
+  Status: MET FOR ISOLATED LOCAL STAGING (INFRA-A12 confirmed locally;
+  cross-instance concurrency, replay, logout, restart, and account-state
+  invalidation passed)
 
 Gate F — Index readiness
   Pass only when all committed RefreshSession indexes exist in staging.
-  Status: MET FOR ISOLATED LOCAL STAGING ONLY (INFRA-A13 confirmed locally;
+  Status: MET FOR ISOLATED LOCAL STAGING (INFRA-A13 confirmed locally;
   production indexes remain unverified)
 
 Gate G — Outage-control readiness
   Pass only when MongoDB/Redis/API outages can be simulated safely in
   staging.
-  Status: NOT MET (INFRA-A14 unresolved, depends on Gate D)
+  Status: MET FOR ISOLATED LOCAL STAGING (INFRA-A14 confirmed locally;
+  Redis, MongoDB, and individual API recovery scenarios passed)
 ```
 
-SEC-3F authentication acceptance remains pending until the remaining gates and cross-instance scenarios pass. SEC-3G remains blocked.
+Gate E and Gate F are met for isolated local staging. Gate G is also met for that isolated environment. Gates B, C, and D remain unmet for production/public staging and do not become confirmed from local evidence.
+
+```text
+SEC-3F engineering acceptance: PASS FOR ISOLATED LOCAL STAGING
+Production activation gate:    NOT MET
+```
+
+This engineering decision authorizes SEC-3G legacy-authentication removal in the local development branch and focused/full regression verification after removal. It does not authorize production deployment, production secure-auth activation, removal of rollback capability from deployment procedures, or treating local infrastructure as production evidence.
 
 ---
 
@@ -380,13 +390,13 @@ This document does **not** claim, and no reader should infer, that:
 
 - Redis is currently provisioned for production — it is not, per §5's cited evidence;
 - public `staging.strideto.com` is currently live — public DNS remains unresolved; only isolated local staging is running, per §7;
-- cross-instance authentication behavior is accepted — only service liveness and shared-infrastructure health are proven, per §9;
+- public staging cross-instance behavior is accepted — the completed evidence applies only to the isolated local stack, per §9;
 - production RefreshSession indexes exist — only isolated local staging indexes are verified, per §10;
-- SEC-3F is ready to execute — it is not; every gate in §15 is unmet;
+- production activation is accepted — Gates B, C, and D remain unmet, and production activation remains blocked;
 - production is ready to deploy this checkpoint — it is not, and deploying it in the current state would crash-loop the live API (§5).
 
 ---
 
 ## 17. Next safe step
 
-Run SEC-3F-F real authentication acceptance against the running isolated local stack. Production Redis, production index verification, public staging DNS, and all remaining operator actions stay deferred; local evidence must not be treated as production acceptance.
+Begin SEC-3G-A legacy-authentication surface inventory and removal planning on the local development branch. Production Redis provisioning and persistence verification, production secure-auth variable activation, production RefreshSession index apply/verify, production deployment, final production browser smoke, public staging DNS, and all remaining production operator actions stay deferred. Local evidence must not be treated as production acceptance.
