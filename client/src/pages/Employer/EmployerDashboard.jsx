@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
@@ -19,23 +19,69 @@ export default function EmployerDashboard() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
+  const mountedRef = useRef(false);
+  const inFlightRef = useRef(false);
 
   useEffect(() => {
-    employerApi
-      .dashboard()
-      .then(({ data: d }) => setData(d))
-      .catch(() => {
-        setLoadError(true);
-        setData({
-          activeJobs: 0,
-          totalApplications: 0,
-          totalViews: 0,
-          shortlistedCandidates: 0,
-          jobs: [],
-          conversionRateLabel: 'n/a',
+    mountedRef.current = true;
+
+    // A single in-flight guard both prevents duplicate simultaneous requests
+    // (visibility + focus firing together) and, because only one request can
+    // ever be pending at a time, makes a stale response overwriting a newer
+    // one structurally impossible — there is never a second request for an
+    // earlier one to race against.
+    const loadDashboard = ({ background = false } = {}) => {
+      if (document.hidden) return;
+      if (inFlightRef.current) return;
+      inFlightRef.current = true;
+      if (!background) setLoading(true);
+
+      employerApi
+        .dashboard()
+        .then(({ data: d }) => {
+          if (!mountedRef.current) return;
+          setData(d);
+          setLoadError(false);
+        })
+        .catch(() => {
+          if (!mountedRef.current) return;
+          if (!background) {
+            // Initial load has no prior data to protect — fall back to the
+            // existing safe zeroed state and surface the error banner.
+            setLoadError(true);
+            setData({
+              activeJobs: 0,
+              totalApplications: 0,
+              totalViews: 0,
+              shortlistedCandidates: 0,
+              jobs: [],
+              conversionRateLabel: 'n/a',
+            });
+          }
+          // Background refresh failure: keep whatever metrics are already
+          // rendered rather than clearing them to zero, and don't retry.
+        })
+        .finally(() => {
+          inFlightRef.current = false;
+          if (mountedRef.current && !background) setLoading(false);
         });
-      })
-      .finally(() => setLoading(false));
+    };
+
+    loadDashboard({ background: false });
+
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') loadDashboard({ background: true });
+    };
+    const handleFocus = () => loadDashboard({ background: true });
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      mountedRef.current = false;
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+    };
   }, []);
 
   if (loading) {
