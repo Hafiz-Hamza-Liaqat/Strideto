@@ -50,16 +50,26 @@ function redactEmailPayload(payload) {
 }
 
 async function processEmailJob(payload) {
-  if (payload.templateKey) {
-    return sendTemplatedEmail(payload.to, payload.templateKey, payload.lang || 'en', payload.vars || {});
+  const result = payload.templateKey
+    ? await sendTemplatedEmail(payload.to, payload.templateKey, payload.lang || 'en', payload.vars || {})
+    : await sendEmail({
+        to: payload.to,
+        subject: payload.subject,
+        body: payload.body,
+        text: payload.text,
+        template: payload.template,
+      });
+
+  // The mailer resolves (does not throw) when SMTP is unconfigured, so the
+  // queue must check the delivery result itself — otherwise a no-op
+  // placeholder send would be indistinguishable from a real one and the job
+  // would be marked completed without anything actually being delivered.
+  if (!result?.sent) {
+    const err = new Error(result?.placeholder ? 'email_transport_not_configured' : 'email_not_sent');
+    err.code = 'EMAIL_NOT_DELIVERED';
+    throw err;
   }
-  return sendEmail({
-    to: payload.to,
-    subject: payload.subject,
-    body: payload.body,
-    text: payload.text,
-    template: payload.template,
-  });
+  return result;
 }
 
 async function processNotificationJob(payload) {

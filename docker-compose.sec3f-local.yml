@@ -63,6 +63,13 @@ services:
   worker:
     profiles:
       - sec3f-worker-disabled
+    environment:
+      MAIL_HOST: mailpit
+      MAIL_PORT: "1025"
+      MAIL_SECURE: "false"
+      MAIL_USER: strideto-local
+      MAIL_PASS: strideto-local
+      MAIL_FROM: Strideto Local <noreply@strideto.test>
 
   frontend:
     ports: !override []
