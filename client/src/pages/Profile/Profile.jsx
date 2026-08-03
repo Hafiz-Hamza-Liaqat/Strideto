@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
@@ -14,12 +14,15 @@ import { formatDate } from '../../utils/formatDate';
 import { SeoHead } from '../../components/seo';
 import { ProfileCompletionCard } from '../../components/profile/ProfileCompletionCard';
 import { ResumeEncouragementBanner } from '../../components/profile/ResumeEncouragementBanner';
+import { openProfilingWizard } from '../../onboarding/ProfilingWizard.jsx';
 
 export default function Profile() {
   const { t } = useTranslation(['profile', 'common']);
   const { user, updateUser } = useAuth();
   const { setLang } = useLanguage();
   const location = useLocation();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const careerWizardOpenRef = useRef(false);
   const [name, setName] = useState('');
   const [province, setProvince] = useState('');
   const [interests, setInterests] = useState([]);
@@ -83,6 +86,42 @@ export default function Profile() {
     const el = document.getElementById('account-settings');
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, [loading, location.hash]);
+
+  useEffect(() => {
+    if (loading) return;
+    if (searchParams.get('section') !== 'career-preferences') return;
+    if (careerWizardOpenRef.current) return;
+    careerWizardOpenRef.current = true;
+
+    const closeWizardSection = () => {
+      const next = new URLSearchParams(searchParams);
+      next.delete('section');
+      setSearchParams(next, { replace: true });
+    };
+
+    openProfilingWizard({
+      initialPrefs: user?.careerPreferences || undefined,
+      initialStep: 1,
+      editMode: true,
+    })
+      .then(async ({ prefs, action }) => {
+        if (action === 'cancel') return;
+        try {
+          const { data } = await authApi.updateProfile({ careerPreferences: prefs });
+          if (data?.user) updateUser(data.user);
+          setMessage(t('profile:updated'));
+          setMessageSuccess(true);
+        } catch (err) {
+          setMessage(err.response?.data?.error || t('profile:failedUpdate'));
+          setMessageSuccess(false);
+        }
+      })
+      .finally(() => {
+        careerWizardOpenRef.current = false;
+        closeWizardSection();
+      });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [loading, searchParams]);
 
   const toggleInterest = (item) => {
     setInterests((prev) =>

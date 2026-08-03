@@ -32,9 +32,12 @@ function OptionChip({ selected, onClick, children, multi = false }) {
 }
 
 /**
- * Optional LinkedIn-style first-time profiling wizard.
- * @param {{ initialPrefs?: object }} [options]
- * @returns {Promise<{ prefs: object, action: 'tour'|'explore'|'skip' }>}
+ * Optional LinkedIn-style first-time profiling wizard. Also reused
+ * post-onboarding (e.g. from the profile-completion checklist) to let a
+ * user revisit the same career-preferences questions via `initialStep` +
+ * `editMode`, without a second data model or persistence path.
+ * @param {{ initialPrefs?: object, initialStep?: number, editMode?: boolean }} [options]
+ * @returns {Promise<{ prefs: object, action: 'tour'|'explore'|'skip'|'save'|'cancel' }>}
  */
 export function openProfilingWizard(options = {}) {
   return new Promise((resolve) => {
@@ -58,6 +61,8 @@ export function openProfilingWizard(options = {}) {
       root.render(
         <ProfilingWizard
           initialPrefs={options.initialPrefs}
+          initialStep={options.initialStep}
+          editMode={options.editMode}
           onDone={(result) => cleanup(result)}
         />
       );
@@ -65,10 +70,10 @@ export function openProfilingWizard(options = {}) {
   });
 }
 
-export function ProfilingWizard({ onDone, initialPrefs }) {
+export function ProfilingWizard({ onDone, initialPrefs, initialStep = 0, editMode = false }) {
   const titleId = useId();
   const dialogRef = useRef(null);
-  const [step, setStep] = useState(0);
+  const [step, setStep] = useState(initialStep);
   const [fieldQuery, setFieldQuery] = useState('');
   const [prefs, setPrefs] = useState(() =>
     normalizeCareerPreferences(initialPrefs || createEmptyCareerPreferences())
@@ -95,7 +100,9 @@ export function ProfilingWizard({ onDone, initialPrefs }) {
     [onDone, prefs]
   );
 
-  useOverlayA11y({ open: true, onClose: () => finish('tour', true), containerRef: dialogRef, trapFocus: true });
+  const closeAction = editMode ? 'cancel' : 'tour';
+
+  useOverlayA11y({ open: true, onClose: () => finish(closeAction, true), containerRef: dialogRef, trapFocus: true });
 
   useEffect(() => {
     const prev = document.body.style.overflow;
@@ -105,7 +112,8 @@ export function ProfilingWizard({ onDone, initialPrefs }) {
     };
   }, []);
 
-  const progress = Math.round(((step + 1) / TOTAL_STEPS) * 100);
+  const stepsInView = TOTAL_STEPS - initialStep;
+  const progress = Math.round(((step - initialStep + 1) / stepsInView) * 100);
 
   const filteredFields = FIELD_OF_INTEREST_OPTIONS.filter((f) =>
     f.toLowerCase().includes(fieldQuery.trim().toLowerCase())
@@ -131,7 +139,7 @@ export function ProfilingWizard({ onDone, initialPrefs }) {
   };
 
   const goNext = () => setStep((s) => Math.min(s + 1, TOTAL_STEPS - 1));
-  const goBack = () => setStep((s) => Math.max(s - 1, 0));
+  const goBack = () => setStep((s) => Math.max(s - 1, initialStep));
 
   let body = null;
   if (step === 0) {
@@ -305,6 +313,23 @@ export function ProfilingWizard({ onDone, initialPrefs }) {
         </div>
       </>
     );
+  } else if (editMode) {
+    body = (
+      <>
+        <h2 id={titleId} className="strideto-profile-title">Career preferences updated</h2>
+        <p className="strideto-profile-sub">
+          Save to update your profile and recommendations, or cancel to discard these changes.
+        </p>
+        <div className="strideto-profile-actions">
+          <button type="button" className="strideto-onboarding-btn-secondary" onClick={() => finish('cancel', true)}>
+            Cancel
+          </button>
+          <button type="button" className="strideto-onboarding-btn-primary" onClick={() => finish('save')} autoFocus>
+            Save changes
+          </button>
+        </div>
+      </>
+    );
   } else {
     body = (
       <>
@@ -343,7 +368,7 @@ export function ProfilingWizard({ onDone, initialPrefs }) {
           <div className="strideto-profile-progress-bar" style={{ width: `${progress}%` }} />
         </div>
         <p className="strideto-profile-step-label" aria-live="polite">
-          Step {step + 1} of {TOTAL_STEPS}
+          Step {step - initialStep + 1} of {stepsInView}
         </p>
         <div className="strideto-profile-body">{body}</div>
         {showNav && (
@@ -362,8 +387,8 @@ export function ProfilingWizard({ onDone, initialPrefs }) {
         <button
           type="button"
           className="strideto-profile-close"
-          aria-label="Close setup"
-          onClick={() => finish('tour', true)}
+          aria-label={editMode ? 'Cancel career preferences' : 'Close setup'}
+          onClick={() => finish(closeAction, true)}
         >
           ×
         </button>

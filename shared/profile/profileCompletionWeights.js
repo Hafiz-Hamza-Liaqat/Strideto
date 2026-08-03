@@ -80,7 +80,7 @@ export const PROFILE_COMPLETION_ITEMS = [
     key: 'careerPreferences',
     label: 'Career Preferences',
     weight: PROFILE_COMPLETION_WEIGHTS.careerPreferences,
-    href: '/profile',
+    href: '/profile?section=career-preferences',
   },
   {
     key: 'location',
