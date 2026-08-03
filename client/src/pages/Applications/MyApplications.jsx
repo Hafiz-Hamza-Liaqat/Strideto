@@ -7,6 +7,7 @@ import { applicationsApi } from '../../services/applicationsApi';
 import { ApplicationCard } from '../../components/applications/ApplicationCard';
 import { ApplicationKanbanBoard } from '../../components/applications/ApplicationKanbanBoard';
 import { ApplicationTable } from '../../components/applications/ApplicationTable';
+import { ApplicationCalendarView } from '../../components/applications/ApplicationCalendarView';
 import { ApplicationMetricsStrip } from '../../components/applications/ApplicationMetricsStrip';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { isOpportunityApplicationEnabled } from '../../config/careerFeatureFlags';
@@ -205,9 +206,7 @@ export default function MyApplications() {
         )}
 
         {!loading && view === 'calendar' && (
-          <div className="rounded-xl border border-dashed border-gray-300 dark:border-gray-600 p-8 text-center">
-            <p className="text-gray-600 dark:text-gray-400">{t('applications:views.calendarPlaceholder')}</p>
-          </div>
+          <ApplicationCalendarView applications={visible} />
         )}
       </div>
     </>

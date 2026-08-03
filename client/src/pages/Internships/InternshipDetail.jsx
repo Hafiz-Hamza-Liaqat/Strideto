@@ -1,25 +1,31 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
 import { jobPostingSchema, breadcrumbSchema, combineSchemas } from '../../seo/schemas';
 import { buildCanonicalUrl } from '../../seo/config';
 import { internshipsApi, savedApi } from '../../services/listingsService';
+import { applicationsApi as oaApi } from '../../services/applicationsApi';
 import { ROUTES } from '../../constants';
 import { SaveButton } from '../../components/listings/SaveButton';
 import { useAuth } from '../../context/AuthContext';
+import { useToast } from '../../context/ToastContext';
+import { isOpportunityApplicationEnabled } from '../../config/careerFeatureFlags';
 import { formatDate } from '../../utils/formatDate';
 
 export default function InternshipDetail() {
   const { t } = useTranslation(['internships', 'common', 'navbar']);
   const { idOrSlug } = useParams();
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
+  const { toast } = useToast();
   const [internship, setInternship] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [saved, setSaved] = useState(false);
   const [applying, setApplying] = useState(false);
   const [applied, setApplied] = useState(false);
+  const [trackLoading, setTrackLoading] = useState(false);
 
   useEffect(() => {
     internshipsApi.get(idOrSlug).then(({ data }) => setInternship(data)).catch((e) => setError(e.response?.data?.error || t('internshipNotFound', { ns: 'internships' }))).finally(() => setLoading(false));
@@ -51,6 +57,32 @@ export default function InternshipDetail() {
       else window.alert(e.response?.data?.error || t('applyFailed', { ns: 'internships' }));
     } finally {
       setApplying(false);
+    }
+  };
+
+  const handleTrackApplication = async () => {
+    if (!internship?._id || !isOpportunityApplicationEnabled()) return;
+    setTrackLoading(true);
+    try {
+      const { data: app } = await oaApi.create({
+        opportunityType: 'internship',
+        opportunityId: internship._id,
+        source: internship.applyInPlatform ? 'platform' : 'external',
+        title: internship.title,
+        companyName: internship.organization || '',
+        externalUrl: internship.applicationLink || '',
+      });
+      toast?.success?.(t('trackedSuccess', { ns: 'internships', defaultValue: 'Added to your application tracker' }));
+      navigate(`${ROUTES.APPLICATIONS}/${app._id}`);
+    } catch (err) {
+      const existingId = err.response?.data?.applicationId || err.response?.data?.id;
+      if (existingId) {
+        navigate(`${ROUTES.APPLICATIONS}/${existingId}`);
+        return;
+      }
+      navigate(`${ROUTES.APPLICATIONS_NEW}?opportunityId=${internship._id}&type=internship`);
+    } finally {
+      setTrackLoading(false);
     }
   };
 
@@ -157,6 +189,18 @@ export default function InternshipDetail() {
             >
               {t('applyCompanyPortal', { ns: 'internships' })}
             </a>
+          )}
+          {isAuthenticated && isOpportunityApplicationEnabled() && (
+            <button
+              type="button"
+              onClick={handleTrackApplication}
+              disabled={trackLoading}
+              className="inline-flex items-center px-4 py-2 rounded-lg border-2 border-primary text-primary dark:text-mint hover:bg-mint/20 dark:hover:bg-mint/10 font-medium btn-theme disabled:opacity-50"
+            >
+              {trackLoading
+                ? t('tracking', { ns: 'internships', defaultValue: 'Adding…' })
+                : t('trackApplication', { ns: 'internships', defaultValue: 'Track application' })}
+            </button>
           )}
         </div>
       </div>

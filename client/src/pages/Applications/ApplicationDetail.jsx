@@ -12,6 +12,7 @@ import { ReminderForm } from '../../components/applications/ReminderForm';
 import { DocumentAttachPanel } from '../../components/applications/DocumentAttachPanel';
 import { ContactsPanel } from '../../components/applications/ContactsPanel';
 import { InterviewPanel } from '../../components/applications/InterviewPanel';
+import { ApplicationEditPanel } from '../../components/applications/ApplicationEditPanel';
 import { ActivityFeed } from '../../components/timeline/ActivityFeed';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { isOpportunityApplicationEnabled } from '../../config/careerFeatureFlags';
@@ -129,6 +130,14 @@ export default function ApplicationDetail() {
               </p>
             </div>
             <StageBadge stage={application.pipelineStage} />
+          </div>
+          <div className="mt-3">
+            <ApplicationEditPanel
+              application={application}
+              onSave={async (body) => {
+                await afterMutation(applicationsApi.update(id, body));
+              }}
+            />
           </div>
           <dl className="mt-4 grid sm:grid-cols-2 gap-3 text-sm">
             <div>
