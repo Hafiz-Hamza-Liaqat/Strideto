@@ -260,6 +260,30 @@ export async function onJobApproved({ jobId, employerId, jobTitle }) {
   }
 }
 
+/** Called after a Job durably persists in `pending` moderation status. */
+export async function onJobSubmitted({ jobId, jobTitle, companyName }) {
+  if (!jobId) return;
+
+  await notifyStaff({
+    category: 'job',
+    type: 'job.submitted',
+    title: `New job pending review: ${jobTitle}`,
+    body: companyName ? `Submitted by ${companyName}.` : 'A new job listing needs moderation.',
+    link: '/admin/moderation',
+    metadata: { jobId },
+  });
+
+  const adminEmail = process.env.CONTACT_ADMIN_EMAIL || process.env.MAIL_FROM || process.env.MAIL_USER;
+  if (adminEmail) {
+    await queueEmail({
+      to: adminEmail,
+      templateKey: 'jobSubmitted',
+      vars: { jobTitle, companyName: companyName || '' },
+      dedupKey: `email:job:submitted:${jobId}`,
+    });
+  }
+}
+
 export async function onWebinarPublished({ webinarId, title }) {
   await notifyStaff({
     category: 'general',

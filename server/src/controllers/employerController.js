@@ -1,6 +1,6 @@
 import { Job } from '../models/Job.js';
 import { Application } from '../models/Application.js';
-import { onApplicationStatusChange } from '../services/automationService.js';
+import { onApplicationStatusChange, onJobSubmitted } from '../services/automationService.js';
 import { Employer } from '../models/Employer.js';
 import { JobPlan } from '../models/JobPlan.js';
 import { verifyPaymentForActivation } from '../services/paymentService.js';
@@ -111,6 +111,12 @@ export const createJob = asyncHandler(async (req, res) => {
   if (isFirstJob) {
     await Employer.findByIdAndUpdate(employerId, { $inc: { totalJobsPosted: 1 } });
   }
+
+  onJobSubmitted({
+    jobId: job._id,
+    jobTitle: job.title,
+    companyName,
+  }).catch(() => {});
 
   res.status(201).json({ job, isFirstJobFree: isFirstJob });
 });

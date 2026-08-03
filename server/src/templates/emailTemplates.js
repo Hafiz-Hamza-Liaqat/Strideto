@@ -165,6 +165,25 @@ const TEMPLATES = {
       text: `نوکری منظور: ${jobTitle}`,
     }),
   },
+  jobSubmitted: {
+    en: ({ jobTitle, companyName }) => ({
+      subject: `${BRAND} – Job pending review: ${jobTitle}`,
+      html: layout({
+        title: 'Job pending review',
+        bodyHtml: `<p>A new job listing <strong>${jobTitle}</strong>${companyName ? ` from <strong>${companyName}</strong>` : ''} was submitted and is awaiting moderation.</p>${btn(`${process.env.SITE_URL || ''}/admin/moderation`, 'Review in admin')}`,
+      }),
+      text: `Job pending review: ${jobTitle}${companyName ? ` from ${companyName}` : ''}`,
+    }),
+    ur: ({ jobTitle, companyName }) => ({
+      subject: `${BRAND} – نظرثانی کے منتظر نوکری: ${jobTitle}`,
+      html: layout({
+        lang: 'ur',
+        title: 'نظرثانی درکار',
+        bodyHtml: `<p>نئی نوکری <strong>${jobTitle}</strong>${companyName ? ` بذریعہ <strong>${companyName}</strong>` : ''} جمع کرائی گئی اور نظرثانی کی منتظر ہے۔</p>${btn(`${process.env.SITE_URL || ''}/admin/moderation`, 'ایڈمن میں دیکھیں')}`,
+      }),
+      text: `نظرثانی کے منتظر: ${jobTitle}`,
+    }),
+  },
   employerVerification: {
     en: ({ companyName }) => ({
       subject: `${BRAND} – Employer verified`,
