@@ -1,16 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../constants';
 import { inboxApi } from '../../services/listingsService';
 import { useAuth } from '../../context/AuthContext';
 import { useUserNavbarSession } from '../../hooks/useUserNavbarSession';
 import { registerOverlayEscape } from '../../a11y/overlayStack';
+import { isSafeInternalLink } from '../../utils/notificationLink';
 
 export function NotificationBell() {
   const { t } = useTranslation(['common', 'dashboard']);
   const { isAuthenticated } = useAuth();
   const { enabled: userNavbarSession } = useUserNavbarSession();
+  const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
   const [unread, setUnread] = useState(0);
@@ -58,6 +60,13 @@ export function NotificationBell() {
     load();
   };
 
+  const handleActivate = (n) => {
+    const safe = isSafeInternalLink(n.link);
+    if (!n.read) markRead(n._id);
+    setOpen(false);
+    if (safe) navigate(n.link);
+  };
+
   return (
     <div className="relative" ref={ref} data-tour="notifications">
       <button
@@ -89,17 +98,23 @@ export function NotificationBell() {
             {!loading && items.length === 0 && (
               <p className="p-4 text-sm text-gray-500 dark:text-gray-400">{t('dashboard:noNotifications')}</p>
             )}
-            {items.map((n) => (
-              <button
-                key={n._id}
-                type="button"
-                onClick={() => { if (!n.read) markRead(n._id); setOpen(false); }}
-                className={`w-full text-left px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 ${!n.read ? 'bg-primary/5' : ''}`}
-              >
-                <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-1">{n.title}</p>
-                {n.body && <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5">{n.body}</p>}
-              </button>
-            ))}
+            {items.map((n) => {
+              const safe = isSafeInternalLink(n.link);
+              return (
+                <button
+                  key={n._id}
+                  type="button"
+                  onClick={() => handleActivate(n)}
+                  aria-label={safe
+                    ? t('dashboard:openNotification', { title: n.title, defaultValue: `Open: ${n.title}` })
+                    : n.title}
+                  className={`w-full text-left px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${!n.read ? 'bg-primary/5' : ''}`}
+                >
+                  <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-1">{n.title}</p>
+                  {n.body && <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5">{n.body}</p>}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}

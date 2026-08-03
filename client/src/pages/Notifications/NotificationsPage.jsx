@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
 import { ROUTES } from '../../constants';
@@ -7,11 +7,13 @@ import { inboxApi } from '../../services/listingsService';
 import { Pagination } from '../../components/ui/Pagination';
 import { ProtectedRoute } from '../../components/auth/ProtectedRoute';
 import { EmptyState } from '../../components/common/EmptyState';
+import { isSafeInternalLink } from '../../utils/notificationLink';
 
 const CATEGORIES = ['', 'application', 'scholarship', 'admission', 'interview', 'job', 'payment', 'support', 'system', 'general'];
 
 function NotificationsContent() {
   const { t } = useTranslation(['dashboard', 'common']);
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
@@ -49,6 +51,14 @@ function NotificationsContent() {
   const remove = async (id) => {
     await inboxApi.remove(id);
     load();
+  };
+
+  const handleActivate = (n) => {
+    const safe = isSafeInternalLink(n.link);
+    if (!n.read) {
+      inboxApi.markRead(n._id).then(load).catch(() => {});
+    }
+    if (safe) navigate(n.link);
   };
 
   return (
@@ -90,23 +100,33 @@ function NotificationsContent() {
           />
         ) : (
           <ul className="space-y-3">
-            {items.map((n) => (
-              <li key={n._id} className={`p-4 rounded-xl border ${n.read ? 'border-gray-200 dark:border-gray-700' : 'border-primary/30 bg-primary/5'} bg-white dark:bg-gray-800`}>
-                <div className="flex justify-between gap-2">
-                  <div>
-                    <p className="font-medium text-gray-900 dark:text-white">{n.title}</p>
-                    {n.body && <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{n.body}</p>}
-                    <p className="text-xs text-gray-400 mt-2">{new Date(n.createdAt).toLocaleString()}</p>
+            {items.map((n) => {
+              const safe = isSafeInternalLink(n.link);
+              return (
+                <li key={n._id} className={`p-4 rounded-xl border ${n.read ? 'border-gray-200 dark:border-gray-700' : 'border-primary/30 bg-primary/5'} bg-white dark:bg-gray-800`}>
+                  <div className="flex justify-between gap-2">
+                    <button
+                      type="button"
+                      onClick={() => handleActivate(n)}
+                      aria-label={safe
+                        ? t('dashboard:openNotification', { title: n.title, defaultValue: `Open: ${n.title}` })
+                        : n.title}
+                      className="text-left flex-1 min-w-0 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+                    >
+                      <p className="font-medium text-gray-900 dark:text-white">{n.title}</p>
+                      {n.body && <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{n.body}</p>}
+                      <p className="text-xs text-gray-400 mt-2">{new Date(n.createdAt).toLocaleString()}</p>
+                    </button>
+                    <div className="flex flex-col gap-1 shrink-0">
+                      {!n.read && (
+                        <button type="button" onClick={() => markOne(n._id)} className="text-xs text-primary dark:text-mint">{t('dashboard:markRead')}</button>
+                      )}
+                      <button type="button" onClick={() => remove(n._id)} className="text-xs text-red-600">{t('common:delete')}</button>
+                    </div>
                   </div>
-                  <div className="flex flex-col gap-1 shrink-0">
-                    {!n.read && (
-                      <button type="button" onClick={() => markOne(n._id)} className="text-xs text-primary dark:text-mint">{t('dashboard:markRead')}</button>
-                    )}
-                    <button type="button" onClick={() => remove(n._id)} className="text-xs text-red-600">{t('common:delete')}</button>
-                  </div>
-                </div>
-              </li>
-            ))}
+                </li>
+              );
+            })}
           </ul>
         )}
 
