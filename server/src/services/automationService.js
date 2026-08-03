@@ -260,6 +260,37 @@ export async function onJobApproved({ jobId, employerId, jobTitle }) {
   }
 }
 
+const REJECTION_FALLBACK_MESSAGE = 'The Job was not approved during review. Open your Employer Jobs page to review its status.';
+
+/** Called after a Job durably transitions to `rejected` moderation status. */
+export async function onJobRejected({ jobId, employerId, jobTitle, reason }) {
+  if (!jobId || !employerId) return;
+
+  const safeReason = typeof reason === 'string' && reason.trim() ? reason.trim() : '';
+
+  await queueNotification({
+    dedupKey: `job:rejected:${jobId}`,
+    recipientType: 'employer',
+    employerId,
+    category: 'job',
+    type: 'job.rejected',
+    title: `Job not approved: ${jobTitle}`,
+    body: safeReason || REJECTION_FALLBACK_MESSAGE,
+    link: '/employer/jobs',
+    metadata: { jobId },
+  });
+
+  const employer = await Employer.findById(employerId).select('email').lean();
+  if (employer?.email) {
+    await queueEmail({
+      to: employer.email,
+      templateKey: 'jobRejectedEmployer',
+      vars: { jobTitle, reason: safeReason },
+      dedupKey: `email:job:rejected:${jobId}`,
+    });
+  }
+}
+
 /** Called after a Job durably persists in `pending` moderation status. */
 export async function onJobSubmitted({ jobId, jobTitle, companyName, employerId }) {
   if (!jobId) return;

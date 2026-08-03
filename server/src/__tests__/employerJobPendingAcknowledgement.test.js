@@ -121,7 +121,8 @@ const onJobSubmittedBody = fnBody(automation, 'export async function onJobSubmit
     /export async function onJobApproved\(\{ jobId, employerId, jobTitle \}\) \{/.test(automation),
     'onJobApproved unchanged, still present'
   );
-  check(!/onJobRejected/.test(automation), 'No onJobRejected introduced in this phase (out of scope, deferred to PF-J3)');
+  // Note: onJobRejected was intentionally added later by PF-J3-A (a separate,
+  // dedicated commit) — no longer asserted absent here.
 }
 
 console.log(`employerJobPendingAcknowledgement.test.js: ${count} assertions passed`);

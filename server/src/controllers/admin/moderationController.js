@@ -4,7 +4,9 @@ import { ContentReport } from '../../models/ContentReport.js';
 import { AdSlotConfig } from '../../models/AdSlotConfig.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { logAudit, auditFromRequest } from '../../services/auditService.js';
-import { onJobApproved, onEmployerVerificationChange } from '../../services/automationService.js';
+import { onJobApproved, onJobRejected, onEmployerVerificationChange } from '../../services/automationService.js';
+
+const MAX_REJECTION_REASON_LENGTH = 500;
 
 export const getModerationQueues = asyncHandler(async (_req, res) => {
   const [pendingJobs, pendingEmployers, reportedContent, advertisements, verificationRequests] = await Promise.all([
@@ -54,6 +56,9 @@ export const bulkApproveJobs = asyncHandler(async (req, res) => {
 export const bulkRejectJobs = asyncHandler(async (req, res) => {
   const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
   if (!ids.length) return res.status(400).json({ error: 'ids array required' });
+  const reason = typeof req.body?.reason === 'string'
+    ? req.body.reason.trim().slice(0, MAX_REJECTION_REASON_LENGTH)
+    : '';
   const result = await Job.updateMany(
     { _id: { $in: ids }, approvalStatus: 'pending' },
     { $set: { approvalStatus: 'rejected' } }
@@ -62,8 +67,12 @@ export const bulkRejectJobs = asyncHandler(async (req, res) => {
     ...auditFromRequest(req),
     action: 'jobs.bulk_reject',
     targetType: 'job',
-    metadata: { ids, modified: result.modifiedCount },
+    metadata: { ids, modified: result.modifiedCount, reason: reason || undefined },
   });
+  const rejectedJobs = await Job.find({ _id: { $in: ids }, approvalStatus: 'rejected' }).select('title employerId').lean();
+  for (const job of rejectedJobs) {
+    onJobRejected({ jobId: job._id, employerId: job.employerId, jobTitle: job.title, reason }).catch(() => {});
+  }
   res.json({ rejected: result.modifiedCount });
 });
 

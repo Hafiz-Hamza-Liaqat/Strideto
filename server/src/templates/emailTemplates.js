@@ -203,6 +203,31 @@ const TEMPLATES = {
       text: `نوکری جمع کرائی گئی: ${jobTitle}۔ ایڈمن کی نظرثانی کی منتظر — ابھی شائع نہیں ہوئی۔`,
     }),
   },
+  jobRejectedEmployer: {
+    en: ({ jobTitle, reason }) => {
+      const safeReason = reason ? escapeHtml(reason) : 'The Job was not approved during review. Open your Employer Jobs page to review its status.';
+      return {
+        subject: `${BRAND} – Job not approved: ${jobTitle}`,
+        html: layout({
+          title: 'Job not approved',
+          bodyHtml: `<p>Your job listing <strong>${jobTitle}</strong> was not approved during review.</p><p>${safeReason}</p>${btn(`${process.env.SITE_URL || ''}/employer/jobs`, 'View my jobs')}`,
+        }),
+        text: `Job not approved: ${jobTitle}. ${reason || 'Open your Employer Jobs page to review its status.'}`,
+      };
+    },
+    ur: ({ jobTitle, reason }) => {
+      const safeReason = reason ? escapeHtml(reason) : 'نظرثانی میں نوکری منظور نہیں ہوئی۔ اپنی ایمپلائر جابز پیج پر صورتحال دیکھیں۔';
+      return {
+        subject: `${BRAND} – نوکری منظور نہیں ہوئی: ${jobTitle}`,
+        html: layout({
+          lang: 'ur',
+          title: 'منظور نہیں ہوئی',
+          bodyHtml: `<p>آپ کی نوکری <strong>${jobTitle}</strong> نظرثانی میں منظور نہیں ہوئی۔</p><p>${safeReason}</p>${btn(`${process.env.SITE_URL || ''}/employer/jobs`, 'میری نوکریاں دیکھیں')}`,
+        }),
+        text: `نوکری منظور نہیں ہوئی: ${jobTitle}`,
+      };
+    },
+  },
   employerVerification: {
     en: ({ companyName }) => ({
       subject: `${BRAND} – Employer verified`,

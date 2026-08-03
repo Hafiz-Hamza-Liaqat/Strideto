@@ -99,10 +99,8 @@ const emailTemplates = read('templates/emailTemplates.js');
     /queueNotification\(\{\s*dedupKey: `job:approved:\$\{jobId\}`,/.test(automationService),
     'onJobApproved: Employer approval notification path unchanged'
   );
-  check(
-    !/onJobRejected/.test(automationService),
-    'No rejection-to-Employer notification exists in this codebase to regress (bulkRejectJobs never called one) — confirms nothing was silently removed by this phase'
-  );
+  // Note: onJobRejected was intentionally added later by PF-J3-A (a separate,
+  // dedicated commit) — no longer asserted absent here.
 }
 
 // --- 8/9. Email template: subject indicates pending review; CTA present; no sensitive vars ---
