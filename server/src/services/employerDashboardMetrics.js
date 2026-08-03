@@ -11,6 +11,16 @@ export function computeConversionRate(internalApplications, internalViews) {
   return Number(((internalApplications / internalViews) * 100).toFixed(2));
 }
 
+/**
+ * Draft Jobs must represent Jobs still legitimately in the draft workflow.
+ * Rejecting a Job only changes approvalStatus (see moderationController.js
+ * bulkRejectJobs) — status stays 'draft' — so a rejected Job must be
+ * excluded here or it reads as an ordinary, unsubmitted draft forever.
+ */
+export function draftJobsFilter(employerFilter) {
+  return { ...employerFilter, status: 'draft', approvalStatus: { $ne: 'rejected' } };
+}
+
 const STATUS_BUCKETS = {
   new: ['submitted', 'applied', 'viewed'],
   shortlisted: ['shortlisted'],
@@ -51,7 +61,7 @@ export async function computeEmployerDashboardMetrics(employerId, { now = new Da
   ] = await Promise.all([
     Job.countDocuments(employerFilter),
     Job.countDocuments({ ...employerFilter, status: 'active', approvalStatus: 'approved' }),
-    Job.countDocuments({ ...employerFilter, status: 'draft' }),
+    Job.countDocuments(draftJobsFilter(employerFilter)),
     Job.countDocuments({ ...employerFilter, approvalStatus: 'pending' }),
     Job.countDocuments({ ...employerFilter, status: 'closed' }),
     Job.find(employerFilter)
