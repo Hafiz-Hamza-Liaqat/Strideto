@@ -87,6 +87,7 @@ const EmployerDashboard = lazyLoad(() => import('../pages/Employer/EmployerDashb
 const EmployerJobs = lazyLoad(() => import('../pages/Employer/EmployerJobs'));
 const EmployerPostJob = lazyLoad(() => import('../pages/Employer/EmployerPostJob'));
 const EmployerApplications = lazyLoad(() => import('../pages/Employer/EmployerApplications'));
+const EmployerNotifications = lazyLoad(() => import('../pages/Employer/EmployerNotifications'));
 const EmployerAnalytics = lazyLoad(() => import('../pages/Employer/EmployerAnalytics'));
 const EmployerIntelligence = lazyLoad(() => import('../pages/Employer/EmployerIntelligence'));
 const EmployerCandidates = lazyLoad(() => import('../pages/Employer/EmployerCandidates'));
@@ -174,6 +175,7 @@ export const routes = [
       { path: 'applications', element: <EmployerApplications /> },
       { path: 'analytics', element: <EmployerAnalytics /> },
       { path: 'settings', element: <EmployerSettings /> },
+      { path: 'notifications', element: <EmployerNotifications /> },
     ],
   },
   {

@@ -8,10 +8,14 @@ import { useUserNavbarSession } from '../../hooks/useUserNavbarSession';
 import { registerOverlayEscape } from '../../a11y/overlayStack';
 import { isSafeInternalLink } from '../../utils/notificationLink';
 
-export function NotificationBell() {
+/**
+ * Shared bell core, parameterized by recipient realm. `api` must expose
+ * list/unreadCount/markRead with the same shape as inboxApi. `enabled` is
+ * resolved by the caller (each realm has its own auth/session gating) so
+ * this component never calls realm-specific hooks itself.
+ */
+export function NotificationBellCore({ api, enabled, viewAllRoute }) {
   const { t } = useTranslation(['common', 'dashboard']);
-  const { isAuthenticated } = useAuth();
-  const { enabled: userNavbarSession } = useUserNavbarSession();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
   const [items, setItems] = useState([]);
@@ -20,11 +24,11 @@ export function NotificationBell() {
   const ref = useRef(null);
 
   const load = () => {
-    if (!userNavbarSession || !isAuthenticated) return;
+    if (!enabled) return;
     setLoading(true);
     Promise.all([
-      inboxApi.list({ limit: 8 }),
-      inboxApi.unreadCount(),
+      api.list({ limit: 8 }),
+      api.unreadCount(),
     ])
       .then(([listRes, countRes]) => {
         setItems(listRes.data?.data || []);
@@ -38,7 +42,8 @@ export function NotificationBell() {
     load();
     const id = setInterval(load, 60000);
     return () => clearInterval(id);
-  }, [isAuthenticated, userNavbarSession]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [enabled]);
 
   useEffect(() => {
     const onDoc = (e) => {
@@ -53,10 +58,10 @@ export function NotificationBell() {
     return registerOverlayEscape(() => setOpen(false));
   }, [open]);
 
-  if (!userNavbarSession || !isAuthenticated) return null;
+  if (!enabled) return null;
 
   const markRead = async (id) => {
-    await inboxApi.markRead(id).catch(() => {});
+    await api.markRead(id).catch(() => {});
     load();
   };
 
@@ -89,7 +94,7 @@ export function NotificationBell() {
         <div id="notification-panel" role="region" aria-label={t('dashboard:notifications')} className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg z-50">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
             <span className="font-semibold text-gray-900 dark:text-white">{t('dashboard:notifications')}</span>
-            <Link to={ROUTES.NOTIFICATIONS} className="text-xs text-primary dark:text-mint" onClick={() => setOpen(false)}>
+            <Link to={viewAllRoute} className="text-xs text-primary dark:text-mint" onClick={() => setOpen(false)}>
               {t('dashboard:viewAll')}
             </Link>
           </div>
@@ -119,5 +124,18 @@ export function NotificationBell() {
         </div>
       )}
     </div>
+  );
+}
+
+/** User/staff realm bell — behavior unchanged from before this refactor. */
+export function NotificationBell() {
+  const { isAuthenticated } = useAuth();
+  const { enabled: userNavbarSession } = useUserNavbarSession();
+  return (
+    <NotificationBellCore
+      api={inboxApi}
+      enabled={userNavbarSession && isAuthenticated}
+      viewAllRoute={ROUTES.NOTIFICATIONS}
+    />
   );
 }

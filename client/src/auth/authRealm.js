@@ -11,6 +11,7 @@ const EMPLOYER_PORTAL_ROOT_SEGMENTS = new Set([
   'applications',
   'analytics',
   'settings',
+  'notifications',
 ]);
 
 export function isEmployerPublicAuthPath(pathname = '') {

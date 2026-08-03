@@ -5,6 +5,7 @@ import { useEmployerAuth } from '../../context/EmployerAuthContext';
 import { ROUTES } from '../../constants';
 import { SkipLink } from '../../components/a11y/SkipLink';
 import { FeedbackWidget } from '../../components/feedback/FeedbackWidget';
+import { EmployerNotificationBell } from '../../components/notifications/EmployerNotificationBell';
 import { useOverlayA11y } from '../../a11y/useOverlayA11y';
 
 import { isEmployerIntelligenceEnabled } from '../../config/careerFeatureFlags';
@@ -17,6 +18,7 @@ function NavLinks({ location, onNavigate, t, showIntelligence }) {
     { path: ROUTES.EMPLOYER_POST_JOB, labelKey: 'postNewJob' },
     { path: ROUTES.EMPLOYER_APPLICATIONS, labelKey: 'applications' },
     { path: ROUTES.EMPLOYER_ANALYTICS, labelKey: 'analytics' },
+    { path: ROUTES.EMPLOYER_NOTIFICATIONS, labelKey: 'notifications' },
     { path: ROUTES.EMPLOYER_SETTINGS, labelKey: 'settings' },
   ];
 
@@ -32,7 +34,9 @@ function NavLinks({ location, onNavigate, t, showIntelligence }) {
           : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
       }`}
     >
-      {labelKey === 'dashboardHeading' ? t('employer:dashboardHeading') : t(`employer:${labelKey}`)}
+      {labelKey === 'dashboardHeading'
+        ? t('employer:dashboardHeading')
+        : t(`employer:${labelKey}`, { defaultValue: labelKey === 'notifications' ? 'Notifications' : labelKey })}
     </Link>
   ));
 }
@@ -62,16 +66,19 @@ export default function EmployerLayout() {
         <Link to={ROUTES.EMPLOYER_DASHBOARD} className="font-semibold text-gray-900 dark:text-white truncate min-w-0">
           {t('employer:employerBrand')}
         </Link>
-        <button
-          type="button"
-          aria-label={t('employer:openEmployerMenu')}
-          aria-expanded={mobileOpen}
-          aria-controls="employer-mobile-nav"
-          onClick={() => setMobileOpen(true)}
-          className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 min-h-[44px] min-w-[44px] shrink-0"
-        >
-          ☰
-        </button>
+        <div className="flex items-center gap-1 shrink-0">
+          <EmployerNotificationBell />
+          <button
+            type="button"
+            aria-label={t('employer:openEmployerMenu')}
+            aria-expanded={mobileOpen}
+            aria-controls="employer-mobile-nav"
+            onClick={() => setMobileOpen(true)}
+            className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 min-h-[44px] min-w-[44px] shrink-0"
+          >
+            ☰
+          </button>
+        </div>
       </header>
 
       {mobileOpen && (
@@ -142,6 +149,9 @@ export default function EmployerLayout() {
       </aside>
 
       <main id="main-content" tabIndex={-1} className="flex-1 overflow-auto min-w-0 outline-none">
+        <div className="hidden lg:flex items-center justify-end px-4 sm:px-6 md:px-8 pt-4 max-w-6xl mx-auto w-full">
+          <EmployerNotificationBell />
+        </div>
         <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
           <Outlet />
         </div>

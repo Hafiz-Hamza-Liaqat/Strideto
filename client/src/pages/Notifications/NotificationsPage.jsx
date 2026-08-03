@@ -11,7 +11,19 @@ import { isSafeInternalLink } from '../../utils/notificationLink';
 
 const CATEGORIES = ['', 'application', 'scholarship', 'admission', 'interview', 'job', 'payment', 'support', 'system', 'general'];
 
-function NotificationsContent() {
+/**
+ * Shared notifications-page core, parameterized by recipient realm. `api`
+ * must expose list/unreadCount(via list response)/markRead/markAllRead/remove
+ * with the same shape as inboxApi. Each realm's thin wrapper resolves its
+ * own protection/route/empty-state and passes them in.
+ */
+export function NotificationsPageContent({
+  api,
+  backRoute,
+  emptyStateActionLabel,
+  emptyStateActionTo,
+  emptyStateDescription,
+}) {
   const { t } = useTranslation(['dashboard', 'common']);
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
@@ -21,42 +33,45 @@ function NotificationsContent() {
   const [category, setCategory] = useState('');
   const [readFilter, setReadFilter] = useState('');
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
   const load = () => {
     setLoading(true);
+    setError('');
     const params = { page, limit: 15 };
     if (category) params.category = category;
     if (readFilter) params.read = readFilter;
-    inboxApi.list(params)
+    api.list(params)
       .then((res) => {
         setItems(res.data?.data || []);
         setTotalPages(res.data?.pagination?.totalPages || 1);
         setUnread(res.data?.unreadCount ?? 0);
       })
+      .catch(() => setError(t('dashboard:notificationsLoadError', { defaultValue: 'Could not load notifications.' })))
       .finally(() => setLoading(false));
   };
 
   useEffect(() => { load(); }, [page, category, readFilter]);
 
   const markAll = async () => {
-    await inboxApi.markAllRead();
+    await api.markAllRead();
     load();
   };
 
   const markOne = async (id) => {
-    await inboxApi.markRead(id);
+    await api.markRead(id);
     load();
   };
 
   const remove = async (id) => {
-    await inboxApi.remove(id);
+    await api.remove(id);
     load();
   };
 
   const handleActivate = (n) => {
     const safe = isSafeInternalLink(n.link);
     if (!n.read) {
-      inboxApi.markRead(n._id).then(load).catch(() => {});
+      api.markRead(n._id).then(load).catch(() => {});
     }
     if (safe) navigate(n.link);
   };
@@ -90,13 +105,15 @@ function NotificationsContent() {
 
         {loading ? (
           <p className="text-gray-500">{t('common:loading')}</p>
+        ) : error ? (
+          <p className="text-red-600 dark:text-red-400" role="alert">{error}</p>
         ) : items.length === 0 ? (
           <EmptyState
             icon="🔔"
             title="Stay updated"
-            description="Stay updated with the latest opportunities. Enable notifications in your profile preferences."
-            actionLabel="Enable Notifications"
-            actionTo={ROUTES.PROFILE}
+            description={emptyStateDescription || 'Stay updated with the latest opportunities. Enable notifications in your profile preferences.'}
+            actionLabel={emptyStateActionLabel}
+            actionTo={emptyStateActionTo}
           />
         ) : (
           <ul className="space-y-3">
@@ -137,10 +154,21 @@ function NotificationsContent() {
         )}
 
         <p className="mt-8 text-sm">
-          <Link to={ROUTES.DASHBOARD} className="text-primary dark:text-mint hover:underline">{t('dashboard:backToDashboard')}</Link>
+          <Link to={backRoute} className="text-primary dark:text-mint hover:underline">{t('dashboard:backToDashboard')}</Link>
         </p>
       </div>
     </>
+  );
+}
+
+function NotificationsContent() {
+  return (
+    <NotificationsPageContent
+      api={inboxApi}
+      backRoute={ROUTES.DASHBOARD}
+      emptyStateActionLabel="Enable Notifications"
+      emptyStateActionTo={ROUTES.PROFILE}
+    />
   );
 }
 

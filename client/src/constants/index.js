@@ -54,6 +54,7 @@ export const ROUTES = {
   EMPLOYER_APPLICATIONS: '/employer/applications',
   EMPLOYER_ANALYTICS: '/employer/analytics',
   EMPLOYER_SETTINGS: '/employer/settings',
+  EMPLOYER_NOTIFICATIONS: '/employer/notifications',
   EMPLOYER_INTELLIGENCE: '/employer/intelligence',
   EMPLOYER_INTELLIGENCE_CANDIDATES: '/employer/intelligence/candidates',
   EMPLOYER_INTELLIGENCE_COMPARE: '/employer/intelligence/compare',

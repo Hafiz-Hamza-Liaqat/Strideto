@@ -141,3 +141,17 @@ export const employerApi = {
   intelligenceCompareCandidates: (ids) =>
     employerAxios.post('/employer/intelligence/candidates/compare', { legacyApplicationIds: ids }),
 };
+
+/**
+ * Employer-realm notification inbox. Hits the same /inbox/notifications
+ * routes the User realm uses — those routes are already realm-agnostic
+ * (requireAuth only) and the controller already scopes strictly by
+ * req.employer when present, so no new server route was needed.
+ */
+export const employerInboxApi = {
+  list: (params) => employerAxios.get('/inbox/notifications', { params }),
+  unreadCount: () => employerAxios.get('/inbox/notifications/unread-count'),
+  markRead: (id) => employerAxios.patch(`/inbox/notifications/${id}/read`),
+  markAllRead: () => employerAxios.post('/inbox/notifications/mark-all-read'),
+  remove: (id) => employerAxios.delete(`/inbox/notifications/${id}`),
+};
