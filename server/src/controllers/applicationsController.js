@@ -97,6 +97,7 @@ export const applyToJob = asyncHandler(async (req, res) => {
   ]);
   onJobApplication({
     applicationId: application._id,
+    opportunityApplicationId,
     userId,
     jobId,
     userName: candidate?.displayName || user?.name,

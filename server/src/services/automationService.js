@@ -85,7 +85,7 @@ export async function onUserRegistered(user) {
   if (!user?._id) return;
 }
 
-export async function onJobApplication({ applicationId, userId, jobId, userName, userEmail }) {
+export async function onJobApplication({ applicationId, opportunityApplicationId, userId, jobId, userName, userEmail }) {
   const job = await Job.findById(jobId).populate('employerId', 'email companyName').lean();
   if (!job) return;
 
@@ -97,8 +97,8 @@ export async function onJobApplication({ applicationId, userId, jobId, userName,
     type: 'application.submitted',
     title: `Application submitted: ${job.title}`,
     body: `Your application for ${job.title} was received.`,
-    link: '/dashboard',
-    metadata: { applicationId, jobId },
+    link: opportunityApplicationId ? `/applications/${opportunityApplicationId}` : '/dashboard',
+    metadata: { applicationId, jobId, opportunityApplicationId: opportunityApplicationId || null },
   });
 
   await queueEmail({
