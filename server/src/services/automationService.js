@@ -261,7 +261,7 @@ export async function onJobApproved({ jobId, employerId, jobTitle }) {
 }
 
 /** Called after a Job durably persists in `pending` moderation status. */
-export async function onJobSubmitted({ jobId, jobTitle, companyName }) {
+export async function onJobSubmitted({ jobId, jobTitle, companyName, employerId }) {
   if (!jobId) return;
 
   await notifyStaff({
@@ -281,6 +281,30 @@ export async function onJobSubmitted({ jobId, jobTitle, companyName }) {
       vars: { jobTitle, companyName: companyName || '' },
       dedupKey: `email:job:submitted:${jobId}`,
     });
+  }
+
+  if (employerId) {
+    await queueNotification({
+      dedupKey: `job:submitted:pending:${jobId}`,
+      recipientType: 'employer',
+      employerId,
+      category: 'job',
+      type: 'job.submitted.pending',
+      title: `Job submitted: ${jobTitle}`,
+      body: 'Your job listing was submitted and is awaiting Admin review.',
+      link: '/employer/jobs',
+      metadata: { jobId },
+    });
+
+    const employer = await Employer.findById(employerId).select('email').lean();
+    if (employer?.email) {
+      await queueEmail({
+        to: employer.email,
+        templateKey: 'jobSubmittedEmployer',
+        vars: { jobTitle },
+        dedupKey: `email:job:submitted:pending:${jobId}`,
+      });
+    }
   }
 }
 

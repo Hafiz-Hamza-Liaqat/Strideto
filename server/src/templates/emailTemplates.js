@@ -184,6 +184,25 @@ const TEMPLATES = {
       text: `نظرثانی کے منتظر: ${jobTitle}`,
     }),
   },
+  jobSubmittedEmployer: {
+    en: ({ jobTitle }) => ({
+      subject: `${BRAND} – Job submitted: ${jobTitle}`,
+      html: layout({
+        title: 'Job submitted',
+        bodyHtml: `<p>Your job listing <strong>${jobTitle}</strong> was submitted successfully and is awaiting Admin review. It is not yet published.</p>${btn(`${process.env.SITE_URL || ''}/employer/jobs`, 'View my jobs')}`,
+      }),
+      text: `Job submitted: ${jobTitle}. Awaiting Admin review — not yet published.`,
+    }),
+    ur: ({ jobTitle }) => ({
+      subject: `${BRAND} – نوکری جمع کرائی گئی: ${jobTitle}`,
+      html: layout({
+        lang: 'ur',
+        title: 'جمع کرائی گئی',
+        bodyHtml: `<p>آپ کی نوکری <strong>${jobTitle}</strong> کامیابی سے جمع کرائی گئی اور ایڈمن کی نظرثانی کی منتظر ہے۔ ابھی شائع نہیں ہوئی۔</p>${btn(`${process.env.SITE_URL || ''}/employer/jobs`, 'میری نوکریاں دیکھیں')}`,
+      }),
+      text: `نوکری جمع کرائی گئی: ${jobTitle}۔ ایڈمن کی نظرثانی کی منتظر — ابھی شائع نہیں ہوئی۔`,
+    }),
+  },
   employerVerification: {
     en: ({ companyName }) => ({
       subject: `${BRAND} – Employer verified`,

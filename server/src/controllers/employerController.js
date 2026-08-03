@@ -116,6 +116,7 @@ export const createJob = asyncHandler(async (req, res) => {
     jobId: job._id,
     jobTitle: job.title,
     companyName,
+    employerId,
   }).catch(() => {});
 
   res.status(201).json({ job, isFirstJobFree: isFirstJob });

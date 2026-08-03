@@ -35,8 +35,8 @@ const emailTemplates = read('templates/emailTemplates.js');
   check(createIdx > -1 && submittedIdx > createIdx, 'createJob: onJobSubmitted is called only after Job.create() in source order');
   check(submittedIdx > -1 && responseIdx > submittedIdx, 'createJob: onJobSubmitted is invoked before the response is sent (not blocking a later step)');
   check(
-    /onJobSubmitted\(\{\s*jobId: job\._id,\s*jobTitle: job\.title,\s*companyName,\s*\}\)\.catch\(\(\) => \{\}\);/.test(employerController),
-    'createJob: onJobSubmitted is fire-and-forget (not awaited), matching the existing onJobApplication pattern'
+    /onJobSubmitted\(\{\s*jobId: job\._id,\s*jobTitle: job\.title,\s*companyName,\s*employerId,\s*\}\)\.catch\(\(\) => \{\}\);/.test(employerController),
+    'createJob: onJobSubmitted is fire-and-forget (not awaited), matching the existing onJobApplication pattern (PF-J2 added employerId for the Employer acknowledgement)'
   );
   check(
     !/await onJobSubmitted/.test(employerController),
@@ -55,8 +55,8 @@ const emailTemplates = read('templates/emailTemplates.js');
 // --- 3/5/6. notifyStaff wired with correct entity/link; email uses queueEmail with dedupKey ---
 {
   check(
-    /export async function onJobSubmitted\(\{ jobId, jobTitle, companyName \}\) \{/.test(automationService),
-    'automationService.js: defines onJobSubmitted with the expected signature'
+    /export async function onJobSubmitted\(\{ jobId, jobTitle, companyName, employerId \}\) \{/.test(automationService),
+    'automationService.js: defines onJobSubmitted with the expected signature (PF-J2 added employerId)'
   );
   check(
     /await notifyStaff\(\{\s*category: 'job',\s*type: 'job\.submitted',/.test(automationService),
@@ -78,10 +78,15 @@ const emailTemplates = read('templates/emailTemplates.js');
     /const adminEmail = process\.env\.CONTACT_ADMIN_EMAIL \|\| process\.env\.MAIL_FROM \|\| process\.env\.MAIL_USER;/.test(automationService),
     'onJobSubmitted: reuses the existing admin-alert recipient convention (same fallback chain as sendContactAdminAlertEmail), no new email service invented'
   );
-  check(
-    !/onJobSubmitted[\s\S]{0,600}password|onJobSubmitted[\s\S]{0,600}token|onJobSubmitted[\s\S]{0,600}employer\.email/.test(automationService),
-    'onJobSubmitted: does not include Employer credentials or private Employer contact fields'
-  );
+  {
+    const adminPortionStart = automationService.indexOf('export async function onJobSubmitted(');
+    const adminPortionEnd = automationService.indexOf('if (employerId) {', adminPortionStart);
+    const adminOnlyPortion = automationService.slice(adminPortionStart, adminPortionEnd === -1 ? undefined : adminPortionEnd);
+    check(
+      !/password|token|employer\.email/.test(adminOnlyPortion),
+      'onJobSubmitted: the Admin-facing notification/email portion does not include Employer credentials or private Employer contact fields (the function\'s separate Employer-acknowledgement portion, added in PF-J2, legitimately uses employer.email as the Employer\'s own recipient address and is checked separately)'
+    );
+  }
 }
 
 // --- 7/13/14. Regression: existing onJobApproved (Employer-facing) is untouched ---
