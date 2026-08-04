@@ -184,7 +184,10 @@ connectDB()
       logger.info('api_cron_skipped', { reason: 'WORKER_ONLY container handles queue' });
     }
     const PORT_NUM = Number(PORT);
-    registerGracefulShutdown(app, PORT_NUM);
+    const server = app.listen(PORT_NUM, () => {
+      logger.info('server_started', { port: PORT_NUM });
+    });
+    registerGracefulShutdown(server);
   })
   .catch((err) => {
     console.error('\n❌ MongoDB connection failed:', err.message);

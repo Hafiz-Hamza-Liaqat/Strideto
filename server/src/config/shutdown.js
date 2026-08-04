@@ -1,7 +1,6 @@
 /**
  * Graceful shutdown + process signal handling (C.7.0.9).
  */
-import http from 'http';
 import { disconnectDB } from './db.js';
 import { getRedisClient } from './redis.js';
 import { stopScraperCron } from '../scheduler/cron.js';
@@ -14,12 +13,11 @@ export function isShuttingDown() {
 }
 
 /**
- * @param {import('express').Express} app
- * @param {number} port
+ * Registers SIGTERM/SIGINT handlers that close the given (already-listening)
+ * HTTP server and release Mongo/Redis/cron resources before exiting.
+ * @param {import('http').Server} server
  */
-export function registerGracefulShutdown(app, port) {
-  const server = http.createServer(app);
-
+export function registerGracefulShutdown(server) {
   async function shutdown(signal) {
     if (shuttingDown) return;
     shuttingDown = true;
@@ -50,10 +48,6 @@ export function registerGracefulShutdown(app, port) {
 
   process.on('SIGTERM', () => shutdown('SIGTERM'));
   process.on('SIGINT', () => shutdown('SIGINT'));
-
-  server.listen(port, () => {
-    logger.info('server_started', { port });
-  });
 
   return server;
 }
