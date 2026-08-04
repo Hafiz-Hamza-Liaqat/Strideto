@@ -5,6 +5,7 @@
  */
 import { Job } from '../../models/Job.js';
 import { Application } from '../../models/Application.js';
+import { resolveJobApplyType } from '../employerApplicationCounts.js';
 import { EmployerSavedFilter } from '../../models/career/EmployerSavedFilter.js';
 import { OpportunityApplicationRepository } from '../../repositories/career/OpportunityApplicationRepository.js';
 import { EmployerCandidateCardService } from './EmployerCandidateCardService.js';
@@ -213,10 +214,21 @@ async function loadCardsForEmployer(employerId, filters = {}) {
 
   if (!jobIds.length) return [];
 
-  const jobs = await Job.find({ _id: { $in: jobIds } }).select('title').lean();
+  const jobs = await Job.find({ _id: { $in: jobIds } })
+    .select('title applyType applicationLink applyEmail')
+    .lean();
   const jobTitleById = new Map(jobs.map((j) => [String(j._id), j.title]));
 
-  const apps = await Application.find({ jobId: { $in: jobIds } })
+  // Employer-facing candidate cards are scoped to canonically-internal Jobs
+  // only — the internal apply endpoint is the only normal writer of
+  // Application, but this aggregation must not rely solely on that
+  // invariant (historical/legacy/imported records, test fixtures, or a
+  // future alternate writer could otherwise leak an external Job's stray
+  // Application into the Employer's candidate list).
+  const internalJobIds = jobs.filter((j) => resolveJobApplyType(j) === 'internal').map((j) => j._id);
+  if (!internalJobIds.length) return [];
+
+  const apps = await Application.find({ jobId: { $in: internalJobIds } })
     .populate('userId', 'name email')
     .sort({ updatedAt: -1 })
     .limit(200)

@@ -4,6 +4,7 @@
  */
 import { Job } from '../../models/Job.js';
 import { Application } from '../../models/Application.js';
+import { resolveJobApplyType } from '../employerApplicationCounts.js';
 import { EmployerIntelligenceService } from './EmployerIntelligenceService.js';
 import {
   EMPLOYER_DASHBOARD_WIDGET_DEFINITIONS,
@@ -47,12 +48,18 @@ async function loadSharedContext(employerId, flags) {
     pipelineCounts: {},
   };
 
-  const jobs = await Job.find({ employerId }).select('title status applicationsCount views deadline createdAt').lean();
+  const jobs = await Job.find({ employerId })
+    .select('title status applicationsCount views deadline createdAt applyType applicationLink applyEmail')
+    .lean();
   ctx.jobs = jobs;
 
-  const jobIds = jobs.map((j) => j._id);
-  const apps = jobIds.length
-    ? await Application.find({ jobId: { $in: jobIds } })
+  // Application aggregation is scoped to canonically-internal Jobs only —
+  // matches the Employer Dashboard's own explicit internal-Job filter
+  // (employerDashboardMetrics.js) rather than relying on the historical
+  // cleanliness of the Application collection (see resolveJobApplyType).
+  const internalJobIds = jobs.filter((j) => resolveJobApplyType(j) === 'internal').map((j) => j._id);
+  const apps = internalJobIds.length
+    ? await Application.find({ jobId: { $in: internalJobIds } })
       .select('status jobId userId appliedDate updatedAt createdAt')
       .lean()
     : [];
