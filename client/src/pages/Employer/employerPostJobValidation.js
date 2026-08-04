@@ -206,6 +206,27 @@ export function validateEmployerPostJobForm(form, { today } = {}) {
   };
 }
 
+/**
+ * Derives the create/edit-mode application-method selection from a stored
+ * Job (PF-HIRE-B2 edit hydration). `job.applyType` is already the
+ * server-resolved canonical value (employerApplicationCounts.js's
+ * resolveJobApplyType runs server-side before the response reaches the
+ * client), so no separate client-side inference is duplicated here.
+ */
+export function resolveApplyMethodFromJob(job = {}) {
+  if (job.applyType === 'internal') return 'internal';
+  if (job.applicationLink) return 'external_url';
+  if (job.applyEmail) return 'external_email';
+  if (job.applyType === 'external') {
+    // External with no destination on record (a pre-existing dead-end state
+    // possible via other write paths) — default to the URL variant so the
+    // Employer is immediately prompted for a real destination on save,
+    // rather than silently reclassifying the Job as internal.
+    return 'external_url';
+  }
+  return DEFAULT_APPLY_METHOD;
+}
+
 export function jobToForm(job = {}) {
   const deadline = job.deadline ? new Date(job.deadline).toISOString().slice(0, 10) : '';
   return {
@@ -220,11 +241,19 @@ export function jobToForm(job = {}) {
     applicationDeadline: deadline,
     applyLink: job.applicationLink || '',
     applyEmail: job.applyEmail || '',
+    applyMethod: resolveApplyMethodFromJob(job),
   };
 }
 
+/**
+ * Shared by both create and edit submission (PF-HIRE-B2) — always layers
+ * buildApplyMethodPayload's explicit applyType/applyLink/applyEmail over the
+ * base field payload, so edit submissions get the same guarantee create
+ * already had: the non-applicable destination field is always sent as a
+ * real empty string, never omitted/undefined.
+ */
 export function buildUpdateJobPayload(form, skills) {
-  return buildCreateJobPayload(form, skills);
+  return { ...buildCreateJobPayload(form, skills), ...buildApplyMethodPayload(form) };
 }
 
 export function buildCreateJobPayload(form, skills) {

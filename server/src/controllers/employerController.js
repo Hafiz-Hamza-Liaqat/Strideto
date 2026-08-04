@@ -177,6 +177,53 @@ export const updateJob = asyncHandler(async (req, res) => {
     validatedEmail = emailResult.value;
   }
 
+  // PF-HIRE-B2 — resolve the target applyType/destinations before mutating
+  // `job` or querying anything else, mirroring createJob's explicit-applyType
+  // contract (reused, not duplicated: same validators, same accepted values).
+  const applyTypeSupplied = body.applyType !== undefined;
+  const targetLink = linkSupplied ? validatedLink : job.applicationLink;
+  const targetEmail = body.applyEmail !== undefined ? validatedEmail : job.applyEmail;
+  let targetApplyType = job.applyType;
+
+  if (applyTypeSupplied) {
+    if (body.applyType !== 'internal' && body.applyType !== 'external') {
+      return res.status(400).json({ error: 'applyType must be internal or external', field: 'applyType' });
+    }
+    if (body.applyType === 'internal' && (targetLink || targetEmail)) {
+      return res.status(400).json({ error: 'Internal applications cannot include an external destination', field: 'applyType' });
+    }
+    if (body.applyType === 'external') {
+      if (!targetLink && !targetEmail) {
+        return res.status(400).json({ error: 'External applications require a URL or email destination', field: 'applyType' });
+      }
+      if (targetLink && targetEmail) {
+        return res
+          .status(400)
+          .json({ error: 'External applications must use exactly one destination: a URL or an email, not both', field: 'applyType' });
+      }
+    }
+    targetApplyType = body.applyType;
+  } else if (linkSupplied || body.applyEmail !== undefined) {
+    // Legacy inference path (no explicit applyType sent) — unchanged formula,
+    // preserved for any caller that predates the method selector.
+    targetApplyType = targetLink || targetEmail ? 'external' : 'internal';
+  }
+
+  // Existing-Application safety guard (PF-HIRE-B2 §6): an internal Job that
+  // already has Employer-facing Applications cannot be switched to external
+  // — those candidates would otherwise be orphaned from the hiring context
+  // they applied into. External -> internal never needs this guard (private
+  // tracker records are not Employer-facing Applications).
+  if (resolveJobApplyType(job) === 'internal' && targetApplyType === 'external') {
+    const existingApplications = await Application.countDocuments({ jobId: job._id });
+    if (existingApplications > 0) {
+      return res.status(409).json({
+        error: 'This job already has applications and cannot be changed to external hiring.',
+        field: 'applyType',
+      });
+    }
+  }
+
   const allowed = [
     'title', 'company', 'organization', 'location', 'province', 'city', 'category', 'type', 'jobType',
     'educationRequirement', 'experience', 'applicationLink', 'applyEmail', 'description', 'requirements',
@@ -196,9 +243,20 @@ export const updateJob = asyncHandler(async (req, res) => {
   });
   if (body.requirements && Array.isArray(body.requirements)) job.requirements = body.requirements;
   if (body.skillsRequired && Array.isArray(body.skillsRequired)) job.skillsRequired = body.skillsRequired;
-  if (linkSupplied || body.applyEmail !== undefined) {
+
+  if (applyTypeSupplied) {
+    job.applyType = targetApplyType;
+    if (targetApplyType === 'internal') {
+      // Belt-and-suspenders: validation above already guarantees both are
+      // empty whenever this line is reached, but this keeps the invariant
+      // airtight even if that validation is ever refactored.
+      job.applicationLink = null;
+      job.applyEmail = null;
+    }
+  } else if (linkSupplied || body.applyEmail !== undefined) {
     job.applyType = job.applicationLink || job.applyEmail ? 'external' : 'internal';
   }
+
   if (job.status === 'active' && job.approvalStatus === 'approved') {
     job.approvalStatus = 'pending';
   }

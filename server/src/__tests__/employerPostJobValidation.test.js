@@ -24,6 +24,9 @@ const {
   DEFAULT_APPLY_METHOD,
   validateApplyMethodSelection,
   buildApplyMethodPayload,
+  resolveApplyMethodFromJob,
+  jobToForm,
+  buildUpdateJobPayload,
 } = await import(modPath);
 
 const base = {
@@ -182,6 +185,106 @@ assert.strictEqual(resolveApplyMode({ applyEmail: 'a@b.com' }).applyType, 'exter
     applyEmail: '  careers@company.com  ',
   });
   assert.deepStrictEqual(payload, { applyType: 'external', applyLink: '', applyEmail: 'careers@company.com' });
+}
+
+// ---- PF-HIRE-B2: edit hydration and unified update payload ----
+
+// 1. Internal Job hydrates as Apply through Strideto
+assert.strictEqual(resolveApplyMethodFromJob({ applyType: 'internal' }), 'internal');
+{
+  const form = jobToForm({ applyType: 'internal', title: 'T', company: 'C' });
+  assert.strictEqual(form.applyMethod, 'internal');
+  assert.strictEqual(form.applyLink, '');
+  assert.strictEqual(form.applyEmail, '');
+}
+
+// 2. External URL Job hydrates URL method and value
+assert.strictEqual(resolveApplyMethodFromJob({ applyType: 'external', applicationLink: 'https://a.com/j' }), 'external_url');
+{
+  const form = jobToForm({ applyType: 'external', applicationLink: 'https://a.com/j', title: 'T', company: 'C' });
+  assert.strictEqual(form.applyMethod, 'external_url');
+  assert.strictEqual(form.applyLink, 'https://a.com/j');
+}
+
+// 3. External email Job hydrates email method and value
+assert.strictEqual(resolveApplyMethodFromJob({ applyType: 'external', applyEmail: 'hr@a.com' }), 'external_email');
+{
+  const form = jobToForm({ applyType: 'external', applyEmail: 'hr@a.com', title: 'T', company: 'C' });
+  assert.strictEqual(form.applyMethod, 'external_email');
+  assert.strictEqual(form.applyEmail, 'hr@a.com');
+}
+
+// 4. Legacy/contradictory fallback: external Job with neither destination hydrates to the safe external_url state (never silently internal)
+assert.strictEqual(resolveApplyMethodFromJob({ applyType: 'external' }), 'external_url');
+
+// 5. Create-mode default remains internal for an empty/unloaded Job
+assert.strictEqual(resolveApplyMethodFromJob({}), DEFAULT_APPLY_METHOD);
+
+// 6/7. External URL -> internal and external email -> internal both send explicit clears via buildUpdateJobPayload
+{
+  const payload = buildUpdateJobPayload(
+    { ...base, applyMethod: 'internal', applyLink: 'https://old.com', applyEmail: '' },
+    []
+  );
+  assert.deepStrictEqual(
+    { applyType: payload.applyType, applyLink: payload.applyLink, applyEmail: payload.applyEmail },
+    { applyType: 'internal', applyLink: '', applyEmail: '' }
+  );
+}
+{
+  const payload = buildUpdateJobPayload(
+    { ...base, applyMethod: 'internal', applyLink: '', applyEmail: 'old@x.com' },
+    []
+  );
+  assert.deepStrictEqual(
+    { applyType: payload.applyType, applyLink: payload.applyLink, applyEmail: payload.applyEmail },
+    { applyType: 'internal', applyLink: '', applyEmail: '' }
+  );
+}
+
+// 8/9. URL -> email clears the URL; email -> URL clears the email
+{
+  const payload = buildUpdateJobPayload(
+    { ...base, applyMethod: 'external_email', applyLink: 'https://old.com', applyEmail: 'new@x.com' },
+    []
+  );
+  assert.deepStrictEqual(
+    { applyType: payload.applyType, applyLink: payload.applyLink, applyEmail: payload.applyEmail },
+    { applyType: 'external', applyLink: '', applyEmail: 'new@x.com' }
+  );
+}
+{
+  const payload = buildUpdateJobPayload(
+    { ...base, applyMethod: 'external_url', applyLink: 'https://new.com', applyEmail: 'old@x.com' },
+    []
+  );
+  assert.deepStrictEqual(
+    { applyType: payload.applyType, applyLink: payload.applyLink, applyEmail: payload.applyEmail },
+    { applyType: 'external', applyLink: 'https://new.com', applyEmail: '' }
+  );
+}
+
+// 10/11. Internal -> URL and internal -> email send a valid external combination
+{
+  const payload = buildUpdateJobPayload({ ...base, applyMethod: 'external_url', applyLink: 'https://x.com/j', applyEmail: '' }, []);
+  assert.deepStrictEqual(
+    { applyType: payload.applyType, applyLink: payload.applyLink, applyEmail: payload.applyEmail },
+    { applyType: 'external', applyLink: 'https://x.com/j', applyEmail: '' }
+  );
+}
+{
+  const payload = buildUpdateJobPayload({ ...base, applyMethod: 'external_email', applyLink: '', applyEmail: 'hr@x.com' }, []);
+  assert.deepStrictEqual(
+    { applyType: payload.applyType, applyLink: payload.applyLink, applyEmail: payload.applyEmail },
+    { applyType: 'external', applyLink: '', applyEmail: 'hr@x.com' }
+  );
+}
+
+// 12/13. Same-method edit preserves the active destination and never sends the inactive one
+{
+  const payload = buildUpdateJobPayload({ ...base, applyMethod: 'external_url', applyLink: 'https://same.com', applyEmail: '' }, []);
+  assert.strictEqual(payload.applyLink, 'https://same.com');
+  assert.strictEqual(payload.applyEmail, '');
 }
 
 console.log('employerPostJobValidation.test.js: all assertions passed');

@@ -8,11 +8,9 @@ import { ROUTES } from '../../constants';
 import {
   FIELD_IDS,
   validateEmployerPostJobForm,
-  buildCreateJobPayload,
   buildUpdateJobPayload,
   jobToForm,
   mapServerErrorToFields,
-  resolveApplyMode,
   APPLY_METHOD_VALUES,
   DEFAULT_APPLY_METHOD,
   validateApplyMethodSelection,
@@ -118,8 +116,6 @@ export default function EmployerPostJob() {
     setPrefilledCompany(true);
   }, [employer?.companyName, prefilledCompany, isEdit]);
 
-  const applyMode = resolveApplyMode(form);
-
   const handleChange = (e) => {
     const { name, value } = e.target;
     setForm((f) => ({ ...f, [name]: value }));
@@ -144,14 +140,14 @@ export default function EmployerPostJob() {
     e.preventDefault();
     setError('');
     const result = validateEmployerPostJobForm(form);
-    // The create-mode method selector is authoritative for applyLink/applyEmail
-    // requirements — supersede (not append to) the generic validator's own
-    // optional-fields checks for those two fields so a stale error can't be
-    // shown for a field the selected method has since hidden. Edit mode is
-    // completely unaffected (methodResult is a no-op there).
+    // The application-method selector (create and edit alike, PF-HIRE-B2) is
+    // authoritative for applyLink/applyEmail requirements — supersede (not
+    // append to) the generic validator's own optional-fields checks for
+    // those two fields, so a stale error can't be shown for a field the
+    // selected method has since hidden.
     const { applyLink: _genericLinkError, applyEmail: _genericEmailError, ...baseErrors } = result.errors;
-    const methodResult = isEdit ? { ok: true, errors: {} } : validateApplyMethodSelection(form);
-    const mergedErrors = isEdit ? result.errors : { ...baseErrors, ...methodResult.errors };
+    const methodResult = validateApplyMethodSelection(form);
+    const mergedErrors = { ...baseErrors, ...methodResult.errors };
     if (!result.ok || !methodResult.ok) {
       setFieldErrors(mergedErrors);
       const firstKey = Object.keys(mergedErrors)[0];
@@ -163,9 +159,12 @@ export default function EmployerPostJob() {
     setFieldErrors({});
     setSubmitting(true);
     try {
-      const payload = isEdit
-        ? buildUpdateJobPayload(form, result.skills)
-        : { ...buildCreateJobPayload(form, result.skills), ...buildApplyMethodPayload(form) };
+      // buildUpdateJobPayload and the create payload are identical in shape
+      // (both layer buildApplyMethodPayload's explicit applyType/applyLink/
+      // applyEmail over the base field payload) — using the same builder for
+      // both modes guarantees edit submissions get the same clear-not-omit
+      // guarantee create already had.
+      const payload = buildUpdateJobPayload(form, result.skills);
       if (isEdit) {
         const { data } = await employerApi.updateJob(jobId, payload);
         navigate(ROUTES.EMPLOYER_JOBS, {
@@ -530,81 +529,11 @@ export default function EmployerPostJob() {
           />
         </div>
 
-        {isEdit ? (
-          <fieldset className="space-y-4 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
-            <legend className="px-1 text-sm font-medium text-gray-900 dark:text-gray-100">
-              {t('employer:applicationMethodLegend')}
-            </legend>
-            <p className={helpClass} id="employer-post-apply-mode-help">
-              {applyMode.isExternal
-                ? t('employer:applyModeExternalHelp')
-                : t('employer:applyModeInternalHelp')}
-            </p>
-            <p
-              className="text-sm font-medium text-gray-900 dark:text-gray-100"
-              aria-live="polite"
-              data-testid="apply-mode-status"
-            >
-              {applyMode.isExternal
-                ? t('employer:applyModeExternalStatus')
-                : t('employer:applyModeInternalStatus')}
-            </p>
-
-            <div>
-              <label htmlFor={FIELD_IDS.applyLink} className={labelClass}>
-                {t('employer:applyLink')}
-                <OptionalMark t={t} />
-              </label>
-              <input
-                id={FIELD_IDS.applyLink}
-                name="applyLink"
-                type="url"
-                inputMode="url"
-                value={form.applyLink}
-                onChange={handleChange}
-                aria-invalid={fieldErrors.applyLink ? 'true' : undefined}
-                aria-describedby={describedBy('applyLink', `${FIELD_IDS.applyLink}-help employer-post-apply-mode-help`)}
-                disabled={submitting}
-                className={inputClass}
-                placeholder={t('employer:applyLinkPlaceholder')}
-              />
-              <p id={`${FIELD_IDS.applyLink}-help`} className={helpClass}>
-                {t('employer:applyLinkHelp')}
-              </p>
-              <FieldError id={`${FIELD_IDS.applyLink}-error`} message={translateFieldError(fieldErrors.applyLink)} />
-            </div>
-
-            <div>
-              <label htmlFor={FIELD_IDS.applyEmail} className={labelClass}>
-                {t('employer:applyEmailLabel')}
-                <OptionalMark t={t} />
-              </label>
-              <input
-                id={FIELD_IDS.applyEmail}
-                name="applyEmail"
-                type="email"
-                inputMode="email"
-                value={form.applyEmail}
-                onChange={handleChange}
-                aria-invalid={fieldErrors.applyEmail ? 'true' : undefined}
-                aria-describedby={describedBy('applyEmail', `${FIELD_IDS.applyEmail}-help employer-post-apply-mode-help`)}
-                disabled={submitting}
-                className={inputClass}
-                placeholder={t('employer:applyEmailPlaceholder')}
-                autoComplete="email"
-              />
-              <p id={`${FIELD_IDS.applyEmail}-help`} className={helpClass}>
-                {t('employer:applyEmailHelp')}
-              </p>
-              <FieldError id={`${FIELD_IDS.applyEmail}-error`} message={translateFieldError(fieldErrors.applyEmail)} />
-            </div>
-          </fieldset>
-        ) : (
-          <fieldset className="space-y-4 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
-            <legend className="px-1 text-sm font-medium text-gray-900 dark:text-gray-100">
-              {t('employer:applicationMethodLegend')}
-              <RequiredMark />
-            </legend>
+        <fieldset className="space-y-4 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+          <legend className="px-1 text-sm font-medium text-gray-900 dark:text-gray-100">
+            {t('employer:applicationMethodLegend')}
+            <RequiredMark />
+          </legend>
 
             <div
               className="space-y-3"
@@ -703,7 +632,6 @@ export default function EmployerPostJob() {
               </div>
             )}
           </fieldset>
-        )}
 
         <div className="pt-2 pb-16 sm:pb-2">
           <button
