@@ -90,9 +90,13 @@ export function registerCareerNotificationHandlers() {
       const userId = resolveNotifyUserId(event);
       if (!userId) return;
 
-      const applicationId = event.payload?.opportunityApplicationId
-        || event.payload?.legacyApplicationId
-        || event.aggregateId;
+      // User-facing /applications/:id must only ever contain an
+      // OpportunityApplication id (the User's own tracker record) — never
+      // legacyApplicationId or aggregateId, both of which identify the
+      // Employer-facing Application and are not resolvable on this route.
+      // Mirrors the already-correct fallback in automationService.js's
+      // onJobApplication.
+      const opportunityApplicationId = event.payload?.opportunityApplicationId || null;
       try {
         await notifyUser(userId, {
           category: event.eventType === 'InterviewScheduled' || event.eventType === 'InterviewCompleted'
@@ -101,11 +105,11 @@ export function registerCareerNotificationHandlers() {
           type: `career.${event.eventType}`,
           title: titleForEvent(event),
           body: bodyForEvent(event),
-          link: applicationId ? `/applications/${applicationId}` : '/applications',
+          link: opportunityApplicationId ? `/applications/${opportunityApplicationId}` : '/applications',
           metadata: {
             careerEventId: event.eventId,
             careerEventType: event.eventType,
-            applicationId: applicationId ? String(applicationId) : null,
+            applicationId: opportunityApplicationId ? String(opportunityApplicationId) : null,
           },
         });
       } catch {
