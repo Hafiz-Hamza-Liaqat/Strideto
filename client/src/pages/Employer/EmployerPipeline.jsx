@@ -5,10 +5,7 @@ import { Helmet } from 'react-helmet-async';
 import { employerApi } from '../../services/employerService';
 import { ROUTES } from '../../constants';
 import { isEmployerIntelligenceEnabled } from '../../config/careerFeatureFlags';
-
-const FOCUS_STAGES = [
-  'applied', 'viewed', 'screening', 'assessment', 'interview', 'offer', 'negotiation', 'accepted', 'rejected',
-];
+import { PIPELINE_STAGES } from '@shared/career/constants.js';
 
 export default function EmployerPipeline() {
   const { t } = useTranslation(['employer', 'common']);
@@ -29,6 +26,12 @@ export default function EmployerPipeline() {
   }
 
   const columns = pipeline?.columns || {};
+  // getPipeline (EmployerIntelligenceService.js) already returns the full
+  // canonical stage list/order as `stages` — reuse it directly instead of
+  // maintaining a second, duplicate stage list here. Before the response
+  // arrives, fall back to the same canonical constant so columns are still
+  // visible immediately (matching the existing pre-fetch render behavior).
+  const stages = pipeline?.stages?.length ? pipeline.stages : PIPELINE_STAGES;
 
   return (
     <div className="p-4 sm:p-6 space-y-4">
@@ -45,7 +48,7 @@ export default function EmployerPipeline() {
       {error && <p className="text-sm text-red-600">{error}</p>}
 
       <div className="flex flex-col md:flex-row gap-3 md:overflow-x-auto pb-2">
-        {FOCUS_STAGES.map((stage) => (
+        {stages.map((stage) => (
           <div key={stage} className="w-full md:min-w-[220px] md:max-w-[240px] md:shrink-0 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3">
             <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
               {stage} ({(columns[stage] || []).length})
