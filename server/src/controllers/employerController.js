@@ -80,6 +80,26 @@ export const createJob = asyncHandler(async (req, res) => {
   const emailResult = validateApplyEmail(body.applyEmail);
   if (!emailResult.ok) return res.status(400).json({ error: emailResult.message, field: emailResult.field });
 
+  // An explicit applyType (PF-HIRE-B1's method selector) is optional and, when
+  // present, authoritative — it must agree with whatever destination fields
+  // were supplied. When absent, fall back to the pre-existing inference so
+  // any caller that predates the selector keeps working unchanged.
+  let applyType;
+  if (body.applyType !== undefined) {
+    if (body.applyType !== 'internal' && body.applyType !== 'external') {
+      return res.status(400).json({ error: 'applyType must be internal or external', field: 'applyType' });
+    }
+    if (body.applyType === 'internal' && (linkResult.value || emailResult.value)) {
+      return res.status(400).json({ error: 'Internal applications cannot include an external destination', field: 'applyType' });
+    }
+    if (body.applyType === 'external' && !linkResult.value && !emailResult.value) {
+      return res.status(400).json({ error: 'External applications require a URL or email destination', field: 'applyType' });
+    }
+    applyType = body.applyType;
+  } else {
+    applyType = linkResult.value || emailResult.value ? 'external' : 'internal';
+  }
+
   const slug = jobSlug(title, body.location || '');
   const existingSlug = await Job.findOne({ slug });
   const finalSlug = existingSlug ? `${slug}-${Date.now()}` : slug;
@@ -99,7 +119,7 @@ export const createJob = asyncHandler(async (req, res) => {
     jobType: body.jobType || 'Private',
     educationRequirement: body.educationRequirement,
     experience: body.experience,
-    applyType: linkResult.value || emailResult.value ? 'external' : 'internal',
+    applyType,
     applicationLink: linkResult.value || null,
     applyEmail: emailResult.value || null,
     description: stripAllHtml(body.jobDescription || body.description),

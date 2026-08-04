@@ -13,6 +13,10 @@ import {
   jobToForm,
   mapServerErrorToFields,
   resolveApplyMode,
+  APPLY_METHOD_VALUES,
+  DEFAULT_APPLY_METHOD,
+  validateApplyMethodSelection,
+  buildApplyMethodPayload,
 } from './employerPostJobValidation';
 
 const defaultForm = {
@@ -27,6 +31,13 @@ const defaultForm = {
   applicationDeadline: '',
   applyLink: '',
   applyEmail: '',
+  applyMethod: DEFAULT_APPLY_METHOD,
+};
+
+const APPLY_METHOD_META = {
+  internal: { labelKey: 'applyMethodInternalLabel', helpKey: 'applyMethodInternalHelp' },
+  external_url: { labelKey: 'applyMethodExternalUrlLabel', helpKey: 'applyMethodExternalUrlHelp' },
+  external_email: { labelKey: 'applyMethodExternalEmailLabel', helpKey: 'applyMethodExternalEmailHelp' },
 };
 
 const labelClass = 'block text-sm font-medium text-gray-900 dark:text-gray-100 mb-1';
@@ -133,9 +144,17 @@ export default function EmployerPostJob() {
     e.preventDefault();
     setError('');
     const result = validateEmployerPostJobForm(form);
-    if (!result.ok) {
-      setFieldErrors(result.errors);
-      const firstKey = Object.keys(result.errors)[0];
+    // The create-mode method selector is authoritative for applyLink/applyEmail
+    // requirements — supersede (not append to) the generic validator's own
+    // optional-fields checks for those two fields so a stale error can't be
+    // shown for a field the selected method has since hidden. Edit mode is
+    // completely unaffected (methodResult is a no-op there).
+    const { applyLink: _genericLinkError, applyEmail: _genericEmailError, ...baseErrors } = result.errors;
+    const methodResult = isEdit ? { ok: true, errors: {} } : validateApplyMethodSelection(form);
+    const mergedErrors = isEdit ? result.errors : { ...baseErrors, ...methodResult.errors };
+    if (!result.ok || !methodResult.ok) {
+      setFieldErrors(mergedErrors);
+      const firstKey = Object.keys(mergedErrors)[0];
       const el = firstKey ? document.getElementById(FIELD_IDS[firstKey]) : null;
       if (el?.focus) el.focus();
       return;
@@ -144,7 +163,9 @@ export default function EmployerPostJob() {
     setFieldErrors({});
     setSubmitting(true);
     try {
-      const payload = isEdit ? buildUpdateJobPayload(form, result.skills) : buildCreateJobPayload(form, result.skills);
+      const payload = isEdit
+        ? buildUpdateJobPayload(form, result.skills)
+        : { ...buildCreateJobPayload(form, result.skills), ...buildApplyMethodPayload(form) };
       if (isEdit) {
         const { data } = await employerApi.updateJob(jobId, payload);
         navigate(ROUTES.EMPLOYER_JOBS, {
@@ -509,74 +530,180 @@ export default function EmployerPostJob() {
           />
         </div>
 
-        <fieldset className="space-y-4 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
-          <legend className="px-1 text-sm font-medium text-gray-900 dark:text-gray-100">
-            {t('employer:applicationMethodLegend')}
-          </legend>
-          <p className={helpClass} id="employer-post-apply-mode-help">
-            {applyMode.isExternal
-              ? t('employer:applyModeExternalHelp')
-              : t('employer:applyModeInternalHelp')}
-          </p>
-          <p
-            className="text-sm font-medium text-gray-900 dark:text-gray-100"
-            aria-live="polite"
-            data-testid="apply-mode-status"
-          >
-            {applyMode.isExternal
-              ? t('employer:applyModeExternalStatus')
-              : t('employer:applyModeInternalStatus')}
-          </p>
-
-          <div>
-            <label htmlFor={FIELD_IDS.applyLink} className={labelClass}>
-              {t('employer:applyLink')}
-              <OptionalMark t={t} />
-            </label>
-            <input
-              id={FIELD_IDS.applyLink}
-              name="applyLink"
-              type="url"
-              inputMode="url"
-              value={form.applyLink}
-              onChange={handleChange}
-              aria-invalid={fieldErrors.applyLink ? 'true' : undefined}
-              aria-describedby={describedBy('applyLink', `${FIELD_IDS.applyLink}-help employer-post-apply-mode-help`)}
-              disabled={submitting}
-              className={inputClass}
-              placeholder={t('employer:applyLinkPlaceholder')}
-            />
-            <p id={`${FIELD_IDS.applyLink}-help`} className={helpClass}>
-              {t('employer:applyLinkHelp')}
+        {isEdit ? (
+          <fieldset className="space-y-4 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+            <legend className="px-1 text-sm font-medium text-gray-900 dark:text-gray-100">
+              {t('employer:applicationMethodLegend')}
+            </legend>
+            <p className={helpClass} id="employer-post-apply-mode-help">
+              {applyMode.isExternal
+                ? t('employer:applyModeExternalHelp')
+                : t('employer:applyModeInternalHelp')}
             </p>
-            <FieldError id={`${FIELD_IDS.applyLink}-error`} message={translateFieldError(fieldErrors.applyLink)} />
-          </div>
-
-          <div>
-            <label htmlFor={FIELD_IDS.applyEmail} className={labelClass}>
-              {t('employer:applyEmailLabel')}
-              <OptionalMark t={t} />
-            </label>
-            <input
-              id={FIELD_IDS.applyEmail}
-              name="applyEmail"
-              type="email"
-              inputMode="email"
-              value={form.applyEmail}
-              onChange={handleChange}
-              aria-invalid={fieldErrors.applyEmail ? 'true' : undefined}
-              aria-describedby={describedBy('applyEmail', `${FIELD_IDS.applyEmail}-help employer-post-apply-mode-help`)}
-              disabled={submitting}
-              className={inputClass}
-              placeholder={t('employer:applyEmailPlaceholder')}
-              autoComplete="email"
-            />
-            <p id={`${FIELD_IDS.applyEmail}-help`} className={helpClass}>
-              {t('employer:applyEmailHelp')}
+            <p
+              className="text-sm font-medium text-gray-900 dark:text-gray-100"
+              aria-live="polite"
+              data-testid="apply-mode-status"
+            >
+              {applyMode.isExternal
+                ? t('employer:applyModeExternalStatus')
+                : t('employer:applyModeInternalStatus')}
             </p>
-            <FieldError id={`${FIELD_IDS.applyEmail}-error`} message={translateFieldError(fieldErrors.applyEmail)} />
-          </div>
-        </fieldset>
+
+            <div>
+              <label htmlFor={FIELD_IDS.applyLink} className={labelClass}>
+                {t('employer:applyLink')}
+                <OptionalMark t={t} />
+              </label>
+              <input
+                id={FIELD_IDS.applyLink}
+                name="applyLink"
+                type="url"
+                inputMode="url"
+                value={form.applyLink}
+                onChange={handleChange}
+                aria-invalid={fieldErrors.applyLink ? 'true' : undefined}
+                aria-describedby={describedBy('applyLink', `${FIELD_IDS.applyLink}-help employer-post-apply-mode-help`)}
+                disabled={submitting}
+                className={inputClass}
+                placeholder={t('employer:applyLinkPlaceholder')}
+              />
+              <p id={`${FIELD_IDS.applyLink}-help`} className={helpClass}>
+                {t('employer:applyLinkHelp')}
+              </p>
+              <FieldError id={`${FIELD_IDS.applyLink}-error`} message={translateFieldError(fieldErrors.applyLink)} />
+            </div>
+
+            <div>
+              <label htmlFor={FIELD_IDS.applyEmail} className={labelClass}>
+                {t('employer:applyEmailLabel')}
+                <OptionalMark t={t} />
+              </label>
+              <input
+                id={FIELD_IDS.applyEmail}
+                name="applyEmail"
+                type="email"
+                inputMode="email"
+                value={form.applyEmail}
+                onChange={handleChange}
+                aria-invalid={fieldErrors.applyEmail ? 'true' : undefined}
+                aria-describedby={describedBy('applyEmail', `${FIELD_IDS.applyEmail}-help employer-post-apply-mode-help`)}
+                disabled={submitting}
+                className={inputClass}
+                placeholder={t('employer:applyEmailPlaceholder')}
+                autoComplete="email"
+              />
+              <p id={`${FIELD_IDS.applyEmail}-help`} className={helpClass}>
+                {t('employer:applyEmailHelp')}
+              </p>
+              <FieldError id={`${FIELD_IDS.applyEmail}-error`} message={translateFieldError(fieldErrors.applyEmail)} />
+            </div>
+          </fieldset>
+        ) : (
+          <fieldset className="space-y-4 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
+            <legend className="px-1 text-sm font-medium text-gray-900 dark:text-gray-100">
+              {t('employer:applicationMethodLegend')}
+              <RequiredMark />
+            </legend>
+
+            <div
+              className="space-y-3"
+              role="radiogroup"
+              aria-required="true"
+              aria-describedby={describedBy('applyMethod')}
+              data-testid="apply-method-selector"
+            >
+              {APPLY_METHOD_VALUES.map((method, idx) => (
+                <label
+                  key={method}
+                  htmlFor={idx === 0 ? FIELD_IDS.applyMethod : `${FIELD_IDS.applyMethod}-${method}`}
+                  className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer ${
+                    form.applyMethod === method
+                      ? 'border-primary bg-primary/5'
+                      : 'border-gray-200 dark:border-gray-600'
+                  }`}
+                >
+                  <input
+                    id={idx === 0 ? FIELD_IDS.applyMethod : `${FIELD_IDS.applyMethod}-${method}`}
+                    type="radio"
+                    name="applyMethod"
+                    value={method}
+                    checked={form.applyMethod === method}
+                    onChange={handleChange}
+                    disabled={submitting}
+                    className="mt-1"
+                  />
+                  <span>
+                    <span className="block text-sm font-medium text-gray-900 dark:text-gray-100">
+                      {t(`employer:${APPLY_METHOD_META[method].labelKey}`)}
+                    </span>
+                    <span className="block text-xs text-gray-600 dark:text-gray-400 mt-0.5">
+                      {t(`employer:${APPLY_METHOD_META[method].helpKey}`)}
+                    </span>
+                  </span>
+                </label>
+              ))}
+            </div>
+            <FieldError id={`${FIELD_IDS.applyMethod}-error`} message={translateFieldError(fieldErrors.applyMethod)} />
+
+            {form.applyMethod === 'external_url' && (
+              <div>
+                <label htmlFor={FIELD_IDS.applyLink} className={labelClass}>
+                  {t('employer:applyLink')}
+                  <RequiredMark />
+                </label>
+                <input
+                  id={FIELD_IDS.applyLink}
+                  name="applyLink"
+                  type="url"
+                  inputMode="url"
+                  value={form.applyLink}
+                  onChange={handleChange}
+                  required
+                  aria-required="true"
+                  aria-invalid={fieldErrors.applyLink ? 'true' : undefined}
+                  aria-describedby={describedBy('applyLink', `${FIELD_IDS.applyLink}-help`)}
+                  disabled={submitting}
+                  className={inputClass}
+                  placeholder={t('employer:applyLinkPlaceholder')}
+                />
+                <p id={`${FIELD_IDS.applyLink}-help`} className={helpClass}>
+                  {t('employer:applyLinkHelp')}
+                </p>
+                <FieldError id={`${FIELD_IDS.applyLink}-error`} message={translateFieldError(fieldErrors.applyLink)} />
+              </div>
+            )}
+
+            {form.applyMethod === 'external_email' && (
+              <div>
+                <label htmlFor={FIELD_IDS.applyEmail} className={labelClass}>
+                  {t('employer:applyEmailLabel')}
+                  <RequiredMark />
+                </label>
+                <input
+                  id={FIELD_IDS.applyEmail}
+                  name="applyEmail"
+                  type="email"
+                  inputMode="email"
+                  value={form.applyEmail}
+                  onChange={handleChange}
+                  required
+                  aria-required="true"
+                  aria-invalid={fieldErrors.applyEmail ? 'true' : undefined}
+                  aria-describedby={describedBy('applyEmail', `${FIELD_IDS.applyEmail}-help`)}
+                  disabled={submitting}
+                  className={inputClass}
+                  placeholder={t('employer:applyEmailPlaceholder')}
+                  autoComplete="email"
+                />
+                <p id={`${FIELD_IDS.applyEmail}-help`} className={helpClass}>
+                  {t('employer:applyEmailHelp')}
+                </p>
+                <FieldError id={`${FIELD_IDS.applyEmail}-error`} message={translateFieldError(fieldErrors.applyEmail)} />
+              </div>
+            )}
+          </fieldset>
+        )}
 
         <div className="pt-2 pb-16 sm:pb-2">
           <button

@@ -20,6 +20,10 @@ const {
   isDeadlineNotPast,
   normalizeSkills,
   buildCreateJobPayload,
+  APPLY_METHOD_VALUES,
+  DEFAULT_APPLY_METHOD,
+  validateApplyMethodSelection,
+  buildApplyMethodPayload,
 } = await import(modPath);
 
 const base = {
@@ -113,6 +117,71 @@ assert.strictEqual(resolveApplyMode({ applyEmail: 'a@b.com' }).applyType, 'exter
 {
   const r = validateEmployerPostJobForm({ ...base, jobDescription: 'Too short' });
   assert.strictEqual(r.errors.jobDescription, 'validationDescriptionTooShort');
+}
+
+// ---- PF-HIRE-B1: explicit create-time application-method selector ----
+
+// 6/7/22. Three options exist, default is 'internal' (the confirmed safe default per §5)
+{
+  assert.deepStrictEqual(APPLY_METHOD_VALUES, ['internal', 'external_url', 'external_email']);
+  assert.strictEqual(DEFAULT_APPLY_METHOD, 'internal');
+}
+
+// 6. Selected method is required — unknown/missing value rejected
+{
+  const r = validateApplyMethodSelection({});
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.errors.applyMethod, 'validationApplyMethodRequired');
+}
+
+// 9/10. Internal requires no destination and is valid on its own
+{
+  const r = validateApplyMethodSelection({ applyMethod: 'internal' });
+  assert.strictEqual(r.ok, true);
+}
+{
+  const payload = buildApplyMethodPayload({ applyMethod: 'internal', applyLink: 'stale', applyEmail: 'stale@x.com' });
+  assert.deepStrictEqual(payload, { applyType: 'internal', applyLink: '', applyEmail: '' });
+}
+
+// 12/13. External URL requires a destination and rejects unsafe/malformed input client-side
+{
+  const missing = validateApplyMethodSelection({ applyMethod: 'external_url', applyLink: '' });
+  assert.strictEqual(missing.errors.applyLink, 'validationApplyUrlRequired');
+  const invalid = validateApplyMethodSelection({ applyMethod: 'external_url', applyLink: 'javascript:alert(1)' });
+  assert.strictEqual(invalid.errors.applyLink, 'validationApplyUrlInvalid');
+  const valid = validateApplyMethodSelection({ applyMethod: 'external_url', applyLink: 'https://company.com/careers' });
+  assert.strictEqual(valid.ok, true);
+}
+
+// 14/18. External URL payload sends applyType:'external' and never a stale hidden email
+{
+  const payload = buildApplyMethodPayload({
+    applyMethod: 'external_url',
+    applyLink: '  https://company.com/careers  ',
+    applyEmail: 'stale@x.com',
+  });
+  assert.deepStrictEqual(payload, { applyType: 'external', applyLink: 'https://company.com/careers', applyEmail: '' });
+}
+
+// 16. Email requires a valid address
+{
+  const missing = validateApplyMethodSelection({ applyMethod: 'external_email', applyEmail: '' });
+  assert.strictEqual(missing.errors.applyEmail, 'validationApplyEmailRequired');
+  const invalid = validateApplyMethodSelection({ applyMethod: 'external_email', applyEmail: 'not-an-email' });
+  assert.strictEqual(invalid.errors.applyEmail, 'validationApplyEmailInvalid');
+  const valid = validateApplyMethodSelection({ applyMethod: 'external_email', applyEmail: 'careers@company.com' });
+  assert.strictEqual(valid.ok, true);
+}
+
+// 17/18. Email payload sends applyType:'external' and never a stale hidden URL
+{
+  const payload = buildApplyMethodPayload({
+    applyMethod: 'external_email',
+    applyLink: 'stale',
+    applyEmail: '  careers@company.com  ',
+  });
+  assert.deepStrictEqual(payload, { applyType: 'external', applyLink: '', applyEmail: 'careers@company.com' });
 }
 
 console.log('employerPostJobValidation.test.js: all assertions passed');

@@ -18,7 +18,17 @@ export const FIELD_IDS = {
   applicationDeadline: 'employer-post-deadline',
   applyLink: 'employer-post-apply-link',
   applyEmail: 'employer-post-apply-email',
+  applyMethod: 'employer-post-apply-method-internal',
 };
+
+/**
+ * Client-only presentation enum for the create-time application-method
+ * selector (PF-HIRE-B1). Maps to the canonical server `applyType` contract
+ * at submission time via buildApplyMethodPayload — it is not itself a
+ * stored/server value and edit mode (PF-HIRE-B2) does not use it.
+ */
+export const APPLY_METHOD_VALUES = ['internal', 'external_url', 'external_email'];
+export const DEFAULT_APPLY_METHOD = 'internal';
 
 const MAX_TITLE = 200;
 const MAX_COMPANY = 200;
@@ -65,6 +75,49 @@ export function resolveApplyMode({ applyLink = '', applyEmail = '' } = {}) {
     hasEmail,
     isExternal: true,
   };
+}
+
+/**
+ * Create-mode-only validation for the explicit application-method selector
+ * (PF-HIRE-B1). Authoritative for whichever destination field the selected
+ * method actually requires; does not touch validateEmployerPostJobForm's
+ * existing, unchanged, edit-mode-compatible optional-fields contract.
+ */
+export function validateApplyMethodSelection(form) {
+  const method = form.applyMethod;
+  if (!APPLY_METHOD_VALUES.includes(method)) {
+    return { ok: false, errors: { applyMethod: 'validationApplyMethodRequired' } };
+  }
+  if (method === 'external_url') {
+    const link = String(form.applyLink || '').trim();
+    if (!link) return { ok: false, errors: { applyLink: 'validationApplyUrlRequired' } };
+    if (!isValidHttpUrl(link)) return { ok: false, errors: { applyLink: 'validationApplyUrlInvalid' } };
+  }
+  if (method === 'external_email') {
+    const email = String(form.applyEmail || '').trim();
+    if (!email) return { ok: false, errors: { applyEmail: 'validationApplyEmailRequired' } };
+    if (!isValidEmail(email)) return { ok: false, errors: { applyEmail: 'validationApplyEmailInvalid' } };
+  }
+  return { ok: true, errors: {} };
+}
+
+/**
+ * Maps the selected client-only method to the canonical server payload
+ * shape. Always sends explicit empty strings (never omits the key) for the
+ * non-applicable destination field, so the field reaches the server as a
+ * real empty value rather than being dropped by JSON serialization —
+ * whatever is left in the other, now-hidden field is never included,
+ * regardless of what stale text it still holds.
+ */
+export function buildApplyMethodPayload(form) {
+  const method = form.applyMethod;
+  if (method === 'external_url') {
+    return { applyType: 'external', applyLink: String(form.applyLink || '').trim(), applyEmail: '' };
+  }
+  if (method === 'external_email') {
+    return { applyType: 'external', applyLink: '', applyEmail: String(form.applyEmail || '').trim() };
+  }
+  return { applyType: 'internal', applyLink: '', applyEmail: '' };
 }
 
 export function isValidHttpUrl(value) {
