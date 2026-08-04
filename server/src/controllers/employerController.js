@@ -10,6 +10,7 @@ import { sanitizeString } from '../utils/sanitize.js';
 import { stripAllHtml } from '../utils/htmlSanitize.js';
 import { TalentProfileReadService } from '../services/career/TalentProfileReadService.js';
 import { enrichEmployerJobsWithApplicationCounts, resolveJobApplyType } from '../services/employerApplicationCounts.js';
+import { validateApplicationLink, validateApplyEmail } from '../utils/jobApplicationDestination.js';
 import { computeEmployerDashboardMetrics } from '../services/employerDashboardMetrics.js';
 import { syncOpportunityApplicationFromLegacyStatus } from '../services/employerOpportunityApplicationSync.js';
 import { buildEmployerProfileUpdates } from '../utils/employerProfileValidation.js';
@@ -74,6 +75,11 @@ export const createJob = asyncHandler(async (req, res) => {
   const companyName = (body.companyName || employer.companyName || '').trim();
   if (!title || !companyName) return res.status(400).json({ error: 'jobTitle and companyName are required' });
 
+  const linkResult = validateApplicationLink(body.applyLink);
+  if (!linkResult.ok) return res.status(400).json({ error: linkResult.message, field: linkResult.field });
+  const emailResult = validateApplyEmail(body.applyEmail);
+  if (!emailResult.ok) return res.status(400).json({ error: emailResult.message, field: emailResult.field });
+
   const slug = jobSlug(title, body.location || '');
   const existingSlug = await Job.findOne({ slug });
   const finalSlug = existingSlug ? `${slug}-${Date.now()}` : slug;
@@ -93,9 +99,9 @@ export const createJob = asyncHandler(async (req, res) => {
     jobType: body.jobType || 'Private',
     educationRequirement: body.educationRequirement,
     experience: body.experience,
-    applyType: body.applyLink || body.applyEmail ? 'external' : 'internal',
-    applicationLink: body.applyLink || null,
-    applyEmail: body.applyEmail || null,
+    applyType: linkResult.value || emailResult.value ? 'external' : 'internal',
+    applicationLink: linkResult.value || null,
+    applyEmail: emailResult.value || null,
     description: stripAllHtml(body.jobDescription || body.description),
     requirements: body.requirements || [],
     salaryRange: body.salaryRange,
@@ -131,6 +137,26 @@ export const updateJob = asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'Closed jobs cannot be edited. Reopen the job first.' });
   }
   const body = req.body;
+
+  // Validate before any mutation of `job` — both possible destination-URL
+  // key names (`applyLink` from the current client, `applicationLink` for
+  // any caller that sends the stored field name directly) go through the
+  // same canonical check, so neither path can bypass it.
+  const linkSupplied = body.applyLink !== undefined || body.applicationLink !== undefined;
+  let validatedLink;
+  if (linkSupplied) {
+    const incoming = body.applyLink !== undefined ? body.applyLink : body.applicationLink;
+    const linkResult = validateApplicationLink(incoming);
+    if (!linkResult.ok) return res.status(400).json({ error: linkResult.message, field: linkResult.field });
+    validatedLink = linkResult.value;
+  }
+  let validatedEmail;
+  if (body.applyEmail !== undefined) {
+    const emailResult = validateApplyEmail(body.applyEmail);
+    if (!emailResult.ok) return res.status(400).json({ error: emailResult.message, field: emailResult.field });
+    validatedEmail = emailResult.value;
+  }
+
   const allowed = [
     'title', 'company', 'organization', 'location', 'province', 'city', 'category', 'type', 'jobType',
     'educationRequirement', 'experience', 'applicationLink', 'applyEmail', 'description', 'requirements',
@@ -142,14 +168,15 @@ export const updateJob = asyncHandler(async (req, res) => {
       else if (key === 'companyName') job.company = job.organization = sanitizeString(body[key]);
       else if (key === 'jobDescription') job.description = stripAllHtml(body[key]);
       else if (key === 'description') job.description = stripAllHtml(body[key]);
-      else if (key === 'applyLink') job.applicationLink = body[key];
+      else if (key === 'applyLink' || key === 'applicationLink') job.applicationLink = validatedLink;
+      else if (key === 'applyEmail') job.applyEmail = validatedEmail;
       else if (key === 'applicationDeadline') job.deadline = body[key] ? new Date(body[key]) : null;
       else job[key] = body[key];
     }
   });
   if (body.requirements && Array.isArray(body.requirements)) job.requirements = body.requirements;
   if (body.skillsRequired && Array.isArray(body.skillsRequired)) job.skillsRequired = body.skillsRequired;
-  if (body.applyLink !== undefined || body.applyEmail !== undefined) {
+  if (linkSupplied || body.applyEmail !== undefined) {
     job.applyType = job.applicationLink || job.applyEmail ? 'external' : 'internal';
   }
   if (job.status === 'active' && job.approvalStatus === 'approved') {

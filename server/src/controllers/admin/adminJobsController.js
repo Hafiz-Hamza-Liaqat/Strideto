@@ -15,6 +15,7 @@ import {
   JOB_DUPLICATE_PRESERVE_FIELDS,
   JOB_DUPLICATE_RESET_FIELDS,
 } from '../../services/jobWriteBoundary.js';
+import { validateApplicationLink } from '../../utils/jobApplicationDestination.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -84,8 +85,10 @@ function applyJobBody(doc, body, isCreate = false) {
   if (body.applicationInstructions !== undefined) doc.applicationInstructions = sanitizeString(body.applicationInstructions);
   if (body.applicationLink !== undefined || body.link !== undefined || body.applyLink !== undefined) {
     const applicationLink = body.applicationLink ?? body.link ?? body.applyLink;
-    doc.applicationLink = applicationLink ? sanitizeString(applicationLink) : '';
-    if (applicationLink) doc.applyType = 'external';
+    const result = validateApplicationLink(applicationLink);
+    if (!result.ok) return { status: 400, error: result.message, field: result.field };
+    doc.applicationLink = result.value || '';
+    if (result.value) doc.applyType = 'external';
   }
   if (body.status !== undefined) doc.status = body.status;
   if (body.deadline !== undefined) doc.deadline = body.deadline ? new Date(body.deadline) : undefined;
@@ -139,7 +142,8 @@ export const create = asyncHandler(async (req, res) => {
     approvalStatus: body.approvalStatus || 'pending',
     applyType: 'external',
   });
-  applyJobBody(doc, body, true);
+  const validationError = applyJobBody(doc, body, true);
+  if (validationError) return res.status(validationError.status).json({ error: validationError.error, field: validationError.field });
   const slugErr = await applyResolvedSlug('job', doc, body, true);
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();
@@ -163,7 +167,8 @@ export const update = asyncHandler(async (req, res) => {
   const doc = await Job.findById(id);
   if (!doc) return res.status(404).json({ error: 'Job not found' });
   const before = doc.toObject();
-  applyJobBody(doc, body);
+  const validationError = applyJobBody(doc, body);
+  if (validationError) return res.status(validationError.status).json({ error: validationError.error, field: validationError.field });
   const slugErr = await applyResolvedSlug('job', doc, body, false);
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();
