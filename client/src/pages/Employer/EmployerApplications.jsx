@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
@@ -37,6 +37,65 @@ export default function EmployerApplications() {
     if (jobId) setSelectedJobId(jobId);
   }, [jobId]);
 
+  const mountedRef = useRef(false);
+  const inFlightRef = useRef(false);
+  const requestSeqRef = useRef(0);
+  const selectedJobIdRef = useRef(selectedJobId);
+
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    selectedJobIdRef.current = selectedJobId;
+  }, [selectedJobId]);
+
+  // A job switch always wins over whatever the previous job's request is
+  // doing (force: true, below) — its late response is still discarded by the
+  // seq check here, so it can never overwrite the newly-selected job's data.
+  const loadApplications = useCallback(
+    ({ background = false, force = false } = {}) => {
+      const targetJobId = selectedJobIdRef.current;
+      if (!targetJobId) return;
+      if (document.hidden) return;
+      if (inFlightRef.current && !force) return;
+      inFlightRef.current = true;
+      const seq = ++requestSeqRef.current;
+      if (!background) {
+        setLoading(true);
+        setError('');
+        setApiMessage('');
+      }
+      employerApi
+        .getJobApplications(targetJobId)
+        .then(({ data }) => {
+          if (!mountedRef.current || seq !== requestSeqRef.current) return;
+          setApplications(data.data || []);
+          setJobMeta(data.job || null);
+          setTracked(data.applicationsTracked !== false);
+          setApiMessage(data.message || '');
+          setError('');
+        })
+        .catch((err) => {
+          if (!mountedRef.current || seq !== requestSeqRef.current) return;
+          if (!background) {
+            setApplications([]);
+            setJobMeta(null);
+            setError(err.response?.data?.error || t('employer:applicationsLoadFailed'));
+          }
+          // Background refresh failure: keep the currently rendered list and job meta untouched.
+        })
+        .finally(() => {
+          if (seq === requestSeqRef.current) inFlightRef.current = false;
+          if (mountedRef.current && !background && seq === requestSeqRef.current) setLoading(false);
+        });
+    },
+    [t]
+  );
+
   useEffect(() => {
     if (!selectedJobId) {
       setApplications([]);
@@ -46,24 +105,23 @@ export default function EmployerApplications() {
       setLoading(false);
       return;
     }
-    setLoading(true);
-    setError('');
-    setApiMessage('');
-    employerApi
-      .getJobApplications(selectedJobId)
-      .then(({ data }) => {
-        setApplications(data.data || []);
-        setJobMeta(data.job || null);
-        setTracked(data.applicationsTracked !== false);
-        setApiMessage(data.message || '');
-      })
-      .catch((err) => {
-        setApplications([]);
-        setJobMeta(null);
-        setError(err.response?.data?.error || t('employer:applicationsLoadFailed'));
-      })
-      .finally(() => setLoading(false));
-  }, [selectedJobId, t]);
+    loadApplications({ background: false, force: true });
+  }, [selectedJobId, loadApplications]);
+
+  useEffect(() => {
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') loadApplications({ background: true });
+    };
+    const handleFocus = () => loadApplications({ background: true });
+
+    document.addEventListener('visibilitychange', handleVisibility);
+    window.addEventListener('focus', handleFocus);
+
+    return () => {
+      document.removeEventListener('visibilitychange', handleVisibility);
+      window.removeEventListener('focus', handleFocus);
+    };
+  }, [loadApplications]);
 
   const selectedFromList = jobs.find((j) => j._id === selectedJobId);
   const isExternal =
@@ -77,6 +135,9 @@ export default function EmployerApplications() {
     try {
       await employerApi.updateApplicationStatus(appId, status);
       setApplications((prev) => prev.map((a) => (a._id === appId ? { ...a, status } : a)));
+      // Optimistic update above keeps the row responsive; a background refetch
+      // then reconciles the list/counts against the server without flicker.
+      loadApplications({ background: true, force: true });
     } catch (err) {
       setStatusError(err.response?.data?.error || t('employer:statusUpdateFailed'));
     }
