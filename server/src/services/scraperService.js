@@ -6,6 +6,7 @@ import { ScraperRun } from '../models/ScraperRun.js';
 import { ScraperConfig } from '../models/ScraperConfig.js';
 import { jobSlug } from '../utils/slugify.js';
 import { SCRAPER_REGISTRY, delay, RATE_LIMIT_DELAY_MS } from './scrapers/index.js';
+import { validateApplicationLink } from '../utils/jobApplicationDestination.js';
 
 function makeSlugUnique(baseSlug, existingSlugs, index = 0) {
   const slug = index === 0 ? baseSlug : `${baseSlug}-${index}`;
@@ -74,6 +75,19 @@ export async function runScraper(options = {}) {
           jobsSkipped++;
           continue;
         }
+
+        // Every scraped Job is applyType:'external' (hardcoded below), so unlike
+        // the Employer/Admin write paths an empty destination is not a valid
+        // "internal" signal here — it would just be an unusable dead-end Job.
+        // Reject unsafe and empty destinations alike, without logging the raw
+        // scraped URL/payload.
+        const linkResult = validateApplicationLink(j.applicationLink || '');
+        if (!linkResult.ok || !linkResult.value) {
+          jobsSkipped++;
+          errors.push(`${sourceKey}: invalid_application_destination`);
+          continue;
+        }
+
         const baseSlug = jobSlug(j.title, j.province || j.location || '');
         const slug = makeSlugUnique(baseSlug, existingJobSlugs);
         existingJobSlugs.add(slug);
@@ -91,7 +105,7 @@ export async function runScraper(options = {}) {
           educationRequirement: j.educationRequirement,
           experience: j.experience,
           deadline: j.deadline,
-          applicationLink: j.applicationLink,
+          applicationLink: linkResult.value,
           sourceUrl: j.sourceUrl,
           sourceWebsite: j.sourceWebsite,
           externalId: j.externalId,

@@ -13,6 +13,16 @@ import {
 import { ensureSlugUnique } from '../utils/bulkUpsert.js';
 import { createImportReport, recordError, pickField } from './importParserService.js';
 import { sanitizeHtml, stripAllHtml } from '../utils/htmlSanitize.js';
+import { validateApplicationLink } from '../utils/jobApplicationDestination.js';
+
+/** Redact destination-URL fields before echoing a rejected row back in an import report. */
+function redactDestinationFields(row) {
+  if (!row || typeof row !== 'object') return row;
+  const redacted = { ...row };
+  if (redacted.applicationLink !== undefined) redacted.applicationLink = '[redacted]';
+  if (redacted.link !== undefined) redacted.link = '[redacted]';
+  return redacted;
+}
 
 const IMPORT_HANDLERS = {
   jobs: importJobs,
@@ -53,6 +63,13 @@ async function importJobs(rows) {
         continue;
       }
 
+      const rawLink = row.applicationLink || row.link || '';
+      const linkResult = validateApplicationLink(rawLink);
+      if (!linkResult.ok) {
+        recordError(report, i, `${linkResult.field}: ${linkResult.message}`, redactDestinationFields(row));
+        continue;
+      }
+
       const baseSlug = jobSlug(title, row.province || row.location || '');
       const slug = await ensureSlugUnique(Job, baseSlug);
       const orgField = pickField(row, 'organization', 'organisation');
@@ -73,7 +90,7 @@ async function importJobs(rows) {
         deadline: row.deadline ? new Date(row.deadline) : undefined,
         status: row.status || 'active',
         source: 'manual',
-        applicationLink: row.applicationLink || row.link || '',
+        applicationLink: linkResult.value || '',
         approvalStatus: 'approved',
       });
       report.imported++;
