@@ -143,9 +143,20 @@ export default function EmployerApplications() {
     }
   };
 
+  // Presentation-only URL-vs-email split for clearer copy — falls back to the
+  // server's own disclosure message, then the generic string, when neither
+  // destination field is known client-side.
+  const externalDisclosureMessage = () => {
+    const link = jobMeta?.applicationLink || selectedFromList?.applicationLink;
+    const email = jobMeta?.applyEmail || selectedFromList?.applyEmail;
+    if (link) return t('employer:externalUrlAppsNotVisible');
+    if (email) return t('employer:externalEmailAppsNotVisible');
+    return apiMessage || t('employer:externalAppsNotVisible');
+  };
+
   const emptyMessage = () => {
     if (!selectedJobId) return t('employer:selectJobToViewApplications');
-    if (isExternal) return apiMessage || t('employer:externalAppsNotVisible');
+    if (isExternal) return externalDisclosureMessage();
     return t('employer:noApplicationsYet');
   };
 
@@ -190,7 +201,7 @@ export default function EmployerApplications() {
       {selectedJobId && isExternal ? (
         <div className="mb-4 p-4 rounded-xl border border-violet-200 dark:border-violet-800 bg-violet-50 dark:bg-violet-950/30 text-sm text-violet-900 dark:text-violet-100 space-y-2">
           <p className="font-medium">{t('employer:applyMethodExternal')}</p>
-          <p>{apiMessage || t('employer:externalAppsNotVisible')}</p>
+          <p>{externalDisclosureMessage()}</p>
           {jobMeta?.applicationLink ? (
             <a
               href={jobMeta.applicationLink}

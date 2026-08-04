@@ -12,6 +12,14 @@ function isExternalJob(j) {
   return j?.applyType === 'external' || j?.applicationsTracked === false;
 }
 
+/** Presentation-only 3-way split for copy — does not affect tracking/filter logic. */
+function applyMethodKind(j) {
+  if (!isExternalJob(j)) return 'internal';
+  if (j?.applicationLink) return 'external_url';
+  if (j?.applyEmail) return 'external_email';
+  return 'external_url';
+}
+
 function formatApplicationCount(j, t) {
   if (isExternalJob(j)) return t('employer:applicationsNotTracked');
   const n = j.submittedApplicationsCount ?? j.applicationsCount ?? 0;
@@ -199,7 +207,11 @@ export default function EmployerJobs() {
                   </div>
                   {isExternalJob(j) ? (
                     <div className="space-y-1">
-                      <p className="text-xs text-slate-500 dark:text-gray-400">{t('employer:externalAppsNotVisible')}</p>
+                      <p className="text-xs text-slate-500 dark:text-gray-400">
+                        {applyMethodKind(j) === 'external_email'
+                          ? t('employer:jobPostsExternalEmailNotTracked')
+                          : t('employer:jobPostsExternalUrlNotTracked')}
+                      </p>
                       {j.applicationLink ? (
                         <a
                           href={j.applicationLink}
@@ -219,12 +231,15 @@ export default function EmployerJobs() {
                       ) : null}
                     </div>
                   ) : (
-                    <Link
-                      to={`${ROUTES.EMPLOYER_APPLICATIONS}?jobId=${j._id}`}
-                      className="text-sm text-primary hover:underline inline-flex min-h-[44px] items-center"
-                    >
-                      {t('employer:viewApplications')}
-                    </Link>
+                    <div className="space-y-1">
+                      <p className="text-xs text-slate-500 dark:text-gray-400">{t('employer:jobPostsInternalTracked')}</p>
+                      <Link
+                        to={`${ROUTES.EMPLOYER_APPLICATIONS}?jobId=${j._id}`}
+                        className="text-sm text-primary hover:underline inline-flex min-h-[44px] items-center"
+                      >
+                        {t('employer:viewApplications')}
+                      </Link>
+                    </div>
                   )}
                   <JobActions j={j} />
                 </div>
@@ -285,8 +300,16 @@ export default function EmployerJobs() {
                               >
                                 {t('employer:openApplicationDestination')}
                               </a>
+                            ) : j.applyEmail ? (
+                              <a href={`mailto:${j.applyEmail}`} className="text-sm text-primary hover:underline">
+                                {t('employer:openApplicationEmail')}
+                              </a>
                             ) : (
-                              <span className="text-sm text-slate-500">{t('employer:externalAppsShort')}</span>
+                              <span className="text-sm text-slate-500">
+                                {applyMethodKind(j) === 'external_email'
+                                  ? t('employer:jobPostsExternalEmailNotTracked')
+                                  : t('employer:jobPostsExternalUrlNotTracked')}
+                              </span>
                             )
                           ) : (
                             <Link

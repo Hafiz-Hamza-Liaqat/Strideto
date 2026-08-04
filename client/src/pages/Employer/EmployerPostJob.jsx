@@ -15,6 +15,7 @@ import {
   DEFAULT_APPLY_METHOD,
   validateApplyMethodSelection,
   buildApplyMethodPayload,
+  resolveApplyMethodFromJob,
 } from './employerPostJobValidation';
 
 const defaultForm = {
@@ -94,7 +95,11 @@ export default function EmployerPostJob() {
       .getJob(jobId)
       .then(({ data }) => {
         setForm(jobToForm(data.job));
-        setEditMeta({ status: data.job?.status, approvalStatus: data.job?.approvalStatus });
+        setEditMeta({
+          status: data.job?.status,
+          approvalStatus: data.job?.approvalStatus,
+          applyMethod: resolveApplyMethodFromJob(data.job || {}),
+        });
         setPrefilledCompany(true);
       })
       .catch(() => {
@@ -528,6 +533,19 @@ export default function EmployerPostJob() {
             message={translateFieldError(fieldErrors.applicationDeadline)}
           />
         </div>
+
+        {isEdit &&
+          ((editMeta?.status === 'active' && editMeta?.approvalStatus === 'approved') || editMeta?.applyMethod === 'internal') && (
+          <div
+            className="text-sm text-amber-900 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg p-3 space-y-1"
+            role="note"
+          >
+            {editMeta?.status === 'active' && editMeta?.approvalStatus === 'approved' && (
+              <p>{t('employer:editReReviewWarning')}</p>
+            )}
+            {editMeta?.applyMethod === 'internal' && <p>{t('employer:editExistingApplicationsWarning')}</p>}
+          </div>
+        )}
 
         <fieldset className="space-y-4 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
           <legend className="px-1 text-sm font-medium text-gray-900 dark:text-gray-100">

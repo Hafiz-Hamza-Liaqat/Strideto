@@ -7,6 +7,14 @@ function isExternalJob(j) {
   return j?.applyType === 'external' || j?.applicationsTracked === false;
 }
 
+/** Presentation-only 3-way split for copy — does not affect metric calculations. */
+function applyMethodKind(j) {
+  if (!isExternalJob(j)) return 'internal';
+  if (j?.applicationLink) return 'external_url';
+  if (j?.applyEmail) return 'external_email';
+  return 'external_url';
+}
+
 export default function EmployerAnalytics() {
   const { t } = useTranslation(['employer', 'common']);
   const [jobs, setJobs] = useState([]);
@@ -82,8 +90,14 @@ export default function EmployerAnalytics() {
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5">
             <p className="text-sm text-slate-600 dark:text-gray-400">{t('common:applications')}</p>
             <p className="text-2xl font-semibold text-gray-900 dark:text-white break-words">{appsDisplay}</p>
-            {selectedJob && isExternalJob(selectedJob) ? (
-              <p className="text-xs text-slate-500 mt-1">{t('employer:externalAnalyticsHint')}</p>
+            {selectedJob ? (
+              <p className="text-xs text-slate-500 mt-1">
+                {applyMethodKind(selectedJob) === 'internal'
+                  ? t('employer:analyticsInternalHint')
+                  : applyMethodKind(selectedJob) === 'external_email'
+                    ? t('employer:analyticsExternalEmailHint')
+                    : t('employer:analyticsExternalUrlHint')}
+              </p>
             ) : null}
           </div>
           <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 min-w-0">

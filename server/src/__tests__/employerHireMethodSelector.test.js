@@ -31,6 +31,10 @@ const clientSrc = path.resolve(serverSrc, '..', '..', 'client', 'src');
 const employerController = readFileSync(path.join(serverSrc, 'controllers/employerController.js'), 'utf8');
 const postJobPage = readFileSync(path.join(clientSrc, 'pages/Employer/EmployerPostJob.jsx'), 'utf8');
 const postJobValidation = readFileSync(path.join(clientSrc, 'pages/Employer/employerPostJobValidation.js'), 'utf8');
+const employerJobsPage = readFileSync(path.join(clientSrc, 'pages/Employer/EmployerJobs.jsx'), 'utf8');
+const employerApplicationsPage = readFileSync(path.join(clientSrc, 'pages/Employer/EmployerApplications.jsx'), 'utf8');
+const employerAnalyticsPage = readFileSync(path.join(clientSrc, 'pages/Employer/EmployerAnalytics.jsx'), 'utf8');
+const employerLocaleEn = JSON.parse(readFileSync(path.join(clientSrc, 'i18n/locales/en/employer.json'), 'utf8'));
 
 const createFn = employerController.slice(
   employerController.indexOf('export const createJob'),
@@ -297,6 +301,156 @@ check(!/req\.body\.employerId|req\.query\.employerId/.test(createFn), 'createJob
 // 5. Create-mode default is unaffected by this phase (still 'internal', still required)
 {
   check(/applyMethod: DEFAULT_APPLY_METHOD,/.test(postJobPage), "5. Create-mode default remains DEFAULT_APPLY_METHOD ('internal') — unchanged by edit hydration work");
+}
+
+// ==================================================
+// PF-HIRE-B3 — internal vs external hiring consequence copy
+// ==================================================
+
+// 1. All three method names are visible in the selector
+{
+  check(
+    employerLocaleEn.applyMethodInternalLabel === 'Apply through Strideto' &&
+      employerLocaleEn.applyMethodExternalUrlLabel === 'External application website' &&
+      employerLocaleEn.applyMethodExternalEmailLabel === 'Apply by email',
+    '1. All three preferred method names are present verbatim in the en locale'
+  );
+}
+
+// 2/3. Internal copy mentions in-Strideto applications and Employer pipeline/dashboard visibility
+{
+  const help = employerLocaleEn.applyMethodInternalHelp;
+  check(/inside Strideto/i.test(help), '2. Internal copy states candidates apply inside Strideto');
+  check(/Employer Applications/.test(help) && /Hiring Intelligence/.test(help), '3. Internal copy mentions both Employer Applications and Hiring Intelligence visibility');
+}
+
+// 4/5. External URL copy explains candidates leave Strideto and submissions are not tracked
+{
+  const help = employerLocaleEn.applyMethodExternalUrlHelp;
+  check(/leave Strideto/i.test(help), '4. External URL copy states candidates leave Strideto');
+  check(/not tracked/i.test(help), '5. External URL copy states applications/conversion are shown as not tracked');
+}
+
+// 6/7. Email copy states applications are handled by email and are not tracked
+{
+  const help = employerLocaleEn.applyMethodExternalEmailHelp;
+  check(/emailing you directly/i.test(help), '6. Email copy states candidates apply by emailing the Employer directly');
+  check(/won't appear in your Employer pipeline/i.test(help), "7. Email copy states submissions won't appear in the Employer pipeline (not tracked)");
+  check(!/delivery/i.test(help) && !/confirm.*sent/i.test(help), 'Email copy does not claim email delivery is tracked/confirmed');
+}
+
+// 8. Edit mode explains pending re-review
+{
+  check(
+    employerLocaleEn.editReReviewWarning === 'Changing an approved job returns it to pending review.',
+    '8. A dedicated i18n string explains the existing re-review behavior'
+  );
+  check(
+    /editMeta\?\.status === 'active' && editMeta\?\.approvalStatus === 'approved' && \(\s*<p>\{t\('employer:editReReviewWarning'\)\}<\/p>/.test(postJobPage),
+    "8. The re-review warning renders only when the loaded Job is currently active+approved — matching the server's own condition exactly, not shown unconditionally"
+  );
+}
+
+// 9. Edit mode explains the existing-application switching restriction
+{
+  check(
+    employerLocaleEn.editExistingApplicationsWarning ===
+      "If this job already has applications, it can't be switched to an external method.",
+    '9. A dedicated i18n string explains the existing-Application switching restriction'
+  );
+  check(
+    /editMeta\?\.applyMethod === 'internal' && <p>\{t\('employer:editExistingApplicationsWarning'\)\}<\/p>/.test(postJobPage),
+    "9. The warning renders only when the loaded Job's current method is internal — the only direction the server guard actually restricts"
+  );
+  check(
+    /applyMethod: resolveApplyMethodFromJob\(data\.job \|\| \{\}\),/.test(postJobPage),
+    "editMeta.applyMethod is derived via the shared resolveApplyMethodFromJob helper — not a second, duplicated inference rule"
+  );
+}
+
+// 10. My Job Posts distinguishes internal from external (URL vs email), without changing filters/status values
+{
+  check(
+    /function applyMethodKind\(j\) \{/.test(employerJobsPage),
+    'A presentation-only 3-way helper exists in EmployerJobs.jsx'
+  );
+  check(
+    /jobPostsInternalTracked/.test(employerJobsPage) &&
+      /jobPostsExternalUrlNotTracked/.test(employerJobsPage) &&
+      /jobPostsExternalEmailNotTracked/.test(employerJobsPage),
+    '10. My Job Posts renders distinct internal/external-URL/external-email status copy'
+  );
+  check(!/STATUS_FILTERS = \[/.test(employerJobsPage) || /const STATUS_FILTERS = \['', 'draft', 'active', 'closed'\];/.test(employerJobsPage), 'Job status filter values are unchanged');
+}
+
+// 11. Applications empty-state distinguishes internal from external URL/email
+{
+  check(
+    /function externalDisclosureMessage\(\) \{/.test(employerApplicationsPage) || /const externalDisclosureMessage = \(\) => \{/.test(employerApplicationsPage),
+    'A dedicated externalDisclosureMessage helper exists in EmployerApplications.jsx'
+  );
+  check(
+    /if \(link\) return t\('employer:externalUrlAppsNotVisible'\);/.test(employerApplicationsPage) &&
+      /if \(email\) return t\('employer:externalEmailAppsNotVisible'\);/.test(employerApplicationsPage),
+    '11. The empty-state/disclosure message distinguishes a URL destination from an email destination'
+  );
+  check(
+    employerLocaleEn.internalEmptyHint === 'Candidates who apply through Strideto will appear here.',
+    '11. Internal empty-state copy matches the required wording'
+  );
+}
+
+// 12/13. Analytics distinguishes tracked applications from not-tracked submissions, and never shows a bare zero for external
+{
+  check(
+    /function applyMethodKind\(j\) \{/.test(employerAnalyticsPage),
+    'A presentation-only 3-way helper exists in EmployerAnalytics.jsx'
+  );
+  check(
+    employerLocaleEn.analyticsInternalHint === 'Applications and conversion are tracked by Strideto.' &&
+      /not visible to Strideto/.test(employerLocaleEn.analyticsExternalUrlHint) &&
+      /not visible to Strideto/.test(employerLocaleEn.analyticsExternalEmailHint),
+    '12. Analytics shows one hint for internal (tracked) and distinct hints for external URL/email (not visible to Strideto)'
+  );
+  check(
+    /analytics\?\.applicationsTracked === false \|\| analytics\?\.applications == null\s*\? t\('employer:applicationsNotTracked'\)\s*: \(analytics\?\.applications \?\? 0\)/.test(
+      employerAnalyticsPage
+    ),
+    '13. appsDisplay is unchanged — external/untracked still renders the "not tracked" string, never a bare 0'
+  );
+  check(
+    /analytics\?\.applicationsTracked === false\s*\? t\('employer:notAvailable'\)\s*: analytics\?\.conversionRate \?\? t\('employer:notAvailable'\)/.test(
+      employerAnalyticsPage
+    ),
+    '13. conversionDisplay is unchanged — external/untracked still renders "Not available", never a bare 0'
+  );
+}
+
+// 14. Radio accessibility remains intact (unchanged from PF-HIRE-B1/B2)
+{
+  check(
+    /role="radiogroup"/.test(postJobPage) && /aria-required="true"/.test(postJobPage),
+    '14. The method selector still exposes role="radiogroup" and aria-required'
+  );
+  check(
+    /htmlFor=\{idx === 0 \? FIELD_IDS\.applyMethod : `\$\{FIELD_IDS\.applyMethod\}-\$\{method\}`\}/.test(postJobPage),
+    '14. Each radio option label remains associated with its input via htmlFor/id'
+  );
+}
+
+// 15. No payload, validation or API behavior changed by this phase
+{
+  check(
+    /export function buildApplyMethodPayload\(form\) \{/.test(postJobValidation) &&
+      /export function validateApplyMethodSelection\(form\) \{/.test(postJobValidation),
+    '15. The payload-building and validation functions are structurally unchanged (same exported signatures) — this phase only touched copy/JSX text and i18n'
+  );
+  check(
+    !/employerApi\.(createJob|updateJob|getJob|getJobs|jobAnalytics|getJobApplications|updateApplicationStatus)\s*=/.test(
+      postJobPage + employerJobsPage + employerApplicationsPage + employerAnalyticsPage
+    ),
+    '15. No employerApi method was reassigned/redefined in any of the four touched pages'
+  );
 }
 
 console.log(`employerHireMethodSelector.test.js: ${count} assertions passed`);
