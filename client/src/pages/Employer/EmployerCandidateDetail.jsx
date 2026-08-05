@@ -210,7 +210,12 @@ export default function EmployerCandidateDetail() {
               {PIPELINE_STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
             </select>
           </label>
-          <button type="button" disabled={saving} onClick={onStage} className="px-4 py-2 rounded-lg bg-primary text-white text-sm min-h-[44px]">
+          <button
+            type="button"
+            disabled={saving || !stage || stage === candidate?.pipelineStage}
+            onClick={onStage}
+            className="px-4 py-2 rounded-lg bg-primary text-white text-sm min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
             {t('employer:updateStage')}
           </button>
         </div>

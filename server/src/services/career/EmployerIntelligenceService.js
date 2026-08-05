@@ -420,6 +420,24 @@ export const EmployerIntelligenceService = {
       throw err;
     }
 
+    // PF-EMP-UX-B4A idempotency guard. Read the canonical stage BEFORE any
+    // write so a repeated same-stage request produces no side effects at all.
+    //
+    // oa.pipelineStage is the authoritative current stage. The legacy-derived
+    // fromStage computed below must NOT be used for this comparison: several
+    // canonical stages compress to a single legacy status (accepted and joined
+    // both map to 'hired'), so legacy round-tripping would report 'accepted'
+    // for a candidate actually at 'joined' and the guard would never fire.
+    //
+    // Scoped deliberately to linked applications: when no tracker exists there
+    // is no canonical stage to compare, so those requests keep their existing
+    // behavior unchanged rather than being suppressed on a lossy legacy match.
+    const oa = await OpportunityApplicationRepository.findByLegacyApplicationId(application._id);
+    if (oa && oa.pipelineStage === toStage) {
+      const current = await this.getCandidateDetail(employerId, legacyApplicationId, { recordView: false });
+      return { ...current, changed: false };
+    }
+
     const fromLegacy = application.status;
     const fromStage = LEGACY_STATUS_TO_PIPELINE[fromLegacy] || 'applied';
     const legacyStatus = PIPELINE_TO_LEGACY_STATUS[toStage] || application.status;
@@ -432,7 +450,6 @@ export const EmployerIntelligenceService = {
       /* non-blocking */
     }
 
-    const oa = await OpportunityApplicationRepository.findByLegacyApplicationId(application._id);
     let oaSync = 'none';
     if (oa) {
       const allowed = canTransition(oa.stageTemplateId || 'job_default', oa.pipelineStage, toStage);
@@ -481,7 +498,8 @@ export const EmployerIntelligenceService = {
       }
     }
 
-    return this.getCandidateDetail(employerId, legacyApplicationId, { recordView: false });
+    const updated = await this.getCandidateDetail(employerId, legacyApplicationId, { recordView: false });
+    return { ...updated, changed: true };
   },
 
   async addNote(employerId, legacyApplicationId, body = {}) {
