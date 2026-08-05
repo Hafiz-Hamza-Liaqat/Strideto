@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { Helmet } from 'react-helmet-async';
@@ -18,15 +18,21 @@ export default function EmployerCandidateDetail() {
   const [stage, setStage] = useState('');
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
+  const recordedEntryForId = useRef(null);
 
-  const refresh = () => employerApi.intelligenceCandidate(id).then(({ data }) => {
-    setCandidate(data.data);
-    setStage(data.data?.pipelineStage || '');
-  });
+  const refresh = ({ recordView = false } = {}) =>
+    employerApi.intelligenceCandidate(id, { recordView }).then(({ data }) => {
+      setCandidate(data.data);
+      setStage(data.data?.pipelineStage || '');
+    });
 
   useEffect(() => {
     if (!enabled || !id) return;
-    refresh().catch((err) => setError(err.response?.data?.error || t('employer:intelligenceLoadFailed')));
+    const recordView = recordedEntryForId.current !== id;
+    recordedEntryForId.current = id;
+    refresh({ recordView }).catch((err) =>
+      setError(err.response?.data?.error || t('employer:intelligenceLoadFailed'))
+    );
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id, enabled]);
 
@@ -52,7 +58,7 @@ export default function EmployerCandidateDetail() {
     try {
       await employerApi.intelligenceAddNote(id, { text: note });
       setNote('');
-      await refresh();
+      await refresh({ recordView: false });
     } catch (err) {
       setError(err.response?.data?.error || t('employer:saveFailed'));
     } finally {
@@ -65,7 +71,7 @@ export default function EmployerCandidateDetail() {
     setSaving(true);
     try {
       await employerApi.intelligenceScheduleInterview(id, { scheduledAt: interviewAt, mode: 'video' });
-      await refresh();
+      await refresh({ recordView: false });
     } catch (err) {
       setError(err.response?.data?.error || t('employer:saveFailed'));
     } finally {

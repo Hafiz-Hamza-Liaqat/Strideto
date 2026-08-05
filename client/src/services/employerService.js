@@ -124,7 +124,8 @@ export const employerApi = {
   jobAnalytics: (jobId) => employerAxios.get(`/employer/analytics/${jobId}`),
   intelligenceDashboard: () => employerAxios.get('/employer/intelligence/dashboard'),
   intelligenceCandidates: (params) => employerAxios.get('/employer/intelligence/candidates', { params }),
-  intelligenceCandidate: (id) => employerAxios.get(`/employer/intelligence/candidates/${id}`),
+  intelligenceCandidate: (id, { recordView = false } = {}) =>
+    employerAxios.get(`/employer/intelligence/candidates/${id}`, { params: { recordView } }),
   intelligencePipeline: (params) => employerAxios.get('/employer/intelligence/pipeline', { params }),
   intelligenceTransitionStage: (id, body) =>
     employerAxios.post(`/employer/intelligence/candidates/${id}/stage`, body),

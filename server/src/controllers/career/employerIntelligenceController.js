@@ -18,6 +18,10 @@ function employerIdFrom(req) {
   return req.employer.employerId;
 }
 
+export function shouldRecordCandidateView(query = {}) {
+  return query.recordView !== 'false';
+}
+
 export const getIntelligenceDashboard = asyncHandler(async (req, res) => {
   const data = await EmployerDashboardCompositionService.composeForEmployer(employerIdFrom(req));
   res.json(data);
@@ -29,7 +33,9 @@ export const listCandidates = asyncHandler(async (req, res) => {
 });
 
 export const getCandidateDetail = asyncHandler(async (req, res) => {
-  const data = await EmployerIntelligenceService.getCandidateDetail(employerIdFrom(req), req.params.id);
+  const data = await EmployerIntelligenceService.getCandidateDetail(employerIdFrom(req), req.params.id, {
+    recordView: shouldRecordCandidateView(req.query),
+  });
   res.json({ data });
 });
 
