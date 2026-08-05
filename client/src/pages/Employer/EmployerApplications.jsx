@@ -4,8 +4,21 @@ import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
 import { employerApi } from '../../services/employerService';
 import { ROUTES } from '../../constants';
+import { StageBadge } from '../../components/applications/StageBadge';
 
 const STATUS_OPTIONS = ['shortlisted', 'rejected', 'interview', 'hired'];
+
+/**
+ * Quick actions are phrased as actions, not as the candidate's current stage.
+ * The submitted payload values are unchanged — only the labels differ. Full
+ * canonical stage progression lives on Candidate Detail / Hiring Pipeline.
+ */
+const STATUS_ACTION_LABEL_KEYS = {
+  shortlisted: 'actionShortlist',
+  interview: 'actionMoveToInterview',
+  rejected: 'actionReject',
+  hired: 'actionMarkHired',
+};
 
 export default function EmployerApplications() {
   const { t } = useTranslation(['employer', 'common']);
@@ -259,12 +272,27 @@ export default function EmployerApplications() {
                   {app.candidate?.skills?.length > 0 && (
                     <p className="text-xs text-slate-500 mt-1 break-words-safe">{app.candidate.skills.join(' · ')}</p>
                   )}
+                  {app.hiringStage ? (
+                    <p className="mt-2 flex flex-wrap items-center gap-2">
+                      <span className="text-xs text-slate-500">{t('employer:hiringStageLabel')}:</span>
+                      <StageBadge stage={app.hiringStage} />
+                    </p>
+                  ) : (
+                    <p className="mt-2 text-xs text-slate-500" title={t('employer:historicalApplicationHint')}>
+                      {t('employer:applicationStatusFallback', { status: statusLabel(app.status) })}
+                    </p>
+                  )}
                   <p className="text-xs text-slate-500 mt-1">
                     {t('employer:appliedOn', {
                       date: app.appliedDate ? new Date(app.appliedDate).toLocaleDateString() : '-',
-                    })}{' '}
-                    · {t('employer:statusLabel', { status: statusLabel(app.status) })}
+                    })}
                   </p>
+                  <Link
+                    to={`${ROUTES.EMPLOYER_INTELLIGENCE_CANDIDATES}/${app._id}`}
+                    className="text-sm text-primary hover:underline mt-1 inline-flex min-h-[44px] items-center"
+                  >
+                    {t('employer:manageCandidateStages')}
+                  </Link>
                   {app.resumeURL && (
                     <a
                       href={app.resumeURL}
@@ -283,13 +311,9 @@ export default function EmployerApplications() {
                       type="button"
                       onClick={() => updateStatus(app._id, s)}
                       disabled={app.status === s}
-                      className={`px-3 py-2 text-xs rounded-lg min-h-[44px] ${
-                        app.status === s
-                          ? 'bg-primary text-white'
-                          : 'border border-gray-200 dark:border-gray-600 text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700'
-                      }`}
+                      className="px-3 py-2 text-xs rounded-lg min-h-[44px] border border-gray-200 dark:border-gray-600 text-slate-600 dark:text-gray-300 hover:bg-slate-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed disabled:hover:bg-transparent"
                     >
-                      {statusLabel(s)}
+                      {t(`employer:${STATUS_ACTION_LABEL_KEYS[s]}`)}
                     </button>
                   ))}
                 </div>

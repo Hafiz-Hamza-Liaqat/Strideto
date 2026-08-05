@@ -159,6 +159,19 @@ export const OpportunityApplicationRepository = {
     return OpportunityApplication.findOne({ legacyApplicationId }).lean();
   },
 
+  /**
+   * Batch canonical-stage lookup for a set of legacy Application ids.
+   * Read-only projection used by Employer-facing list views so they can show
+   * the canonical hiring stage without an N+1 per-row query. Callers must
+   * already have established Employer ownership of the supplied ids.
+   */
+  async findStagesByLegacyApplicationIds(legacyApplicationIds = []) {
+    if (!legacyApplicationIds.length) return [];
+    return OpportunityApplication.find({ legacyApplicationId: { $in: legacyApplicationIds } })
+      .select('legacyApplicationId pipelineStage')
+      .lean();
+  },
+
   async countAll() {
     return OpportunityApplication.countDocuments({});
   },

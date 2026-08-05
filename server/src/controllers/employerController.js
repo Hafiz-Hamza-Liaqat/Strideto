@@ -13,6 +13,7 @@ import { enrichEmployerJobsWithApplicationCounts, resolveJobApplyType } from '..
 import { validateApplicationLink, validateApplyEmail } from '../utils/jobApplicationDestination.js';
 import { computeEmployerDashboardMetrics } from '../services/employerDashboardMetrics.js';
 import { syncOpportunityApplicationFromLegacyStatus } from '../services/employerOpportunityApplicationSync.js';
+import { OpportunityApplicationRepository } from '../repositories/career/OpportunityApplicationRepository.js';
 import { buildEmployerProfileUpdates } from '../utils/employerProfileValidation.js';
 
 /** GET /employer/dashboard - Stats for employer dashboard */
@@ -369,6 +370,17 @@ export const getJobApplications = asyncHandler(async (req, res) => {
     .sort({ appliedDate: -1 })
     .lean();
 
+  // Canonical hiring stage for each row, batched (no N+1). Ownership is already
+  // established above — every Application here belongs to this Employer's Job —
+  // so no other Employer's tracker can be reached through these ids. Rows with
+  // no linked tracker (historical, pre-dual-write) resolve to null and the
+  // client falls back to the legacy status label.
+  const stageByLegacyId = new Map(
+    (await OpportunityApplicationRepository.findStagesByLegacyApplicationIds(
+      applications.map((app) => app._id)
+    )).map((oa) => [String(oa.legacyApplicationId), oa.pipelineStage || null])
+  );
+
   const enriched = await Promise.all(
     applications.map(async (app) => {
       const userId = app.userId?._id || app.userId;
@@ -378,6 +390,7 @@ export const getJobApplications = asyncHandler(async (req, res) => {
       return {
         ...app,
         candidate,
+        hiringStage: stageByLegacyId.get(String(app._id)) || null,
       };
     })
   );
