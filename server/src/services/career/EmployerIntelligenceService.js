@@ -263,8 +263,15 @@ function eventForPipelineStage(toStage) {
   switch (toStage) {
     case 'screening':
       return 'CandidateShortlisted';
-    case 'interview':
-      return 'InterviewScheduled';
+    // PF-EMP-INT-B1: 'interview' deliberately has no milestone event.
+    // InterviewScheduled asserts that a real date/time appointment exists, and
+    // a stage move creates none (interview.scheduledAt stays null). Emitting it
+    // here told candidates an interview was scheduled when none was. The event
+    // is now produced only by the two genuine schedulers: this service's
+    // scheduleInterview and OpportunityApplicationService.upsertInterview.
+    // Falling through to `default: null` matches how 'viewed' and 'assessment'
+    // already behave — the stage change is still recorded in stage history and
+    // still synchronizes to the User tracker.
     case 'offer':
     case 'negotiation':
       return 'OfferSent';
@@ -583,7 +590,18 @@ export const EmployerIntelligenceService = {
       application.status = 'interview';
       await application.save();
       try {
-        await onApplicationStatusChange(application);
+        // PF-EMP-INT-B1: pass the real appointment so the invitation notification
+        // and email carry an actual date. onApplicationStatusChange now treats a
+        // missing interviewWhen as "stage move only" and withholds the invitation,
+        // so this genuine scheduling path must supply it explicitly.
+        await onApplicationStatusChange({
+          applicationId: application._id,
+          userId: application.userId?._id || application.userId,
+          status: application.status,
+          jobTitle: application.jobId?.title || 'Job',
+          interviewWhen: interview.scheduledAt,
+          interviewLink: interview.meetingUrl || '',
+        });
       } catch {
         /* non-blocking */
       }

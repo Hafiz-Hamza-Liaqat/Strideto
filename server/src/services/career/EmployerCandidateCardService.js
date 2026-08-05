@@ -193,7 +193,7 @@ export async function buildCandidateCard(userId, applicationCtx = {}) {
       occurredAt: e.occurredAt || e.createdAt,
       metadata: e.metadata,
     })),
-    interviewStatus: resolveInterviewStatus(opportunityApplication, legacy),
+    interviewStatus: resolveInterviewStatus(opportunityApplication),
     pipelineStage,
     legacyApplicationId: legacy?._id ? String(legacy._id) : null,
     opportunityApplicationId: opportunityApplication?._id ? String(opportunityApplication._id) : null,
@@ -272,7 +272,16 @@ function buildApplicationHistory(legacy, oa) {
   return history;
 }
 
-function resolveInterviewStatus(oa, legacy) {
+/**
+ * PF-EMP-INT-B1: appointment status reflects a persisted appointment only.
+ *
+ * `scheduledAt` is the sole evidence that an appointment exists. The pipeline
+ * stage is deliberately not consulted: a candidate can sit in the `interview`
+ * stage with nothing booked, and reporting that as 'scheduled' told the
+ * Employer an appointment existed when none did. Stage remains available
+ * separately as `pipelineStage` for any caller that needs it.
+ */
+function resolveInterviewStatus(oa) {
   if (oa?.interview?.scheduledAt) {
     return {
       scheduledAt: oa.interview.scheduledAt,
@@ -282,10 +291,18 @@ function resolveInterviewStatus(oa, legacy) {
       outcome: oa.interview.outcome || null,
     };
   }
-  if (legacy?.status === 'interview') {
-    return { status: 'scheduled', scheduledAt: null, mode: null, location: null };
+  // An outcome recorded without a surviving scheduledAt still means the
+  // interview happened — preserve 'completed' rather than reporting 'none'.
+  if (oa?.interview?.outcome) {
+    return {
+      scheduledAt: null,
+      mode: oa.interview.mode || null,
+      status: 'completed',
+      location: oa.interview.location || null,
+      outcome: oa.interview.outcome,
+    };
   }
-  return { status: 'none', scheduledAt: null, mode: null, location: null };
+  return { status: 'none', scheduledAt: null, mode: null, location: null, outcome: null };
 }
 
 export const EmployerCandidateCardService = {

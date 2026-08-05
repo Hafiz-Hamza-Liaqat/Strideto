@@ -135,10 +135,17 @@ export async function onJobApplication({ applicationId, opportunityApplicationId
 }
 
 export async function onApplicationStatusChange({ applicationId, userId, status, jobTitle, interviewWhen, interviewLink }) {
+  // PF-EMP-INT-B1: an appointment exists only when a real datetime was supplied.
+  // Reaching the interview stage is not the same as having an interview booked,
+  // so invitation wording is reserved for the case where one actually is.
+  const hasAppointment = Boolean(interviewWhen);
+
   const titles = {
     shortlisted: `Shortlisted for ${jobTitle}`,
     rejected: `Update on ${jobTitle}`,
-    interview: `Interview invitation: ${jobTitle}`,
+    interview: hasAppointment
+      ? `Interview invitation: ${jobTitle}`
+      : `Moved to interview stage: ${jobTitle}`,
     hired: `Offer for ${jobTitle}`,
   };
 
@@ -154,7 +161,10 @@ export async function onApplicationStatusChange({ applicationId, userId, status,
     metadata: { applicationId, status },
   });
 
-  if (status === 'interview') {
+  // PF-EMP-INT-B1: only invite to an interview that actually has a time. A bare
+  // stage move previously queued this email with `when` undefined, producing a
+  // dateless "you are invited" message for an appointment that did not exist.
+  if (status === 'interview' && hasAppointment) {
     const user = await User.findById(userId).select('email name').lean();
     if (user?.email) {
       await queueEmail({
