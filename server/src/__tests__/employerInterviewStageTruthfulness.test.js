@@ -235,8 +235,16 @@ function buildAutomationHarness() {
     intelligenceSrc.indexOf('async completeInterview(')
   );
   check(
-    /interviewWhen: interview\.scheduledAt,/.test(scheduleFn),
-    '11. scheduleInterview now passes the real appointment time into the notification/email path'
+    /interviewWhen:\s*isAppointmentChanged\s*\?\s*finalInterview\.scheduledAt\s*:\s*null/.test(scheduleFn),
+    '11. scheduleInterview now passes the real appointment time into the notification/email path only when genuinely changed'
+  );
+  check(
+    !/interviewWhen:\s*null/.test(scheduleFn.split('isAppointmentChanged')[0]),
+    'Dateless genuine appointment invitations remain impossible — the genuine scheduling branch must provide the real appointment datetime'
+  );
+  check(
+    /interviewLink:\s*isAppointmentChanged\s*\?/.test(scheduleFn),
+    'Conditional appointment-evidence protection: link evidence is also withheld when appointment is unchanged'
   );
   check(
     /getOwnedLegacyApplication\(employerId, legacyApplicationId\)/.test(scheduleFn),

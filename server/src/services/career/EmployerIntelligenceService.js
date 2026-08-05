@@ -562,18 +562,47 @@ export const EmployerIntelligenceService = {
       throw err;
     }
 
-    const interview = {
-      scheduledAt,
-      mode: sanitizeString(body.mode || body.type || 'video') || 'video',
-      location: sanitizeString(body.location || '') || '',
-      notes: sanitizeString(body.notes || '') || '',
-      outcome: '',
-    };
-
     const oa = await OpportunityApplicationRepository.findByLegacyApplicationId(application._id);
-    if (oa) {
-      await OpportunityApplicationRepository.setInterview(oa._id, interview);
+    const currentInterview = oa?.interview || {};
+    const existingScheduledAt = currentInterview.scheduledAt ? currentInterview.scheduledAt.getTime() : null;
+    const newScheduledAt = scheduledAt.getTime();
+
+    const patch = { scheduledAt };
+    if (body.mode !== undefined || body.type !== undefined) patch.mode = sanitizeString(body.mode || body.type || 'video') || 'video';
+    if (body.location !== undefined) patch.location = sanitizeString(body.location);
+    if (body.meetingUrl !== undefined) patch.meetingUrl = sanitizeString(body.meetingUrl);
+    if (body.notes !== undefined) patch.notes = sanitizeString(body.notes);
+
+    let isAppointmentChanged = existingScheduledAt !== newScheduledAt;
+    if (patch.mode !== undefined && patch.mode !== currentInterview.mode) isAppointmentChanged = true;
+    if (patch.location !== undefined && patch.location !== (currentInterview.location || '')) isAppointmentChanged = true;
+    if (patch.meetingUrl !== undefined && patch.meetingUrl !== (currentInterview.meetingUrl || '')) isAppointmentChanged = true;
+    if (patch.notes !== undefined && patch.notes !== (currentInterview.notes || '')) isAppointmentChanged = true;
+
+    const finalInterview = { ...currentInterview, ...patch };
+
+    let isStageChanged = false;
+    let allowedTransition = false;
+    if (oa && oa.pipelineStage !== 'interview') {
       if (canTransition(oa.stageTemplateId || 'job_default', oa.pipelineStage, 'interview')) {
+        isStageChanged = true;
+        allowedTransition = true;
+      }
+    }
+    const isLegacyStatusChanged = application.status !== 'interview' && application.status !== 'hired';
+    if (isLegacyStatusChanged) {
+      isStageChanged = true;
+    }
+
+    if (!isAppointmentChanged && !isStageChanged) {
+      return { interview: finalInterview, applicationId: String(application._id), changed: false };
+    }
+
+    if (oa) {
+      if (isAppointmentChanged) {
+        await OpportunityApplicationRepository.patchInterview(oa._id, patch);
+      }
+      if (allowedTransition) {
         await OpportunityApplicationRepository.pushStageHistory(oa._id, {
           fromStage: oa.pipelineStage,
           toStage: 'interview',
@@ -586,42 +615,40 @@ export const EmployerIntelligenceService = {
       }
     }
 
-    if (application.status !== 'interview' && application.status !== 'hired') {
+    if (isLegacyStatusChanged) {
       application.status = 'interview';
       await application.save();
       try {
-        // PF-EMP-INT-B1: pass the real appointment so the invitation notification
-        // and email carry an actual date. onApplicationStatusChange now treats a
-        // missing interviewWhen as "stage move only" and withholds the invitation,
-        // so this genuine scheduling path must supply it explicitly.
         await onApplicationStatusChange({
           applicationId: application._id,
           userId: application.userId?._id || application.userId,
           status: application.status,
           jobTitle: application.jobId?.title || 'Job',
-          interviewWhen: interview.scheduledAt,
-          interviewLink: interview.meetingUrl || '',
+          interviewWhen: isAppointmentChanged ? finalInterview.scheduledAt : null,
+          interviewLink: isAppointmentChanged ? (finalInterview.meetingUrl || '') : '',
         });
       } catch {
         /* non-blocking */
       }
     }
 
-    emitHiringEvent(
-      'InterviewScheduled',
-      {
-        candidateUserId: String(application.userId?._id || application.userId),
-        legacyApplicationId: String(application._id),
-        opportunityApplicationId: oa?._id ? String(oa._id) : null,
-        scheduledAt: interview.scheduledAt,
-        mode: interview.mode,
-        location: interview.location,
-      },
-      employerActor(employerId),
-      { aggregateId: application._id }
-    );
+    if (isAppointmentChanged) {
+      emitHiringEvent(
+        'InterviewScheduled',
+        {
+          candidateUserId: String(application.userId?._id || application.userId),
+          legacyApplicationId: String(application._id),
+          opportunityApplicationId: oa?._id ? String(oa._id) : null,
+          scheduledAt: finalInterview.scheduledAt,
+          mode: finalInterview.mode,
+          location: finalInterview.location,
+        },
+        employerActor(employerId),
+        { aggregateId: application._id }
+      );
+    }
 
-    return { interview, applicationId: String(application._id) };
+    return { interview: finalInterview, applicationId: String(application._id), changed: true };
   },
 
   async completeInterview(employerId, legacyApplicationId, body = {}) {
@@ -629,10 +656,9 @@ export const EmployerIntelligenceService = {
     const application = await getOwnedLegacyApplication(employerId, legacyApplicationId);
     const oa = await OpportunityApplicationRepository.findByLegacyApplicationId(application._id);
     if (oa?.interview) {
-      await OpportunityApplicationRepository.setInterview(oa._id, {
-        ...oa.interview,
+      await OpportunityApplicationRepository.patchInterview(oa._id, {
         outcome: sanitizeString(body.outcome || 'completed') || 'completed',
-        notes: sanitizeString(body.notes || oa.interview.notes || ''),
+        notes: sanitizeString(body.notes !== undefined ? body.notes : (oa.interview.notes || '')),
       });
     }
     emitHiringEvent(

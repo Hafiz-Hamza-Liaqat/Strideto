@@ -139,6 +139,21 @@ export const OpportunityApplicationRepository = {
     );
   },
 
+  async patchInterview(id, patch) {
+    const $set = {};
+    for (const [k, v] of Object.entries(patch)) {
+      if (v !== undefined) {
+        $set[`interview.${k}`] = v;
+      }
+    }
+    if (Object.keys($set).length === 0) return this.findById(id);
+    return OpportunityApplication.findByIdAndUpdate(
+      id,
+      { $set },
+      { new: true, runValidators: true }
+    );
+  },
+
   async updateReminderStatus(applicationId, reminderId, status) {
     return OpportunityApplication.findOneAndUpdate(
       { _id: applicationId, 'reminderReferences._id': reminderId },
