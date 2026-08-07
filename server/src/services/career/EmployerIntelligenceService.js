@@ -665,8 +665,13 @@ export const EmployerIntelligenceService = {
           userId: application.userId?._id || application.userId,
           status: application.status,
           jobTitle: application.jobId?.title || 'Job',
+          // PF-EMP-INT-B3A: the invitation must carry every instruction the candidate
+          // needs to attend, so mode and location travel with the time and the link.
+          // All four stay withheld on a stage-only move (B1 truthfulness).
           interviewWhen: isAppointmentChanged ? finalInterview.scheduledAt : null,
           interviewLink: isAppointmentChanged ? (finalInterview.meetingUrl || '') : '',
+          interviewMode: isAppointmentChanged ? (finalInterview.mode || 'video') : '',
+          interviewLocation: isAppointmentChanged ? (finalInterview.location || '') : '',
         });
       } catch {
         /* non-blocking */

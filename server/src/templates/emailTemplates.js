@@ -48,6 +48,18 @@ function btn(href, label) {
   return `<p style="margin:24px 0;"><a href="${safeHref}" style="display:inline-block;background:${PRIMARY};color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">${escapeHtml(label)}</a></p>`;
 }
 
+/** Interview methods the appointment subdocument supports, in the candidate's language. */
+const INTERVIEW_MODE_LABELS = {
+  en: { video: 'Video call', phone: 'Phone call', in_person: 'In person', other: 'Other' },
+  ur: { video: 'ویڈیو کال', phone: 'فون کال', in_person: 'بالمشافہ', other: 'دیگر' },
+};
+
+function interviewModeLabel(mode, lang = 'en') {
+  const key = String(mode || '').trim();
+  if (!key) return '';
+  return INTERVIEW_MODE_LABELS[lang]?.[key] || INTERVIEW_MODE_LABELS.en[key] || key;
+}
+
 const TEMPLATES = {
   welcome: {
     en: ({ name }) => {
@@ -142,16 +154,51 @@ const TEMPLATES = {
     }),
   },
   interviewInvitation: {
-    en: ({ name, jobTitle, when, link }) => ({
-      subject: `${BRAND} – Interview invitation`,
-      html: layout({ title: 'Interview', bodyHtml: `<p>Hi ${name || 'there'},</p><p>You are invited for an interview for <strong>${jobTitle}</strong>${when ? ` on ${when}` : ''}.</p>${link ? btn(link, 'Join / Details') : ''}` }),
-      text: `Interview for ${jobTitle}${when ? ` on ${when}` : ''}`,
-    }),
-    ur: ({ name, jobTitle, when }) => ({
-      subject: `${BRAND} – انٹرویو کی دعوت`,
-      html: layout({ lang: 'ur', title: 'انٹرویو', bodyHtml: `<p>${name || ''}، <strong>${jobTitle}</strong> کے لیے انٹرویو${when ? ` (${when})` : ''}۔</p>` }),
-      text: `انٹرویو: ${jobTitle}`,
-    }),
+    // PF-EMP-INT-B3A: the invitation has to carry every instruction the candidate
+    // needs to attend. Time and joining link were already here; method and physical
+    // location were not, so an in-person invitation never said where to go — and the
+    // Urdu variant dropped the joining link entirely.
+    en: ({ name, jobTitle, when, link, mode, location }) => {
+      const modeLabel = interviewModeLabel(mode, 'en');
+      const safeLocation = escapeHtml(location || '');
+      return {
+        subject: `${BRAND} – Interview invitation`,
+        html: layout({
+          title: 'Interview',
+          bodyHtml: `<p>Hi ${escapeHtml(name || 'there')},</p><p>You are invited for an interview for <strong>${escapeHtml(jobTitle)}</strong>${when ? ` on ${escapeHtml(when)}` : ''}.</p>`
+            + (modeLabel ? `<p style="margin:4px 0;"><strong>Method:</strong> ${escapeHtml(modeLabel)}</p>` : '')
+            + (safeLocation ? `<p style="margin:4px 0;"><strong>Location:</strong> ${safeLocation}</p>` : '')
+            + (link ? btn(link, 'Join / Details') : ''),
+        }),
+        text: [
+          `Interview for ${jobTitle}${when ? ` on ${when}` : ''}`,
+          modeLabel ? `Method: ${modeLabel}` : '',
+          location ? `Location: ${location}` : '',
+          link ? `Link: ${link}` : '',
+        ].filter(Boolean).join('\n'),
+      };
+    },
+    ur: ({ name, jobTitle, when, link, mode, location }) => {
+      const modeLabel = interviewModeLabel(mode, 'ur');
+      const safeLocation = escapeHtml(location || '');
+      return {
+        subject: `${BRAND} – انٹرویو کی دعوت`,
+        html: layout({
+          lang: 'ur',
+          title: 'انٹرویو',
+          bodyHtml: `<p>${escapeHtml(name || '')}، <strong>${escapeHtml(jobTitle)}</strong> کے لیے انٹرویو${when ? ` (${escapeHtml(when)})` : ''}۔</p>`
+            + (modeLabel ? `<p style="margin:4px 0;"><strong>طریقہ:</strong> ${escapeHtml(modeLabel)}</p>` : '')
+            + (safeLocation ? `<p style="margin:4px 0;"><strong>مقام:</strong> ${safeLocation}</p>` : '')
+            + (link ? btn(link, 'شامل ہوں / تفصیلات') : ''),
+        }),
+        text: [
+          `انٹرویو: ${jobTitle}${when ? ` (${when})` : ''}`,
+          modeLabel ? `طریقہ: ${modeLabel}` : '',
+          location ? `مقام: ${location}` : '',
+          link ? `${link}` : '',
+        ].filter(Boolean).join('\n'),
+      };
+    },
   },
   jobApproved: {
     en: ({ jobTitle }) => ({

@@ -24,6 +24,9 @@ import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+// emailTemplates.js has no imports of its own, so the real renderer can be exercised
+// directly rather than regex-asserted.
+import { renderEmailTemplate } from '../templates/emailTemplates.js';
 
 let count = 0;
 function check(condition, message) {
@@ -203,7 +206,7 @@ const interviewInvitationDedupKey = new Function(
   check(calls.emails[0].templateKey === 'interviewInvitation', '11. The invitation template is unchanged');
   check(calls.emails[0].vars.when === when, '11/12. The email now carries a real appointment time');
   check(
-    calls.emails[0].dedupKey === `email:interview:app-1:${when.toISOString()}`,
+    calls.emails[0].dedupKey.startsWith(`email:interview:app-1:${when.toISOString()}:`),
     'B3. The dedup key identifies the appointment, not merely the application'
   );
   check(
@@ -224,43 +227,80 @@ const interviewInvitationDedupKey = new Function(
 {
   const first = new Date('2026-09-01T09:30:00.000Z');
   const second = new Date('2026-09-03T14:00:00.000Z');
+  const base = { when: first, mode: 'video', link: '', location: '' };
+  const key = (extra = {}) => interviewInvitationDedupKey('app-1', { ...base, ...extra });
 
   check(
-    interviewInvitationDedupKey('app-1', first) !== interviewInvitationDedupKey('app-1', second),
+    key() !== interviewInvitationDedupKey('app-1', { ...base, when: second }),
     'B3-3. A genuine reschedule to a different instant yields a NEW dedup key, so a new invitation can be queued'
   );
   check(
-    interviewInvitationDedupKey('app-1', first) === interviewInvitationDedupKey('app-1', first),
+    key() === key(),
     'B3-4. The key is deterministic — an identical appointment always yields the same key, so no duplicate email'
   );
   check(
-    interviewInvitationDedupKey('app-1', first) === interviewInvitationDedupKey('app-1', new Date(first.getTime())),
+    key() === key({ when: new Date(first.getTime()) }),
     'B3-4. Equality is by instant, not by object identity'
   );
   check(
-    interviewInvitationDedupKey('app-1', first) !== interviewInvitationDedupKey('app-2', first),
+    key() !== interviewInvitationDedupKey('app-2', base),
     'B3. The same appointment on a different application stays a distinct invitation'
   );
+
+  // --- PF-EMP-INT-B3A: every field the invitation communicates is part of the identity ---
   check(
-    interviewInvitationDedupKey('app-1', first, 'https://meet.example/a')
-      !== interviewInvitationDedupKey('app-1', first),
-    'B3. Adding a joining link changes what the invitation must say, so it earns a new key'
+    key({ link: 'https://meet.example/a' }) !== key(),
+    'B3A-1. Adding a joining link changes what the invitation must say, so it earns a new key'
   );
   check(
-    interviewInvitationDedupKey('app-1', first, 'https://meet.example/a')
-      !== interviewInvitationDedupKey('app-1', first, 'https://meet.example/b'),
-    'B3. A changed joining link at the same instant yields a new key'
+    key({ link: 'https://meet.example/a' }) !== key({ link: 'https://meet.example/b' }),
+    'B3A-1. A changed joining link at the same instant yields a new key'
   );
   check(
-    interviewInvitationDedupKey('app-1', first, '  ') === interviewInvitationDedupKey('app-1', first, ''),
-    'B3. A blank link is not a link — whitespace does not fabricate a distinct appointment'
+    key({ mode: 'in_person' }) !== key({ mode: 'video' }),
+    'B3A-2. A changed method at the same instant yields a new key — the candidate is told how to attend'
   );
   check(
-    interviewInvitationDedupKey('app-1', first, 'https://meet.example/a').length < 120,
-    'B3. The key stays index-safe regardless of link length (the link is hashed)'
+    key({ mode: 'phone' }) !== key({ mode: 'in_person' }),
+    'B3A-2. Every distinct method is a distinct appointment identity'
   );
   check(
-    interviewInvitationDedupKey('app-1', first) !== 'email:interview:app-1',
+    key({ mode: 'in_person', location: 'HQ, Lahore' }) !== key({ mode: 'in_person', location: 'Office 2, Karachi' }),
+    'B3A-3. A changed physical location at the same instant yields a new key'
+  );
+  check(
+    key({ mode: 'in_person', location: 'HQ' }) !== key({ mode: 'in_person' }),
+    'B3A-3. Adding a location where there was none yields a new key'
+  );
+  check(
+    key({ mode: '' }) === key({ mode: 'video' }),
+    'B3A. An absent method normalizes to the schema default — it does not fabricate a second appointment'
+  );
+  check(
+    key({ link: '  ' }) === key({ link: '' }) && key({ location: '  ' }) === key({ location: '' }),
+    'B3A. Whitespace-only fields do not fabricate a distinct appointment'
+  );
+  check(
+    key({ mode: 'in_person', location: 'A B' }) !== key({ mode: 'in_person', link: 'A', location: 'B' }),
+    'B3A. Field framing is unambiguous — values cannot slide across the separator into the same digest'
+  );
+
+  // --- Key hygiene ---
+  const longLink = `https://meet.example/${'x'.repeat(2000)}`;
+  const longLocation = 'Street '.repeat(400);
+  const bigKey = key({ mode: 'in_person', link: longLink, location: longLocation });
+  check(bigKey.length < 120, 'B3A. The key stays index-safe regardless of field length');
+  check(
+    !bigKey.includes('meet.example') && !bigKey.includes('Street') && !bigKey.includes('HQ'),
+    'B3A. Raw meeting URLs and physical addresses never appear in the dedup key'
+  );
+  check(
+    bigKey.startsWith(`email:interview:app-1:${first.toISOString()}:`),
+    'B3A. The instant stays legible in the key so a queued job can be correlated by inspection'
+  );
+
+  check(
+    key() !== 'email:interview:app-1',
     'B3-A. The superseded per-application key form is no longer produced'
   );
   check(
@@ -269,14 +309,55 @@ const interviewInvitationDedupKey = new Function(
   );
 }
 
+// ---------------------------------------------------------------------------
+// PF-EMP-INT-B3A — the invitation communicates every instruction it keys on
+// ---------------------------------------------------------------------------
+
+{
+  const when = new Date('2026-09-01T09:30:00.000Z');
+
+  const remote = renderEmailTemplate('interviewInvitation', 'en', {
+    name: 'Candidate', jobTitle: 'Android Developer', when, mode: 'video', link: 'https://meet.example/abc', location: '',
+  });
+  check(remote.html.includes(String(when)), 'B3A-4. The invitation states the scheduled time');
+  check(remote.html.includes('Video call'), 'B3A-4. The invitation states the method');
+  check(remote.html.includes('https://meet.example/abc'), 'B3A-4. A remote invitation carries the joining link');
+  check(!/Location:/.test(remote.html), 'B3A-4. A remote invitation does not fabricate a physical location');
+
+  const inPerson = renderEmailTemplate('interviewInvitation', 'en', {
+    name: 'Candidate', jobTitle: 'Android Developer', when, mode: 'in_person', link: '', location: 'HQ, Lahore',
+  });
+  check(inPerson.html.includes('In person'), 'B3A-4. An in-person invitation states the method');
+  check(inPerson.html.includes('HQ, Lahore'), 'B3A-4. An in-person invitation carries the physical location');
+  check(inPerson.text.includes('HQ, Lahore'), 'B3A-4. The plain-text part carries it too');
+  check(!/Join \/ Details/.test(inPerson.html), 'B3A-4. An in-person invitation does not offer a joining link it does not have');
+
+  const urdu = renderEmailTemplate('interviewInvitation', 'ur', {
+    name: 'امیدوار', jobTitle: 'Android Developer', when, mode: 'video', link: 'https://meet.example/abc', location: '',
+  });
+  check(urdu.html.includes('https://meet.example/abc'), 'B3A-4. The Urdu invitation no longer drops the joining link');
+  check(urdu.html.includes('ویڈیو کال'), 'B3A-4. The Urdu invitation states the method in Urdu');
+
+  const injected = renderEmailTemplate('interviewInvitation', 'en', {
+    name: 'Candidate', jobTitle: 'Android Developer', when, mode: 'in_person', link: '', location: '<script>alert(1)</script>',
+  });
+  check(
+    !injected.html.includes('<script>') && injected.html.includes('&lt;script&gt;'),
+    'B3A. Employer-supplied location is escaped before it reaches the candidate'
+  );
+
+  const bare = renderEmailTemplate('interviewInvitation', 'en', { jobTitle: 'Android Developer', when });
+  check(!/Method:/.test(bare.html) && !/Location:/.test(bare.html), 'B3A. Absent details are omitted, never rendered empty');
+}
+
 // --- B3-3: a reschedule through the real hook queues a second, distinct invitation ---
 {
   const { fn, calls } = buildAutomationHarness();
   const first = new Date('2026-09-01T09:30:00.000Z');
   const second = new Date('2026-09-03T14:00:00.000Z');
 
-  await fn({ applicationId: 'app-1', userId: 'user-1', status: 'interview', jobTitle: 'Android Developer', interviewWhen: first, interviewLink: '' });
-  await fn({ applicationId: 'app-1', userId: 'user-1', status: 'interview', jobTitle: 'Android Developer', interviewWhen: second, interviewLink: '' });
+  await fn({ applicationId: 'app-1', userId: 'user-1', status: 'interview', jobTitle: 'Android Developer', interviewWhen: first, interviewLink: '', interviewMode: 'video', interviewLocation: '' });
+  await fn({ applicationId: 'app-1', userId: 'user-1', status: 'interview', jobTitle: 'Android Developer', interviewWhen: second, interviewLink: '', interviewMode: 'video', interviewLocation: '' });
 
   check(calls.emails.length === 2, 'B3-3. A genuine reschedule queues a second invitation job');
   check(
@@ -287,17 +368,40 @@ const interviewInvitationDedupKey = new Function(
   check(calls.emails[1].templateKey === 'interviewInvitation', 'B3-3. Still the same invitation template');
 }
 
-// --- B3-4: an identical repeated appointment reuses the key, so the queue dedups it ---
+// --- B3A-1/2/3: same instant, changed instructions — through the real hook ---
 {
-  const { fn, calls } = buildAutomationHarness();
   const when = new Date('2026-09-01T09:30:00.000Z');
+  const invite = async (extra) => {
+    const { fn, calls } = buildAutomationHarness();
+    await fn({
+      applicationId: 'app-1', userId: 'user-1', status: 'interview', jobTitle: 'Android Developer',
+      interviewWhen: when, interviewMode: 'video', interviewLink: '', interviewLocation: '', ...extra,
+    });
+    return calls.emails[0];
+  };
 
-  await fn({ applicationId: 'app-1', userId: 'user-1', status: 'interview', jobTitle: 'Android Developer', interviewWhen: when, interviewLink: '' });
-  await fn({ applicationId: 'app-1', userId: 'user-1', status: 'interview', jobTitle: 'Android Developer', interviewWhen: new Date(when.getTime()), interviewLink: '' });
+  const baseline = await invite({});
+  const linkAdded = await invite({ interviewLink: 'https://meet.example/abc' });
+  const modeChanged = await invite({ interviewMode: 'in_person', interviewLocation: 'HQ, Lahore' });
+  const locationChanged = await invite({ interviewMode: 'in_person', interviewLocation: 'Office 2, Karachi' });
+  const repeated = await invite({});
+
+  check(linkAdded.dedupKey !== baseline.dedupKey, 'B3A-1. Same time + changed link queues under a NEW key');
+  check(linkAdded.vars.link === 'https://meet.example/abc', 'B3A-1. And the invitation carries the new link');
+
+  check(modeChanged.dedupKey !== baseline.dedupKey, 'B3A-2. Same time + changed method queues under a NEW key');
+  check(modeChanged.vars.mode === 'in_person', 'B3A-2. And the invitation carries the new method');
+
+  check(locationChanged.dedupKey !== modeChanged.dedupKey, 'B3A-3. Same time + changed location queues under a NEW key');
+  check(locationChanged.vars.location === 'Office 2, Karachi', 'B3A-3. And the invitation carries the new location');
 
   check(
-    calls.emails[0].dedupKey === calls.emails[1].dedupKey,
-    'B3-4. An identical effective appointment reuses the same key — enqueueJob deduplicates it to zero new jobs'
+    repeated.dedupKey === baseline.dedupKey,
+    'B3A-5. An identical effective appointment reuses the same key — enqueueJob deduplicates it to zero new jobs'
+  );
+  check(
+    new Set([baseline, linkAdded, modeChanged, locationChanged].map((e) => e.dedupKey)).size === 4,
+    'B3A. Each materially different set of candidate instructions is exactly one distinct invitation'
   );
 }
 

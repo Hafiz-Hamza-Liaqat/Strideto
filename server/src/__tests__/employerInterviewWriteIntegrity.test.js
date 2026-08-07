@@ -207,6 +207,12 @@ function buildServiceHarness({ currentInterview, pipelineStage = 'interview', le
 
   check(calls.onApplicationStatusChange.length === 1, 'A. The stage sync still runs for a real stage transition.');
   check(calls.onApplicationStatusChange[0].interviewWhen === null, 'A. But it carries NO appointment datetime, so zero invitation is queued (B1 truthfulness preserved).');
+  check(
+    calls.onApplicationStatusChange[0].interviewMode === ''
+      && calls.onApplicationStatusChange[0].interviewLocation === ''
+      && calls.onApplicationStatusChange[0].interviewLink === '',
+    'B3A. A stage-only move withholds every appointment detail, not just the datetime.'
+  );
   check(calls.emitHiringEvent.length === 0, 'A. And emits zero InterviewScheduled events.');
 }
 
@@ -405,6 +411,11 @@ function buildServiceHarness({ currentInterview, pipelineStage = 'interview', le
   check(
     calls.onApplicationStatusChange[0].interviewLink === 'https://meet.example/new',
     '3. And the NEW joining link, so the dedup identity and the email agree.'
+  );
+  check(
+    calls.onApplicationStatusChange[0].interviewMode === 'video'
+      && calls.onApplicationStatusChange[0].interviewLocation === '',
+    'B3A. Method and location travel with the appointment, so the invitation can state how to attend.'
   );
   check(result.interview.notes === 'Private note', '6. Omitted notes survive the reschedule.');
   check(result.interview.outcome === '', '6. Omitted outcome survives the reschedule.');

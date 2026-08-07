@@ -145,24 +145,38 @@ export async function onJobApplication({ applicationId, opportunityApplicationId
  * queued email still carried the superseded time — recorded as the open behaviour in
  * docs/STRIDETO_PF_EMP_INT_B2_LIVE_ACCEPTANCE.md §8.
  *
- * The identity is the effective appointment the candidate is being invited to: the
- * exact instant, plus the joining link when one exists (changing the link changes what
- * the invitation has to say). The link is hashed so the key stays index-safe for long
- * URLs. The function is pure and deterministic — the same effective appointment always
+ * PF-EMP-INT-B3A: the identity is the *candidate-facing* appointment — every field the
+ * invitation actually communicates. Keying on the instant and joining link alone left
+ * a real gap: an Employer switching an appointment from video to in-person, or moving
+ * the address, changes what the candidate must do to attend without changing the time,
+ * and that produced no updated invitation.
+ *
+ * The instant stays legible in the key so a queued job can be correlated to an
+ * appointment by inspection. Everything else is folded into one fixed-width digest,
+ * which keeps raw meeting URLs and physical addresses out of the key, keeps the key
+ * index-safe whatever the field lengths, and still changes whenever the instructions
+ * change. `mode` normalizes to the schema default so an absent method and an explicit
+ * `video` are one appointment, not two.
+ *
+ * The function is pure and deterministic — the same effective appointment always
  * produces the same key, so an identical save can never queue a second email, while a
- * genuine reschedule always produces a new one. Historical keys are left untouched.
+ * genuine change to any communicated field always produces a new one. Historical keys
+ * are left untouched.
  */
-export function interviewInvitationDedupKey(applicationId, when, link = '') {
+export function interviewInvitationDedupKey(applicationId, appointment = {}) {
+  const { when, mode, link, location } = appointment;
   const instant = when instanceof Date ? when : new Date(when);
   const iso = Number.isNaN(instant.getTime()) ? 'invalid' : instant.toISOString();
-  const trimmedLink = String(link || '').trim();
-  const linkPart = trimmedLink
-    ? `:${createHash('sha1').update(trimmedLink).digest('hex').slice(0, 8)}`
-    : '';
-  return `email:interview:${applicationId}:${iso}${linkPart}`;
+  const details = [
+    String(mode || '').trim() || 'video',
+    String(link || '').trim(),
+    String(location || '').trim(),
+  ].join('\u0000'); // NUL cannot occur in a trimmed field, so the framing is unambiguous
+  const digest = createHash('sha1').update(details).digest('hex').slice(0, 12);
+  return `email:interview:${applicationId}:${iso}:${digest}`;
 }
 
-export async function onApplicationStatusChange({ applicationId, userId, status, jobTitle, interviewWhen, interviewLink }) {
+export async function onApplicationStatusChange({ applicationId, userId, status, jobTitle, interviewWhen, interviewLink, interviewMode, interviewLocation }) {
   // PF-EMP-INT-B1: an appointment exists only when a real datetime was supplied.
   // Reaching the interview stage is not the same as having an interview booked,
   // so invitation wording is reserved for the case where one actually is.
@@ -195,11 +209,26 @@ export async function onApplicationStatusChange({ applicationId, userId, status,
   if (status === 'interview' && hasAppointment) {
     const user = await User.findById(userId).select('email name').lean();
     if (user?.email) {
+      // PF-EMP-INT-B3A: one appointment object drives both what the candidate is told
+      // and the dedup identity, so the two cannot drift apart.
+      const appointment = {
+        when: interviewWhen,
+        mode: interviewMode,
+        link: interviewLink,
+        location: interviewLocation,
+      };
       await queueEmail({
         to: user.email,
         templateKey: 'interviewInvitation',
-        vars: { name: user.name, jobTitle, when: interviewWhen, link: interviewLink },
-        dedupKey: interviewInvitationDedupKey(applicationId, interviewWhen, interviewLink),
+        vars: {
+          name: user.name,
+          jobTitle,
+          when: interviewWhen,
+          link: interviewLink,
+          mode: interviewMode,
+          location: interviewLocation,
+        },
+        dedupKey: interviewInvitationDedupKey(applicationId, appointment),
       });
     }
   }
