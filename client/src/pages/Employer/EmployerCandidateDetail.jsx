@@ -8,6 +8,40 @@ import { PIPELINE_STAGES } from '@shared/career/constants.js';
 import { ScoreExplainPanel } from '../../components/career/ScoreExplainPanel';
 import { isEmployerIntelligenceEnabled } from '../../config/careerFeatureFlags';
 
+/** Modes the interview subdocument already supports (mirrors the User-side panel). */
+const INTERVIEW_MODES = ['video', 'phone', 'in_person', 'other'];
+const MODES_WITH_LINK = new Set(['video', 'other']);
+const MODES_WITH_LOCATION = new Set(['in_person', 'other']);
+
+/**
+ * PF-EMP-INT-B3: render a stored instant as a `datetime-local` value in the viewer's
+ * own zone, so reopening the form shows the same wall clock that was chosen. The
+ * inverse of the `new Date(value).toISOString()` performed on submit.
+ */
+function toLocalInputValue(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
+/** Same instant, spelled out with the viewer's zone so the wall clock is unambiguous. */
+function formatAppointment(value) {
+  if (!value) return '';
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return '';
+  try {
+    return d.toLocaleString(undefined, {
+      dateStyle: 'medium',
+      timeStyle: 'short',
+      timeZoneName: 'short',
+    });
+  } catch {
+    return d.toLocaleString();
+  }
+}
+
 export default function EmployerCandidateDetail() {
   const { id } = useParams();
   const { t } = useTranslation(['employer', 'common']);
@@ -15,15 +49,30 @@ export default function EmployerCandidateDetail() {
   const [candidate, setCandidate] = useState(null);
   const [note, setNote] = useState('');
   const [interviewAt, setInterviewAt] = useState('');
+  const [interviewMode, setInterviewMode] = useState('video');
+  const [interviewUrl, setInterviewUrl] = useState('');
+  const [interviewLocation, setInterviewLocation] = useState('');
+  const [interviewOutcome, setInterviewOutcome] = useState('');
+  const [interviewBusy, setInterviewBusy] = useState(false);
+  const [interviewError, setInterviewError] = useState(null);
+  const [interviewMessage, setInterviewMessage] = useState(null);
   const [stage, setStage] = useState('');
   const [error, setError] = useState(null);
   const [saving, setSaving] = useState(false);
   const recordedEntryForId = useRef(null);
 
+  const applyInterview = (next) => {
+    setInterviewAt(toLocalInputValue(next?.scheduledAt));
+    setInterviewMode(next?.mode || 'video');
+    setInterviewUrl(next?.meetingUrl || '');
+    setInterviewLocation(next?.location || '');
+  };
+
   const refresh = ({ recordView = false } = {}) =>
     employerApi.intelligenceCandidate(id, { recordView }).then(({ data }) => {
       setCandidate(data.data);
       setStage(data.data?.pipelineStage || '');
+      applyInterview(data.data?.interviewStatus);
     });
 
   useEffect(() => {
@@ -66,16 +115,72 @@ export default function EmployerCandidateDetail() {
     }
   };
 
+  const current = candidate?.interviewStatus || null;
+  const hasAppointment = Boolean(current?.scheduledAt);
+  const isCompleted = current?.status === 'completed';
+
+  // The form owns mode/link/location, so it always states all three — an irrelevant
+  // one is sent empty rather than omitted, otherwise a stale link would survive a
+  // switch to an in-person interview. `notes` and `outcome` are never sent from here,
+  // so the field-scoped patch leaves them exactly as they are.
+  const buildPayload = () => ({
+    scheduledAt: new Date(interviewAt).toISOString(),
+    mode: interviewMode,
+    meetingUrl: MODES_WITH_LINK.has(interviewMode) ? interviewUrl.trim() : '',
+    location: MODES_WITH_LOCATION.has(interviewMode) ? interviewLocation.trim() : '',
+  });
+
+  const isSameAppointment = () => {
+    if (!hasAppointment || !interviewAt) return false;
+    const payload = buildPayload();
+    return (
+      new Date(current.scheduledAt).getTime() === new Date(payload.scheduledAt).getTime()
+      && (current.mode || 'video') === payload.mode
+      && (current.meetingUrl || '') === payload.meetingUrl
+      && (current.location || '') === payload.location
+    );
+  };
+
   const onInterview = async () => {
     if (!interviewAt) return;
-    setSaving(true);
+    const appointmentChanged = !isSameAppointment();
+    setInterviewBusy(true);
+    setInterviewError(null);
+    setInterviewMessage(null);
     try {
-      await employerApi.intelligenceScheduleInterview(id, { scheduledAt: interviewAt, mode: 'video' });
+      // The instant is resolved here, in the Employer's own browser, so the wall
+      // clock they picked is what is stored — the server no longer has to guess a
+      // zone for a bare `datetime-local` string.
+      const { data } = await employerApi.intelligenceScheduleInterview(id, buildPayload());
       await refresh({ recordView: false });
+      if (!data?.data?.changed) {
+        setInterviewMessage(t('employer:interviewUnchanged'));
+      } else if (appointmentChanged) {
+        setInterviewMessage(hasAppointment ? t('employer:interviewRescheduled') : t('employer:interviewScheduled'));
+      } else {
+        setInterviewMessage(t('employer:interviewStageOnlySaved'));
+      }
     } catch (err) {
-      setError(err.response?.data?.error || t('employer:saveFailed'));
+      setInterviewError(err.response?.data?.error || t('employer:saveFailed'));
     } finally {
-      setSaving(false);
+      setInterviewBusy(false);
+    }
+  };
+
+  const onCompleteInterview = async () => {
+    setInterviewBusy(true);
+    setInterviewError(null);
+    setInterviewMessage(null);
+    try {
+      // `outcome` is free text server-side and defaults to 'completed' when blank.
+      await employerApi.intelligenceCompleteInterview(id, { outcome: interviewOutcome.trim() });
+      setInterviewOutcome('');
+      await refresh({ recordView: false });
+      setInterviewMessage(t('employer:interviewCompletedSaved'));
+    } catch (err) {
+      setInterviewError(err.response?.data?.error || t('employer:saveFailed'));
+    } finally {
+      setInterviewBusy(false);
     }
   };
 
@@ -226,19 +331,131 @@ export default function EmployerCandidateDetail() {
           </label>
           <button type="button" disabled={saving} onClick={onNote} className="px-4 py-2 rounded-lg border text-sm min-h-[44px]">{t('employer:addNote')}</button>
         </div>
-        <div className="flex flex-wrap gap-2 items-end">
-          <label className="text-sm">
-            <span className="block text-gray-500 mb-1">{t('employer:scheduleInterview')}</span>
-            <input type="datetime-local" value={interviewAt} onChange={(e) => setInterviewAt(e.target.value)} className="w-full max-w-full border rounded-lg px-3 py-2 min-h-[44px] dark:bg-gray-900 dark:border-gray-700" />
-          </label>
-          <button type="button" disabled={saving} onClick={onInterview} className="px-4 py-2 rounded-lg border text-sm min-h-[44px]">{t('employer:saveInterview')}</button>
+      </section>
+
+      <section className="rounded-xl border p-4 bg-white dark:bg-gray-900 dark:border-gray-700 space-y-4">
+        <div className="flex flex-wrap items-baseline justify-between gap-2">
+          <h2 className="font-semibold">
+            {hasAppointment ? t('employer:rescheduleInterview') : t('employer:scheduleInterview')}
+          </h2>
+          <span className="text-xs uppercase tracking-wide text-gray-500">
+            {t('employer:interviewStatus')}: {current?.status || 'none'}
+          </span>
         </div>
-        <p className="text-sm text-gray-500">
-          {t('employer:interviewStatus')}: {candidate?.interviewStatus?.status || 'none'}
-          {candidate?.interviewStatus?.scheduledAt
-            ? ` · ${new Date(candidate.interviewStatus.scheduledAt).toLocaleString()}`
-            : ''}
-        </p>
+
+        <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 p-3 text-sm space-y-1">
+          {hasAppointment ? (
+            <>
+              <p className="font-medium text-gray-900 dark:text-white">
+                {t('employer:currentAppointment')}: {formatAppointment(current.scheduledAt)}
+              </p>
+              <p className="text-gray-600 dark:text-gray-300">
+                {t('employer:interviewMode')}: {t(`employer:interviewMode_${current.mode || 'video'}`, { defaultValue: current.mode || 'video' })}
+              </p>
+              {current.meetingUrl && (
+                <p className="break-words">
+                  <span className="text-gray-600 dark:text-gray-300">{t('employer:interviewMeetingUrl')}: </span>
+                  <a href={current.meetingUrl} target="_blank" rel="noreferrer" className="text-primary dark:text-mint hover:underline">
+                    {current.meetingUrl}
+                  </a>
+                </p>
+              )}
+              {current.location && (
+                <p className="text-gray-600 dark:text-gray-300">{t('employer:interviewLocation')}: {current.location}</p>
+              )}
+              {current.outcome && (
+                <p className="text-gray-600 dark:text-gray-300">{t('employer:interviewOutcome')}: {current.outcome}</p>
+              )}
+            </>
+          ) : (
+            <p className="text-gray-500">{t('employer:noAppointmentYet')}</p>
+          )}
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          <label className="text-sm">
+            <span className="block text-gray-500 mb-1">{t('employer:interviewDateTime')}</span>
+            <input
+              type="datetime-local"
+              value={interviewAt}
+              onChange={(e) => setInterviewAt(e.target.value)}
+              className="w-full max-w-full border rounded-lg px-3 py-2 min-h-[44px] dark:bg-gray-900 dark:border-gray-700"
+            />
+          </label>
+          <label className="text-sm">
+            <span className="block text-gray-500 mb-1">{t('employer:interviewMode')}</span>
+            <select
+              value={interviewMode}
+              onChange={(e) => setInterviewMode(e.target.value)}
+              className="w-full border rounded-lg px-3 py-2 min-h-[44px] dark:bg-gray-900 dark:border-gray-700"
+            >
+              {INTERVIEW_MODES.map((m) => (
+                <option key={m} value={m}>{t(`employer:interviewMode_${m}`, { defaultValue: m })}</option>
+              ))}
+            </select>
+          </label>
+          {MODES_WITH_LINK.has(interviewMode) && (
+            <label className="text-sm sm:col-span-2">
+              <span className="block text-gray-500 mb-1">{t('employer:interviewMeetingUrl')}</span>
+              <input
+                type="url"
+                value={interviewUrl}
+                onChange={(e) => setInterviewUrl(e.target.value)}
+                placeholder="https://"
+                className="w-full border rounded-lg px-3 py-2 min-h-[44px] dark:bg-gray-900 dark:border-gray-700"
+              />
+            </label>
+          )}
+          {MODES_WITH_LOCATION.has(interviewMode) && (
+            <label className="text-sm sm:col-span-2">
+              <span className="block text-gray-500 mb-1">{t('employer:interviewLocation')}</span>
+              <input
+                value={interviewLocation}
+                onChange={(e) => setInterviewLocation(e.target.value)}
+                className="w-full border rounded-lg px-3 py-2 min-h-[44px] dark:bg-gray-900 dark:border-gray-700"
+              />
+            </label>
+          )}
+        </div>
+
+        <div className="flex flex-wrap gap-3 items-center">
+          <button
+            type="button"
+            disabled={interviewBusy || !interviewAt}
+            onClick={onInterview}
+            className="px-4 py-2 rounded-lg bg-primary text-white text-sm min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
+          >
+            {interviewBusy
+              ? t('common:saving', { defaultValue: 'Saving…' })
+              : hasAppointment ? t('employer:rescheduleInterview') : t('employer:saveInterview')}
+          </button>
+          <p className="text-xs text-gray-500">{t('employer:interviewTimezoneHint')}</p>
+        </div>
+
+        {hasAppointment && !isCompleted && (
+          <div className="flex flex-wrap gap-2 items-end border-t border-gray-200 dark:border-gray-700 pt-3">
+            <label className="text-sm w-full min-w-0 sm:flex-1 sm:min-w-[200px]">
+              <span className="block text-gray-500 mb-1">{t('employer:interviewOutcome')}</span>
+              <input
+                value={interviewOutcome}
+                onChange={(e) => setInterviewOutcome(e.target.value)}
+                placeholder={t('employer:interviewOutcomePlaceholder')}
+                className="w-full border rounded-lg px-3 py-2 min-h-[44px] dark:bg-gray-900 dark:border-gray-700"
+              />
+            </label>
+            <button
+              type="button"
+              disabled={interviewBusy}
+              onClick={onCompleteInterview}
+              className="px-4 py-2 rounded-lg border text-sm min-h-[44px] disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {t('employer:markInterviewCompleted')}
+            </button>
+          </div>
+        )}
+
+        {interviewError && <p className="text-sm text-red-600">{interviewError}</p>}
+        {interviewMessage && <p className="text-sm text-green-700 dark:text-green-400">{interviewMessage}</p>}
       </section>
     </div>
   );

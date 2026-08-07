@@ -20,6 +20,7 @@
  * Run: node src/__tests__/employerInterviewStageTruthfulness.test.js
  */
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -145,17 +146,33 @@ const oascEnd = automationSrc.indexOf('\nexport ', oascStart + 10);
 assert.ok(oascStart !== -1 && oascEnd !== -1, 'onApplicationStatusChange located in the shipped service');
 const oascText = automationSrc.slice(oascStart, oascEnd).replace(/^export\s+/, '');
 
+// PF-EMP-INT-B3: the invitation dedup identity now lives in a pure helper, re-bound
+// verbatim alongside the hook so the key under test is the shipped one.
+const dedupStart = automationSrc.indexOf('export function interviewInvitationDedupKey(');
+const dedupEnd = automationSrc.indexOf('\nexport ', dedupStart + 10);
+assert.ok(dedupStart !== -1 && dedupEnd !== -1, 'interviewInvitationDedupKey located in the shipped service');
+const dedupText = automationSrc.slice(dedupStart, dedupEnd).replace(/^export\s+/, '');
+
 function buildAutomationHarness() {
   const calls = { notifications: [], emails: [] };
   const scope = {
     queueNotification: async (n) => { calls.notifications.push(n); },
     queueEmail: async (e) => { calls.emails.push(e); },
     User: { findById: () => ({ select: () => ({ lean: async () => ({ email: 'x@example.test', name: 'Candidate' }) }) }) },
+    createHash,
   };
   const argNames = Object.keys(scope);
-  const fn = new Function(...argNames, `${oascText}; return onApplicationStatusChange;`)(...argNames.map((n) => scope[n]));
+  const fn = new Function(
+    ...argNames,
+    `${dedupText}\n${oascText}; return onApplicationStatusChange;`
+  )(...argNames.map((n) => scope[n]));
   return { fn, calls };
 }
+
+const interviewInvitationDedupKey = new Function(
+  'createHash',
+  `${dedupText}; return interviewInvitationDedupKey;`
+)(createHash);
 
 // --- 2/3. Stage move (no interviewWhen) creates no invitation email and no invitation copy ---
 {
@@ -185,10 +202,102 @@ function buildAutomationHarness() {
   check(calls.emails.length === 1, '11. A genuine appointment queues exactly one invitation email job');
   check(calls.emails[0].templateKey === 'interviewInvitation', '11. The invitation template is unchanged');
   check(calls.emails[0].vars.when === when, '11/12. The email now carries a real appointment time');
-  check(calls.emails[0].dedupKey === 'email:interview:app-1', 'The existing per-application dedup key is unchanged');
+  check(
+    calls.emails[0].dedupKey === `email:interview:app-1:${when.toISOString()}`,
+    'B3. The dedup key identifies the appointment, not merely the application'
+  );
   check(
     calls.notifications[0].title === 'Interview invitation: Android Developer',
     '10. Invitation wording is restored when an appointment genuinely exists'
+  );
+}
+
+// ---------------------------------------------------------------------------
+// PF-EMP-INT-B3 — the invitation dedup identity is the appointment
+//
+// Before B3 the key was `email:interview:<applicationId>`, so the first invitation an
+// application ever queued blocked every later one: a genuine reschedule emitted a new
+// in-app notification while the only queued email still carried the old time
+// (docs/STRIDETO_PF_EMP_INT_B2_LIVE_ACCEPTANCE.md §8).
+// ---------------------------------------------------------------------------
+
+{
+  const first = new Date('2026-09-01T09:30:00.000Z');
+  const second = new Date('2026-09-03T14:00:00.000Z');
+
+  check(
+    interviewInvitationDedupKey('app-1', first) !== interviewInvitationDedupKey('app-1', second),
+    'B3-3. A genuine reschedule to a different instant yields a NEW dedup key, so a new invitation can be queued'
+  );
+  check(
+    interviewInvitationDedupKey('app-1', first) === interviewInvitationDedupKey('app-1', first),
+    'B3-4. The key is deterministic — an identical appointment always yields the same key, so no duplicate email'
+  );
+  check(
+    interviewInvitationDedupKey('app-1', first) === interviewInvitationDedupKey('app-1', new Date(first.getTime())),
+    'B3-4. Equality is by instant, not by object identity'
+  );
+  check(
+    interviewInvitationDedupKey('app-1', first) !== interviewInvitationDedupKey('app-2', first),
+    'B3. The same appointment on a different application stays a distinct invitation'
+  );
+  check(
+    interviewInvitationDedupKey('app-1', first, 'https://meet.example/a')
+      !== interviewInvitationDedupKey('app-1', first),
+    'B3. Adding a joining link changes what the invitation must say, so it earns a new key'
+  );
+  check(
+    interviewInvitationDedupKey('app-1', first, 'https://meet.example/a')
+      !== interviewInvitationDedupKey('app-1', first, 'https://meet.example/b'),
+    'B3. A changed joining link at the same instant yields a new key'
+  );
+  check(
+    interviewInvitationDedupKey('app-1', first, '  ') === interviewInvitationDedupKey('app-1', first, ''),
+    'B3. A blank link is not a link — whitespace does not fabricate a distinct appointment'
+  );
+  check(
+    interviewInvitationDedupKey('app-1', first, 'https://meet.example/a').length < 120,
+    'B3. The key stays index-safe regardless of link length (the link is hashed)'
+  );
+  check(
+    interviewInvitationDedupKey('app-1', first) !== 'email:interview:app-1',
+    'B3-A. The superseded per-application key form is no longer produced'
+  );
+  check(
+    !/dedupKey: `email:interview:\$\{applicationId\}`/.test(automationSrc),
+    'B3-A. The per-application dedup literal is gone from the shipped source'
+  );
+}
+
+// --- B3-3: a reschedule through the real hook queues a second, distinct invitation ---
+{
+  const { fn, calls } = buildAutomationHarness();
+  const first = new Date('2026-09-01T09:30:00.000Z');
+  const second = new Date('2026-09-03T14:00:00.000Z');
+
+  await fn({ applicationId: 'app-1', userId: 'user-1', status: 'interview', jobTitle: 'Android Developer', interviewWhen: first, interviewLink: '' });
+  await fn({ applicationId: 'app-1', userId: 'user-1', status: 'interview', jobTitle: 'Android Developer', interviewWhen: second, interviewLink: '' });
+
+  check(calls.emails.length === 2, 'B3-3. A genuine reschedule queues a second invitation job');
+  check(
+    calls.emails[0].dedupKey !== calls.emails[1].dedupKey,
+    'B3-3. The two invitations carry distinct dedup keys, so the queue will not collapse them'
+  );
+  check(calls.emails[1].vars.when === second, 'B3-3. The new invitation carries the NEW appointment');
+  check(calls.emails[1].templateKey === 'interviewInvitation', 'B3-3. Still the same invitation template');
+}
+
+// --- B3-4: an identical repeated appointment reuses the key, so the queue dedups it ---
+{
+  const { fn, calls } = buildAutomationHarness();
+  const when = new Date('2026-09-01T09:30:00.000Z');
+
+  await fn({ applicationId: 'app-1', userId: 'user-1', status: 'interview', jobTitle: 'Android Developer', interviewWhen: when, interviewLink: '' });
+  await fn({ applicationId: 'app-1', userId: 'user-1', status: 'interview', jobTitle: 'Android Developer', interviewWhen: new Date(when.getTime()), interviewLink: '' });
+
+  check(
+    calls.emails[0].dedupKey === calls.emails[1].dedupKey,
+    'B3-4. An identical effective appointment reuses the same key — enqueueJob deduplicates it to zero new jobs'
   );
 }
 

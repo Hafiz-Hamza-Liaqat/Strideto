@@ -259,6 +259,34 @@ async function loadCardsForEmployer(employerId, filters = {}) {
   return cards;
 }
 
+/** A date-time carrying no `Z` and no `±HH:MM` offset — anchored to nothing on its own. */
+const ZONE_LESS_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?$/;
+
+/**
+ * PF-EMP-INT-B3: resolve an appointment to an exact instant deterministically.
+ *
+ * `new Date('2026-08-10T12:00')` is, per ECMA-262, resolved in the *runtime's* local
+ * zone — for this API that is whatever zone the container runs in, not the Employer's
+ * browser. The Employer client used to post the raw zone-less `datetime-local` value
+ * straight through, so the stored instant was anchored to the server's zone and the
+ * wall clock the Employer picked did not survive the round trip. The client now posts
+ * an explicit UTC instant (matching the User-side panel, which already did).
+ *
+ * A zone-less string from a direct API caller is resolved as UTC *explicitly* rather
+ * than inheriting the container zone, so the same payload yields the same instant on
+ * every node. We deliberately do not guess the Employer's zone: the product stores no
+ * timezone identity, and inventing one here would fake a correctness it does not have.
+ */
+function parseScheduledAt(value) {
+  if (value instanceof Date) return Number.isNaN(value.getTime()) ? null : value;
+  if (typeof value !== 'string') return null;
+  const raw = value.trim();
+  if (!raw) return null;
+  const normalized = ZONE_LESS_DATE_TIME.test(raw) ? `${raw}Z` : raw;
+  const parsed = new Date(normalized);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
 function eventForPipelineStage(toStage) {
   switch (toStage) {
     case 'screening':
@@ -555,8 +583,8 @@ export const EmployerIntelligenceService = {
   async scheduleInterview(employerId, legacyApplicationId, body = {}) {
     assertEnabled();
     const application = await getOwnedLegacyApplication(employerId, legacyApplicationId);
-    const scheduledAt = body.scheduledAt ? new Date(body.scheduledAt) : null;
-    if (!scheduledAt || Number.isNaN(scheduledAt.getTime())) {
+    const scheduledAt = parseScheduledAt(body.scheduledAt);
+    if (!scheduledAt) {
       const err = new Error('scheduledAt is required');
       err.status = 400;
       throw err;

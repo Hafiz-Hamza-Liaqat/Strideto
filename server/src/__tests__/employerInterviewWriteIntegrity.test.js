@@ -20,6 +20,14 @@ const bodyEnd = serviceSrc.indexOf('async completeInterview(employerId, legacyAp
 assert.ok(bodyStart !== -1 && bodyEnd !== -1 && bodyStart < bodyEnd, 'scheduleInterview body located in the shipped service');
 const methodText = serviceSrc.slice(bodyStart, bodyEnd).trim().replace(/,\s*$/, '');
 
+// PF-EMP-INT-B3: scheduleInterview now resolves the instant through a module-private
+// parser. Re-bind it verbatim so the harness exercises the shipped parsing, not a stub.
+const parseStart = serviceSrc.indexOf('const ZONE_LESS_DATE_TIME');
+const parseEnd = serviceSrc.indexOf('function eventForPipelineStage(toStage) {');
+assert.ok(parseStart !== -1 && parseEnd !== -1 && parseStart < parseEnd, 'parseScheduledAt located in the shipped service');
+const parseSrc = serviceSrc.slice(parseStart, parseEnd);
+const parseScheduledAt = new Function(`${parseSrc}; return parseScheduledAt;`)();
+
 const repoBodyStart = repoSrc.indexOf('async patchInterview(id, patch) {');
 const repoBodyEnd = repoSrc.indexOf('async updateReminderStatus(applicationId, reminderId, status) {');
 assert.ok(repoBodyStart !== -1 && repoBodyEnd !== -1 && repoBodyStart < repoBodyEnd, 'patchInterview body located in the repository');
@@ -85,6 +93,7 @@ function buildServiceHarness({ currentInterview, pipelineStage = 'interview', le
       return application;
     },
     sanitizeString: (v) => String(v || '').trim(),
+    parseScheduledAt,
     onApplicationStatusChange: async (args) => {
       calls.onApplicationStatusChange.push(args);
     },
@@ -287,11 +296,204 @@ function buildServiceHarness({ currentInterview, pipelineStage = 'interview', le
   check(calls.onApplicationStatusChange.length === 0, 'notification/invitation calls 0');
 }
 
+// ---------------------------------------------------------------------------
+// PF-EMP-INT-B3 — deterministic datetime resolution
+//
+// `new Date('2026-08-10T12:00')` is resolved in the *runtime's* local zone per
+// ECMA-262, so the Employer's raw `datetime-local` string used to be anchored to the
+// API container's zone rather than the Employer's browser. The Employer client now
+// posts an explicit UTC instant; a zone-less string from a direct API caller is
+// resolved as UTC explicitly, so the parse never depends on process.env.TZ.
+// ---------------------------------------------------------------------------
+
+{
+  // 5. Noon must stay noon. The B2 acceptance recorded a stored 00:00:00.000Z, and the
+  // decisive property is that a noon appointment never silently lands on midnight.
+  const noon = parseScheduledAt('2026-08-10T12:00');
+  check(noon.toISOString() === '2026-08-10T12:00:00.000Z', '5. A zone-less 12:00 resolves to 12:00, never 00:00.');
+  check(noon.getUTCHours() === 12 && noon.getUTCMinutes() === 0, '5. Both the hour and the minute survive the parse.');
+
+  const midnight = parseScheduledAt('2026-08-10T00:00');
+  check(midnight.toISOString() === '2026-08-10T00:00:00.000Z', '5. And 00:00 stays 00:00 — the two are never conflated.');
+  check(noon.getTime() !== midnight.getTime(), '5. Noon and midnight remain distinct instants.');
+
+  check(
+    parseScheduledAt('2026-08-10T12:00:00.000Z').toISOString() === '2026-08-10T12:00:00.000Z',
+    'B3. An explicit UTC instant — what the Employer client now sends — round-trips exactly.'
+  );
+  check(
+    parseScheduledAt('2026-08-10T12:00:00+05:00').toISOString() === '2026-08-10T07:00:00.000Z',
+    'B3. An offset-qualified string is honoured rather than re-anchored.'
+  );
+  check(
+    parseScheduledAt('2026-08-10T12:00').getTime() === parseScheduledAt('2026-08-10T12:00:00').getTime(),
+    'B3. Seconds precision does not change the resolved instant.'
+  );
+
+  const asDate = new Date('2026-08-10T12:00:00.000Z');
+  check(parseScheduledAt(asDate) === asDate, 'B3. An already-resolved Date passes through untouched.');
+
+  check(parseScheduledAt('') === null, 'B3. An empty value is rejected, not coerced to the epoch.');
+  check(parseScheduledAt('   ') === null, 'B3. Whitespace is rejected.');
+  check(parseScheduledAt('not-a-date') === null, 'B3. Garbage is rejected.');
+  check(parseScheduledAt(null) === null && parseScheduledAt(undefined) === null, 'B3. Absent values are rejected.');
+  check(parseScheduledAt(new Date('nope')) === null, 'B3. An invalid Date is rejected rather than stored as NaN.');
+
+  // Determinism: the same payload must resolve identically on every node, whatever
+  // the container's zone happens to be.
+  const originalTZ = process.env.TZ;
+  const resolved = [];
+  for (const tz of ['UTC', 'Asia/Karachi', 'America/New_York']) {
+    process.env.TZ = tz;
+    resolved.push(parseScheduledAt('2026-08-10T12:00').toISOString());
+  }
+  if (originalTZ === undefined) delete process.env.TZ; else process.env.TZ = originalTZ;
+  check(
+    new Set(resolved).size === 1 && resolved[0] === '2026-08-10T12:00:00.000Z',
+    'B3. The parse is container-timezone independent — the original defect class is closed.'
+  );
+}
+
+// --- 5/3: the parsed instant is what actually reaches the appointment and the invitation ---
+{
+  const currentInterview = { scheduledAt: new Date('2026-08-01T10:00:00Z'), mode: 'video' };
+  const { self, calls } = buildServiceHarness({ currentInterview });
+
+  const result = await self.scheduleInterview('emp-1', 'app-1', { scheduledAt: '2026-08-10T12:00:00.000Z', mode: 'video' });
+
+  check(result.changed === true, '5. A noon appointment is a genuine change.');
+  check(
+    calls.patchInterview[0].patch.scheduledAt.toISOString() === '2026-08-10T12:00:00.000Z',
+    '5. The persisted instant is noon — 12:00 does not become 00:00 on the way to the write.'
+  );
+  check(
+    calls.onApplicationStatusChange[0].interviewWhen.toISOString() === '2026-08-10T12:00:00.000Z',
+    '5. The invitation carries the same intended appointment the Employer saved.'
+  );
+  check(
+    calls.emitHiringEvent[0].payload.scheduledAt.toISOString() === '2026-08-10T12:00:00.000Z',
+    '5. The candidate notification event carries that same appointment.'
+  );
+}
+
+// --- 3: a genuine reschedule hands the invitation the NEW appointment and link ---
+{
+  const currentInterview = {
+    scheduledAt: new Date('2026-08-10T12:00:00Z'),
+    mode: 'video',
+    meetingUrl: 'https://meet.example/old',
+    notes: 'Private note',
+    outcome: '',
+  };
+  const { self, calls } = buildServiceHarness({ currentInterview });
+
+  const result = await self.scheduleInterview('emp-1', 'app-1', {
+    scheduledAt: '2026-08-12T15:30:00.000Z',
+    mode: 'video',
+    meetingUrl: 'https://meet.example/new',
+  });
+
+  check(result.changed === true, '3. A reschedule to a different instant is a genuine change.');
+  check(calls.patchInterview.length === 1, '3. It performs exactly one appointment patch.');
+  check(calls.pushStageHistory.length === 0, '3. A reschedule appends no stage history — the stage did not move.');
+  check(calls.applicationSaves === 0, '3. And performs zero legacy saves.');
+  check(calls.onApplicationStatusChange.length === 1, '3. It reaches the invitation hook exactly once.');
+  check(
+    calls.onApplicationStatusChange[0].interviewWhen.toISOString() === '2026-08-12T15:30:00.000Z',
+    '3. The invitation carries the NEW appointment, not the superseded one.'
+  );
+  check(
+    calls.onApplicationStatusChange[0].interviewLink === 'https://meet.example/new',
+    '3. And the NEW joining link, so the dedup identity and the email agree.'
+  );
+  check(result.interview.notes === 'Private note', '6. Omitted notes survive the reschedule.');
+  check(result.interview.outcome === '', '6. Omitted outcome survives the reschedule.');
+}
+
+// --- 6: an Employer payload that omits a field never wipes it ---
+{
+  const currentInterview = {
+    scheduledAt: new Date('2026-08-10T12:00:00Z'),
+    mode: 'phone',
+    location: 'HQ',
+    meetingUrl: 'https://meet.example/old',
+    notes: 'Private note',
+    outcome: 'passed',
+  };
+  const { self, calls } = buildServiceHarness({ currentInterview });
+
+  await self.scheduleInterview('emp-1', 'app-1', { scheduledAt: '2026-08-12T15:30:00.000Z' });
+
+  const patch = calls.patchInterview[0].patch;
+  check(!('mode' in patch) || patch.mode === undefined, '6. An omitted mode is not written.');
+  check(patch.meetingUrl === undefined, '6. An omitted meetingUrl is not written.');
+  check(patch.location === undefined, '6. An omitted location is not written.');
+  check(patch.notes === undefined, '6. An omitted notes value is not written.');
+  check(patch.outcome === undefined, '6. outcome is never written from the scheduling path.');
+  check(
+    Object.keys(patch).length === 1 && patch.scheduledAt,
+    '6. Only the field the Employer actually supplied is patched.'
+  );
+}
+
 // --- Source-boundary checks ---
 {
   const oaServiceSrc = readFileSync(path.join(serverSrc, 'services/career/OpportunityApplicationService.js'), 'utf8');
   check(/OpportunityApplicationRepository\.setInterview/.test(oaServiceSrc), '25. The separate User interview path remains source-unchanged.');
   check(repoMethodText.includes('const $set = {}'), 'patchInterview exists and uses $set');
+  check(
+    /parseScheduledAt\(body\.scheduledAt\)/.test(methodText),
+    'B3. scheduleInterview resolves the instant through the deterministic parser.'
+  );
+  check(
+    !/new Date\(body\.scheduledAt\)/.test(methodText),
+    'B3. The container-zone-dependent raw parse is gone from the shipped service.'
+  );
+
+  // 8. Completion still spreads the existing appointment and never rewrites the date.
+  const completeText = serviceSrc.slice(
+    serviceSrc.indexOf('async completeInterview(employerId, legacyApplicationId, body = {}) {'),
+    serviceSrc.indexOf("'InterviewCompleted',")
+  );
+  check(
+    /getOwnedLegacyApplication\(employerId, legacyApplicationId\)/.test(completeText),
+    '7/8. Completion still enforces ownership before any write.'
+  );
+  check(
+    /patchInterview\(oa\._id, \{/.test(completeText) && !/scheduledAt/.test(completeText),
+    '8. Completion patches outcome/notes only and never rewrites the appointment datetime.'
+  );
+
+  // The Employer form is the only client caller of these two endpoints, so assert the
+  // contract it now honours: an explicit UTC instant, the supported mode set, and the
+  // completion endpoint finally wired up.
+  const uiSrc = readFileSync(
+    path.resolve(serverSrc, '../../client/src/pages/Employer/EmployerCandidateDetail.jsx'),
+    'utf8'
+  );
+  check(
+    /new Date\(interviewAt\)\.toISOString\(\)/.test(uiSrc),
+    'B3. The Employer client sends an explicit UTC instant, not a zone-less local string.'
+  );
+  check(
+    !/scheduledAt: interviewAt\b/.test(uiSrc),
+    'B3. The raw zone-less datetime-local value is no longer posted.'
+  );
+  check(
+    /INTERVIEW_MODES = \['video', 'phone', 'in_person', 'other'\]/.test(uiSrc),
+    'B3. The Employer form offers the interview modes the subdocument already supports.'
+  );
+  check(/meetingUrl:/.test(uiSrc) && /location:/.test(uiSrc), 'B3. The form supplies meeting link and location.');
+  check(!/\bnotes:/.test(uiSrc.slice(uiSrc.indexOf('const buildPayload'), uiSrc.indexOf('const isSameAppointment'))),
+    'B3. The form never writes the shared `notes` field — that boundary stays with B4.');
+  check(
+    /intelligenceCompleteInterview\(id, \{ outcome/.test(uiSrc),
+    '8. The completion endpoint now has a client caller.'
+  );
+  check(
+    /data\?\.data\?\.changed/.test(uiSrc) && /interviewUnchanged/.test(uiSrc),
+    'B3. An identical save reports the server-confirmed no-op instead of implying a new invitation.'
+  );
 }
 
 console.log(`employerInterviewWriteIntegrity.test.js: ${count} assertions passed`);

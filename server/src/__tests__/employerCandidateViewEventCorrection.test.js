@@ -104,10 +104,17 @@ check(
   /const refresh = \(\{ recordView = false \} = \{\}\)/.test(page),
   '12. Candidate data refresh defaults to no-record within the mounted page'
 );
-check(
-  (page.match(/await refresh\(\{ recordView: false \}\);/g) || []).length === 2,
-  '13. Note-add and interview-save refreshes both explicitly suppress CandidateViewed'
-);
+{
+  // PF-EMP-INT-B3 added a third mutation refresh (interview completion). The invariant
+  // is not the count but that *every* awaited refresh suppresses the view event, so
+  // assert the two are equal rather than pinning a number a new handler would break.
+  const suppressed = (page.match(/await refresh\(\{ recordView: false \}\);/g) || []).length;
+  const awaited = (page.match(/await refresh\(/g) || []).length;
+  check(
+    suppressed === awaited && suppressed === 3,
+    '13. Note-add, interview-save and interview-completion refreshes all explicitly suppress CandidateViewed'
+  );
+}
 check(
   /intelligenceTransitionStage\(id, \{ toStage: stage \}\)[\s\S]*setCandidate\(data\.data\)/.test(page),
   '14. Stage updates still reconcile candidate data from the mutation response without a recording GET'
@@ -150,12 +157,18 @@ check(
   /res\.json\(\{ data \}\);/.test(controller),
   '23. Candidate-detail HTTP response remains wrapped as { data }'
 );
-check(
-  /return this\.getCandidateDetail\(employerId, legacyApplicationId, \{ recordView: false \}\);/.test(
-    transitionFn
-  ),
-  '24. Stage-transition detail reconciliation remains explicitly no-record'
-);
+{
+  // Pre-existing staleness, failing at HEAD (7bc31d4) and unrelated to PF-EMP-INT-B3:
+  // transitionPipeline stopped `return`ing the reconciliation read and now takes
+  // before/after snapshots. The invariant being protected is that *every* detail read
+  // on this path is explicitly no-record, so assert that rather than the return form.
+  const reads = transitionFn.match(/this\.getCandidateDetail\([^)]*\)/g) || [];
+  check(reads.length > 0, '24. Stage transition still reconciles candidate detail');
+  check(
+    reads.every((r) => /\{ recordView: false \}/.test(r)),
+    '24. Stage-transition detail reconciliation remains explicitly no-record'
+  );
+}
 check(
   !/getCandidateDetail/.test(addNoteFn),
   '25. Note mutation itself does not perform a hidden recording detail read'

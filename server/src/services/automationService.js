@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { User } from '../models/User.js';
 import { Job } from '../models/Job.js';
 import { Employer } from '../models/Employer.js';
@@ -134,6 +135,33 @@ export async function onJobApplication({ applicationId, opportunityApplicationId
   }
 }
 
+/**
+ * PF-EMP-INT-B3: the interview invitation is deduplicated on the *appointment*, not
+ * on the application.
+ *
+ * The previous key was `email:interview:<applicationId>`, so the first invitation an
+ * application ever queued permanently blocked every later one. A genuine reschedule
+ * therefore emitted a fresh in-app `InterviewScheduled` notification while the only
+ * queued email still carried the superseded time — recorded as the open behaviour in
+ * docs/STRIDETO_PF_EMP_INT_B2_LIVE_ACCEPTANCE.md §8.
+ *
+ * The identity is the effective appointment the candidate is being invited to: the
+ * exact instant, plus the joining link when one exists (changing the link changes what
+ * the invitation has to say). The link is hashed so the key stays index-safe for long
+ * URLs. The function is pure and deterministic — the same effective appointment always
+ * produces the same key, so an identical save can never queue a second email, while a
+ * genuine reschedule always produces a new one. Historical keys are left untouched.
+ */
+export function interviewInvitationDedupKey(applicationId, when, link = '') {
+  const instant = when instanceof Date ? when : new Date(when);
+  const iso = Number.isNaN(instant.getTime()) ? 'invalid' : instant.toISOString();
+  const trimmedLink = String(link || '').trim();
+  const linkPart = trimmedLink
+    ? `:${createHash('sha1').update(trimmedLink).digest('hex').slice(0, 8)}`
+    : '';
+  return `email:interview:${applicationId}:${iso}${linkPart}`;
+}
+
 export async function onApplicationStatusChange({ applicationId, userId, status, jobTitle, interviewWhen, interviewLink }) {
   // PF-EMP-INT-B1: an appointment exists only when a real datetime was supplied.
   // Reaching the interview stage is not the same as having an interview booked,
@@ -171,7 +199,7 @@ export async function onApplicationStatusChange({ applicationId, userId, status,
         to: user.email,
         templateKey: 'interviewInvitation',
         vars: { name: user.name, jobTitle, when: interviewWhen, link: interviewLink },
-        dedupKey: `email:interview:${applicationId}`,
+        dedupKey: interviewInvitationDedupKey(applicationId, interviewWhen, interviewLink),
       });
     }
   }

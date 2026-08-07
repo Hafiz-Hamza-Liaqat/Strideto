@@ -288,6 +288,11 @@ function resolveInterviewStatus(oa) {
       mode: oa.interview.mode || oa.interview.type || null,
       status: oa.interview.outcome ? 'completed' : 'scheduled',
       location: oa.interview.location || null,
+      // PF-EMP-INT-B3: the Employer form needs the joining link to prefill a
+      // reschedule and to tell an identical save apart from a genuine one.
+      // `notes` stays out of this projection on purpose — it is a single field
+      // shared with the candidate (audit §17) and the ownership boundary is B4.
+      meetingUrl: oa.interview.meetingUrl || null,
       outcome: oa.interview.outcome || null,
     };
   }
@@ -299,10 +304,11 @@ function resolveInterviewStatus(oa) {
       mode: oa.interview.mode || null,
       status: 'completed',
       location: oa.interview.location || null,
+      meetingUrl: oa.interview.meetingUrl || null,
       outcome: oa.interview.outcome,
     };
   }
-  return { status: 'none', scheduledAt: null, mode: null, location: null, outcome: null };
+  return { status: 'none', scheduledAt: null, mode: null, location: null, meetingUrl: null, outcome: null };
 }
 
 export const EmployerCandidateCardService = {
