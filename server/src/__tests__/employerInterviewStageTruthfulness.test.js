@@ -27,6 +27,7 @@ import { fileURLToPath } from 'node:url';
 // emailTemplates.js has no imports of its own, so the real renderer can be exercised
 // directly rather than regex-asserted.
 import { renderEmailTemplate } from '../templates/emailTemplates.js';
+import { formatAppointmentTime } from '../utils/appointmentTime.js';
 
 let count = 0;
 function check(condition, message) {
@@ -163,6 +164,9 @@ function buildAutomationHarness() {
     queueEmail: async (e) => { calls.emails.push(e); },
     User: { findById: () => ({ select: () => ({ lean: async () => ({ email: 'x@example.test', name: 'Candidate' }) }) }) },
     createHash,
+    // PF-EMP-INT-B3B: the hook now renders the candidate-facing time at queue time,
+    // in the appointment's own zone, so the real formatter is part of its scope.
+    formatAppointmentTime,
   };
   const argNames = Object.keys(scope);
   const fn = new Function(

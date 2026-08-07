@@ -5,6 +5,7 @@ import { Employer } from '../models/Employer.js';
 import { notifyStaff } from './notificationService.js';
 import { enqueueJob } from './jobQueueService.js';
 import { isSmtpConfigured, sendTemplatedEmail, sendEmail } from './emailService.js';
+import { formatAppointmentTime } from '../utils/appointmentTime.js';
 
 /** Templates that embed one-time secrets in `vars.url` — never persist raw URLs in BackgroundJob. */
 const SENSITIVE_EMAIL_TEMPLATES = new Set(['emailVerification', 'passwordReset', 'staffInvitation']);
@@ -158,25 +159,36 @@ export async function onJobApplication({ applicationId, opportunityApplicationId
  * change. `mode` normalizes to the schema default so an absent method and an explicit
  * `video` are one appointment, not two.
  *
+ * PF-EMP-INT-B3B: the appointment's timezone joins the identity, because it changes
+ * what the invitation says without changing the instant — the same moment announced as
+ * 7:30 PM Asia/Karachi and as 2:30 PM UTC is two different sets of joining
+ * instructions. The zone is folded into the digest like the link and location, never
+ * written into the key text.
+ *
  * The function is pure and deterministic — the same effective appointment always
  * produces the same key, so an identical save can never queue a second email, while a
  * genuine change to any communicated field always produces a new one. Historical keys
  * are left untouched.
  */
 export function interviewInvitationDedupKey(applicationId, appointment = {}) {
-  const { when, mode, link, location } = appointment;
+  const { when, mode, link, location, timeZone } = appointment;
   const instant = when instanceof Date ? when : new Date(when);
   const iso = Number.isNaN(instant.getTime()) ? 'invalid' : instant.toISOString();
+  const zone = String(timeZone || '').trim();
   const details = [
     String(mode || '').trim() || 'video',
     String(link || '').trim(),
     String(location || '').trim(),
+    // PF-EMP-INT-B3B: appended only when the appointment actually carries a zone, so
+    // pre-B3B appointments keep producing byte-identical B3A keys and nothing already
+    // queued is orphaned or re-sent by this change alone.
+    ...(zone ? [zone] : []),
   ].join('\u0000'); // NUL cannot occur in a trimmed field, so the framing is unambiguous
   const digest = createHash('sha1').update(details).digest('hex').slice(0, 12);
   return `email:interview:${applicationId}:${iso}:${digest}`;
 }
 
-export async function onApplicationStatusChange({ applicationId, userId, status, jobTitle, interviewWhen, interviewLink, interviewMode, interviewLocation }) {
+export async function onApplicationStatusChange({ applicationId, userId, status, jobTitle, interviewWhen, interviewLink, interviewMode, interviewLocation, interviewTimeZone }) {
   // PF-EMP-INT-B1: an appointment exists only when a real datetime was supplied.
   // Reaching the interview stage is not the same as having an interview booked,
   // so invitation wording is reserved for the case where one actually is.
@@ -216,14 +228,24 @@ export async function onApplicationStatusChange({ applicationId, userId, status,
         mode: interviewMode,
         link: interviewLink,
         location: interviewLocation,
+        timeZone: interviewTimeZone,
       };
+      // PF-EMP-INT-B3B: render the wall clock here, at queue time, while the
+      // appointment's zone is in hand. The worker that eventually delivers this runs
+      // in its own container zone and must never be the thing that decides what time
+      // the candidate is told — it just prints the string that was agreed now.
+      const whenLabel = formatAppointmentTime(interviewWhen, interviewTimeZone);
       await queueEmail({
         to: user.email,
         templateKey: 'interviewInvitation',
         vars: {
           name: user.name,
           jobTitle,
+          // `when` stays the raw ISO instant for internal correlation and debugging;
+          // `whenLabel` is the only form a human is shown.
           when: interviewWhen,
+          whenLabel: whenLabel?.text || '',
+          timeZone: whenLabel?.zone || '',
           link: interviewLink,
           mode: interviewMode,
           location: interviewLocation,

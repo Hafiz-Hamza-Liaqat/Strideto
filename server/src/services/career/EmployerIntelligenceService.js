@@ -21,6 +21,7 @@ import {
 } from '../../../../shared/employer/constants.js';
 import { canTransition } from '../../../../shared/career/applicationStageMachine.js';
 import { sanitizeString } from '../../utils/sanitize.js';
+import { normalizeTimeZone } from '../../utils/appointmentTime.js';
 import { JobVacancyService } from './JobVacancyService.js';
 
 function disabledError() {
@@ -285,6 +286,19 @@ function parseScheduledAt(value) {
   const normalized = ZONE_LESS_DATE_TIME.test(raw) ? `${raw}Z` : raw;
   const parsed = new Date(normalized);
   return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+/**
+ * PF-EMP-INT-B3B: the Employer's browser states the zone it resolved the instant in.
+ * `undefined` means "not stated" (patch semantics — keep whatever is stored); anything
+ * stated must be a real IANA identifier, because we will later render candidate-facing
+ * times with it and a value we cannot format is worse than no value at all.
+ */
+function parseTimeZone(value) {
+  if (value === undefined || value === null) return undefined;
+  const raw = String(value).trim();
+  if (!raw) return '';
+  return normalizeTimeZone(raw);
 }
 
 function eventForPipelineStage(toStage) {
@@ -590,18 +604,33 @@ export const EmployerIntelligenceService = {
       throw err;
     }
 
+    // PF-EMP-INT-B3B: reject a stated-but-unusable zone before any write, for the same
+    // reason `scheduledAt` is rejected up front — storing it would silently corrupt
+    // every candidate-facing rendering of this appointment.
+    const timeZone = parseTimeZone(body.timeZone);
+    if (timeZone === null) {
+      const err = new Error('timeZone must be a valid IANA timezone identifier');
+      err.status = 400;
+      throw err;
+    }
+
     const oa = await OpportunityApplicationRepository.findByLegacyApplicationId(application._id);
     const currentInterview = oa?.interview || {};
     const existingScheduledAt = currentInterview.scheduledAt ? currentInterview.scheduledAt.getTime() : null;
     const newScheduledAt = scheduledAt.getTime();
 
     const patch = { scheduledAt };
+    if (timeZone !== undefined) patch.timeZone = timeZone;
     if (body.mode !== undefined || body.type !== undefined) patch.mode = sanitizeString(body.mode || body.type || 'video') || 'video';
     if (body.location !== undefined) patch.location = sanitizeString(body.location);
     if (body.meetingUrl !== undefined) patch.meetingUrl = sanitizeString(body.meetingUrl);
     if (body.notes !== undefined) patch.notes = sanitizeString(body.notes);
 
     let isAppointmentChanged = existingScheduledAt !== newScheduledAt;
+    // The zone is part of what the candidate is told, not merely bookkeeping: the same
+    // instant labelled Asia/Karachi and labelled Europe/Berlin are two different sets
+    // of joining instructions, so a genuine zone change is a genuine appointment change.
+    if (patch.timeZone !== undefined && patch.timeZone !== (currentInterview.timeZone || '')) isAppointmentChanged = true;
     if (patch.mode !== undefined && patch.mode !== currentInterview.mode) isAppointmentChanged = true;
     if (patch.location !== undefined && patch.location !== (currentInterview.location || '')) isAppointmentChanged = true;
     if (patch.meetingUrl !== undefined && patch.meetingUrl !== (currentInterview.meetingUrl || '')) isAppointmentChanged = true;
@@ -672,6 +701,9 @@ export const EmployerIntelligenceService = {
           interviewLink: isAppointmentChanged ? (finalInterview.meetingUrl || '') : '',
           interviewMode: isAppointmentChanged ? (finalInterview.mode || 'video') : '',
           interviewLocation: isAppointmentChanged ? (finalInterview.location || '') : '',
+          // PF-EMP-INT-B3B: the zone travels with the instant so the queued email can
+          // be rendered once, at queue time, in the Employer's intended wall clock.
+          interviewTimeZone: isAppointmentChanged ? (finalInterview.timeZone || '') : '',
         });
       } catch {
         /* non-blocking */
@@ -686,6 +718,10 @@ export const EmployerIntelligenceService = {
           legacyApplicationId: String(application._id),
           opportunityApplicationId: oa?._id ? String(oa._id) : null,
           scheduledAt: finalInterview.scheduledAt,
+          // PF-EMP-INT-B3B: careerNotificationBridge renders the candidate's in-app
+          // body from this payload, so the zone has to reach it or the body falls back
+          // to UTC — which is what produced the 2:30 PM / 7:30 PM defect.
+          timeZone: finalInterview.timeZone || '',
           mode: finalInterview.mode,
           location: finalInterview.location,
         },

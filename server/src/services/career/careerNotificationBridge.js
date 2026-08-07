@@ -1,5 +1,6 @@
 import { subscribeCareerEvent } from './CareerEventBus.js';
 import { notifyUser } from '../notificationService.js';
+import { formatAppointmentTime } from '../../utils/appointmentTime.js';
 
 let registered = false;
 
@@ -51,10 +52,15 @@ function bodyForEvent(event) {
   switch (event.eventType) {
     case 'StageChanged':
       return `Moved from ${event.payload?.fromStage || '—'} to ${event.payload?.toStage || '—'}.`;
-    case 'InterviewScheduled':
-      return event.payload?.scheduledAt
-        ? `Scheduled for ${new Date(event.payload.scheduledAt).toLocaleString()}.`
-        : 'Interview details were updated.';
+    case 'InterviewScheduled': {
+      // PF-EMP-INT-B3B: `toLocaleString()` with no zone rendered this in the API
+      // container's zone (UTC on staging), so a 7:30 PM Asia/Karachi interview was
+      // announced to the candidate as 2:30 PM with nothing to reveal the mismatch.
+      // Render in the appointment's own stored zone; a pre-B3B appointment carries
+      // none, so it falls back to an explicitly labelled UTC rather than a guess.
+      const appointment = formatAppointmentTime(event.payload?.scheduledAt, event.payload?.timeZone);
+      return appointment ? `Scheduled for ${appointment.text}.` : 'Interview details were updated.';
+    }
     case 'ReminderCreated':
       return event.payload?.remindAt
         ? `Due ${new Date(event.payload.remindAt).toLocaleString()}.`

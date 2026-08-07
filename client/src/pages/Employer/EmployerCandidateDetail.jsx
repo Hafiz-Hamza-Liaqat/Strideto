@@ -26,17 +26,49 @@ function toLocalInputValue(value) {
   return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 }
 
-/** Same instant, spelled out with the viewer's zone so the wall clock is unambiguous. */
-function formatAppointment(value) {
+/**
+ * PF-EMP-INT-B3B: the zone this browser resolves times in. This is the appointment's
+ * timezone identity — the server stores what we state here and renders every
+ * candidate-facing message with it, rather than falling back to its own container zone.
+ */
+function browserTimeZone() {
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || '';
+  } catch {
+    return '';
+  }
+}
+
+/**
+ * Same instant, spelled out with a named zone so the wall clock is unambiguous.
+ *
+ * PF-EMP-INT-B3B: render in the appointment's *stored* zone when it has one, so the
+ * summary shows the wall clock the candidate is being told — not this viewer's
+ * reinterpretation of it. Pre-B3B appointments carry no zone and keep rendering in the
+ * viewer's own, which is exactly as much as is truthfully known about them.
+ */
+function formatAppointment(value, timeZone) {
   if (!value) return '';
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return '';
+  // Explicit components, not dateStyle/timeStyle: ECMA-402 forbids combining those
+  // shorthands with `timeZoneName`, so the shorthand form threw and silently dropped
+  // the zone label the summary is supposed to show.
+  const opts = {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: 'numeric',
+    minute: '2-digit',
+    timeZoneName: 'short',
+  };
   try {
-    return d.toLocaleString(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-      timeZoneName: 'short',
-    });
+    if (timeZone) return d.toLocaleString(undefined, { ...opts, timeZone });
+  } catch {
+    /* stored zone unknown to this browser — fall through to the viewer's own */
+  }
+  try {
+    return d.toLocaleString(undefined, opts);
   } catch {
     return d.toLocaleString();
   }
@@ -125,6 +157,9 @@ export default function EmployerCandidateDetail() {
   // so the field-scoped patch leaves them exactly as they are.
   const buildPayload = () => ({
     scheduledAt: new Date(interviewAt).toISOString(),
+    // The instant alone cannot be re-rendered truthfully later, so the zone that
+    // resolved it travels with it (PF-EMP-INT-B3B).
+    timeZone: browserTimeZone(),
     mode: interviewMode,
     meetingUrl: MODES_WITH_LINK.has(interviewMode) ? interviewUrl.trim() : '',
     location: MODES_WITH_LOCATION.has(interviewMode) ? interviewLocation.trim() : '',
@@ -135,6 +170,10 @@ export default function EmployerCandidateDetail() {
     const payload = buildPayload();
     return (
       new Date(current.scheduledAt).getTime() === new Date(payload.scheduledAt).getTime()
+      // A stored zone that differs from this browser's is a real change to what the
+      // candidate is told, so it is not an identical save. A pre-B3B appointment has
+      // no stored zone, and adopting one does change the message.
+      && (current.timeZone || '') === payload.timeZone
       && (current.mode || 'video') === payload.mode
       && (current.meetingUrl || '') === payload.meetingUrl
       && (current.location || '') === payload.location
@@ -347,7 +386,7 @@ export default function EmployerCandidateDetail() {
           {hasAppointment ? (
             <>
               <p className="font-medium text-gray-900 dark:text-white">
-                {t('employer:currentAppointment')}: {formatAppointment(current.scheduledAt)}
+                {t('employer:currentAppointment')}: {formatAppointment(current.scheduledAt, current.timeZone)}
               </p>
               <p className="text-gray-600 dark:text-gray-300">
                 {t('employer:interviewMode')}: {t(`employer:interviewMode_${current.mode || 'video'}`, { defaultValue: current.mode || 'video' })}
@@ -429,7 +468,11 @@ export default function EmployerCandidateDetail() {
               ? t('common:saving', { defaultValue: 'Saving…' })
               : hasAppointment ? t('employer:rescheduleInterview') : t('employer:saveInterview')}
           </button>
-          <p className="text-xs text-gray-500">{t('employer:interviewTimezoneHint')}</p>
+          <p className="text-xs text-gray-500">
+            {browserTimeZone()
+              ? t('employer:interviewTimezoneNamed', { zone: browserTimeZone() })
+              : t('employer:interviewTimezoneHint')}
+          </p>
         </div>
 
         {hasAppointment && !isCompleted && (

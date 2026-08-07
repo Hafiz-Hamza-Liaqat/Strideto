@@ -285,6 +285,10 @@ function resolveInterviewStatus(oa) {
   if (oa?.interview?.scheduledAt) {
     return {
       scheduledAt: oa.interview.scheduledAt,
+      // PF-EMP-INT-B3B: the Employer form needs the stored zone so a reload can label
+      // the appointment with the zone it was booked in, and so an unchanged re-save is
+      // not mistaken for a zone change. Null on pre-B3B records.
+      timeZone: oa.interview.timeZone || null,
       mode: oa.interview.mode || oa.interview.type || null,
       status: oa.interview.outcome ? 'completed' : 'scheduled',
       location: oa.interview.location || null,

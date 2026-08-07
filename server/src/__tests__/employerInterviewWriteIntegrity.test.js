@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { normalizeTimeZone } from '../utils/appointmentTime.js';
 
 let count = 0;
 function check(condition, message) {
@@ -23,10 +24,20 @@ const methodText = serviceSrc.slice(bodyStart, bodyEnd).trim().replace(/,\s*$/, 
 // PF-EMP-INT-B3: scheduleInterview now resolves the instant through a module-private
 // parser. Re-bind it verbatim so the harness exercises the shipped parsing, not a stub.
 const parseStart = serviceSrc.indexOf('const ZONE_LESS_DATE_TIME');
-const parseEnd = serviceSrc.indexOf('function eventForPipelineStage(toStage) {');
+const parseEnd = serviceSrc.indexOf('function parseTimeZone(value) {');
 assert.ok(parseStart !== -1 && parseEnd !== -1 && parseStart < parseEnd, 'parseScheduledAt located in the shipped service');
 const parseSrc = serviceSrc.slice(parseStart, parseEnd);
 const parseScheduledAt = new Function(`${parseSrc}; return parseScheduledAt;`)();
+
+// PF-EMP-INT-B3B: scheduleInterview now also validates an appointment timezone through
+// a module-private parser. Re-bind it verbatim for the same reason.
+const zoneStart = serviceSrc.indexOf('function parseTimeZone(value) {');
+const zoneEnd = serviceSrc.indexOf('function eventForPipelineStage(toStage) {');
+assert.ok(zoneStart !== -1 && zoneEnd !== -1 && zoneStart < zoneEnd, 'parseTimeZone located in the shipped service');
+const parseTimeZone = new Function(
+  'normalizeTimeZone',
+  `${serviceSrc.slice(zoneStart, zoneEnd)}; return parseTimeZone;`
+)(normalizeTimeZone);
 
 const repoBodyStart = repoSrc.indexOf('async patchInterview(id, patch) {');
 const repoBodyEnd = repoSrc.indexOf('async updateReminderStatus(applicationId, reminderId, status) {');
@@ -94,6 +105,7 @@ function buildServiceHarness({ currentInterview, pipelineStage = 'interview', le
     },
     sanitizeString: (v) => String(v || '').trim(),
     parseScheduledAt,
+    parseTimeZone,
     onApplicationStatusChange: async (args) => {
       calls.onApplicationStatusChange.push(args);
     },

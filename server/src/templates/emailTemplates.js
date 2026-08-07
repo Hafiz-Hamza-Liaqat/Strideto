@@ -158,41 +158,47 @@ const TEMPLATES = {
     // needs to attend. Time and joining link were already here; method and physical
     // location were not, so an in-person invitation never said where to go — and the
     // Urdu variant dropped the joining link entirely.
-    en: ({ name, jobTitle, when, link, mode, location }) => {
+    en: ({ name, jobTitle, when, whenLabel, link, mode, location }) => {
       const modeLabel = interviewModeLabel(mode, 'en');
       const safeLocation = escapeHtml(location || '');
+      // PF-EMP-INT-B3B: `whenLabel` is the appointment rendered in its own timezone,
+      // with the zone named, at queue time. Falling back to the raw ISO instant keeps
+      // pre-B3B jobs already sitting in the queue renderable — an ISO string is ugly
+      // but unambiguous, which a bare container-zone wall clock was not.
+      const whenText = whenLabel || when || '';
       return {
         subject: `${BRAND} – Interview invitation`,
         html: layout({
           title: 'Interview',
-          bodyHtml: `<p>Hi ${escapeHtml(name || 'there')},</p><p>You are invited for an interview for <strong>${escapeHtml(jobTitle)}</strong>${when ? ` on ${escapeHtml(when)}` : ''}.</p>`
+          bodyHtml: `<p>Hi ${escapeHtml(name || 'there')},</p><p>You are invited for an interview for <strong>${escapeHtml(jobTitle)}</strong>${whenText ? ` on ${escapeHtml(whenText)}` : ''}.</p>`
             + (modeLabel ? `<p style="margin:4px 0;"><strong>Method:</strong> ${escapeHtml(modeLabel)}</p>` : '')
             + (safeLocation ? `<p style="margin:4px 0;"><strong>Location:</strong> ${safeLocation}</p>` : '')
             + (link ? btn(link, 'Join / Details') : ''),
         }),
         text: [
-          `Interview for ${jobTitle}${when ? ` on ${when}` : ''}`,
+          `Interview for ${jobTitle}${whenText ? ` on ${whenText}` : ''}`,
           modeLabel ? `Method: ${modeLabel}` : '',
           location ? `Location: ${location}` : '',
           link ? `Link: ${link}` : '',
         ].filter(Boolean).join('\n'),
       };
     },
-    ur: ({ name, jobTitle, when, link, mode, location }) => {
+    ur: ({ name, jobTitle, when, whenLabel, link, mode, location }) => {
       const modeLabel = interviewModeLabel(mode, 'ur');
       const safeLocation = escapeHtml(location || '');
+      const whenText = whenLabel || when || '';
       return {
         subject: `${BRAND} – انٹرویو کی دعوت`,
         html: layout({
           lang: 'ur',
           title: 'انٹرویو',
-          bodyHtml: `<p>${escapeHtml(name || '')}، <strong>${escapeHtml(jobTitle)}</strong> کے لیے انٹرویو${when ? ` (${escapeHtml(when)})` : ''}۔</p>`
+          bodyHtml: `<p>${escapeHtml(name || '')}، <strong>${escapeHtml(jobTitle)}</strong> کے لیے انٹرویو${whenText ? ` (${escapeHtml(whenText)})` : ''}۔</p>`
             + (modeLabel ? `<p style="margin:4px 0;"><strong>طریقہ:</strong> ${escapeHtml(modeLabel)}</p>` : '')
             + (safeLocation ? `<p style="margin:4px 0;"><strong>مقام:</strong> ${safeLocation}</p>` : '')
             + (link ? btn(link, 'شامل ہوں / تفصیلات') : ''),
         }),
         text: [
-          `انٹرویو: ${jobTitle}${when ? ` (${when})` : ''}`,
+          `انٹرویو: ${jobTitle}${whenText ? ` (${whenText})` : ''}`,
           modeLabel ? `طریقہ: ${modeLabel}` : '',
           location ? `مقام: ${location}` : '',
           link ? `${link}` : '',

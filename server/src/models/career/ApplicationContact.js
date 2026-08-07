@@ -17,6 +17,11 @@ export const applicationContactSchema = new mongoose.Schema(
 export const interviewScheduleSchema = new mongoose.Schema(
   {
     scheduledAt: { type: Date, default: null },
+    // PF-EMP-INT-B3B: the IANA zone the appointment was booked in, so candidate-facing
+    // messages can be rendered as the wall clock the Employer intended instead of in
+    // whatever zone the API container runs. Empty on every pre-B3B record; readers
+    // fall back to a labelled UTC rather than inferring a region.
+    timeZone: { type: String, trim: true, default: '' },
     mode: { type: String, trim: true, default: 'video' },
     location: { type: String, trim: true, default: '' },
     meetingUrl: { type: String, trim: true, default: '' },

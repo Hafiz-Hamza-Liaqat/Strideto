@@ -251,6 +251,7 @@
   "interviewOutcomePlaceholder": "completed",
   "markInterviewCompleted": "Mark interview completed",
   "interviewTimezoneHint": "Times are shown and saved in your device's timezone.",
+  "interviewTimezoneNamed": "Saved in {{zone}}. The candidate is told this time in this timezone.",
   "interviewScheduled": "Interview scheduled. The candidate has been notified.",
   "interviewRescheduled": "Interview rescheduled. The candidate has been notified of the new appointment.",
   "interviewStageOnlySaved": "Saved. The pipeline stage was updated; the appointment did not change, so no new invitation was sent.",
