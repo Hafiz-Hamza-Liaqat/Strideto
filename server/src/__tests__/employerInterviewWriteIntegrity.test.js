@@ -128,7 +128,7 @@ function buildServiceHarness({ currentInterview, pipelineStage = 'interview', le
   check(!('interview.meetingUrl' in $set), '6. Undefined fields are filtered from the patch.');
 }
 
-// --- Case C: Genuine reschedule ---
+// --- Contract B: Genuine appointment change while legacy status is already interview ---
 {
   const currentInterview = { scheduledAt: new Date('2026-08-01T10:00:00Z'), mode: 'video', meetingUrl: 'http://meet', location: 'Office', notes: 'Private note', outcome: 'Pending' };
   const { self, calls, application } = buildServiceHarness({ currentInterview });
@@ -155,10 +155,65 @@ function buildServiceHarness({ currentInterview, pipelineStage = 'interview', le
   check(calls.emitHiringEvent[0].payload.scheduledAt.getTime() === new Date('2026-08-02T10:00:00Z').getTime(), '21. The event receives the real normalized appointment time.');
   
   check(calls.applicationSaves === 0, '10. It performs zero legacy saves since stage is unchanged.');
-  check(calls.onApplicationStatusChange.length === 0, '12/13. It creates zero candidate notifications/invitation jobs (status unchanged).');
+  check(calls.pushStageHistory.length === 0, 'B. It appends zero stage history when already at interview.');
+
+  // PF-EMP-INT-B2C: live-confirmed defect — the invitation hook used to be reachable
+  // only via a legacy status transition, so a genuine appointment for a candidate
+  // already at `interview` queued no invitation whatsoever.
+  check(calls.onApplicationStatusChange.length === 1, 'B. A genuine appointment queues the invitation even though the legacy status did not change.');
+  check(
+    calls.onApplicationStatusChange[0].interviewWhen instanceof Date
+      && calls.onApplicationStatusChange[0].interviewWhen.getTime() === new Date('2026-08-02T10:00:00Z').getTime(),
+    'B. The invitation hook carries the real appointment datetime.'
+  );
+  check(calls.onApplicationStatusChange[0].status === 'interview', 'B. The hook is invoked with the interview status, never a stale/other status.');
 }
 
-// --- Case A & D: Identical effective appointment ---
+// --- Contract C: Genuine appointment AND a required stage transition, together ---
+{
+  const currentInterview = { scheduledAt: new Date('2026-08-01T10:00:00Z'), mode: 'video' };
+  const { self, calls, application } = buildServiceHarness({ currentInterview, pipelineStage: 'screening', legacyStatus: 'shortlisted' });
+
+  const result = await self.scheduleInterview('emp-1', 'app-1', { scheduledAt: '2026-08-02T10:00:00Z' });
+
+  check(result.changed === true, 'C. Returns changed true.');
+  check(calls.patchInterview.length === 1, 'C. Performs exactly one appointment patch.');
+  check(calls.pushStageHistory.length === 1, 'C. Appends stage history exactly once.');
+  check(calls.applicationSaves === 1, 'C. Performs exactly one legacy save.');
+  check(application.status === 'interview', 'C. Status updated to interview.');
+  check(calls.emitHiringEvent.length === 1, 'C. Emits exactly one InterviewScheduled event.');
+  check(calls.onApplicationStatusChange.length === 1, 'C. Calls the notification/invitation hook exactly once — never twice when stage and appointment both change.');
+  check(
+    calls.onApplicationStatusChange[0].interviewWhen instanceof Date,
+    'C. That single call still carries the real appointment datetime, so the invitation is queued.'
+  );
+}
+
+// --- Contract A: stage-only transition, appointment genuinely unchanged, queues no invitation ---
+{
+  const currentInterview = { scheduledAt: new Date('2026-08-01T10:00:00Z'), mode: 'video' };
+  const { self, calls } = buildServiceHarness({ currentInterview, pipelineStage: 'screening', legacyStatus: 'shortlisted' });
+
+  await self.scheduleInterview('emp-1', 'app-1', { scheduledAt: '2026-08-01T10:00:00Z' });
+
+  check(calls.onApplicationStatusChange.length === 1, 'A. The stage sync still runs for a real stage transition.');
+  check(calls.onApplicationStatusChange[0].interviewWhen === null, 'A. But it carries NO appointment datetime, so zero invitation is queued (B1 truthfulness preserved).');
+  check(calls.emitHiringEvent.length === 0, 'A. And emits zero InterviewScheduled events.');
+}
+
+// --- Contract B guard: a hired application never reaches the status hook from this path ---
+{
+  const currentInterview = { scheduledAt: new Date('2026-08-01T10:00:00Z'), mode: 'video' };
+  const { self, calls } = buildServiceHarness({ currentInterview, pipelineStage: 'interview', legacyStatus: 'hired' });
+
+  await self.scheduleInterview('emp-1', 'app-1', { scheduledAt: '2026-08-02T10:00:00Z' });
+
+  check(calls.patchInterview.length === 1, 'Hired: the appointment itself is still patched.');
+  check(calls.applicationSaves === 0, 'Hired: performs zero legacy saves.');
+  check(calls.onApplicationStatusChange.length === 0, 'Hired: never invokes the status hook, so the offerLetter branch stays unreachable from scheduling.');
+}
+
+// --- Contract D: Identical effective appointment, stage already correct ---
 {
   const currentInterview = { scheduledAt: new Date('2026-08-01T10:00:00Z'), mode: 'video', meetingUrl: 'http://meet' };
   const { self, calls } = buildServiceHarness({ currentInterview });
@@ -172,7 +227,7 @@ function buildServiceHarness({ currentInterview, pipelineStage = 'interview', le
   check(calls.onApplicationStatusChange.length === 0, '12. It creates zero notifications/jobs.');
 }
 
-// --- Case B: Stage mismatch prevents false no-op ---
+// --- Contract A (detail): Stage mismatch prevents a false no-op ---
 {
   const currentInterview = { scheduledAt: new Date('2026-08-01T10:00:00Z'), mode: 'video', meetingUrl: 'http://meet' };
   // Pipeline is screening, but appointment values are identical to what's in DB

@@ -618,6 +618,19 @@ export const EmployerIntelligenceService = {
     if (isLegacyStatusChanged) {
       application.status = 'interview';
       await application.save();
+    }
+
+    // PF-EMP-INT-B2C: the invitation belongs to the appointment, not to the legacy
+    // status transition. This hook previously ran only when the status changed, so
+    // scheduling a real appointment for a candidate already sitting at `interview`
+    // queued no invitation at all. Run it whenever the status transition OR the
+    // appointment is genuine. Calling it for an unchanged status is safe: the
+    // notification carries dedupKey `application:status:<id>:<status>`, so the stage
+    // sync stays single even when both change at once. Gated on the record actually
+    // being at `interview` so a `hired` application keeps its existing behaviour and
+    // can never reach the offerLetter branch from this path.
+    const isAtInterviewStatus = application.status === 'interview';
+    if (isAtInterviewStatus && (isLegacyStatusChanged || isAppointmentChanged)) {
       try {
         await onApplicationStatusChange({
           applicationId: application._id,
