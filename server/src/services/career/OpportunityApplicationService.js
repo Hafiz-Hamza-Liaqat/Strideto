@@ -379,6 +379,20 @@ export const OpportunityApplicationService = {
 
   async upsertInterview(userId, applicationId, body, actor) {
     const existing = await getOwnedApplication(userId, applicationId);
+    // PF-EMP-INT-B4: an interview on an employer-linked application carries a
+    // legacyApplicationId — the exact link the Employer scheduler writes through in
+    // B1–B3 — so its appointment is Employer-owned. The candidate tracker may read
+    // that appointment but must never overwrite scheduledAt / timeZone / mode /
+    // meetingUrl / location or the Employer's outcome. Reject before the
+    // read-modify-write so a blocked candidate save performs zero persistence, zero
+    // `updatedAt` churn, and emits no event or invitation. Purely self-tracked
+    // applications (no employer, legacyApplicationId null) keep a candidate-owned
+    // appointment the candidate may still manage themselves.
+    if (existing.legacyApplicationId) {
+      const err = new Error('This interview is scheduled by the employer and cannot be edited here.');
+      err.status = 403;
+      throw err;
+    }
     const parsed = ApplicationValidationService.assertInterview(body);
     if (parsed.scheduledAt) parsed.scheduledAt = new Date(parsed.scheduledAt);
     const interview = { ...(existing.interview || {}), ...parsed };
@@ -388,7 +402,13 @@ export const OpportunityApplicationService = {
       'InterviewScheduled',
       plain,
       {
+        // PF-EMP-INT-B4: carry the exact OpportunityApplication id so the notification
+        // bridge links to /applications/<id> for this legitimate self-tracked write
+        // instead of falling back to the generic /applications list. The base payload's
+        // `applicationId` is not the field careerNotificationBridge reads.
+        opportunityApplicationId: String(plain._id),
         scheduledAt: plain.interview?.scheduledAt,
+        timeZone: plain.interview?.timeZone,
         mode: plain.interview?.mode,
       },
       actor || actorFromUserId(userId)

@@ -199,6 +199,10 @@ export default function ApplicationDetail() {
         <Section title={t('applications:tracker.interviewTitle')} id="interview-heading">
           <InterviewPanel
             interview={application.interview || {}}
+            // PF-EMP-INT-B4: an employer-linked application (legacyApplicationId set) has
+            // an Employer-owned appointment — render it read-only. The server also
+            // rejects candidate writes to it, so this is presentation, not the boundary.
+            employerOwned={Boolean(application.legacyApplicationId)}
             onSave={async (body) => {
               await afterMutation(applicationsApi.upsertInterview(id, body));
             }}

@@ -113,6 +113,11 @@
     "in_person": "In person",
     "other": "Other"
   },
+  "interviewStatuses": {
+    "none": "Not scheduled",
+    "scheduled": "Scheduled",
+    "completed": "Completed"
+  },
   "tracker": {
     "stageManagement": "Update stage",
     "current": "Current stage",
@@ -152,6 +157,12 @@
     "saveInterview": "Save interview",
     "interviewSaved": "Interview saved",
     "interviewError": "Could not save interview",
+    "interviewStatusLabel": "Status",
+    "interviewTimezone": "Time zone",
+    "interviewOutcome": "Outcome",
+    "interviewNoneScheduled": "No interview has been scheduled yet.",
+    "interviewEmployerManaged": "This interview is scheduled by the employer.",
+    "joinMeeting": "Join meeting",
     "archive": "Archive application",
     "archiveError": "Could not archive application"
   },
