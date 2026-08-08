@@ -205,8 +205,10 @@ check(
   '32. CandidateViewed detail handling creates no notification or email'
 );
 check(
-  /await onApplicationStatusChange\(application\)/.test(transitionFn),
-  '33. Existing Application synchronization after stage transition remains present'
+  !/onApplicationStatusChange\(application\)/.test(transitionFn)
+    && /applicationId: application\._id/.test(transitionFn)
+    && /await onApplicationStatusChange\(/.test(transitionFn),
+  '33. Application synchronization after stage transition remains present, now correlated to the real Application id (PF-EMP-UX-B5B — never the raw Mongoose document)'
 );
 check(
   /visibility: body\.visibility === 'private' \? 'private' : 'employer_scoped'/.test(addNoteFn),

@@ -188,73 +188,86 @@ export function interviewInvitationDedupKey(applicationId, appointment = {}) {
   return `email:interview:${applicationId}:${iso}:${digest}`;
 }
 
-export async function onApplicationStatusChange({ applicationId, userId, status, jobTitle, interviewWhen, interviewLink, interviewMode, interviewLocation, interviewTimeZone }) {
+export async function onApplicationStatusChange({ applicationId, userId, status, jobTitle, interviewWhen, interviewLink, interviewMode, interviewLocation, interviewTimeZone, notify = true }) {
   // PF-EMP-INT-B1: an appointment exists only when a real datetime was supplied.
   // Reaching the interview stage is not the same as having an interview booked,
   // so invitation wording is reserved for the case where one actually is.
   const hasAppointment = Boolean(interviewWhen);
 
-  const titles = {
-    shortlisted: `Shortlisted for ${jobTitle}`,
-    rejected: `Update on ${jobTitle}`,
-    interview: hasAppointment
-      ? `Interview invitation: ${jobTitle}`
-      : `Moved to interview stage: ${jobTitle}`,
-    hired: `Offer for ${jobTitle}`,
-  };
+  // PF-EMP-UX-B5B: `notify` separates the candidate in-app status notification (and
+  // its interview-invitation companion) from the transactional offer-letter email
+  // below. A caller that has already emitted a richer milestone notification through
+  // another path — the Employer pipeline's hiring-event bridge — passes notify:false
+  // to take just the email and avoid double-notifying the candidate. Defaults to
+  // true, so the legacy Applications PATCH path and every existing caller behave
+  // byte-identically.
+  if (notify) {
+    const titles = {
+      shortlisted: `Shortlisted for ${jobTitle}`,
+      rejected: `Update on ${jobTitle}`,
+      interview: hasAppointment
+        ? `Interview invitation: ${jobTitle}`
+        : `Moved to interview stage: ${jobTitle}`,
+      hired: `Offer for ${jobTitle}`,
+    };
 
-  await queueNotification({
-    dedupKey: `application:status:${applicationId}:${status}`,
-    recipientType: 'user',
-    userId,
-    category: status === 'interview' ? 'interview' : 'application',
-    type: `application.${status}`,
-    title: titles[status] || `Application update: ${jobTitle}`,
-    body: `Your application status is now: ${status}.`,
-    link: '/dashboard',
-    metadata: { applicationId, status },
-  });
+    await queueNotification({
+      dedupKey: `application:status:${applicationId}:${status}`,
+      recipientType: 'user',
+      userId,
+      category: status === 'interview' ? 'interview' : 'application',
+      type: `application.${status}`,
+      title: titles[status] || `Application update: ${jobTitle}`,
+      body: `Your application status is now: ${status}.`,
+      link: '/dashboard',
+      metadata: { applicationId, status },
+    });
 
-  // PF-EMP-INT-B1: only invite to an interview that actually has a time. A bare
-  // stage move previously queued this email with `when` undefined, producing a
-  // dateless "you are invited" message for an appointment that did not exist.
-  if (status === 'interview' && hasAppointment) {
-    const user = await User.findById(userId).select('email name').lean();
-    if (user?.email) {
-      // PF-EMP-INT-B3A: one appointment object drives both what the candidate is told
-      // and the dedup identity, so the two cannot drift apart.
-      const appointment = {
-        when: interviewWhen,
-        mode: interviewMode,
-        link: interviewLink,
-        location: interviewLocation,
-        timeZone: interviewTimeZone,
-      };
-      // PF-EMP-INT-B3B: render the wall clock here, at queue time, while the
-      // appointment's zone is in hand. The worker that eventually delivers this runs
-      // in its own container zone and must never be the thing that decides what time
-      // the candidate is told — it just prints the string that was agreed now.
-      const whenLabel = formatAppointmentTime(interviewWhen, interviewTimeZone);
-      await queueEmail({
-        to: user.email,
-        templateKey: 'interviewInvitation',
-        vars: {
-          name: user.name,
-          jobTitle,
-          // `when` stays the raw ISO instant for internal correlation and debugging;
-          // `whenLabel` is the only form a human is shown.
+    // PF-EMP-INT-B1: only invite to an interview that actually has a time. A bare
+    // stage move previously queued this email with `when` undefined, producing a
+    // dateless "you are invited" message for an appointment that did not exist.
+    if (status === 'interview' && hasAppointment) {
+      const user = await User.findById(userId).select('email name').lean();
+      if (user?.email) {
+        // PF-EMP-INT-B3A: one appointment object drives both what the candidate is told
+        // and the dedup identity, so the two cannot drift apart.
+        const appointment = {
           when: interviewWhen,
-          whenLabel: whenLabel?.text || '',
-          timeZone: whenLabel?.zone || '',
-          link: interviewLink,
           mode: interviewMode,
+          link: interviewLink,
           location: interviewLocation,
-        },
-        dedupKey: interviewInvitationDedupKey(applicationId, appointment),
-      });
+          timeZone: interviewTimeZone,
+        };
+        // PF-EMP-INT-B3B: render the wall clock here, at queue time, while the
+        // appointment's zone is in hand. The worker that eventually delivers this runs
+        // in its own container zone and must never be the thing that decides what time
+        // the candidate is told — it just prints the string that was agreed now.
+        const whenLabel = formatAppointmentTime(interviewWhen, interviewTimeZone);
+        await queueEmail({
+          to: user.email,
+          templateKey: 'interviewInvitation',
+          vars: {
+            name: user.name,
+            jobTitle,
+            // `when` stays the raw ISO instant for internal correlation and debugging;
+            // `whenLabel` is the only form a human is shown.
+            when: interviewWhen,
+            whenLabel: whenLabel?.text || '',
+            timeZone: whenLabel?.zone || '',
+            link: interviewLink,
+            mode: interviewMode,
+            location: interviewLocation,
+          },
+          dedupKey: interviewInvitationDedupKey(applicationId, appointment),
+        });
+      }
     }
   }
 
+  // The offer-letter email is a transactional side effect, not the in-app
+  // notification, so it is sent on hire regardless of `notify`. Its dedup key is
+  // application-scoped, so two different applications reaching 'hired' each receive
+  // their own letter and a repeated hire stays idempotent.
   if (status === 'hired') {
     const user = await User.findById(userId).select('email name').lean();
     if (user?.email) {

@@ -493,11 +493,6 @@ export const EmployerIntelligenceService = {
 
     application.status = legacyStatus;
     await application.save();
-    try {
-      await onApplicationStatusChange(application);
-    } catch {
-      /* non-blocking */
-    }
 
     let oaSync = 'none';
     if (oa) {
@@ -537,6 +532,38 @@ export const EmployerIntelligenceService = {
         employerActor(employerId),
         { aggregateId: application._id }
       );
+    }
+
+    // PF-EMP-UX-B5B: candidate-facing status side effects, correlated to THIS legacy
+    // Application. The previous code passed the raw Mongoose document to
+    // onApplicationStatusChange, so applicationId/jobTitle resolved to `undefined`:
+    // every dedup identity collapsed to the global constants
+    // `application:status:undefined:<status>` / `email:offer:undefined`, which
+    // suppressed all but the first candidate platform-wide and rendered "... undefined"
+    // copy. Both the id and the title are real here — getOwnedLegacyApplication
+    // populates jobId and userId.
+    //
+    // The in-app milestone notification is owned by emitHiringEvent →
+    // careerNotificationBridge above, so this must not re-notify for those stages:
+    //  - hire (accepted/joined → legacy 'hired'): the bridge already notified, so send
+    //    only the transactional offer-letter email, with notify:false to suppress the
+    //    duplicate in-app notification.
+    //  - other milestone stages (hireEvent set): fully covered by the bridge; nothing
+    //    to run here.
+    //  - non-milestone stages (hireEvent null — e.g. a bare move to the interview
+    //    column, which the bridge intentionally leaves silent per B1): the legacy
+    //    status notification is the candidate's only signal, so it still fires,
+    //    application-scoped.
+    const statusPayload = {
+      applicationId: application._id,
+      userId: application.userId?._id || application.userId,
+      status: legacyStatus,
+      jobTitle: application.jobId?.title || 'Job',
+    };
+    if (legacyStatus === 'hired') {
+      await onApplicationStatusChange({ ...statusPayload, notify: false }).catch(() => {});
+    } else if (!hireEvent) {
+      await onApplicationStatusChange(statusPayload).catch(() => {});
     }
 
     if (['accepted', 'joined', 'hired'].includes(toStage) || ['hired', 'accepted'].includes(legacyStatus)) {
