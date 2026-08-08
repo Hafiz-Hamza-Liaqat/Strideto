@@ -40,7 +40,7 @@ export default function EmployerApplications() {
   useEffect(() => {
     setJobsLoading(true);
     employerApi
-      .getJobs({})
+      .getJobOptions()
       .then(({ data }) => setJobs(data.data || []))
       .catch(() => setJobs([]))
       .finally(() => setJobsLoading(false));

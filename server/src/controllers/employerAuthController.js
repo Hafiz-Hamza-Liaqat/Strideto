@@ -13,6 +13,7 @@ import {
 import { queueEmail } from '../services/automationService.js';
 import { isSmtpConfigured } from '../services/emailService.js';
 import { frontendBaseUrl } from '../utils/emailVerification.js';
+import { ensureUniqueEmployerSlug } from '../utils/employerSlug.js';
 
 /**
  * SEC-3E.1 — trusted-origin enforcement is composed at the route level
@@ -93,14 +94,31 @@ export const employerRegister = asyncHandler(async (req, res) => {
       .status(409)
       .json({ error: 'Email already registered as employer' });
   }
-  const employer = await Employer.create({
-    companyName: (companyName || '').trim(),
-    email: emailNorm,
-    phone: (phone || '').trim(),
-    website: (website || '').trim(),
-    companyDescription: (companyDescription || '').trim(),
-    password,
-  });
+  const companyNameTrimmed = (companyName || '').trim();
+  // Deterministic, collision-safe public-profile slug generated at creation
+  // time (Mission 0). The unique+sparse index on `slug` is the ultimate
+  // authority; the rare create-time race is retried once with a fresh candidate.
+  const slugExists = async (candidate) => !!(await Employer.exists({ slug: candidate }));
+  let employer;
+  for (let attempt = 0; attempt < 2 && !employer; attempt += 1) {
+    const slug = await ensureUniqueEmployerSlug(companyNameTrimmed, slugExists);
+    try {
+      employer = await Employer.create({
+        companyName: companyNameTrimmed,
+        slug,
+        email: emailNorm,
+        phone: (phone || '').trim(),
+        website: (website || '').trim(),
+        companyDescription: (companyDescription || '').trim(),
+        password,
+      });
+    } catch (err) {
+      // Only a concurrent slug collision is retryable here; a duplicate email
+      // (already checked above) or any other error must surface unchanged.
+      if (err?.code === 11000 && err?.keyPattern?.slug && attempt === 0) continue;
+      throw err;
+    }
+  }
   const freshEmployer = await Employer.findById(employer._id);
 
   const result = await issueSecureEmployerSession(res, freshEmployer);

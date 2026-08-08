@@ -15,6 +15,7 @@ import { computeEmployerDashboardMetrics } from '../services/employerDashboardMe
 import { syncOpportunityApplicationFromLegacyStatus } from '../services/employerOpportunityApplicationSync.js';
 import { OpportunityApplicationRepository } from '../repositories/career/OpportunityApplicationRepository.js';
 import { buildEmployerProfileUpdates } from '../utils/employerProfileValidation.js';
+import { isSameStatusNoOp } from '../utils/applicationStatusTransition.js';
 
 /** GET /employer/dashboard - Stats for employer dashboard */
 export const getDashboard = asyncHandler(async (req, res) => {
@@ -63,6 +64,36 @@ export const getMyJobs = asyncHandler(async (req, res) => {
   ]);
   const enriched = await enrichEmployerJobsWithApplicationCounts(data);
   res.json({ data: enriched, total, page, limit });
+});
+
+/**
+ * GET /employer/jobs/selector — lightweight, bounded list of ALL the employer's
+ * jobs for populating job-picker dropdowns (Applications, Analytics).
+ *
+ * The paginated `getMyJobs` list defaults to 10 per page, which silently hid an
+ * employer's 11th+ job from those selectors. This endpoint returns a minimal
+ * projection for every job, ordered newest-first, capped at a high but bounded
+ * limit so the payload stays small and the query stays scalable. Employers with
+ * more jobs than the cap should use the paginated list; the cap is far above any
+ * realistic per-employer job count.
+ */
+export const getJobSelectorOptions = asyncHandler(async (req, res) => {
+  const employerId = req.employer.employerId;
+  const SELECTOR_LIMIT = 500;
+  const jobs = await Job.find({ employerId })
+    .select('_id title applyType applicationLink applyEmail status approvalStatus')
+    .sort({ createdAt: -1 })
+    .limit(SELECTOR_LIMIT)
+    .lean();
+  const data = jobs.map((job) => ({
+    _id: job._id,
+    title: job.title,
+    applyType: resolveJobApplyType(job),
+    status: job.status,
+    approvalStatus: job.approvalStatus,
+  }));
+  const total = await Job.countDocuments({ employerId });
+  res.json({ data, total, limit: SELECTOR_LIMIT, truncated: total > data.length });
 });
 
 /** POST /employer/jobs - Create job as draft (first job can be free) */
@@ -415,8 +446,17 @@ export const updateApplicationStatus = asyncHandler(async (req, res) => {
   if (!status || !allowed.includes(status)) {
     return res.status(400).json({ error: 'Invalid status. Use: ' + allowed.join(', ') });
   }
-  // Keep user OpportunityApplication tracker in sync when dual-write exists (best-effort)
   const previousStatus = application.status;
+
+  // Same-status idempotency: a repeated update to the status the application is
+  // already in must be a server-side no-op — no write, no tracker sync, no
+  // notification, and no automation — so redelivered/duplicate clicks cannot
+  // append duplicate history or re-notify the candidate.
+  if (isSameStatusNoOp(previousStatus, status)) {
+    return res.json({ application, unchanged: true });
+  }
+
+  // Keep user OpportunityApplication tracker in sync when dual-write exists (best-effort)
   application.status = status;
   await application.save();
 

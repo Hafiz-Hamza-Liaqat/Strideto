@@ -22,14 +22,26 @@ function NavLinks({ location, onNavigate, t, showIntelligence }) {
     { path: ROUTES.EMPLOYER_SETTINGS, labelKey: 'settings' },
   ];
 
+  // Exactly one nav item is active: the most specific (longest) path that
+  // matches the current location. Prefix matching alone would light up both
+  // "My Job Posts" (/employer/jobs) and "Post New Job" (/employer/jobs/new)
+  // on the post-new route; choosing the longest match fixes that.
+  const activePath = menu.reduce((best, { path }) => {
+    const isMatch =
+      location.pathname === path ||
+      (path !== ROUTES.EMPLOYER_DASHBOARD && location.pathname.startsWith(`${path}/`));
+    if (!isMatch) return best;
+    return !best || path.length > best.length ? path : best;
+  }, null);
+
   return menu.map(({ path, labelKey }) => (
     <Link
       key={path}
       to={path}
       onClick={onNavigate}
-      aria-current={location.pathname === path ? 'page' : undefined}
+      aria-current={path === activePath ? 'page' : undefined}
       className={`block px-3 py-2.5 rounded-lg text-sm font-medium min-h-[44px] flex items-center ${
-        location.pathname === path || (path !== ROUTES.EMPLOYER_DASHBOARD && location.pathname.startsWith(path))
+        path === activePath
           ? 'bg-primary/10 text-primary dark:text-mint'
           : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
       }`}

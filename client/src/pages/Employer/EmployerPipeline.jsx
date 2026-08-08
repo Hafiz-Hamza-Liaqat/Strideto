@@ -6,9 +6,10 @@ import { employerApi } from '../../services/employerService';
 import { ROUTES } from '../../constants';
 import { isEmployerIntelligenceEnabled } from '../../config/careerFeatureFlags';
 import { PIPELINE_STAGES } from '@shared/career/constants.js';
+import { stageLabel } from '../../utils/applicationUi';
 
 export default function EmployerPipeline() {
-  const { t } = useTranslation(['employer', 'common']);
+  const { t } = useTranslation(['employer', 'common', 'applications']);
   const enabled = isEmployerIntelligenceEnabled();
   const [pipeline, setPipeline] = useState(null);
   const [error, setError] = useState(null);
@@ -51,7 +52,7 @@ export default function EmployerPipeline() {
         {stages.map((stage) => (
           <div key={stage} className="w-full md:min-w-[220px] md:max-w-[240px] md:shrink-0 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-3">
             <div className="text-xs font-semibold uppercase tracking-wide text-gray-500 mb-2">
-              {stage} ({(columns[stage] || []).length})
+              {stageLabel(t, stage)} ({(columns[stage] || []).length})
             </div>
             <ul className="space-y-2">
               {(columns[stage] || []).map((c) => (

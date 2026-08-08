@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { NotificationsPageContent } from '../Notifications/NotificationsPage';
 import { employerInboxApi } from '../../services/employerService';
 import { ROUTES } from '../../constants';
@@ -8,11 +9,12 @@ import { ROUTES } from '../../constants';
  * this page needs no protection wrapper of its own.
  */
 export default function EmployerNotifications() {
+  const { t } = useTranslation(['employer']);
   return (
     <NotificationsPageContent
       api={employerInboxApi}
       backRoute={ROUTES.EMPLOYER_DASHBOARD}
-      emptyStateDescription="You'll see updates here when your job listings are reviewed, approved, or need attention."
+      emptyStateDescription={t('employer:notificationsEmptyDescription')}
     />
   );
 }

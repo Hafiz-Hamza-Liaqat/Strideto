@@ -129,8 +129,8 @@ export default function EmployerDashboard() {
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden min-w-0">
         <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-semibold text-gray-900 dark:text-white">{t('employer:recentJobPosts')}</h2>
-          {(data?.recentActivity || []).length > 0 ? (
-            <span className="text-xs text-slate-500">{t('employer:recentActivityCount', { count: data.recentActivity.length })}</span>
+          {(data?.jobs || []).length > 0 ? (
+            <span className="text-xs text-slate-500">{t('employer:recentJobsCount', { count: data.jobs.length })}</span>
           ) : null}
         </div>
         <div className="divide-y divide-gray-200 dark:border-gray-700">

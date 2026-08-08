@@ -34,6 +34,19 @@ function employerPublicFields(e) {
   };
 }
 
+// A job is publicly listable only when admin-approved. Legacy rows predating
+// the approvalStatus field (absent) are treated as approved, matching the
+// public jobs listing (jobsController). Anything active-but-pending/rejected —
+// e.g. a draft the employer just activated but that admin has not approved —
+// must never appear as an open public position.
+const PUBLICLY_APPROVED = {
+  $or: [{ approvalStatus: 'approved' }, { approvalStatus: { $exists: false } }],
+};
+
+export function isPubliclyApproved(job) {
+  return job.approvalStatus === 'approved' || job.approvalStatus === undefined || job.approvalStatus === null;
+}
+
 export const getEmployerProfile = asyncHandler(async (req, res) => {
   const employer = await Employer.findOne({
     slug: req.params.slug,
@@ -44,27 +57,35 @@ export const getEmployerProfile = asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Employer profile not found' });
   }
 
+  const ownerScope = { $or: [{ employerId: employer._id }, { company: employer.companyName }] };
+
   const [activeJobs, recentJobs, closedJobs] = await Promise.all([
-    Job.find({ employerId: employer._id, status: 'active' }).sort({ createdAt: -1 }).limit(20).lean(),
-    Job.find({ $or: [{ employerId: employer._id }, { company: employer.companyName }], status: 'active' })
+    Job.find({ employerId: employer._id, status: 'active', ...PUBLICLY_APPROVED })
+      .sort({ createdAt: -1 }).limit(20).lean(),
+    Job.find({ ...ownerScope, status: 'active', ...PUBLICLY_APPROVED })
       .sort({ createdAt: -1 }).limit(10).lean(),
-    Job.find({ $or: [{ employerId: employer._id }, { company: employer.companyName }], status: 'closed' })
+    // Past positions = the employer's closed roles. These are prior openings,
+    // not confirmed hires, so the client presents them as "Past positions".
+    Job.find({ ...ownerScope, status: 'closed' })
       .sort({ updatedAt: -1 }).limit(5).lean(),
   ]);
 
-  const allCompanyJobs = await Job.find({
-    $or: [{ employerId: employer._id }, { company: employer.companyName }],
-  }).select('status').lean();
+  const allCompanyJobs = await Job.find(ownerScope).select('status approvalStatus').lean();
 
   res.json({
     profile: employerPublicFields(employer),
     stats: {
       totalJobs: allCompanyJobs.length,
-      activeJobs: allCompanyJobs.filter((j) => j.status === 'active').length,
+      // Public "active jobs" count reflects only what a visitor can actually
+      // open — approved active roles — so the stat matches the listed positions.
+      activeJobs: allCompanyJobs.filter((j) => j.status === 'active' && isPubliclyApproved(j)).length,
       closedJobs: allCompanyJobs.filter((j) => j.status === 'closed').length,
     },
     activeJobs,
     recentJobs,
+    // `pastPositions` is the truthful name; `hiringHistory` retained as a
+    // backwards-compatible alias for any existing consumer.
+    pastPositions: closedJobs,
     hiringHistory: closedJobs,
   });
 });

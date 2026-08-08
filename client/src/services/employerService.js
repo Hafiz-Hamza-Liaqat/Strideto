@@ -103,6 +103,7 @@ export const employerAuthApi = {
   me: () => employerAxios.get('/employer/me'),
   logout: () => employerAxios.post('/auth/employer/logout'),
   logoutAll: () => employerAxios.post('/auth/employer/logout-all'),
+  changePassword: (payload) => employerAxios.post('/auth/employer/change-password', payload),
   refresh: () => employerAxios.post('/auth/employer/refresh-token', {}),
 };
 
@@ -110,6 +111,9 @@ export const employerApi = {
   dashboard: () => employerAxios.get('/employer/dashboard'),
   plans: () => employerAxios.get('/employer/plans'),
   getJobs: (params) => employerAxios.get('/employer/jobs', { params }),
+  // Bounded, minimal-projection list of ALL jobs for picker dropdowns (does not
+  // silently cap at the paginated list's page size).
+  getJobOptions: () => employerAxios.get('/employer/jobs/selector'),
   getJob: (id) => employerAxios.get(`/employer/jobs/${id}`),
   createJob: (body) => employerAxios.post('/employer/jobs', body),
   updateJob: (id, body) => employerAxios.patch(`/employer/jobs/${id}`, body),

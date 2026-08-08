@@ -95,6 +95,14 @@ employerRouter.get(
   requireEmployerAuth,
   employer.getMyJobs
 );
+// Registered before '/employer/jobs/:id' so the literal path is not captured as
+// an :id param.
+employerRouter.get(
+  '/employer/jobs/selector',
+  requireAuth,
+  requireEmployerAuth,
+  employer.getJobSelectorOptions
+);
 employerRouter.get(
   '/employer/jobs/:id',
   requireAuth,

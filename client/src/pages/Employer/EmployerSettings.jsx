@@ -2,16 +2,18 @@ import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
 import { useEmployerAuth } from '../../context/EmployerAuthContext';
-import { employerApi } from '../../services/employerService';
+import { employerApi, employerAuthApi } from '../../services/employerService';
 import { VerificationBadge } from '../../components/common/VerificationBadge';
 import { isValidHttpUrl } from './employerPostJobValidation';
+
+const MIN_PASSWORD_LENGTH = 8;
 
 const inputClass =
   'w-full min-h-[44px] px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100';
 
 export default function EmployerSettings() {
   const { t } = useTranslation(['employer', 'common']);
-  const { employer, refreshEmployer } = useEmployerAuth();
+  const { employer, refreshEmployer, logoutAll } = useEmployerAuth();
   const [form, setForm] = useState({
     companyName: '',
     phone: '',
@@ -28,6 +30,62 @@ export default function EmployerSettings() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState('');
+
+  // Account security (change password + sign out everywhere).
+  const [pwd, setPwd] = useState({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
+  const [pwdSaving, setPwdSaving] = useState(false);
+  const [pwdError, setPwdError] = useState('');
+  const [pwdSuccess, setPwdSuccess] = useState('');
+  const [logoutAllBusy, setLogoutAllBusy] = useState(false);
+  const [logoutAllError, setLogoutAllError] = useState('');
+
+  const onPwdChange = (e) => {
+    const { name, value } = e.target;
+    setPwd((p) => ({ ...p, [name]: value }));
+    setPwdError('');
+    setPwdSuccess('');
+  };
+
+  const handleChangePassword = async (e) => {
+    e.preventDefault();
+    setPwdError('');
+    setPwdSuccess('');
+    if (pwd.newPassword.length < MIN_PASSWORD_LENGTH) {
+      setPwdError(t('employer:passwordTooShort', { count: MIN_PASSWORD_LENGTH }));
+      return;
+    }
+    if (pwd.newPassword !== pwd.confirmNewPassword) {
+      setPwdError(t('employer:passwordsDoNotMatch'));
+      return;
+    }
+    setPwdSaving(true);
+    try {
+      await employerAuthApi.changePassword({
+        currentPassword: pwd.currentPassword,
+        newPassword: pwd.newPassword,
+      });
+      setPwd({ currentPassword: '', newPassword: '', confirmNewPassword: '' });
+      setPwdSuccess(t('employer:passwordChanged'));
+    } catch (err) {
+      setPwdError(err.response?.data?.error || t('employer:passwordChangeFailed'));
+    } finally {
+      setPwdSaving(false);
+    }
+  };
+
+  const handleLogoutAll = async () => {
+    if (logoutAllBusy) return;
+    if (!window.confirm(t('employer:logoutAllConfirm'))) return;
+    setLogoutAllBusy(true);
+    setLogoutAllError('');
+    try {
+      await logoutAll();
+      // logoutAll clears local session; the protected route redirects to login.
+    } catch (err) {
+      setLogoutAllError(err.response?.data?.error || t('employer:logoutAllFailed'));
+      setLogoutAllBusy(false);
+    }
+  };
 
   useEffect(() => {
     if (!employer) return;
@@ -192,6 +250,20 @@ export default function EmployerSettings() {
           <input type="checkbox" name="isPublicProfile" checked={form.isPublicProfile} onChange={onChange} className="h-4 w-4" />
           <span className="text-sm text-gray-800 dark:text-gray-200">{t('employer:publicProfile')}</span>
         </label>
+        {/* Truthful "View public profile": only reachable when the employer has a
+            slug and the profile is actually public. Reflects the saved value. */}
+        {employer?.slug && employer?.isPublicProfile !== false ? (
+          <a
+            href={`/employer/${employer.slug}`}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center min-h-[44px] text-sm text-primary hover:underline"
+          >
+            {t('employer:viewPublicProfile')}
+          </a>
+        ) : (
+          <p className="text-xs text-slate-500 dark:text-gray-400">{t('employer:publicProfileHiddenHint')}</p>
+        )}
         <button
           type="submit"
           disabled={saving}
@@ -200,6 +272,94 @@ export default function EmployerSettings() {
           {saving ? t('common:saving') : t('common:save')}
         </button>
       </form>
+
+      <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6 max-w-xl space-y-4 mt-8">
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('employer:accountSecurity')}</h2>
+
+        {pwdError ? (
+          <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm" role="alert">
+            {pwdError}
+          </div>
+        ) : null}
+        {pwdSuccess ? (
+          <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/40 text-green-800 dark:text-green-200 text-sm" role="status">
+            {pwdSuccess}
+          </div>
+        ) : null}
+
+        <form onSubmit={handleChangePassword} className="space-y-4">
+          <div>
+            <label htmlFor="settings-current-password" className="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">
+              {t('employer:currentPassword')}
+            </label>
+            <input
+              id="settings-current-password"
+              name="currentPassword"
+              type="password"
+              autoComplete="current-password"
+              value={pwd.currentPassword}
+              onChange={onPwdChange}
+              required
+              className={inputClass}
+            />
+          </div>
+          <div>
+            <label htmlFor="settings-new-password" className="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">
+              {t('employer:newPassword')}
+            </label>
+            <input
+              id="settings-new-password"
+              name="newPassword"
+              type="password"
+              autoComplete="new-password"
+              value={pwd.newPassword}
+              onChange={onPwdChange}
+              required
+              className={inputClass}
+            />
+            <p className="mt-1 text-xs text-slate-500 dark:text-gray-400">{t('employer:passwordRule', { count: MIN_PASSWORD_LENGTH })}</p>
+          </div>
+          <div>
+            <label htmlFor="settings-confirm-password" className="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">
+              {t('employer:confirmNewPassword')}
+            </label>
+            <input
+              id="settings-confirm-password"
+              name="confirmNewPassword"
+              type="password"
+              autoComplete="new-password"
+              value={pwd.confirmNewPassword}
+              onChange={onPwdChange}
+              required
+              className={inputClass}
+            />
+          </div>
+          <button
+            type="submit"
+            disabled={pwdSaving}
+            className="min-h-[44px] px-6 py-2.5 bg-primary hover:opacity-90 text-white font-medium rounded-lg disabled:opacity-50"
+          >
+            {pwdSaving ? t('common:saving') : t('employer:changePassword')}
+          </button>
+        </form>
+
+        <div className="pt-4 border-t border-gray-200 dark:border-gray-700">
+          <p className="text-sm text-slate-600 dark:text-gray-300 mb-2">{t('employer:logoutAllHint')}</p>
+          {logoutAllError ? (
+            <div className="mb-2 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm" role="alert">
+              {logoutAllError}
+            </div>
+          ) : null}
+          <button
+            type="button"
+            onClick={handleLogoutAll}
+            disabled={logoutAllBusy}
+            className="min-h-[44px] px-6 py-2.5 border border-red-300 dark:border-red-800 text-red-700 dark:text-red-300 font-medium rounded-lg hover:bg-red-50 dark:hover:bg-red-950/40 disabled:opacity-50"
+          >
+            {logoutAllBusy ? t('common:loading') : t('employer:logoutAllSessions')}
+          </button>
+        </div>
+      </section>
     </>
   );
 }

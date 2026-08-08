@@ -88,11 +88,13 @@ const PIPELINE_STAGES = stagesMatch[1]
   );
 }
 
-// --- 10. Empty-stage counts remain correct (unchanged rendering expression) ---
+// --- 10. Empty-stage counts remain correct (Mission 0 item 8: the raw slug
+//         heading is now routed through the shared i18n stage-label contract,
+//         but the count expression is unchanged) ---
 {
   check(
-    /\{stage\} \(\{\(columns\[stage\] \|\| \[\]\)\.length\}\)/.test(pipelinePage),
-    '10. Column heading count is still `(columns[stage] || []).length` — a stage with zero candidates correctly shows (0), not omitted or miscounted'
+    /\{stageLabel\(t, stage\)\} \(\{\(columns\[stage\] \|\| \[\]\)\.length\}\)/.test(pipelinePage),
+    '10. Column heading uses the shared human-readable stageLabel(t, stage) with the unchanged `(columns[stage] || []).length` count — zero candidates still shows (0), not omitted or miscounted'
   );
 }
 
@@ -134,8 +136,8 @@ const PIPELINE_STAGES = stagesMatch[1]
     '17. EmployerApplications.jsx still uses the same legacy STATUS_OPTIONS — untouched by this phase'
   );
   check(
-    /PIPELINE_STAGES\.map\(\(s\) => <option key=\{s\} value=\{s\}>\{s\}<\/option>\)/.test(candidateDetailPage),
-    '18. EmployerCandidateDetail.jsx already used the full canonical PIPELINE_STAGES for its own stage selector before this phase — untouched, and confirms the client already had access to the correct import path'
+    /PIPELINE_STAGES\.map\(\(s\) => <option key=\{s\} value=\{s\}>\{stageLabel\(t, s\)\}<\/option>\)/.test(candidateDetailPage),
+    '18. EmployerCandidateDetail.jsx uses the full canonical PIPELINE_STAGES for its stage selector, with option labels routed through the shared stageLabel(t, s) contract (Mission 0 item 8)'
   );
   check(
     !/Application\.(updateOne|updateMany|findByIdAndUpdate|findOneAndUpdate|create)/.test(oaService),

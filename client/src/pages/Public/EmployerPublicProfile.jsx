@@ -56,7 +56,11 @@ function EmployerPublicProfile() {
     );
   }
 
-  const { profile, stats, activeJobs, hiringHistory } = data;
+  const { profile, stats, activeJobs } = data;
+  // Truthful terminology: these are the employer's prior openings (closed
+  // roles), not confirmed hires. Prefer the new `pastPositions` field, falling
+  // back to the legacy `hiringHistory` alias for older API responses.
+  const pastPositions = data.pastPositions || data.hiringHistory;
   const canonical = `${ROUTES.EMPLOYER_PUBLIC}/${profile.slug}`;
 
   return (
@@ -131,11 +135,11 @@ function EmployerPublicProfile() {
           )}
         </section>
 
-        {hiringHistory?.length > 0 && (
+        {pastPositions?.length > 0 && (
           <section>
-            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('profiles:hiringHistory')}</h2>
+            <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-4">{t('profiles:pastPositions')}</h2>
             <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-400">
-              {hiringHistory.map((job) => (
+              {pastPositions.map((job) => (
                 <li key={job._id}>{job.title}</li>
               ))}
             </ul>

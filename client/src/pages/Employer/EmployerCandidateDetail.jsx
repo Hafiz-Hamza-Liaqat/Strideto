@@ -5,6 +5,7 @@ import { Helmet } from 'react-helmet-async';
 import { employerApi } from '../../services/employerService';
 import { ROUTES } from '../../constants';
 import { PIPELINE_STAGES } from '@shared/career/constants.js';
+import { stageLabel } from '../../utils/applicationUi';
 import { ScoreExplainPanel } from '../../components/career/ScoreExplainPanel';
 import { isEmployerIntelligenceEnabled } from '../../config/careerFeatureFlags';
 
@@ -76,7 +77,7 @@ function formatAppointment(value, timeZone) {
 
 export default function EmployerCandidateDetail() {
   const { id } = useParams();
-  const { t } = useTranslation(['employer', 'common']);
+  const { t } = useTranslation(['employer', 'common', 'applications']);
   const enabled = isEmployerIntelligenceEnabled();
   const [candidate, setCandidate] = useState(null);
   const [note, setNote] = useState('');
@@ -351,7 +352,7 @@ export default function EmployerCandidateDetail() {
           <label className="text-sm">
             <span className="block text-gray-500 mb-1">{t('employer:pipelineStage')}</span>
             <select value={stage} onChange={(e) => setStage(e.target.value)} className="border rounded-lg px-3 py-2 min-h-[44px] dark:bg-gray-900 dark:border-gray-700">
-              {PIPELINE_STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
+              {PIPELINE_STAGES.map((s) => <option key={s} value={s}>{stageLabel(t, s)}</option>)}
             </select>
           </label>
           <button

@@ -6,6 +6,7 @@ import { employerApi } from '../../services/employerService';
 import { ROUTES } from '../../constants';
 import { PIPELINE_STAGES } from '@shared/career/constants.js';
 import { isEmployerIntelligenceEnabled } from '../../config/careerFeatureFlags';
+import { stageLabel } from '../../utils/applicationUi';
 
 const SORT_OPTIONS = [
   { value: 'best_match', labelKey: 'sortBestMatch' },
@@ -17,7 +18,7 @@ const SORT_OPTIONS = [
 ];
 
 export default function EmployerCandidates() {
-  const { t } = useTranslation(['employer', 'common']);
+  const { t } = useTranslation(['employer', 'common', 'applications']);
   const [searchParams, setSearchParams] = useSearchParams();
   const [candidates, setCandidates] = useState([]);
   const [savedFilters, setSavedFilters] = useState([]);
@@ -154,7 +155,7 @@ export default function EmployerCandidates() {
           <select value={filters.pipelineStage} onChange={(e) => setF('pipelineStage', e.target.value)} className="w-full border rounded-lg px-3 py-2 min-h-[44px] dark:bg-gray-900 dark:border-gray-700">
             <option value="">{t('common:all', { defaultValue: 'All' })}</option>
             {PIPELINE_STAGES.map((s) => (
-              <option key={s} value={s}>{s}</option>
+              <option key={s} value={s}>{stageLabel(t, s)}</option>
             ))}
           </select>
         </label>
@@ -241,7 +242,7 @@ export default function EmployerCandidates() {
               <div className="min-w-0">
                 <div className="font-medium text-gray-900 dark:text-white truncate">{c.basic?.displayName || t('employer:unnamedCandidate')}</div>
                 <div className="text-xs text-gray-500 truncate">
-                  {c.headline || '—'} · {c.location || '—'} · {c.pipelineStage}
+                  {c.headline || '—'} · {c.location || '—'} · {stageLabel(t, c.pipelineStage)}
                 </div>
               </div>
               <div className="text-right text-sm shrink-0 space-y-0.5">

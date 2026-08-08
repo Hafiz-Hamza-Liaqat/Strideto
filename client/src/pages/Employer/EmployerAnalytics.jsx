@@ -25,7 +25,7 @@ export default function EmployerAnalytics() {
   const selectedJob = useMemo(() => jobs.find((j) => j._id === selectedJobId), [jobs, selectedJobId]);
 
   useEffect(() => {
-    employerApi.getJobs({}).then(({ data }) => setJobs(data.data || [])).catch(() => setJobs([]));
+    employerApi.getJobOptions().then(({ data }) => setJobs(data.data || [])).catch(() => setJobs([]));
   }, []);
 
   useEffect(() => {

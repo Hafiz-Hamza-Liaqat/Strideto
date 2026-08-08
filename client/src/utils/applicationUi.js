@@ -24,6 +24,19 @@ export function formatApplicationDate(dateStr, languageCode = 'en', options = {}
   });
 }
 
+/**
+ * Shared human-readable, i18n-compatible label for a canonical pipeline stage.
+ * Routes through the existing `applications:stages.*` contract so no surface
+ * exposes a raw enum slug (e.g. "screening", "negotiation", "joined").
+ *
+ * @param {(key: string, opts?: object) => string} t  react-i18next translator
+ * @param {string} stage  canonical stage slug
+ */
+export function stageLabel(t, stage) {
+  if (!stage) return '';
+  return t(`applications:stages.${stage}`, { defaultValue: stage });
+}
+
 export function stageBadgeClass(stage) {
   const terminal = ['rejected', 'withdrawn', 'joined'];
   const positive = ['accepted', 'offer', 'negotiation'];
