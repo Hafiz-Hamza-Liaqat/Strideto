@@ -64,6 +64,8 @@ const TalentProfileEditor = lazyLoad(() => import('../pages/TalentProfile/Talent
 const PersonalizationHub = lazyLoad(() => import('../pages/Personalization/PersonalizationHub'));
 const EligibilityDetail = lazyLoad(() => import('../pages/Personalization/EligibilityDetail').then((m) => ({ default: m.EligibilityDetailPage })));
 const JourneyDashboard = lazyLoad(() => import('../pages/Journey/JourneyDashboard'));
+const VaultPage = lazyLoad(() => import('../pages/Vault/VaultPage'));
+const VaultDocumentDetail = lazyLoad(() => import('../pages/Vault/VaultDocumentDetail'));
 const JourneyTasksPage = lazyLoad(() => import('../pages/Journey/TasksPage'));
 const JourneyCalendarPage = lazyLoad(() => import('../pages/Journey/CalendarPage'));
 const JourneyApplicationsPage = lazyLoad(() => import('../pages/Journey/ApplicationsPage'));
@@ -474,6 +476,22 @@ export const routes = [
         element: (
           <ProtectedRoute>
             <JourneySavedPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: ROUTES.VAULT,
+        element: (
+          <ProtectedRoute>
+            <VaultPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: ROUTES.VAULT_DOCUMENT,
+        element: (
+          <ProtectedRoute>
+            <VaultDocumentDetail />
           </ProtectedRoute>
         ),
       },

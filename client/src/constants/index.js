@@ -84,6 +84,9 @@ export const ROUTES = {
   JOURNEY_DEADLINES: '/journey/deadlines',
   JOURNEY_APPLICATIONS: '/journey/applications',
   JOURNEY_SAVED: '/journey/saved',
+  // Mission 10 — Secure Document Vault
+  VAULT: '/vault',
+  VAULT_DOCUMENT: '/vault/:id',
 };
 
 export const ROLES = {
