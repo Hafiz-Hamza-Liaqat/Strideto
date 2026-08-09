@@ -27,7 +27,8 @@ function isVercelAppOrigin(origin) {
 
 export function getCorsOptions() {
   const production = process.env.NODE_ENV === 'production';
-  const allowVercelPreviews = process.env.CORS_ALLOW_VERCEL_PREVIEWS !== '0';
+  // Credentialed wildcard preview access must be an explicit production choice.
+  const allowVercelPreviews = process.env.CORS_ALLOW_VERCEL_PREVIEWS === '1';
   const allowed = [
     normalizeOrigin(process.env.SITE_URL),
     normalizeOrigin(process.env.FRONTEND_URL),

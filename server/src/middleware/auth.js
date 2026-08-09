@@ -1,4 +1,5 @@
 import { secureAccessAuthorization } from '../services/auth/secureAccessAuthorization.js';
+import { setPrivateResponseHeaders } from './privateResponse.js';
 
 /**
  * SEC-3E — maps a `secureAccessAuthorization` principal onto the exact
@@ -52,6 +53,7 @@ function attachSecurePrincipal(req, principal) {
 }
 
 async function secureRequireAuth(req, res, next) {
+  setPrivateResponseHeaders(res);
   const result = await secureAccessAuthorization.authorizeRequest({
     authorizationHeader: req.headers.authorization,
   });
@@ -69,6 +71,7 @@ async function secureOptionalAuth(req, res, next) {
     authorizationHeader: authHeader,
   });
   if (result.code === 'ACCESS_AUTHORIZED') {
+    setPrivateResponseHeaders(res);
     attachSecurePrincipal(req, result.principal);
   }
   next();

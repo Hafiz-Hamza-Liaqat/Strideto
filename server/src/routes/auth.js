@@ -1,4 +1,5 @@
 import { Router } from 'express';
+import { privateResponse } from '../middleware/privateResponse.js';
 import {
   register,
   login,
@@ -24,6 +25,7 @@ import { secureTrustedOrigin } from '../middleware/secureTrustedOrigin.js';
 import { authLimiter, forgotPasswordLimiter, refreshLimiter, resendVerificationLimiter } from '../middleware/rateLimit.js';
 
 export const authRouter = Router();
+authRouter.use(privateResponse);
 
 authRouter.post('/auth/register', authLimiter, register);
 authRouter.post('/auth/login', authLimiter, secureTrustedOrigin, login);
