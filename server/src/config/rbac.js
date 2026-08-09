@@ -68,11 +68,25 @@ export const PERMISSIONS = {
   VERIFICATION_APPROVE: 'verification:approve',
   VERIFICATION_REVOKE: 'verification:revoke',
 
+  // Super Control Center (Mission 21)
+  ORGANIZATIONS_READ: 'admin.organizations.read',
+  ORGANIZATIONS_MANAGE: 'admin.organizations.manage',
+  TRUST_TRIAGE: 'admin.trust.triage',
+  TRUST_RESOLVE: 'admin.trust.resolve',
+  CONSULTATION_META_READ: 'admin.consultation.meta.read',
+  CASE_META_READ: 'admin.case.meta.read',
+  COMMERCE_ADMIN_READ: 'admin.commerce.admin.read',
+  RECONCILIATION_MANAGE: 'admin.reconciliation.manage',
+  DATA_QUALITY_MANAGE: 'admin.data_quality.manage',
+  AI_OPS_READ: 'admin.ai.ops.read',
+  SYSTEM_READ: 'admin.system.read',
+
   // Super Admin only
   USERS_DELETE: 'users:delete',
   ROLES_ASSIGN: 'roles:assign',
   SYSTEM_SETTINGS: 'system:settings',
   SYSTEM_SECRETS: 'system:secrets',
+  PRIVILEGED_SUPPORT: 'admin.privileged_support',
 };
 
 const ROLE_PERMISSIONS = {
@@ -114,6 +128,13 @@ const ROLE_PERMISSIONS = {
     // Verification: Moderator can inspect, request info, escalate
     PERMISSIONS.VERIFICATION_READ,
     PERMISSIONS.VERIFICATION_REVIEW,
+    // Super Control Center: Moderator bounded inspection
+    PERMISSIONS.ORGANIZATIONS_READ,
+    PERMISSIONS.TRUST_TRIAGE,
+    PERMISSIONS.CONSULTATION_META_READ,
+    PERMISSIONS.CASE_META_READ,
+    PERMISSIONS.AI_OPS_READ,
+    PERMISSIONS.SYSTEM_READ,
   ],
   [ROLES.ADMIN]: [
     ...Object.values(PERMISSIONS).filter(
@@ -123,6 +144,7 @@ const ROLE_PERMISSIONS = {
         PERMISSIONS.SYSTEM_SETTINGS,
         PERMISSIONS.SYSTEM_SECRETS,
         PERMISSIONS.VERIFICATION_REVOKE,
+        PERMISSIONS.PRIVILEGED_SUPPORT,
       ].includes(p)
     ),
   ],
@@ -148,6 +170,7 @@ export function hasPermission(role, permission) {
       PERMISSIONS.SYSTEM_SETTINGS,
       PERMISSIONS.SYSTEM_SECRETS,
       PERMISSIONS.VERIFICATION_REVOKE,
+      PERMISSIONS.PRIVILEGED_SUPPORT,
     ];
     if (superOnly.includes(permission)) return false;
     return true;

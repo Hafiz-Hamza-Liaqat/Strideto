@@ -146,6 +146,13 @@ const AdminPlatformOps = lazyLoad(() => import('../pages/Admin/AdminPlatformOps'
 const AdminNewsletter = lazyLoad(() => import('../pages/Admin/AdminNewsletter'));
 const AdminSupport = lazyLoad(() => import('../pages/Admin/AdminSupport'));
 const AdminMonitoring = lazyLoad(() => import('../pages/Admin/AdminMonitoring'));
+const AdminSuperControlOverview = lazyLoad(() => import('../pages/Admin/AdminSuperControlOverview'));
+const AdminOrganizations = lazyLoad(() => import('../pages/Admin/AdminOrganizations'));
+const AdminTrustCenter = lazyLoad(() => import('../pages/Admin/AdminTrustCenter'));
+const AdminCommerceCenter = lazyLoad(() => import('../pages/Admin/AdminCommerceCenter'));
+const AdminDataQualityCenter = lazyLoad(() => import('../pages/Admin/AdminDataQualityCenter'));
+const AdminAiOps = lazyLoad(() => import('../pages/Admin/AdminAiOps'));
+const AdminSystemReadiness = lazyLoad(() => import('../pages/Admin/AdminSystemReadiness'));
 const EmployerSettings = lazyLoad(() => import('../pages/Employer/EmployerSettings'));
 const EmployerPublicGate = lazyLoad(() => import('../pages/Public/EmployerPublicProfile'));
 const CompanyProfile = lazyLoad(() => import('../pages/Public/CompanyProfile'));
@@ -467,6 +474,14 @@ export const routes = [
           { path: 'newsletter', element: <AdminNewsletter /> },
           { path: 'support', element: <AdminSupport /> },
           { path: 'monitoring', element: <AdminMonitoring /> },
+          // Mission 21 — Super Control Center
+          { path: 'sc/overview', element: <AdminSuperControlOverview /> },
+          { path: 'sc/organizations', element: <AdminOrganizations /> },
+          { path: 'sc/trust', element: <AdminTrustCenter /> },
+          { path: 'sc/commerce', element: <AdminCommerceCenter /> },
+          { path: 'sc/data-quality', element: <AdminDataQualityCenter /> },
+          { path: 'sc/ai-ops', element: <AdminAiOps /> },
+          { path: 'sc/system', element: <AdminSystemReadiness /> },
         ],
       },
       {

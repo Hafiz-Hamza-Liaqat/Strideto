@@ -85,6 +85,20 @@ export const ADMIN_NAV_GROUPS = /** @type {AdminNavGroup[]} */ ([
       { path: `${ROUTES.ADMIN}/audit`, labelKey: 'auditLog', perm: PERMISSIONS.AUDIT_READ, icon: 'list' },
     ],
   },
+  {
+    id: 'super-control',
+    labelKey: 'navGroupSuperControl',
+    icon: 'shield',
+    items: [
+      { path: `${ROUTES.ADMIN}/sc/overview`, labelKey: 'scOverview', perm: PERMISSIONS.ANALYTICS_READ, icon: 'home' },
+      { path: `${ROUTES.ADMIN}/sc/organizations`, labelKey: 'scOrganizations', perm: PERMISSIONS.ORGANIZATIONS_READ, icon: 'building' },
+      { path: `${ROUTES.ADMIN}/sc/trust`, labelKey: 'scTrustCenter', perm: PERMISSIONS.TRUST_TRIAGE, icon: 'shield' },
+      { path: `${ROUTES.ADMIN}/sc/commerce`, labelKey: 'scCommerceCenter', perm: PERMISSIONS.COMMERCE_ADMIN_READ, icon: 'credit' },
+      { path: `${ROUTES.ADMIN}/sc/data-quality`, labelKey: 'scDataQuality', perm: PERMISSIONS.DATA_QUALITY_MANAGE, icon: 'list' },
+      { path: `${ROUTES.ADMIN}/sc/ai-ops`, labelKey: 'scAiOps', perm: PERMISSIONS.AI_OPS_READ, icon: 'sparkles' },
+      { path: `${ROUTES.ADMIN}/sc/system`, labelKey: 'scSystemReadiness', perm: PERMISSIONS.SYSTEM_READ, icon: 'health' },
+    ],
+  },
 ]);
 
 const STORAGE_KEY = 'admin-nav-expanded';
