@@ -140,6 +140,15 @@ export const agentApi = {
   sendConsultationMessage: (threadId, data) => agentAxios.post(`/api/agent/consultations/threads/${threadId}/messages`, data),
   markConsultationRead: (threadId) => agentAxios.post(`/api/agent/consultations/threads/${threadId}/read`),
   resolveConsultationDocument: (threadId, messageId) => agentAxios.get(`/api/agent/consultations/threads/${threadId}/document-references/${messageId}`),
+  getCases: (params) => agentAxios.get('/api/agent/cases', { params }),
+  getCase: (caseId) => agentAxios.get(`/api/agent/cases/${caseId}`),
+  proposeCase: (data) => agentAxios.post('/api/agent/cases', data),
+  updateCaseStage: (caseId, data) => agentAxios.post(`/api/agent/cases/${caseId}/stage`, data),
+  createCaseTask: (caseId, data) => agentAxios.post(`/api/agent/cases/${caseId}/tasks`, data),
+  requestCaseApproval: (caseId, data) => agentAxios.post(`/api/agent/cases/${caseId}/approvals`, data),
+  requestCaseDocument: (caseId, data) => agentAxios.post(`/api/agent/cases/${caseId}/document-requests`, data),
+  getCaseMessages: (caseId, params) => agentAxios.get(`/api/agent/cases/${caseId}/messages`, { params }),
+  sendCaseMessage: (caseId, data) => agentAxios.post(`/api/agent/cases/${caseId}/messages`, data),
 };
 
 export const agentPublicApi = {
@@ -163,4 +172,13 @@ export const studentConsultationApi = {
   getMessages: (threadId, params) => userAxios.get(`/consultations/threads/${threadId}/messages`, { params }),
   sendMessage: (threadId, data) => userAxios.post(`/consultations/threads/${threadId}/messages`, data),
   markRead: (threadId) => userAxios.post(`/consultations/threads/${threadId}/read`),
+};
+
+export const studentCaseApi = {
+  list: (params) => userAxios.get('/cases', { params }), get: (caseId) => userAxios.get(`/cases/${caseId}`),
+  decideProposal: (caseId, decision) => userAxios.post(`/cases/${caseId}/proposal-decision`, { decision }),
+  decideApproval: (caseId, approvalId, decision, comment = '') => userAxios.post(`/cases/${caseId}/approvals/${approvalId}/decision`, { decision, comment }),
+  completeTask: (caseId, taskId) => userAxios.post(`/cases/${caseId}/tasks/${taskId}/complete`),
+  updateLifecycle: (caseId, lifecycle) => userAxios.post(`/cases/${caseId}/lifecycle`, { lifecycle }),
+  getMessages: (caseId, params) => userAxios.get(`/cases/${caseId}/messages`, { params }), sendMessage: (caseId, text) => userAxios.post(`/cases/${caseId}/messages`, { text }),
 };
