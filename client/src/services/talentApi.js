@@ -29,4 +29,41 @@ export const talentApi = {
   getApplyKit: () => axiosInstance.get('/talent/me/apply-kit'),
   getPrefill: () => axiosInstance.get('/talent/me/prefill'),
   getCandidateCard: () => axiosInstance.get('/talent/me/candidate-card'),
+
+  // Mission 3 — student profile
+  getCompleteness: () => axiosInstance.get('/talent/me/completeness'),
+
+  // Education
+  addEducation: (body) => axiosInstance.post('/talent/me/education', body),
+  updateEducation: (id, body) => axiosInstance.patch(`/talent/me/education/${id}`, body),
+  deleteEducation: (id) => axiosInstance.delete(`/talent/me/education/${id}`),
+
+  // Experience
+  addExperience: (body) => axiosInstance.post('/talent/me/experience', body),
+  updateExperience: (id, body) => axiosInstance.patch(`/talent/me/experience/${id}`, body),
+  deleteExperience: (id) => axiosInstance.delete(`/talent/me/experience/${id}`),
+
+  // Exam scores
+  listExamScores: () => axiosInstance.get('/talent/me/exam-scores'),
+  addExamScore: (body) => axiosInstance.post('/talent/me/exam-scores', body),
+  updateExamScore: (id, body) => axiosInstance.patch(`/talent/me/exam-scores/${id}`, body),
+  deleteExamScore: (id) => axiosInstance.delete(`/talent/me/exam-scores/${id}`),
+
+  // Study goals
+  listStudyGoals: () => axiosInstance.get('/talent/me/study-goals'),
+  addStudyGoal: (body) => axiosInstance.post('/talent/me/study-goals', body),
+  updateStudyGoal: (id, body) => axiosInstance.patch(`/talent/me/study-goals/${id}`, body),
+  deleteStudyGoal: (id) => axiosInstance.delete(`/talent/me/study-goals/${id}`),
+
+  // Certifications
+  listCertifications: () => axiosInstance.get('/talent/me/certifications'),
+  addCertification: (body) => axiosInstance.post('/talent/me/certifications', body),
+  updateCertification: (id, body) => axiosInstance.patch(`/talent/me/certifications/${id}`, body),
+  deleteCertification: (id) => axiosInstance.delete(`/talent/me/certifications/${id}`),
+
+  // Student preferences & budget
+  getStudentPreferences: () => axiosInstance.get('/talent/me/student-preferences'),
+  updateStudentPreferences: (body) => axiosInstance.put('/talent/me/student-preferences', body),
+  getBudget: () => axiosInstance.get('/talent/me/budget'),
+  updateBudget: (body) => axiosInstance.put('/talent/me/budget', body),
 };

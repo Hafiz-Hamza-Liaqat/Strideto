@@ -194,3 +194,15 @@ export const APPLICATION_CONTACT_ROLES = [
 export const INTERVIEW_MODES = ['in_person', 'phone', 'video', 'other'];
 
 export const ACTOR_TYPES = ['talent', 'employer', 'system', 'staff'];
+
+// Mission 3 — student profile domain events
+export const STUDENT_PROFILE_EVENTS = [
+  'ExamScoreAdded',
+  'ExamScoreUpdated',
+  'ExamScoreRemoved',
+  'StudyGoalAdded',
+  'StudyGoalUpdated',
+  'StudyGoalRemoved',
+  'StudentPreferencesUpdated',
+  'BudgetProfileUpdated',
+];

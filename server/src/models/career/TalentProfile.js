@@ -6,15 +6,27 @@ import {
   SKILL_SOURCES,
   SKILL_CATEGORIES,
 } from '../../../../shared/career/constants.js';
+import {
+  QUALIFICATION_LEVELS,
+  GRADING_SYSTEMS,
+  EDUCATION_COMPLETION_STATUSES,
+  EMPLOYMENT_TYPES,
+} from '../../../../shared/career/studentProfile.js';
 import { socialProfileSchema } from './SocialProfile.js';
 import { careerPreferenceSchema } from './CareerPreference.js';
 import { languageSkillSchema } from './LanguageSkill.js';
 import { certificationReferenceSchema } from './CertificationReference.js';
 import { portfolioReferenceSchema } from './PortfolioReference.js';
 import { personalInfoSchema } from './PersonalInfo.js';
+import { examScoreSchema } from './ExamScore.js';
+import { studyGoalSchema } from './StudyGoal.js';
+import { studentPreferencesSchema } from './StudentPreferences.js';
+import { budgetProfileSchema } from './BudgetProfile.js';
 
+// _id: true (default) — stable ObjectId per record for child-record CRUD
 const educationEntrySchema = new mongoose.Schema(
   {
+    // --- Existing fields (preserved) ---
     degree: { type: String, trim: true, default: '' },
     institution: { type: String, trim: true, default: '' },
     fieldOfStudy: { type: String, trim: true, default: '' },
@@ -22,12 +34,27 @@ const educationEntrySchema = new mongoose.Schema(
     endYear: { type: String, trim: true, default: '' },
     gpa: { type: String, trim: true, default: '' },
     description: { type: String, trim: true, default: '' },
+    // --- Mission 3 additions ---
+    qualificationLevel: { type: String, enum: [...QUALIFICATION_LEVELS, ''], default: '' },
+    country: { type: String, trim: true, default: '' }, // ISO 3166-1 alpha-2
+    startDate: { type: Date, default: null },
+    endDate: { type: Date, default: null },
+    completionStatus: { type: String, enum: [...EDUCATION_COMPLETION_STATUSES, ''], default: '' },
+    graduationYear: { type: Number, default: null },
+    gradingSystem: { type: String, enum: [...GRADING_SYSTEMS, ''], default: '' },
+    gradeValue: { type: String, trim: true, default: '' },
+    gradeScale: { type: String, trim: true, default: '' },
+    honors: { type: String, trim: true, default: '' },
+    notes: { type: String, trim: true, default: '' },
   },
-  { _id: false }
+  // _id: true is the Mongoose default — gives each record a stable ObjectId
+  {}
 );
 
+// _id: true — stable ObjectId per record
 const experienceEntrySchema = new mongoose.Schema(
   {
+    // --- Existing fields (preserved) ---
     company: { type: String, trim: true, default: '' },
     role: { type: String, trim: true, default: '' },
     location: { type: String, trim: true, default: '' },
@@ -36,10 +63,14 @@ const experienceEntrySchema = new mongoose.Schema(
     isCurrent: { type: Boolean, default: false },
     description: { type: String, trim: true, default: '' },
     achievements: { type: [String], default: [] },
+    // --- Mission 3 additions ---
+    employmentType: { type: String, enum: [...EMPLOYMENT_TYPES, ''], default: '' },
+    country: { type: String, trim: true, default: '' }, // ISO 3166-1 alpha-2
   },
-  { _id: false }
+  {}
 );
 
+// _id: true — stable ObjectId per record
 const skillEntrySchema = new mongoose.Schema(
   {
     name: { type: String, trim: true, required: true },
@@ -48,7 +79,7 @@ const skillEntrySchema = new mongoose.Schema(
     yearsOfExperience: { type: Number },
     category: { type: String, enum: SKILL_CATEGORIES, default: 'technical' },
   },
-  { _id: false }
+  {}
 );
 
 const careerGoalSchema = new mongoose.Schema(
@@ -94,6 +125,12 @@ const talentProfileSchema = new mongoose.Schema(
     portfolioReferences: { type: [portfolioReferenceSchema], default: [] },
     careerGoals: { type: [careerGoalSchema], default: [] },
     interests: { type: [String], default: [] },
+    // --- Mission 3 additions ---
+    examScores: { type: [examScoreSchema], default: [] },
+    studyGoals: { type: [studyGoalSchema], default: [] },
+    studentPreferences: { type: studentPreferencesSchema, default: () => ({}) },
+    budgetProfile: { type: budgetProfileSchema, default: () => ({}) },
+    // ---
     hydrationSource: { type: String, enum: ['manual', 'resume', 'user', 'migration'], default: 'manual' },
     legacyResumeId: { type: mongoose.Schema.Types.ObjectId, ref: 'Resume' },
   },

@@ -1,5 +1,5 @@
 /**
- * Map TalentProfile API ↔ editor form state (C.8.0.2B.1).
+ * Map TalentProfile API ↔ editor form state (C.8.0.2B.1 / Mission 3).
  */
 
 export const PROFILE_TABS = [
@@ -7,6 +7,8 @@ export const PROFILE_TABS = [
   'contact',
   'career',
   'education',
+  'tests',
+  'goals',
   'experience',
   'skills',
   'languages',
@@ -21,10 +23,19 @@ export function emptyEducation() {
     institution: '',
     degree: '',
     fieldOfStudy: '',
+    qualificationLevel: '',
+    country: '',
     startYear: '',
     endYear: '',
+    completionStatus: '',
+    graduationYear: '',
+    gradingSystem: '',
+    gradeValue: '',
+    gradeScale: '',
     gpa: '',
+    honors: '',
     description: '',
+    notes: '',
   };
 }
 
@@ -32,6 +43,8 @@ export function emptyExperience() {
   return {
     company: '',
     role: '',
+    employmentType: '',
+    country: '',
     location: '',
     startDate: '',
     endDate: '',
@@ -55,6 +68,34 @@ export function emptyCertification() {
 
 export function emptyPortfolio() {
   return { title: '', description: '', url: '', technologies: [], featured: false };
+}
+
+export function emptyExamScore() {
+  return {
+    testType: '',
+    provider: '',
+    overallScore: '',
+    sectionScores: null,
+    testDate: '',
+    expiryDate: '',
+    status: 'completed',
+    referenceNumber: '',
+  };
+}
+
+export function emptyStudyGoal() {
+  return {
+    goalType: 'study',
+    degreeLevel: '',
+    fieldOfStudy: '',
+    destinationCountries: [],
+    targetIntake: '',
+    targetYear: '',
+    studyMode: '',
+    scholarshipPreference: '',
+    notes: '',
+    status: 'active',
+  };
 }
 
 export function defaultFormState(authEmail = '') {
@@ -100,6 +141,28 @@ export function defaultFormState(authEmail = '') {
     languages: [],
     certificationReferences: [],
     portfolioReferences: [],
+    examScores: [],
+    studyGoals: [],
+    studentPreferences: {
+      destinationCountries: [],
+      preferredCities: [],
+      fieldsOfStudy: [],
+      degreeLevels: [],
+      targetIntake: '',
+      targetYear: '',
+      studyMode: '',
+      scholarshipRequired: false,
+      fundingPreference: '',
+      preferredCurrency: '',
+    },
+    budgetProfile: {
+      tuition: { amountMinor: '', currency: '' },
+      living: { amountMinor: '', currency: '' },
+      general: { amountMinor: '', currency: '' },
+      period: '',
+      fundingSource: '',
+      notes: '',
+    },
   };
 }
 
@@ -173,6 +236,37 @@ export function profileToForm(profile, authEmail = '') {
       ...p,
       technologies: p.technologies || [],
     })),
+    examScores: (profile.examScores || []).map((e) => ({ ...emptyExamScore(), ...e })),
+    studyGoals: (profile.studyGoals || []).map((g) => ({ ...emptyStudyGoal(), ...g })),
+    studentPreferences: {
+      destinationCountries: profile.studentPreferences?.destinationCountries || [],
+      preferredCities: profile.studentPreferences?.preferredCities || [],
+      fieldsOfStudy: profile.studentPreferences?.fieldsOfStudy || [],
+      degreeLevels: profile.studentPreferences?.degreeLevels || [],
+      targetIntake: profile.studentPreferences?.targetIntake || '',
+      targetYear: profile.studentPreferences?.targetYear ?? '',
+      studyMode: profile.studentPreferences?.studyMode || '',
+      scholarshipRequired: Boolean(profile.studentPreferences?.scholarshipRequired),
+      fundingPreference: profile.studentPreferences?.fundingPreference || '',
+      preferredCurrency: profile.studentPreferences?.preferredCurrency || '',
+    },
+    budgetProfile: {
+      tuition: {
+        amountMinor: profile.budgetProfile?.tuition?.amountMinor ?? '',
+        currency: profile.budgetProfile?.tuition?.currency || '',
+      },
+      living: {
+        amountMinor: profile.budgetProfile?.living?.amountMinor ?? '',
+        currency: profile.budgetProfile?.living?.currency || '',
+      },
+      general: {
+        amountMinor: profile.budgetProfile?.general?.amountMinor ?? '',
+        currency: profile.budgetProfile?.general?.currency || '',
+      },
+      period: profile.budgetProfile?.period || '',
+      fundingSource: profile.budgetProfile?.fundingSource || '',
+      notes: profile.budgetProfile?.notes || '',
+    },
   };
 }
 
@@ -216,6 +310,27 @@ export function formToProfilePayload(form) {
       ...p,
       technologies: (p.technologies || []).filter(Boolean),
     })),
+    examScores: form.examScores,
+    studyGoals: form.studyGoals,
+    studentPreferences: {
+      ...form.studentPreferences,
+      targetYear: form.studentPreferences?.targetYear === '' ? null : Number(form.studentPreferences?.targetYear),
+    },
+    budgetProfile: {
+      ...form.budgetProfile,
+      tuition: {
+        amountMinor: form.budgetProfile?.tuition?.amountMinor === '' ? null : Number(form.budgetProfile?.tuition?.amountMinor),
+        currency: form.budgetProfile?.tuition?.currency,
+      },
+      living: {
+        amountMinor: form.budgetProfile?.living?.amountMinor === '' ? null : Number(form.budgetProfile?.living?.amountMinor),
+        currency: form.budgetProfile?.living?.currency,
+      },
+      general: {
+        amountMinor: form.budgetProfile?.general?.amountMinor === '' ? null : Number(form.budgetProfile?.general?.amountMinor),
+        currency: form.budgetProfile?.general?.currency,
+      },
+    },
   };
 }
 

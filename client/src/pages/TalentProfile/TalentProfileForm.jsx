@@ -8,6 +8,8 @@ import {
   emptyLanguage,
   emptyCertification,
   emptyPortfolio,
+  emptyExamScore,
+  emptyStudyGoal,
   parseListInput,
   formatListInput,
 } from './talentProfileMapper';
@@ -166,7 +168,7 @@ export function TalentProfileForm({ form, setForm, activeTab }) {
             <input id="tp-email" className={`${inputClass} opacity-70`} value={form.contactEmail} readOnly aria-readonly="true" />
             <p className="text-xs text-gray-500 mt-1">{t('talent:contact.emailReadOnly')}</p>
           </FormField>
-          <FormField label={t('talent:contact.phone')} id="tp-phone">
+          <FormField label={t('talent:personal.phone')} id="tp-phone">
             <input
               id="tp-phone"
               type="tel"
@@ -174,52 +176,35 @@ export function TalentProfileForm({ form, setForm, activeTab }) {
               value={form.personal.phone}
               onChange={(e) => updateNested(setForm, 'personal.phone', e.target.value)}
               autoComplete="tel"
+              placeholder="+12125551234"
+            />
+          </FormField>
+          <FormField label={t('talent:personal.timeZone')} id="tp-tz-contact">
+            <input
+              id="tp-tz-contact"
+              className={inputClass}
+              placeholder="e.g. Europe/London"
+              value={form.personal.timeZone}
+              onChange={(e) => {
+                updateNested(setForm, 'personal.timeZone', e.target.value);
+                updateNested(setForm, 'preferences.timeZone', e.target.value);
+              }}
             />
           </FormField>
           <FormField label={t('talent:contact.website')} id="tp-website">
-            <input
-              id="tp-website"
-              type="url"
-              className={inputClass}
-              value={form.socialProfile.websiteUrl}
-              onChange={(e) => updateNested(setForm, 'socialProfile.websiteUrl', e.target.value)}
-            />
+            <input id="tp-website" type="url" className={inputClass} value={form.socialProfile.websiteUrl} onChange={(e) => updateNested(setForm, 'socialProfile.websiteUrl', e.target.value)} />
           </FormField>
           <FormField label={t('talent:contact.linkedIn')} id="tp-linkedin">
-            <input
-              id="tp-linkedin"
-              type="url"
-              className={inputClass}
-              value={form.socialProfile.linkedInUrl}
-              onChange={(e) => updateNested(setForm, 'socialProfile.linkedInUrl', e.target.value)}
-            />
+            <input id="tp-linkedin" type="url" className={inputClass} value={form.socialProfile.linkedInUrl} onChange={(e) => updateNested(setForm, 'socialProfile.linkedInUrl', e.target.value)} />
           </FormField>
           <FormField label={t('talent:contact.github')} id="tp-github">
-            <input
-              id="tp-github"
-              type="url"
-              className={inputClass}
-              value={form.socialProfile.githubUrl}
-              onChange={(e) => updateNested(setForm, 'socialProfile.githubUrl', e.target.value)}
-            />
+            <input id="tp-github" type="url" className={inputClass} value={form.socialProfile.githubUrl} onChange={(e) => updateNested(setForm, 'socialProfile.githubUrl', e.target.value)} />
           </FormField>
           <FormField label={t('talent:contact.portfolio')} id="tp-portfolio">
-            <input
-              id="tp-portfolio"
-              type="url"
-              className={inputClass}
-              value={form.socialProfile.portfolioUrl}
-              onChange={(e) => updateNested(setForm, 'socialProfile.portfolioUrl', e.target.value)}
-            />
+            <input id="tp-portfolio" type="url" className={inputClass} value={form.socialProfile.portfolioUrl} onChange={(e) => updateNested(setForm, 'socialProfile.portfolioUrl', e.target.value)} />
           </FormField>
           <FormField label={t('talent:contact.twitter')} id="tp-twitter">
-            <input
-              id="tp-twitter"
-              type="url"
-              className={inputClass}
-              value={form.socialProfile.twitterUrl}
-              onChange={(e) => updateNested(setForm, 'socialProfile.twitterUrl', e.target.value)}
-            />
+            <input id="tp-twitter" type="url" className={inputClass} value={form.socialProfile.twitterUrl} onChange={(e) => updateNested(setForm, 'socialProfile.twitterUrl', e.target.value)} />
           </FormField>
         </div>
       </SectionCard>
@@ -230,103 +215,46 @@ export function TalentProfileForm({ form, setForm, activeTab }) {
     return (
       <SectionCard title={t('talent:tabs.career')}>
         <FormField label={t('talent:career.headline')} id="tp-headline">
-          <input
-            id="tp-headline"
-            className={inputClass}
-            value={form.headline}
-            onChange={(e) => setForm((p) => ({ ...p, headline: e.target.value }))}
-          />
+          <input id="tp-headline" className={inputClass} value={form.headline} onChange={(e) => setForm((p) => ({ ...p, headline: e.target.value }))} />
         </FormField>
         <FormField label={t('talent:career.summary')} id="tp-summary">
-          <textarea
-            id="tp-summary"
-            rows={5}
-            className={inputClass}
-            value={form.summary}
-            onChange={(e) => setForm((p) => ({ ...p, summary: e.target.value }))}
-          />
+          <textarea id="tp-summary" rows={5} className={inputClass} value={form.summary} onChange={(e) => setForm((p) => ({ ...p, summary: e.target.value }))} />
         </FormField>
         <div className="grid sm:grid-cols-2 gap-4">
           <FormField label={t('talent:career.employmentStatus')} id="tp-employment">
-            <select
-              id="tp-employment"
-              className={inputClass}
-              value={form.preferences.employmentStatus}
-              onChange={(e) => updateNested(setForm, 'preferences.employmentStatus', e.target.value)}
-            >
+            <select id="tp-employment" className={inputClass} value={form.preferences.employmentStatus} onChange={(e) => updateNested(setForm, 'preferences.employmentStatus', e.target.value)}>
               {['employed', 'unemployed', 'student', 'freelance', 'self_employed', 'open_to_work'].map((k) => (
                 <option key={k} value={k}>{t(`talent:employmentStatus.${k}`)}</option>
               ))}
             </select>
           </FormField>
           <FormField label={t('talent:career.workMode')} id="tp-workmode">
-            <select
-              id="tp-workmode"
-              className={inputClass}
-              value={form.preferences.workMode}
-              onChange={(e) => updateNested(setForm, 'preferences.workMode', e.target.value)}
-            >
+            <select id="tp-workmode" className={inputClass} value={form.preferences.workMode} onChange={(e) => updateNested(setForm, 'preferences.workMode', e.target.value)}>
               {['onsite', 'remote', 'hybrid'].map((k) => (
                 <option key={k} value={k}>{t(`talent:workMode.${k}`)}</option>
               ))}
             </select>
           </FormField>
           <FormField label={t('talent:career.timeZone')} id="tp-tz">
-            <input
-              id="tp-tz"
-              className={inputClass}
-              placeholder="e.g. Asia/Karachi, America/New_York"
-              value={form.preferences.timeZone}
-              onChange={(e) => {
-                updateNested(setForm, 'preferences.timeZone', e.target.value);
-                updateNested(setForm, 'personal.timeZone', e.target.value);
-              }}
+            <input id="tp-tz" className={inputClass} placeholder="e.g. America/New_York" value={form.preferences.timeZone}
+              onChange={(e) => { updateNested(setForm, 'preferences.timeZone', e.target.value); updateNested(setForm, 'personal.timeZone', e.target.value); }}
             />
           </FormField>
           <FormField label={t('talent:career.preferredCountries')} id="tp-countries" className="sm:col-span-2">
-            <input
-              id="tp-countries"
-              className={inputClass}
-              value={formatListInput(form.preferences.preferredCountries)}
-              onChange={(e) => updateNested(setForm, 'preferences.preferredCountries', parseListInput(e.target.value))}
-            />
+            <input id="tp-countries" className={inputClass} value={formatListInput(form.preferences.preferredCountries)} onChange={(e) => updateNested(setForm, 'preferences.preferredCountries', parseListInput(e.target.value))} />
             <p className="text-xs text-gray-500 mt-1">{t('talent:career.preferredCountriesHint')}</p>
           </FormField>
           <FormField label={t('talent:career.salaryMin')} id="tp-sal-min">
-            <input
-              id="tp-sal-min"
-              type="number"
-              min="0"
-              className={inputClass}
-              value={form.preferences.salaryExpectation.min}
-              onChange={(e) => updateNested(setForm, 'preferences.salaryExpectation.min', e.target.value)}
-            />
+            <input id="tp-sal-min" type="number" min="0" className={inputClass} value={form.preferences.salaryExpectation.min} onChange={(e) => updateNested(setForm, 'preferences.salaryExpectation.min', e.target.value)} />
           </FormField>
           <FormField label={t('talent:career.salaryMax')} id="tp-sal-max">
-            <input
-              id="tp-sal-max"
-              type="number"
-              min="0"
-              className={inputClass}
-              value={form.preferences.salaryExpectation.max}
-              onChange={(e) => updateNested(setForm, 'preferences.salaryExpectation.max', e.target.value)}
-            />
+            <input id="tp-sal-max" type="number" min="0" className={inputClass} value={form.preferences.salaryExpectation.max} onChange={(e) => updateNested(setForm, 'preferences.salaryExpectation.max', e.target.value)} />
           </FormField>
           <FormField label={t('talent:career.salaryCurrency')} id="tp-currency">
-            <input
-              id="tp-currency"
-              className={inputClass}
-              value={form.preferences.salaryExpectation.currency}
-              onChange={(e) => updateNested(setForm, 'preferences.salaryExpectation.currency', e.target.value)}
-            />
+            <input id="tp-currency" className={inputClass} value={form.preferences.salaryExpectation.currency} onChange={(e) => updateNested(setForm, 'preferences.salaryExpectation.currency', e.target.value)} />
           </FormField>
           <FormField label={t('talent:career.salaryPeriod')} id="tp-period">
-            <select
-              id="tp-period"
-              className={inputClass}
-              value={form.preferences.salaryExpectation.period}
-              onChange={(e) => updateNested(setForm, 'preferences.salaryExpectation.period', e.target.value)}
-            >
+            <select id="tp-period" className={inputClass} value={form.preferences.salaryExpectation.period} onChange={(e) => updateNested(setForm, 'preferences.salaryExpectation.period', e.target.value)}>
               <option value="hourly">Hourly</option>
               <option value="monthly">Monthly</option>
               <option value="yearly">Yearly</option>
@@ -347,9 +275,13 @@ export function TalentProfileForm({ form, setForm, activeTab }) {
                 <input className={inputClass} placeholder={t('talent:education.institution')} value={row.institution} onChange={(e) => updateArrayItem(setForm, 'education', i, { institution: e.target.value })} />
                 <input className={inputClass} placeholder={t('talent:education.degree')} value={row.degree} onChange={(e) => updateArrayItem(setForm, 'education', i, { degree: e.target.value })} />
                 <input className={inputClass} placeholder={t('talent:education.field')} value={row.fieldOfStudy} onChange={(e) => updateArrayItem(setForm, 'education', i, { fieldOfStudy: e.target.value })} />
-                <input className={inputClass} placeholder={t('talent:education.grade')} value={row.gpa} onChange={(e) => updateArrayItem(setForm, 'education', i, { gpa: e.target.value })} />
+                <input className={inputClass} placeholder={t('talent:education.country')} value={row.country || ''} maxLength={2} onChange={(e) => updateArrayItem(setForm, 'education', i, { country: e.target.value.toUpperCase() })} />
                 <input className={inputClass} placeholder={t('talent:education.startYear')} value={row.startYear} onChange={(e) => updateArrayItem(setForm, 'education', i, { startYear: e.target.value })} />
                 <input className={inputClass} placeholder={t('talent:education.endYear')} value={row.endYear} onChange={(e) => updateArrayItem(setForm, 'education', i, { endYear: e.target.value })} />
+                <input className={inputClass} placeholder={t('talent:education.gradingSystem') + ' (e.g. percentage, gpa_4)'} value={row.gradingSystem || ''} onChange={(e) => updateArrayItem(setForm, 'education', i, { gradingSystem: e.target.value })} />
+                <input className={inputClass} placeholder={t('talent:education.gradeValue')} value={row.gradeValue || ''} onChange={(e) => updateArrayItem(setForm, 'education', i, { gradeValue: e.target.value })} />
+                <input className={inputClass} placeholder={t('talent:education.gradeScale')} value={row.gradeScale || ''} onChange={(e) => updateArrayItem(setForm, 'education', i, { gradeScale: e.target.value })} />
+                <input className={inputClass} placeholder={t('talent:education.honors')} value={row.honors || ''} onChange={(e) => updateArrayItem(setForm, 'education', i, { honors: e.target.value })} />
               </div>
               <textarea className={inputClass} rows={2} placeholder={t('talent:education.description')} value={row.description} onChange={(e) => updateArrayItem(setForm, 'education', i, { description: e.target.value })} />
               <Button type="button" variant="outline" onClick={() => removeArrayItem(setForm, 'education', i)}>{t('talent:education.remove')}</Button>
@@ -358,6 +290,118 @@ export function TalentProfileForm({ form, setForm, activeTab }) {
         </div>
         <Button type="button" variant="secondary" onClick={() => addArrayItem(setForm, 'education', emptyEducation)}>{t('talent:education.add')}</Button>
       </SectionCard>
+    );
+  }
+
+  if (activeTab === 'tests') {
+    return (
+      <SectionCard title={t('talent:tabs.tests')}>
+        <div className="space-y-4">
+          {(form.examScores || []).map((row, i) => (
+            <div key={i} className="rounded-lg border border-dashed border-gray-300 dark:border-gray-600 p-4 space-y-3">
+              <div className="grid sm:grid-cols-2 gap-3">
+                <input className={inputClass} placeholder={t('talent:tests.testType') + ' (e.g. IELTS, GRE)'} value={row.testType} onChange={(e) => updateArrayItem(setForm, 'examScores', i, { testType: e.target.value })} />
+                <input className={inputClass} placeholder={t('talent:tests.overallScore')} value={row.overallScore} onChange={(e) => updateArrayItem(setForm, 'examScores', i, { overallScore: e.target.value })} />
+                <input type="date" className={inputClass} value={row.testDate ? String(row.testDate).slice(0, 10) : ''} onChange={(e) => updateArrayItem(setForm, 'examScores', i, { testDate: e.target.value })} />
+                <input type="date" className={inputClass} placeholder={t('talent:tests.expiryDate')} value={row.expiryDate ? String(row.expiryDate).slice(0, 10) : ''} onChange={(e) => updateArrayItem(setForm, 'examScores', i, { expiryDate: e.target.value })} />
+                <select className={inputClass} value={row.status} onChange={(e) => updateArrayItem(setForm, 'examScores', i, { status: e.target.value })}>
+                  {['planned', 'booked', 'completed'].map((k) => (
+                    <option key={k} value={k}>{t(`talent:tests.statusOptions.${k}`)}</option>
+                  ))}
+                </select>
+                <input className={inputClass} placeholder={t('talent:tests.referenceNumber')} value={row.referenceNumber} onChange={(e) => updateArrayItem(setForm, 'examScores', i, { referenceNumber: e.target.value })} />
+              </div>
+              <Button type="button" variant="outline" onClick={() => removeArrayItem(setForm, 'examScores', i)}>{t('talent:tests.remove')}</Button>
+            </div>
+          ))}
+        </div>
+        <Button type="button" variant="secondary" onClick={() => addArrayItem(setForm, 'examScores', emptyExamScore)}>{t('talent:tests.add')}</Button>
+      </SectionCard>
+    );
+  }
+
+  if (activeTab === 'goals') {
+    const sp = form.studentPreferences || {};
+    const bp = form.budgetProfile || {};
+    return (
+      <div className="space-y-6">
+        <SectionCard title={t('talent:tabs.goals')}>
+          <div className="space-y-4">
+            {(form.studyGoals || []).map((row, i) => (
+              <div key={i} className="rounded-lg border border-dashed border-gray-300 dark:border-gray-600 p-4 space-y-3">
+                <div className="grid sm:grid-cols-2 gap-3">
+                  <select className={inputClass} value={row.goalType} onChange={(e) => updateArrayItem(setForm, 'studyGoals', i, { goalType: e.target.value })}>
+                    {['study', 'scholarship', 'job', 'internship', 'fellowship', 'work_mobility', 'other'].map((k) => (
+                      <option key={k} value={k}>{t(`talent:goals.goalTypeOptions.${k}`)}</option>
+                    ))}
+                  </select>
+                  <input className={inputClass} placeholder={t('talent:goals.fieldOfStudy')} value={row.fieldOfStudy} onChange={(e) => updateArrayItem(setForm, 'studyGoals', i, { fieldOfStudy: e.target.value })} />
+                  <input className={inputClass} placeholder={t('talent:goals.destinationCountries')} value={formatListInput(row.destinationCountries)} onChange={(e) => updateArrayItem(setForm, 'studyGoals', i, { destinationCountries: parseListInput(e.target.value).map((c) => c.toUpperCase()) })} />
+                  <input className={inputClass} placeholder={t('talent:goals.targetIntake')} value={row.targetIntake} onChange={(e) => updateArrayItem(setForm, 'studyGoals', i, { targetIntake: e.target.value })} />
+                  <input type="number" min="2024" max="2035" className={inputClass} placeholder={t('talent:goals.targetYear')} value={row.targetYear} onChange={(e) => updateArrayItem(setForm, 'studyGoals', i, { targetYear: e.target.value })} />
+                  <select className={inputClass} value={row.studyMode} onChange={(e) => updateArrayItem(setForm, 'studyGoals', i, { studyMode: e.target.value })}>
+                    <option value="">— {t('talent:goals.studyMode')} —</option>
+                    {['full_time', 'part_time', 'online', 'blended'].map((k) => (
+                      <option key={k} value={k}>{t(`talent:goals.studyModeOptions.${k}`)}</option>
+                    ))}
+                  </select>
+                </div>
+                <textarea className={inputClass} rows={2} placeholder={t('talent:goals.notes')} value={row.notes} onChange={(e) => updateArrayItem(setForm, 'studyGoals', i, { notes: e.target.value })} />
+                <Button type="button" variant="outline" onClick={() => removeArrayItem(setForm, 'studyGoals', i)}>{t('talent:goals.remove')}</Button>
+              </div>
+            ))}
+          </div>
+          <Button type="button" variant="secondary" onClick={() => addArrayItem(setForm, 'studyGoals', emptyStudyGoal)}>{t('talent:goals.add')}</Button>
+        </SectionCard>
+
+        <SectionCard title={t('talent:goals.preferencesTitle')}>
+          <div className="grid sm:grid-cols-2 gap-4">
+            <FormField label={t('talent:goals.destinationCountries')} id="sp-dest" className="sm:col-span-2">
+              <input id="sp-dest" className={inputClass} placeholder="GB, DE, CA" value={formatListInput(sp.destinationCountries)} onChange={(e) => updateNested(setForm, 'studentPreferences.destinationCountries', parseListInput(e.target.value).map((c) => c.toUpperCase()))} />
+            </FormField>
+            <FormField label={t('talent:goals.fieldsOfStudy')} id="sp-fields" className="sm:col-span-2">
+              <input id="sp-fields" className={inputClass} value={formatListInput(sp.fieldsOfStudy)} onChange={(e) => updateNested(setForm, 'studentPreferences.fieldsOfStudy', parseListInput(e.target.value))} />
+            </FormField>
+            <FormField label={t('talent:goals.targetIntake')} id="sp-intake">
+              <input id="sp-intake" className={inputClass} value={sp.targetIntake || ''} onChange={(e) => updateNested(setForm, 'studentPreferences.targetIntake', e.target.value)} />
+            </FormField>
+            <FormField label={t('talent:goals.targetYear')} id="sp-year">
+              <input id="sp-year" type="number" min="2024" max="2035" className={inputClass} value={sp.targetYear || ''} onChange={(e) => updateNested(setForm, 'studentPreferences.targetYear', e.target.value)} />
+            </FormField>
+            <FormField label={t('talent:goals.preferredCurrency')} id="sp-curr">
+              <input id="sp-curr" className={inputClass} placeholder="USD" maxLength={3} value={sp.preferredCurrency || ''} onChange={(e) => updateNested(setForm, 'studentPreferences.preferredCurrency', e.target.value.toUpperCase())} />
+            </FormField>
+            <label className="flex items-center gap-3 min-h-[44px] cursor-pointer sm:col-span-2">
+              <input type="checkbox" checked={Boolean(sp.scholarshipRequired)} onChange={(e) => updateNested(setForm, 'studentPreferences.scholarshipRequired', e.target.checked)} className="h-5 w-5 rounded border-gray-300 text-primary focus:ring-primary" />
+              <span className="text-sm text-gray-700 dark:text-gray-300">{t('talent:goals.scholarshipRequired')}</span>
+            </label>
+          </div>
+        </SectionCard>
+
+        <SectionCard title={t('talent:goals.budgetTitle')}>
+          <div className="grid sm:grid-cols-2 gap-4">
+            {[['tuition', t('talent:goals.tuition')], ['living', t('talent:goals.living')], ['general', t('talent:goals.general')]].map(([field, label]) => (
+              <div key={field} className="sm:col-span-2 grid sm:grid-cols-2 gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
+                <FormField label={label + ' — ' + t('talent:goals.budgetAmount')} id={`bp-${field}-amt`}>
+                  <input id={`bp-${field}-amt`} type="number" min="0" className={inputClass} value={bp[field]?.amountMinor ?? ''} onChange={(e) => updateNested(setForm, `budgetProfile.${field}.amountMinor`, e.target.value)} />
+                </FormField>
+                <FormField label={t('talent:goals.budgetCurrency')} id={`bp-${field}-cur`}>
+                  <input id={`bp-${field}-cur`} className={inputClass} placeholder="USD" maxLength={3} value={bp[field]?.currency || ''} onChange={(e) => updateNested(setForm, `budgetProfile.${field}.currency`, e.target.value.toUpperCase())} />
+                </FormField>
+              </div>
+            ))}
+            <FormField label={t('talent:goals.budgetPeriod')} id="bp-period">
+              <select id="bp-period" className={inputClass} value={bp.period || ''} onChange={(e) => updateNested(setForm, 'budgetProfile.period', e.target.value)}>
+                <option value="">—</option>
+                {['monthly', 'yearly', 'total_program'].map((k) => <option key={k} value={k}>{k.replace('_', ' ')}</option>)}
+              </select>
+            </FormField>
+            <FormField label={t('talent:goals.fundingSource')} id="bp-funding">
+              <input id="bp-funding" className={inputClass} value={bp.fundingSource || ''} onChange={(e) => updateNested(setForm, 'budgetProfile.fundingSource', e.target.value)} />
+            </FormField>
+          </div>
+        </SectionCard>
+      </div>
     );
   }
 
@@ -370,6 +414,8 @@ export function TalentProfileForm({ form, setForm, activeTab }) {
               <div className="grid sm:grid-cols-2 gap-3">
                 <input className={inputClass} placeholder={t('talent:experience.company')} value={row.company} onChange={(e) => updateArrayItem(setForm, 'experience', i, { company: e.target.value })} />
                 <input className={inputClass} placeholder={t('talent:experience.title')} value={row.role} onChange={(e) => updateArrayItem(setForm, 'experience', i, { role: e.target.value })} />
+                <input className={inputClass} placeholder={t('talent:experience.employmentType') + ' (e.g. full_time)'} value={row.employmentType || ''} onChange={(e) => updateArrayItem(setForm, 'experience', i, { employmentType: e.target.value })} />
+                <input className={inputClass} placeholder={t('talent:experience.country')} value={row.country || ''} maxLength={2} onChange={(e) => updateArrayItem(setForm, 'experience', i, { country: e.target.value.toUpperCase() })} />
                 <input className={inputClass} placeholder={t('talent:experience.location')} value={row.location} onChange={(e) => updateArrayItem(setForm, 'experience', i, { location: e.target.value })} />
                 <label className="flex items-center gap-2 text-sm text-gray-700 dark:text-gray-300 min-h-[44px]">
                   <input type="checkbox" checked={row.isCurrent} onChange={(e) => updateArrayItem(setForm, 'experience', i, { isCurrent: e.target.checked })} />
@@ -476,12 +522,7 @@ export function TalentProfileForm({ form, setForm, activeTab }) {
               <input className={inputClass} placeholder={t('talent:portfolio.title')} value={row.title} onChange={(e) => updateArrayItem(setForm, 'portfolioReferences', i, { title: e.target.value })} />
               <textarea className={inputClass} rows={2} placeholder={t('talent:portfolio.description')} value={row.description} onChange={(e) => updateArrayItem(setForm, 'portfolioReferences', i, { description: e.target.value })} />
               <input className={inputClass} placeholder={t('talent:portfolio.url')} value={row.url} onChange={(e) => updateArrayItem(setForm, 'portfolioReferences', i, { url: e.target.value })} />
-              <input
-                className={inputClass}
-                placeholder={t('talent:portfolio.technologies')}
-                value={formatListInput(row.technologies)}
-                onChange={(e) => updateArrayItem(setForm, 'portfolioReferences', i, { technologies: parseListInput(e.target.value) })}
-              />
+              <input className={inputClass} placeholder={t('talent:portfolio.technologies')} value={formatListInput(row.technologies)} onChange={(e) => updateArrayItem(setForm, 'portfolioReferences', i, { technologies: parseListInput(e.target.value) })} />
               <label className="flex items-center gap-2 text-sm">
                 <input type="checkbox" checked={row.featured} onChange={(e) => updateArrayItem(setForm, 'portfolioReferences', i, { featured: e.target.checked })} />
                 {t('talent:portfolio.featured')}

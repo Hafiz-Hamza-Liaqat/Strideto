@@ -34,6 +34,32 @@ import {
   getMyFormPrefill,
   getMyCandidateCard,
 } from '../controllers/career/profileAdoptionController.js';
+// Mission 3 — student profile child-record CRUD + completeness
+import {
+  getMyStudentCompleteness,
+  addEducation,
+  updateEducation,
+  removeEducation,
+  addExperience,
+  updateExperience,
+  removeExperience,
+  listExamScores,
+  addExamScore,
+  updateExamScore,
+  removeExamScore,
+  listStudyGoals,
+  addStudyGoal,
+  updateStudyGoal,
+  removeStudyGoal,
+  listCertifications,
+  addCertification,
+  updateCertification,
+  removeCertification,
+  getStudentPreferences,
+  updateStudentPreferences,
+  getBudgetProfile,
+  updateBudgetProfile,
+} from '../controllers/career/studentProfileController.js';
 import { uploadResume } from '../middleware/upload.js';
 import { uploadLimiter } from '../middleware/rateLimit.js';
 
@@ -78,6 +104,45 @@ talentRouter.get('/talent/me/summary', ...talentAuth, getMyProfileSummary);
 talentRouter.get('/talent/me/apply-kit', ...talentAuth, getMyApplyKit);
 talentRouter.get('/talent/me/prefill', ...talentAuth, getMyFormPrefill);
 talentRouter.get('/talent/me/candidate-card', ...talentAuth, getMyCandidateCard);
+
+// Mission 3 — student profile completeness
+talentRouter.get('/talent/me/completeness', ...talentAuth, getMyStudentCompleteness);
+
+// Mission 3 — education child-record CRUD
+talentRouter.post('/talent/me/education', ...talentAuth, addEducation);
+talentRouter.patch('/talent/me/education/:id', ...talentAuth, updateEducation);
+talentRouter.delete('/talent/me/education/:id', ...talentAuth, removeEducation);
+
+// Mission 3 — experience child-record CRUD
+talentRouter.post('/talent/me/experience', ...talentAuth, addExperience);
+talentRouter.patch('/talent/me/experience/:id', ...talentAuth, updateExperience);
+talentRouter.delete('/talent/me/experience/:id', ...talentAuth, removeExperience);
+
+// Mission 3 — exam scores
+talentRouter.get('/talent/me/exam-scores', ...talentAuth, listExamScores);
+talentRouter.post('/talent/me/exam-scores', ...talentAuth, addExamScore);
+talentRouter.patch('/talent/me/exam-scores/:id', ...talentAuth, updateExamScore);
+talentRouter.delete('/talent/me/exam-scores/:id', ...talentAuth, removeExamScore);
+
+// Mission 3 — study goals
+talentRouter.get('/talent/me/study-goals', ...talentAuth, listStudyGoals);
+talentRouter.post('/talent/me/study-goals', ...talentAuth, addStudyGoal);
+talentRouter.patch('/talent/me/study-goals/:id', ...talentAuth, updateStudyGoal);
+talentRouter.delete('/talent/me/study-goals/:id', ...talentAuth, removeStudyGoal);
+
+// Mission 3 — certifications
+talentRouter.get('/talent/me/certifications', ...talentAuth, listCertifications);
+talentRouter.post('/talent/me/certifications', ...talentAuth, addCertification);
+talentRouter.patch('/talent/me/certifications/:id', ...talentAuth, updateCertification);
+talentRouter.delete('/talent/me/certifications/:id', ...talentAuth, removeCertification);
+
+// Mission 3 — student preferences (single subdoc)
+talentRouter.get('/talent/me/student-preferences', ...talentAuth, getStudentPreferences);
+talentRouter.put('/talent/me/student-preferences', ...talentAuth, updateStudentPreferences);
+
+// Mission 3 — budget profile (single subdoc)
+talentRouter.get('/talent/me/budget', ...talentAuth, getBudgetProfile);
+talentRouter.put('/talent/me/budget', ...talentAuth, updateBudgetProfile);
 
 // Staff hydration (backend migration)
 talentRouter.post('/admin/talent/hydrate', requireAuth, requireStaff, runTalentHydration);

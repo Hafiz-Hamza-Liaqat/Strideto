@@ -5,7 +5,7 @@ const salaryExpectationSchema = new mongoose.Schema(
   {
     min: { type: Number },
     max: { type: Number },
-    currency: { type: String, trim: true, default: 'PKR' },
+    currency: { type: String, trim: true, default: '' },
     period: { type: String, trim: true, default: 'monthly' },
   },
   { _id: false }

@@ -1,5 +1,5 @@
 /**
- * Shared TalentProfile validation (C.8.0.2A).
+ * Shared TalentProfile validation (C.8.0.2A / Mission 3).
  */
 import {
   TALENT_PROFILE_STATUSES,
@@ -33,6 +33,20 @@ import {
 import { TIMELINE_VERBS, TIMELINE_OBJECT_TYPES } from './timelineVerbs.js';
 import { normalizeLocale } from '../localization/localeResolver.js';
 import { canTransition, resolveStageTemplateId } from './applicationStageMachine.js';
+import {
+  parseExamScoreEntry,
+  validateExamScoreEntry,
+  parseStudyGoalEntry,
+  validateStudyGoalEntry,
+  parseStudentPreferences,
+  validateStudentPreferences,
+  parseBudgetProfile,
+  validateBudgetProfile,
+  parseEducationEntry,
+  validateEducationEntry,
+  parseExperienceEntry,
+  validateExperienceEntry,
+} from './studentProfileValidation.js';
 
 const SET = (arr) => new Set(arr);
 
@@ -202,6 +216,24 @@ export function parseTalentProfileInput(body = {}, options = {}) {
     out.languages = Array.isArray(body.languages) ? body.languages.slice(0, 30) : [];
   }
 
+  // Mission 3 — student profile extensions
+  if (body.examScores !== undefined) {
+    out.examScores = Array.isArray(body.examScores)
+      ? body.examScores.slice(0, 30).map(parseExamScoreEntry)
+      : [];
+  }
+  if (body.studyGoals !== undefined) {
+    out.studyGoals = Array.isArray(body.studyGoals)
+      ? body.studyGoals.slice(0, 20).map(parseStudyGoalEntry)
+      : [];
+  }
+  if (body.studentPreferences !== undefined && typeof body.studentPreferences === 'object') {
+    out.studentPreferences = parseStudentPreferences(body.studentPreferences);
+  }
+  if (body.budgetProfile !== undefined && typeof body.budgetProfile === 'object') {
+    out.budgetProfile = parseBudgetProfile(body.budgetProfile);
+  }
+
   if (!partial && !out.displayName) {
     out.displayName = '';
   }
@@ -242,8 +274,52 @@ export function validateTalentProfileInput(input = {}, options = {}) {
     }
   }
 
+  // Mission 3 student profile extensions
+  if (Array.isArray(input.education)) {
+    for (let i = 0; i < input.education.length; i += 1) {
+      errors.push(...validateEducationEntry(input.education[i]).map((e) => `education[${i}]: ${e}`));
+    }
+  }
+  if (Array.isArray(input.experience)) {
+    for (let i = 0; i < input.experience.length; i += 1) {
+      errors.push(...validateExperienceEntry(input.experience[i]).map((e) => `experience[${i}]: ${e}`));
+    }
+  }
+  if (Array.isArray(input.examScores)) {
+    for (let i = 0; i < input.examScores.length; i += 1) {
+      errors.push(...validateExamScoreEntry(input.examScores[i]).map((e) => `examScores[${i}]: ${e}`));
+    }
+  }
+  if (Array.isArray(input.studyGoals)) {
+    for (let i = 0; i < input.studyGoals.length; i += 1) {
+      errors.push(...validateStudyGoalEntry(input.studyGoals[i]).map((e) => `studyGoals[${i}]: ${e}`));
+    }
+  }
+  if (input.studentPreferences != null) {
+    errors.push(...validateStudentPreferences(input.studentPreferences).map((e) => `studentPreferences: ${e}`));
+  }
+  if (input.budgetProfile != null) {
+    errors.push(...validateBudgetProfile(input.budgetProfile).map((e) => `budgetProfile: ${e}`));
+  }
+
   return errors;
 }
+
+// Re-export student profile helpers so callers can use one import
+export {
+  parseExamScoreEntry,
+  validateExamScoreEntry,
+  parseStudyGoalEntry,
+  validateStudyGoalEntry,
+  parseStudentPreferences,
+  validateStudentPreferences,
+  parseBudgetProfile,
+  validateBudgetProfile,
+  parseEducationEntry,
+  validateEducationEntry,
+  parseExperienceEntry,
+  validateExperienceEntry,
+} from './studentProfileValidation.js';
 
 /**
  * @param {object} body

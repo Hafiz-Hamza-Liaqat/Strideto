@@ -1,5 +1,6 @@
 import mongoose from 'mongoose';
 
+// _id: true (default) — stable ObjectId per certification record for child-record CRUD
 export const certificationReferenceSchema = new mongoose.Schema(
   {
     name: { type: String, trim: true, default: '' },
@@ -9,7 +10,8 @@ export const certificationReferenceSchema = new mongoose.Schema(
     credentialId: { type: mongoose.Schema.Types.ObjectId, ref: 'Credential' },
     externalUrl: { type: String, trim: true, default: '' },
   },
-  { _id: false }
+  // _id: true is the Mongoose default; explicitly allowing it for stable child-record addressing
+  {}
 );
 
 export const CertificationReference = certificationReferenceSchema;
