@@ -1,11 +1,12 @@
 /**
- * Admin education management routes (Mission 4).
+ * Admin education management routes (Missions 4 + 6).
  *
  * All routes require Auth + Staff + Admin already enforced by the parent
  * adminRouter middleware. This sub-router adds education-specific endpoints.
  */
 import { Router } from 'express';
 import * as edu from '../controllers/education/adminEducationController.js';
+import * as acc from '../controllers/education/adminAcceptanceController.js';
 
 export const adminEducationRouter = Router();
 
@@ -49,3 +50,10 @@ adminEducationRouter.patch('/education/institutions/:id', edu.adminUpdateInstitu
 adminEducationRouter.get('/education/programs', edu.adminListPrograms);
 adminEducationRouter.post('/education/programs', edu.adminCreateProgram);
 adminEducationRouter.patch('/education/programs/:id', edu.adminUpdateProgram);
+
+// ── Test Acceptance Explorer (Mission 6) ──────────────────────────────────────
+adminEducationRouter.get('/education/acceptance', acc.adminListAcceptance);
+adminEducationRouter.get('/education/acceptance/:id', acc.adminGetAcceptance);
+adminEducationRouter.post('/education/acceptance', acc.adminCreateAcceptance);
+adminEducationRouter.patch('/education/acceptance/:id', acc.adminUpdateAcceptance);
+adminEducationRouter.post('/education/acceptance/:id/supersede', acc.adminSupersedeAcceptance);

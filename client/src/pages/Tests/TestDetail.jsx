@@ -5,6 +5,22 @@ import { SeoHead } from '../../components/seo';
 import { testsApi } from '../../services/listingsService';
 import { ROUTES } from '../../constants';
 
+const FRESHNESS_LABELS = {
+  fresh: { label: 'Current', className: 'text-green-600 dark:text-green-400' },
+  review_due: { label: 'Review due', className: 'text-yellow-600 dark:text-yellow-400' },
+  stale: { label: 'Stale — verify with institution', className: 'text-red-600 dark:text-red-400' },
+  broken: { label: 'Source unavailable', className: 'text-red-600 dark:text-red-400' },
+  unknown: { label: 'Not yet verified', className: 'text-gray-500 dark:text-gray-400' },
+};
+
+const ACCEPTANCE_BADGES = {
+  accepted: { label: 'Accepted', className: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300' },
+  conditional: { label: 'Conditional', className: 'bg-yellow-100 dark:bg-yellow-900/40 text-yellow-700 dark:text-yellow-300' },
+  not_accepted: { label: 'Not accepted', className: 'bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-300' },
+  case_by_case: { label: 'Case by case', className: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' },
+  unknown: { label: 'Not confirmed', className: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300' },
+};
+
 const TRUST_BADGES = {
   official: { label: 'Official', className: 'bg-green-100 dark:bg-green-900/40 text-green-700 dark:text-green-300' },
   trusted: { label: 'Trusted', className: 'bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300' },
@@ -43,6 +59,8 @@ export default function TestDetail() {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [acceptance, setAcceptance] = useState(null);
+  const [acceptanceLoading, setAcceptanceLoading] = useState(false);
 
   useEffect(() => {
     if (!slug) return;
@@ -53,6 +71,16 @@ export default function TestDetail() {
       .then(({ data: d }) => setData(d))
       .catch(() => setError('Test not found.'))
       .finally(() => setLoading(false));
+  }, [slug]);
+
+  useEffect(() => {
+    if (!slug) return;
+    setAcceptanceLoading(true);
+    testsApi
+      .getAcceptance(slug, { limit: 10 })
+      .then(({ data: d }) => setAcceptance(d))
+      .catch(() => setAcceptance(null))
+      .finally(() => setAcceptanceLoading(false));
   }, [slug]);
 
   if (loading) {
@@ -333,6 +361,31 @@ export default function TestDetail() {
             </div>
           </Section>
         )}
+
+        {/* Test Acceptance Explorer (Mission 6) */}
+        {(acceptanceLoading || (acceptance && acceptance.total > 0)) && (
+          <Section title="Where Is This Test Accepted?">
+            {acceptanceLoading ? (
+              <div className="h-24 bg-gray-100 dark:bg-gray-700 rounded-lg animate-pulse" />
+            ) : (
+              <>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+                  Showing source-backed acceptance claims. Always verify current requirements with the institution.
+                </p>
+                <div className="space-y-3">
+                  {(acceptance.data || []).map((claim) => (
+                    <AcceptanceCard key={claim._id} claim={claim} />
+                  ))}
+                </div>
+                {acceptance.total > 10 && (
+                  <p className="mt-3 text-xs text-gray-400 dark:text-gray-500">
+                    Showing 10 of {acceptance.total} acceptance claims.
+                  </p>
+                )}
+              </>
+            )}
+          </Section>
+        )}
       </div>
     </>
   );
@@ -375,6 +428,85 @@ function ResourceCard({ resource }) {
       >
         Visit ↗
       </a>
+    </div>
+  );
+}
+
+function AcceptanceCard({ claim }) {
+  const badge = ACCEPTANCE_BADGES[claim.acceptanceStatus] || ACCEPTANCE_BADGES.unknown;
+  const freshness = FRESHNESS_LABELS[claim.freshnessState] || FRESHNESS_LABELS.unknown;
+  const scopeLabel = {
+    country: 'Country',
+    institution: 'Institution',
+    program: 'Program',
+    program_intake: 'Program intake',
+  }[claim.acceptanceScope] || claim.acceptanceScope;
+
+  const institutionName = claim.institutionId?.officialName;
+  const programName = claim.programId?.name;
+
+  return (
+    <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+      <div className="flex flex-wrap items-start gap-2 mb-2">
+        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${badge.className}`}>
+          {badge.label}
+        </span>
+        <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
+          {scopeLabel}
+        </span>
+        {claim.intake && (
+          <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">
+            {claim.intake}
+          </span>
+        )}
+      </div>
+
+      {(institutionName || programName || claim.countryCode) && (
+        <p className="text-sm font-medium text-gray-900 dark:text-white mb-1">
+          {programName || institutionName || claim.countryCode}
+        </p>
+      )}
+
+      {claim.minimumOverallScore != null && (
+        <p className="text-xs text-gray-600 dark:text-gray-300 mb-1">
+          Minimum overall score: <span className="font-medium">{claim.minimumOverallScore}</span>
+        </p>
+      )}
+
+      {(claim.sectionMinimums || []).length > 0 && (
+        <div className="text-xs text-gray-600 dark:text-gray-300 mb-1">
+          <span className="font-medium">Section minimums: </span>
+          {claim.sectionMinimums.map((s, i) => (
+            <span key={i}>{i > 0 && ' · '}{s.sectionName}: {s.minimum}{s.scale ? ` (${s.scale})` : ''}</span>
+          ))}
+        </div>
+      )}
+
+      {claim.conditions && (
+        <p className="text-xs text-yellow-700 dark:text-yellow-400 mt-1">{claim.conditions}</p>
+      )}
+
+      <div className="mt-2 flex flex-wrap items-center gap-3 text-xs text-gray-400 dark:text-gray-500">
+        {claim.lastVerifiedAt && (
+          <span>
+            Last verified: {new Date(claim.lastVerifiedAt).toLocaleDateString()}
+          </span>
+        )}
+        <span className={freshness.className}>{freshness.label}</span>
+        {(claim.sources || []).length > 0 && claim.sources[0].sourceUrl && (
+          <a
+            href={claim.sources[0].sourceUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-blue-500 dark:text-blue-400 hover:underline"
+          >
+            {claim.sources[0].publisher || 'Source'} ↗
+          </a>
+        )}
+        {(claim.sources || []).length === 0 && (
+          <span className="text-yellow-500 dark:text-yellow-400">Unverified — no source on file</span>
+        )}
+      </div>
     </div>
   );
 }
