@@ -35,14 +35,46 @@ import { normalizeCountryCode } from '../../../../shared/international/country.j
 
 // ── Source/evidence helper ────────────────────────────────────────────────────
 
-function parseSources(rawSources) {
-  if (!Array.isArray(rawSources)) return [];
+/**
+ * Parse and validate source entries.
+ *
+ * strict=false (draft): drops invalid entries silently (legacy behaviour preserved).
+ * strict=true (published/high-value): returns { ok: false, errors } on any
+ * invalid entry so the controller can reject the request with a clear error.
+ *
+ * @param {any[]} rawSources
+ * @param {object} [opts]
+ * @param {boolean} [opts.strict]
+ * @returns {{ ok: true, sources: object[] } | { ok: false, errors: string[] }}
+ */
+function parseSources(rawSources, { strict = false } = {}) {
+  if (!Array.isArray(rawSources)) return { ok: true, sources: [] };
   const out = [];
-  for (const s of rawSources.slice(0, 20)) {
-    const result = validateSource(s);
-    if (result.ok) out.push(result.value);
+  const errors = [];
+  for (let i = 0; i < Math.min(rawSources.length, 20); i++) {
+    const result = validateSource(rawSources[i]);
+    if (result.ok) {
+      out.push(result.value);
+    } else if (strict) {
+      errors.push(`sources[${i}]: ${result.errors.join(', ')}`);
+    }
+    // permissive mode: silently drop invalid entries (preserves draft legacy data)
   }
-  return out;
+  if (errors.length) return { ok: false, errors };
+  return { ok: true, sources: out };
+}
+
+/**
+ * Extract sources array from a parseSources result, or respond with 400 on error.
+ * Convenience wrapper for controller use.
+ */
+function extractSources(rawSources, res, { strict = false } = {}) {
+  const result = parseSources(rawSources, { strict });
+  if (!result.ok) {
+    res.status(400).json({ error: result.errors.join('; ') });
+    return null;
+  }
+  return result.sources;
 }
 
 // ── Test Providers ────────────────────────────────────────────────────────────
@@ -71,7 +103,7 @@ export const adminCreateProvider = asyncHandler(async (req, res) => {
     region: sanitizeString(body.region),
     registrationUrl: sanitizeString(body.registrationUrl),
     helpUrl: sanitizeString(body.helpUrl),
-    sources: parseSources(body.sources),
+    sources: parseSources(body.sources).sources,
     status: body.status === 'archived' ? 'archived' : 'active',
   });
 
@@ -89,7 +121,7 @@ export const adminUpdateProvider = asyncHandler(async (req, res) => {
   if (body.region !== undefined) update.region = sanitizeString(body.region);
   if (body.registrationUrl !== undefined) update.registrationUrl = sanitizeString(body.registrationUrl);
   if (body.helpUrl !== undefined) update.helpUrl = sanitizeString(body.helpUrl);
-  if (body.sources !== undefined) update.sources = parseSources(body.sources);
+  if (body.sources !== undefined) update.sources = parseSources(body.sources).sources;
   if (body.status !== undefined && ['active', 'archived'].includes(body.status)) {
     update.status = body.status;
   }
@@ -138,6 +170,13 @@ export const adminCreateTest = asyncHandler(async (req, res) => {
   }
 
   const slug = body.slug ? sanitizeString(body.slug) : educationSlug(name);
+  const status = isValidPubStatus(body.status) ? body.status : 'draft';
+
+  // Published tests are high-value factual records — validate sources strictly.
+  const sourcesResult = parseSources(body.sources, { strict: status === 'published' });
+  if (!sourcesResult.ok) {
+    return res.status(400).json({ error: sourcesResult.errors.join('; ') });
+  }
 
   const deliveryModes = Array.isArray(body.deliveryModes)
     ? body.deliveryModes.filter(isValidDeliveryMode)
@@ -163,9 +202,9 @@ export const adminCreateTest = asyncHandler(async (req, res) => {
     validityMonths: body.validityMonths != null ? Number(body.validityMonths) : null,
     registrationUrl: sanitizeString(body.registrationUrl),
     officialWebsite: sanitizeString(body.officialWebsite),
-    status: isValidPubStatus(body.status) ? body.status : 'draft',
+    status,
     displayOrder: body.displayOrder != null ? Number(body.displayOrder) : 0,
-    sources: parseSources(body.sources),
+    sources: sourcesResult.sources,
   });
 
   res.status(201).json(doc);
@@ -198,7 +237,7 @@ export const adminUpdateTest = asyncHandler(async (req, res) => {
   if (body.officialWebsite !== undefined) update.officialWebsite = sanitizeString(body.officialWebsite);
   if (body.status !== undefined && isValidPubStatus(body.status)) update.status = body.status;
   if (body.displayOrder !== undefined) update.displayOrder = Number(body.displayOrder);
-  if (body.sources !== undefined) update.sources = parseSources(body.sources);
+  if (body.sources !== undefined) update.sources = parseSources(body.sources).sources;
 
   const doc = await Test.findByIdAndUpdate(req.params.id, update, { new: true });
   if (!doc) return res.status(404).json({ error: 'Test not found' });
@@ -236,7 +275,7 @@ export const adminCreatePrepGuide = asyncHandler(async (req, res) => {
     copyrightPolicyAcknowledged: body.copyrightPolicyAcknowledged === true,
     status: isValidPubStatus(body.status) ? body.status : 'draft',
     version: body.version ? Number(body.version) : 1,
-    sources: parseSources(body.sources),
+    sources: parseSources(body.sources).sources,
   });
 
   res.status(201).json(doc);
@@ -257,7 +296,7 @@ export const adminUpdatePrepGuide = asyncHandler(async (req, res) => {
   if (body.copyrightPolicyAcknowledged !== undefined) update.copyrightPolicyAcknowledged = body.copyrightPolicyAcknowledged === true;
   if (body.status !== undefined && isValidPubStatus(body.status)) update.status = body.status;
   if (body.version !== undefined) update.version = Number(body.version);
-  if (body.sources !== undefined) update.sources = parseSources(body.sources);
+  if (body.sources !== undefined) update.sources = parseSources(body.sources).sources;
 
   const doc = await TestPrepGuide.findByIdAndUpdate(req.params.id, update, { new: true });
   if (!doc) return res.status(404).json({ error: 'Prep guide not found' });
@@ -302,7 +341,7 @@ export const adminCreateResource = asyncHandler(async (req, res) => {
     isPaid: body.isPaid === true,
     platformType: sanitizeString(body.platformType),
     description: sanitizeString(body.description),
-    sources: parseSources(body.sources),
+    sources: parseSources(body.sources).sources,
     status: isValidPubStatus(body.status) ? body.status : 'draft',
   });
 
@@ -325,7 +364,7 @@ export const adminUpdateResource = asyncHandler(async (req, res) => {
   if (body.isPaid !== undefined) update.isPaid = body.isPaid === true;
   if (body.platformType !== undefined) update.platformType = sanitizeString(body.platformType);
   if (body.description !== undefined) update.description = sanitizeString(body.description);
-  if (body.sources !== undefined) update.sources = parseSources(body.sources);
+  if (body.sources !== undefined) update.sources = parseSources(body.sources).sources;
   if (body.status !== undefined && isValidPubStatus(body.status)) update.status = body.status;
 
   const doc = await ExternalTestResource.findByIdAndUpdate(req.params.id, update, { new: true });
@@ -370,7 +409,7 @@ export const adminCreateAlert = asyncHandler(async (req, res) => {
       ? body.countryCodes.map((c) => normalizeCountryCode(c)).filter(Boolean)
       : [],
     officialSourceUrl: sanitizeString(body.officialSourceUrl),
-    sources: parseSources(body.sources),
+    sources: parseSources(body.sources).sources,
     publicationStatus: isValidPubStatus(body.publicationStatus) ? body.publicationStatus : 'draft',
     importance: isValidAlertImportance(body.importance) ? body.importance : 'medium',
   });
@@ -393,7 +432,7 @@ export const adminUpdateAlert = asyncHandler(async (req, res) => {
       : [];
   }
   if (body.officialSourceUrl !== undefined) update.officialSourceUrl = sanitizeString(body.officialSourceUrl);
-  if (body.sources !== undefined) update.sources = parseSources(body.sources);
+  if (body.sources !== undefined) update.sources = parseSources(body.sources).sources;
   if (body.publicationStatus !== undefined && isValidPubStatus(body.publicationStatus)) update.publicationStatus = body.publicationStatus;
   if (body.importance !== undefined && isValidAlertImportance(body.importance)) update.importance = body.importance;
 
@@ -430,7 +469,7 @@ export const adminCreateCountryEducation = asyncHandler(async (req, res) => {
     immigrationAuthorityName: sanitizeString(body.immigrationAuthorityName),
     immigrationAuthorityUrl: sanitizeString(body.immigrationAuthorityUrl),
     informationalNotes: sanitizeString(body.informationalNotes),
-    sources: parseSources(body.sources),
+    sources: parseSources(body.sources).sources,
     status: isValidPubStatus(body.status) ? body.status : 'draft',
   });
 
@@ -449,7 +488,7 @@ export const adminUpdateCountryEducation = asyncHandler(async (req, res) => {
   if (body.immigrationAuthorityName !== undefined) update.immigrationAuthorityName = sanitizeString(body.immigrationAuthorityName);
   if (body.immigrationAuthorityUrl !== undefined) update.immigrationAuthorityUrl = sanitizeString(body.immigrationAuthorityUrl);
   if (body.informationalNotes !== undefined) update.informationalNotes = sanitizeString(body.informationalNotes);
-  if (body.sources !== undefined) update.sources = parseSources(body.sources);
+  if (body.sources !== undefined) update.sources = parseSources(body.sources).sources;
   if (body.status !== undefined && isValidPubStatus(body.status)) update.status = body.status;
 
   const doc = await CountryEducation.findByIdAndUpdate(req.params.id, update, { new: true });
@@ -499,7 +538,7 @@ export const adminCreateInstitution = asyncHandler(async (req, res) => {
     institutionType: body.institutionType,
     isPublic: body.isPublic != null ? Boolean(body.isPublic) : null,
     organizationId: body.organizationId || undefined,
-    sources: parseSources(body.sources),
+    sources: parseSources(body.sources).sources,
     status: isValidPubStatus(body.status) ? body.status : 'draft',
   });
 
@@ -518,7 +557,7 @@ export const adminUpdateInstitution = asyncHandler(async (req, res) => {
   if (body.officialDomain !== undefined) update.officialDomain = sanitizeString(body.officialDomain).toLowerCase();
   if (body.institutionType !== undefined && isValidInstitutionType(body.institutionType)) update.institutionType = body.institutionType;
   if (body.isPublic !== undefined) update.isPublic = body.isPublic != null ? Boolean(body.isPublic) : null;
-  if (body.sources !== undefined) update.sources = parseSources(body.sources);
+  if (body.sources !== undefined) update.sources = parseSources(body.sources).sources;
   if (body.status !== undefined && isValidPubStatus(body.status)) update.status = body.status;
 
   const doc = await CanonicalInstitution.findByIdAndUpdate(req.params.id, update, { new: true });
@@ -577,7 +616,7 @@ export const adminCreateProgram = asyncHandler(async (req, res) => {
     durationMonths: body.durationMonths ? Number(body.durationMonths) : undefined,
     officialProgramUrl: sanitizeString(body.officialProgramUrl),
     status: isValidPubStatus(body.status) ? body.status : 'draft',
-    sources: parseSources(body.sources),
+    sources: parseSources(body.sources).sources,
   });
 
   res.status(201).json(doc);
@@ -595,7 +634,7 @@ export const adminUpdateProgram = asyncHandler(async (req, res) => {
   if (body.durationMonths !== undefined) update.durationMonths = Number(body.durationMonths);
   if (body.officialProgramUrl !== undefined) update.officialProgramUrl = sanitizeString(body.officialProgramUrl);
   if (body.status !== undefined && isValidPubStatus(body.status)) update.status = body.status;
-  if (body.sources !== undefined) update.sources = parseSources(body.sources);
+  if (body.sources !== undefined) update.sources = parseSources(body.sources).sources;
 
   const doc = await Program.findByIdAndUpdate(req.params.id, update, { new: true });
   if (!doc) return res.status(404).json({ error: 'Program not found' });
