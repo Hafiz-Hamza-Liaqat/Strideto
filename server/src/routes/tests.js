@@ -1,6 +1,8 @@
 import { Router } from 'express';
 import * as tests from '../controllers/education/testController.js';
 import * as acceptance from '../controllers/education/testAcceptanceController.js';
+import * as scholarships from '../controllers/education/scholarshipController.js';
+import * as programs from '../controllers/education/programIntelligenceController.js';
 
 export const testsRouter = Router();
 
@@ -28,7 +30,13 @@ testsRouter.get('/education/institutions/:slug', tests.getInstitution);
 // ── Institution acceptance — reverse (Mission 6) ──────────────────────────────
 testsRouter.get('/education/institutions/:slug/acceptance', acceptance.getInstitutionAcceptance);
 
-// ── Programs (public, Mission 6) ──────────────────────────────────────────────
-testsRouter.get('/education/programs', acceptance.listPrograms);
-testsRouter.get('/education/programs/:slug', acceptance.getProgram);
+// ── Programs (public, Mission 6 + 7) ─────────────────────────────────────────
+testsRouter.get('/education/programs', programs.listPrograms);
+testsRouter.get('/education/programs/:slug', programs.getProgramDetail);
 testsRouter.get('/education/programs/:slug/acceptance', acceptance.getProgramAcceptance);
+testsRouter.get('/education/programs/compare', programs.comparePrograms);
+
+// ── Scholarships (public, Mission 7) ─────────────────────────────────────────
+testsRouter.get('/education/scholarships', scholarships.listScholarships);
+testsRouter.get('/education/scholarships/compare', scholarships.compareScholarships);
+testsRouter.get('/education/scholarships/:slug', scholarships.getScholarship);

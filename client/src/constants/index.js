@@ -71,6 +71,10 @@ export const ROUTES = {
   ASSESSMENT_TAKE: '/assessments/:slug/take',
   TEST_HUB: '/tests',
   TEST_DETAIL: '/tests/:slug',
+  CANONICAL_SCHOLARSHIPS: '/scholarship-intelligence',
+  CANONICAL_SCHOLARSHIP_DETAIL: '/scholarship-intelligence/:slug',
+  PROGRAM_EXPLORER: '/program-explorer',
+  PROGRAM_DETAIL: '/program-explorer/:slug',
 };
 
 export const ROLES = {

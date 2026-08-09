@@ -289,4 +289,21 @@ export const testsApi = {
   listPrograms: (params) => axiosInstance.get(`/education/programs${buildParams(params)}`),
   getProgram: (slug) => axiosInstance.get(`/education/programs/${encodeURIComponent(slug)}`),
   getProgramAcceptance: (slug, params) => axiosInstance.get(`/education/programs/${encodeURIComponent(slug)}/acceptance${buildParams(params)}`),
+  comparePrograms: (ids) => axiosInstance.get(`/education/programs/compare?slugs=${ids.join(',')}`),
+};
+
+// ── Canonical Scholarship Intelligence (Mission 7) ───────────────────────────
+
+export const canonicalScholarshipsApi = {
+  list: (params) => axiosInstance.get(`/education/scholarships${buildParams(params)}`),
+  get: (slug) => axiosInstance.get(`/education/scholarships/${encodeURIComponent(slug)}`),
+  compare: (slugs) => axiosInstance.get(`/education/scholarships/compare?slugs=${slugs.join(',')}`),
+};
+
+// ── Program Intelligence (Mission 7) ─────────────────────────────────────────
+
+export const programIntelligenceApi = {
+  list: (params) => axiosInstance.get(`/education/programs${buildParams(params)}`),
+  get: (slug) => axiosInstance.get(`/education/programs/${encodeURIComponent(slug)}`),
+  compare: (slugs) => axiosInstance.get(`/education/programs/compare?slugs=${slugs.join(',')}`),
 };

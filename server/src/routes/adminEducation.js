@@ -1,5 +1,5 @@
 /**
- * Admin education management routes (Missions 4 + 6).
+ * Admin education management routes (Missions 4, 6, 7).
  *
  * All routes require Auth + Staff + Admin already enforced by the parent
  * adminRouter middleware. This sub-router adds education-specific endpoints.
@@ -7,6 +7,7 @@
 import { Router } from 'express';
 import * as edu from '../controllers/education/adminEducationController.js';
 import * as acc from '../controllers/education/adminAcceptanceController.js';
+import * as sch from '../controllers/education/adminScholarshipController.js';
 
 export const adminEducationRouter = Router();
 
@@ -57,3 +58,27 @@ adminEducationRouter.get('/education/acceptance/:id', acc.adminGetAcceptance);
 adminEducationRouter.post('/education/acceptance', acc.adminCreateAcceptance);
 adminEducationRouter.patch('/education/acceptance/:id', acc.adminUpdateAcceptance);
 adminEducationRouter.post('/education/acceptance/:id/supersede', acc.adminSupersedeAcceptance);
+
+// ── Canonical Scholarships (Mission 7) ───────────────────────────────────────
+adminEducationRouter.get('/education/scholarships', sch.adminListScholarships);
+adminEducationRouter.get('/education/scholarships/:id', sch.adminGetScholarship);
+adminEducationRouter.post('/education/scholarships', sch.adminCreateScholarship);
+adminEducationRouter.patch('/education/scholarships/:id', sch.adminUpdateScholarship);
+
+// ── Scholarship Cycles ────────────────────────────────────────────────────────
+adminEducationRouter.get('/education/scholarships/:scholarshipId/cycles', sch.adminListCycles);
+adminEducationRouter.post('/education/scholarships/:scholarshipId/cycles', sch.adminCreateCycle);
+adminEducationRouter.patch('/education/scholarships/:scholarshipId/cycles/:cycleId', sch.adminUpdateCycle);
+
+// ── Scholarship Applicability ─────────────────────────────────────────────────
+adminEducationRouter.get('/education/scholarships/:scholarshipId/applicability', sch.adminListApplicability);
+adminEducationRouter.post('/education/scholarships/:scholarshipId/applicability', sch.adminCreateApplicability);
+adminEducationRouter.patch('/education/scholarships/:scholarshipId/applicability/:applicabilityId', sch.adminUpdateApplicability);
+
+// ── Program Requirements ──────────────────────────────────────────────────────
+adminEducationRouter.get('/education/programs/:programId/requirements', sch.adminListProgramRequirements);
+adminEducationRouter.post('/education/programs/:programId/requirements', sch.adminCreateProgramRequirement);
+adminEducationRouter.patch('/education/programs/:programId/requirements/:requirementId', sch.adminUpdateProgramRequirement);
+
+// ── Program Intelligence (Mission 7 extended fields) ─────────────────────────
+adminEducationRouter.patch('/education/programs/:programId/intelligence', sch.adminUpdateProgramIntelligence);
