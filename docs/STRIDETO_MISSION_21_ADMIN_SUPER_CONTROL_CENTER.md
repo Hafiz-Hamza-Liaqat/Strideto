@@ -34,8 +34,9 @@ Centralized visibility does not grant unrestricted private-data access. All list
 
 ## Verification
 
-- Mission 21 server files and the comprehensive test source pass Node syntax validation.
-- The focused Mission 21 Jest suite could not execute because Jest is not installed or cached in the repository; no dependency was downloaded under the mission's no-network rule.
+- The focused Mission 21 suite was converted to the repository's established Node-native `assert` harness and executed locally without installing dependencies or using the network.
+- All 60/60 behavioral and security checks passed, covering realm/RBAC enforcement, actor derivation, bounded persisted metrics, domain reuse, privacy projections, privileged-support audit, financial immutability, pagination/query safety, and absence of live/provider/worker actions.
+- Executable verification identified and closed one read-model gap: the overview now includes a bounded persisted count of open `InstitutionDataConflict` records.
 - Frontend production build passed: Vite transformed 1,138 modules and completed successfully. Existing chunk-size and dynamic/static import warnings remain non-blocking.
 - No prior-domain regression suite was required because Mission 21 consumes existing domain contracts rather than changing them.
 
