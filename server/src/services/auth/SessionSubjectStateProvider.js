@@ -1,6 +1,7 @@
 import { User } from '../../models/User.js';
 import { Employer } from '../../models/Employer.js';
 import { AgentAccount } from '../../models/agent/AgentAccount.js';
+import { InstitutionAccount } from '../../models/institution/InstitutionAccount.js';
 import { isKnownRealm } from './AuthSessionPrimitiveContracts.js';
 
 /**
@@ -65,11 +66,14 @@ function validateInput({ realm, subjectId, expectedTokenVersion }) {
  * @param {object} [config]
  * @param {object} [config.userModel] — defaults to the real `User` model
  * @param {object} [config.employerModel] — defaults to the real `Employer` model
+ * @param {object} [config.agentModel] — defaults to AgentAccount
+ * @param {object} [config.institutionModel] — defaults to InstitutionAccount (Mission 18)
  */
 export function createSessionSubjectStateProvider({
   userModel = User,
   employerModel = Employer,
   agentModel = AgentAccount,
+  institutionModel = InstitutionAccount,
 } = {}) {
   if (!userModel || typeof userModel.findById !== 'function') {
     throw new TypeError('A User model with findById is required');
@@ -80,8 +84,11 @@ export function createSessionSubjectStateProvider({
   if (!agentModel || typeof agentModel.findById !== 'function') {
     throw new TypeError('An AgentAccount model with findById is required');
   }
+  if (!institutionModel || typeof institutionModel.findById !== 'function') {
+    throw new TypeError('An InstitutionAccount model with findById is required');
+  }
 
-  const modelsByRealm = { user: userModel, employer: employerModel, agent: agentModel };
+  const modelsByRealm = { user: userModel, employer: employerModel, agent: agentModel, institution: institutionModel };
 
   /**
    * Exactly one authoritative read per call — no cache, no Redis, no

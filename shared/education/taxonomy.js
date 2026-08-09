@@ -117,6 +117,11 @@ export const PUB_STATUSES = Object.freeze({
   DRAFT: 'draft',
   PUBLISHED: 'published',
   ARCHIVED: 'archived',
+  // Mission 18 additions — institution-managed lifecycle (additive, stable storage strings)
+  SUBMITTED: 'submitted',
+  UNDER_REVIEW: 'under_review',
+  NEEDS_CHANGES: 'needs_changes',
+  DISCONTINUED: 'discontinued',
 });
 
 // ── Alert importance ─────────────────────────────────────────────────────────

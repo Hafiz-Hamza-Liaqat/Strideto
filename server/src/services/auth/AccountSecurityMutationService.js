@@ -2,6 +2,7 @@ import bcrypt from 'bcryptjs';
 import { User } from '../../models/User.js';
 import { Employer } from '../../models/Employer.js';
 import { AgentAccount } from '../../models/agent/AgentAccount.js';
+import { InstitutionAccount } from '../../models/institution/InstitutionAccount.js';
 import {
   isKnownRealm,
   isSafeNonNegativeInteger,
@@ -46,6 +47,7 @@ function isStrictBoolean(value) {
  * @param {object} [config.userModel] — defaults to the real `User` model.
  * @param {object} [config.employerModel] — defaults to the real `Employer` model.
  * @param {object} [config.agentModel] — defaults to the real `AgentAccount` model.
+ * @param {object} [config.institutionModel] — defaults to InstitutionAccount (Mission 18).
  * @param {(plain: string) => Promise<string>} [config.hashPassword] — defaults
  *   to `bcrypt.hash(plain, 12)`, injectable so tests can force a hashing
  *   failure without depending on `bcryptjs`'s real timing/behavior.
@@ -55,6 +57,7 @@ export function createAccountSecurityMutationService({
   userModel = User,
   employerModel = Employer,
   agentModel = AgentAccount,
+  institutionModel = InstitutionAccount,
   hashPassword = (plain) => bcrypt.hash(plain, PASSWORD_HASH_COST),
   now = () => new Date(),
 } = {}) {
@@ -85,6 +88,15 @@ export function createAccountSecurityMutationService({
       'An AgentAccount model with findOneAndUpdate and findById is required'
     );
   }
+  if (
+    !institutionModel ||
+    typeof institutionModel.findOneAndUpdate !== 'function' ||
+    typeof institutionModel.findById !== 'function'
+  ) {
+    throw new TypeError(
+      'An InstitutionAccount model with findOneAndUpdate and findById is required'
+    );
+  }
   if (typeof hashPassword !== 'function') {
     throw new TypeError('A hashPassword(plain) function is required');
   }
@@ -96,6 +108,7 @@ export function createAccountSecurityMutationService({
     user: userModel,
     employer: employerModel,
     agent: agentModel,
+    institution: institutionModel,
   });
 
   // ---------------------------------------------------------------------

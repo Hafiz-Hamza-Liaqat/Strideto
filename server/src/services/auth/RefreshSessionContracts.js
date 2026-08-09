@@ -10,6 +10,7 @@ export const REFRESH_SESSION_SUBJECT_TYPES = Object.freeze([
   'user',
   'employer',
   'agent',
+  'institution', // Mission 18 — Institution realm (additive)
 ]);
 
 export const REFRESH_SESSION_REVOKE_REASONS = Object.freeze([

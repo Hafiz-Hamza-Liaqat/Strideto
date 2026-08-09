@@ -33,6 +33,11 @@ const COOKIE_DESCRIPTORS = Object.freeze({
       name: '__Secure-strideto_agent_rt',
       path: '/api/auth/agent/refresh-token',
     }),
+    // Mission 18 — Institution realm (additive)
+    institution: Object.freeze({
+      name: '__Secure-strideto_institution_rt',
+      path: '/api/auth/institution/refresh-token',
+    }),
   }),
   development: Object.freeze({
     user: Object.freeze({
@@ -46,6 +51,11 @@ const COOKIE_DESCRIPTORS = Object.freeze({
     agent: Object.freeze({
       name: 'strideto_dev_agent_rt',
       path: '/api/auth/agent/refresh-token',
+    }),
+    // Mission 18 — Institution realm (additive)
+    institution: Object.freeze({
+      name: 'strideto_dev_institution_rt',
+      path: '/api/auth/institution/refresh-token',
     }),
   }),
 });

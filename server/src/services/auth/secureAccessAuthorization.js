@@ -92,7 +92,7 @@ function extractBearerToken(authorizationHeader) {
   return token.length > 0 ? token : null;
 }
 
-const KNOWN_REALMS = new Set(['user', 'employer', 'agent']);
+const KNOWN_REALMS = new Set(['user', 'employer', 'agent', 'institution']);
 
 function decodeRealmHint(token) {
   try {
@@ -129,19 +129,23 @@ function decodeExpClaim(token) {
  * @param {object} config.employerJwtProvider — required.
  * @param {object} [config.agentJwtProvider] — Agent realm provider. Optional
  *   only for legacy two-realm test/composition callers; live config supplies it.
+ * @param {object} [config.institutionJwtProvider] — Institution realm provider (Mission 18).
  * @param {object} config.denylistService — required, exposes `isJtiDenylisted`.
  * @param {object} [config.userAccessCoordinator]
  * @param {object} [config.employerAccessCoordinator]
  * @param {object} [config.agentAccessCoordinator]
+ * @param {object} [config.institutionAccessCoordinator]
  */
 export function createSecureAccessAuthorization({
   userJwtProvider,
   employerJwtProvider,
   agentJwtProvider,
+  institutionJwtProvider,
   denylistService,
   userAccessCoordinator,
   employerAccessCoordinator,
   agentAccessCoordinator,
+  institutionAccessCoordinator,
   userModel = User,
 } = {}) {
   if (
@@ -189,15 +193,24 @@ export function createSecureAccessAuthorization({
     })
   );
 
+  const resolvedInstitutionCoordinator = institutionJwtProvider && (
+    institutionAccessCoordinator ||
+    createAccessAuthorizationCoordinator({
+      jwtSessionProvider: institutionJwtProvider,
+    })
+  );
+
   function providerFor(realm) {
     if (realm === 'employer') return employerJwtProvider;
     if (realm === 'agent') return agentJwtProvider;
+    if (realm === 'institution') return institutionJwtProvider;
     return userJwtProvider;
   }
 
   function coordinatorFor(realm) {
     if (realm === 'employer') return resolvedEmployerCoordinator;
     if (realm === 'agent') return resolvedAgentCoordinator;
+    if (realm === 'institution') return resolvedInstitutionCoordinator;
     return resolvedUserCoordinator;
   }
 
@@ -217,7 +230,12 @@ export function createSecureAccessAuthorization({
     }
 
     const hint = decodeRealmHint(token);
-    const enabledRealms = agentJwtProvider ? ['user', 'employer', 'agent'] : ['user', 'employer'];
+    const enabledRealms = [
+      'user',
+      'employer',
+      ...(agentJwtProvider ? ['agent'] : []),
+      ...(institutionJwtProvider ? ['institution'] : []),
+    ];
     const attemptOrder = hint && enabledRealms.includes(hint) ? [hint] : enabledRealms;
 
     let claims = null;
@@ -280,7 +298,7 @@ export function createSecureAccessAuthorization({
       });
     }
 
-    let role = verifiedRealm === 'agent' ? 'agent' : 'employer';
+    let role = verifiedRealm === 'agent' ? 'agent' : verifiedRealm === 'institution' ? 'institution' : 'employer';
     if (verifiedRealm === 'user') {
       const roleResult = await loadVersionBoundUserRole(
         userModel,
@@ -333,6 +351,7 @@ export const secureAccessAuthorization = createSecureAccessAuthorization({
   userJwtProvider: secureAuthConfig.userJwtProvider,
   employerJwtProvider: secureAuthConfig.employerJwtProvider,
   agentJwtProvider: secureAuthConfig.agentJwtProvider,
+  institutionJwtProvider: secureAuthConfig.institutionJwtProvider,
   denylistService: createAccessDenylistService({
     requireSharedStore: secureAuthConfig.requireSharedDenylistStore,
   }),

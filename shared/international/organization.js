@@ -23,6 +23,9 @@ export const ORGANIZATION_TYPES = Object.freeze({
   UNIVERSITY: 'university',
   COLLEGE: 'college',
   INSTITUTE: 'institute',
+  // Mission 18 — institution portal types (additive, no existing values renamed)
+  SCHOOL: 'school',
+  TRAINING_CENTER: 'training_center',
 });
 
 const TYPE_VALUES = Object.values(ORGANIZATION_TYPES);

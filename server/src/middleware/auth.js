@@ -29,6 +29,16 @@ function attachSecurePrincipal(req, principal) {
       tokenVersion: principal.tokenVersion,
       exp: principal.exp,
     };
+  } else if (principal.realm === 'institution') {
+    req.institution = {
+      institutionAccountId: principal.subjectId,
+      subjectId: principal.subjectId,
+      role: 'institution',
+      sid: principal.sid,
+      jti: principal.jti,
+      tokenVersion: principal.tokenVersion,
+      exp: principal.exp,
+    };
   } else {
     req.user = {
       userId: principal.subjectId,
@@ -113,3 +123,11 @@ export function requireRole(...allowedRoles) {
 
 export const requireAdmin = requireRole('Admin', 'SuperAdmin');
 export const requireUser = requireRole('User', 'Admin');
+
+/** Requires an Institution token. Use for institution portal routes. */
+export function requireInstitutionAuth(req, res, next) {
+  if (!req.institution) {
+    return res.status(401).json({ error: 'Institution authentication required' });
+  }
+  next();
+}
