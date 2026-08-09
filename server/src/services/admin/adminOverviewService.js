@@ -24,6 +24,7 @@ import { ProfessionalDispute } from '../../models/trust/ProfessionalDispute.js';
 import { CommerceRefund } from '../../models/commerce/CommerceRefund.js';
 import { CommerceReconciliation } from '../../models/commerce/CommerceOperations.js';
 import { InstitutionClaim } from '../../models/institution/InstitutionClaim.js';
+import { InstitutionDataConflict } from '../../models/institution/InstitutionDataConflict.js';
 import { FactProvenance } from '../../models/trust/FactProvenance.js';
 import { CanonicalSource } from '../../models/trust/CanonicalSource.js';
 import { getCopilotProviderStatus } from '../ai/copilotService.js';
@@ -58,6 +59,7 @@ export async function getAdminOverviewMetrics() {
     staleFacts,
     reviewDueFacts,
     brokenSources,
+    openConflicts,
     recentAudit,
   ] = await Promise.all([
     safeCount(() => User.countDocuments({ role: 'User' })),
@@ -92,6 +94,7 @@ export async function getAdminOverviewMetrics() {
     safeCount(() => CanonicalSource.countDocuments({
       status: { $in: ['broken', 'unavailable'] },
     })),
+    safeCount(() => InstitutionDataConflict.countDocuments({ state: 'open' })),
     AuditLog.find()
       .select('actorEmail actorRole action targetType targetLabel status createdAt')
       .sort({ createdAt: -1 })
@@ -151,10 +154,11 @@ export async function getAdminOverviewMetrics() {
       pendingModeration: marketplacePending,
     },
     dataQuality: {
-      source: 'FactProvenance / CanonicalSource collections',
+      source: 'FactProvenance / CanonicalSource / InstitutionDataConflict collections',
       staleFacts,
       reviewDueFacts,
       brokenSources,
+      openConflicts,
     },
     ai: {
       source: 'CopilotModelProvider in-process config',
