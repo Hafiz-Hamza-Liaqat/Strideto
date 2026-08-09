@@ -24,6 +24,9 @@ export const CONSULTATION_PAYMENT_STATES = Object.freeze({
   FREE: 'free',
   PAYMENT_REQUIRED_FUTURE: 'payment_required_future',
   PAYMENT_NOT_CONFIGURED: 'payment_not_configured',
+  PAYMENT_REQUIRED: 'payment_required',
+  PAYMENT_PROCESSING: 'payment_processing',
+  PAID: 'paid',
 });
 
 export const MESSAGE_TYPES = Object.freeze({

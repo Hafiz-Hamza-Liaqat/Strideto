@@ -153,6 +153,8 @@ export const agentApi = {
   getReports: () => agentAxios.get('/api/agent/reports'), getDisputes: () => agentAxios.get('/api/agent/disputes'),
   addDisputeEvent: (disputeId, data) => agentAxios.post(`/api/agent/disputes/${disputeId}/events`, data),
   getCommerceHistory: (params) => agentAxios.get('/api/agent/commerce/history', { params }),
+  getPaymentStatus: () => agentAxios.post('/api/agent/marketplace-payments/connect/sync'),
+  startPaymentOnboarding: (country, idempotencyKey) => agentAxios.post('/api/agent/marketplace-payments/connect/onboarding', { country }, { headers: { 'Idempotency-Key': idempotencyKey } }),
 };
 
 export const agentPublicApi = {
@@ -196,3 +198,4 @@ export const studentTrustApi = {
 };
 
 export const studentCommerceApi = { history: (params) => userAxios.get('/commerce/history', { params }), products: (params) => userAxios.get('/commerce/products', { params }), createOrder: (data, idempotencyKey) => userAxios.post('/commerce/orders', data, { headers: { 'Idempotency-Key': idempotencyKey } }) };
+export const marketplacePaymentApi = { configuration: () => userAxios.get('/marketplace-payments/configuration'), createServiceOrder: (data, idempotencyKey) => userAxios.post('/marketplace-payments/service-orders', data, { headers: { 'Idempotency-Key': idempotencyKey } }), createIntent: (orderId, idempotencyKey) => userAxios.post('/marketplace-payments/intents', { orderId }, { headers: { 'Idempotency-Key': idempotencyKey } }) };

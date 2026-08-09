@@ -179,6 +179,7 @@ const Cases = lazyLoad(() => import('../pages/Cases/Cases')); const CaseDetail =
 const AgentTrust = lazyLoad(() => import('../pages/Agent/AgentTrust'));
 const TrustCenter = lazyLoad(() => import('../pages/Trust/TrustCenter'));
 const AgentCommerce = lazyLoad(() => import('../pages/Agent/AgentCommerce')); const CommerceHistory = lazyLoad(() => import('../pages/Commerce/CommerceHistory'));
+const MarketplaceCheckout = lazyLoad(() => import('../pages/Commerce/MarketplaceCheckout'));
 
 function lazyLoad(importFn) {
   const Lazy = lazy(importFn);
@@ -570,6 +571,7 @@ export const routes = [
       { path: ROUTES.CASES, element: <ProtectedRoute><Cases /></ProtectedRoute> },
       { path: ROUTES.TRUST_CENTER, element: <ProtectedRoute><TrustCenter /></ProtectedRoute> },
       { path: ROUTES.COMMERCE_HISTORY, element: <ProtectedRoute><CommerceHistory /></ProtectedRoute> },
+      { path: ROUTES.MARKETPLACE_CHECKOUT, element: <ProtectedRoute><MarketplaceCheckout /></ProtectedRoute> },
       { path: `${ROUTES.CASES}/:caseId`, element: <ProtectedRoute><CaseDetail /></ProtectedRoute> },
       {
         path: ROUTES.CONSULTATION_REQUEST,

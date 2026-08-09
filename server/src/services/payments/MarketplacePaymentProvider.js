@@ -1,0 +1,3 @@
+export class MarketplacePaymentProvider {
+  configurationState(){throw new Error('Not implemented');} createConnectedAccount(){throw new Error('Not implemented');} createOnboardingLink(){throw new Error('Not implemented');} retrieveConnectedAccount(){throw new Error('Not implemented');} createPaymentIntent(){throw new Error('Not implemented');} retrievePaymentIntent(){throw new Error('Not implemented');} createRefund(){throw new Error('Not implemented');} retrieveRefund(){throw new Error('Not implemented');} retrievePayout(){throw new Error('Not implemented');} constructWebhookEvent(){throw new Error('Not implemented');}
+}

@@ -1,6 +1,6 @@
 import { addMoney, makeMoney, parseMoney } from '../international/money.js';
 
-export const OWNER_TYPES = ['user', 'employer', 'organization', 'institution'];
+export const OWNER_TYPES = ['user', 'employer', 'organization', 'institution', 'platform'];
 export const ACCOUNT_TYPES = ['credits', 'commerce'];
 export const ORDER_STATUSES = ['draft', 'pending_payment', 'payment_processing', 'paid', 'failed', 'cancelled', 'refund_pending', 'partially_refunded', 'refunded'];
 export const TRANSACTION_STATUSES = ['not_configured', 'provider_pending', 'confirmed', 'failed', 'reversed'];

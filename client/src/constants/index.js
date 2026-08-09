@@ -87,6 +87,7 @@ export const ROUTES = {
   CASES: '/cases',
   TRUST_CENTER: '/trust-center',
   COMMERCE_HISTORY: '/commerce-history',
+  MARKETPLACE_CHECKOUT: '/marketplace-checkout',
   CONSULTATION_REQUEST: '/consultations/new',
   CONSULTATION_DETAIL: '/consultations/:consultationId',
   COMPANY: '/company',

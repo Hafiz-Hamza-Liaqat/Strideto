@@ -19,6 +19,7 @@ const schema = new mongoose.Schema({
   studentNote: { type: String, trim: true, maxlength: 2000, default: '' },
   agentNote: { type: String, trim: true, maxlength: 2000, default: '' },
   paymentState: { type: String, enum: Object.values(CONSULTATION_PAYMENT_STATES), required: true },
+  commerceOrderId: { type: mongoose.Schema.Types.ObjectId, ref: 'CommerceOrder', default: null, index: true },
   cancellation: { actorType: { type: String, default: '' }, reason: { type: String, maxlength: 500, default: '' }, cancelledAt: { type: Date, default: null } },
   completion: { completedAt: { type: Date, default: null }, outcomeNote: { type: String, maxlength: 1000, default: '' } },
   verificationState: { type: String, default: 'approved' },

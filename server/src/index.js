@@ -10,11 +10,12 @@ import { connectDB } from './config/db.js';
 import { registerGracefulShutdown } from './config/shutdown.js';
 import { getHelmetOptions } from './config/security.js';
 import { startScraperCron } from './scheduler/cron.js';
-import { healthRouter, jobsRouter, scholarshipsRouter, admissionsRouter, blogsRouter, foreignStudiesRouter, authRouter, adminRouter, trendingRouter, newsletterRouter, notificationsRouter, monetizationRouter, usersRouter, v1Router, examsRouter, internshipsRouter, chatbotRouter, webinarsRouter, intlScholarshipsRouter, badgesRouter, seoRouter, resumesRouter, employerRouter, publicProfilesRouter, careerArticlesRouter, resumeTemplatesRouter, cmsRouter, contactRouter, feedbackRouter, institutionsRouter, supportRouter, userInboxRouter, formsRouter, dynamicContentRouter, searchRouter, analyticsRouter, talentRouter, opportunityApplicationsRouter, timelineRouter, documentsRouter, credentialsRouter, careerDashboardRouter, migrationRouter, scoringRouter, assessmentsRouter, employerIntelligenceRouter, organizationVerificationRouter, testsRouter, personalizationRouter, actionEngineRouter, vaultRouter, agentRouter, consultationRouter, caseRouter, professionalTrustRouter, commerceRouter } from './routes/index.js';import { registerCareerTimelineHandlers } from './services/career/careerEventHandlers.js';
+import { healthRouter, jobsRouter, scholarshipsRouter, admissionsRouter, blogsRouter, foreignStudiesRouter, authRouter, adminRouter, trendingRouter, newsletterRouter, notificationsRouter, monetizationRouter, usersRouter, v1Router, examsRouter, internshipsRouter, chatbotRouter, webinarsRouter, intlScholarshipsRouter, badgesRouter, seoRouter, resumesRouter, employerRouter, publicProfilesRouter, careerArticlesRouter, resumeTemplatesRouter, cmsRouter, contactRouter, feedbackRouter, institutionsRouter, supportRouter, userInboxRouter, formsRouter, dynamicContentRouter, searchRouter, analyticsRouter, talentRouter, opportunityApplicationsRouter, timelineRouter, documentsRouter, credentialsRouter, careerDashboardRouter, migrationRouter, scoringRouter, assessmentsRouter, employerIntelligenceRouter, organizationVerificationRouter, testsRouter, personalizationRouter, actionEngineRouter, vaultRouter, agentRouter, consultationRouter, caseRouter, professionalTrustRouter, commerceRouter, marketplacePaymentsRouter } from './routes/index.js';import { registerCareerTimelineHandlers } from './services/career/careerEventHandlers.js';
 import { registerCareerNotificationHandlers } from './services/career/careerNotificationBridge.js';
 import { registerCareerScoringHandlers } from './services/career/careerScoringBridge.js';
 import { getSitemap, getRobots } from './controllers/seoController.js';
 import { stripeWebhook } from './controllers/paymentsController.js';
+import { marketplaceWebhook } from './controllers/marketplacePaymentController.js';
 import { errorHandler } from './middleware/errorHandler.js';
 import { requestLogger } from './middleware/requestLogger.js';
 import { apiLimiter } from './middleware/rateLimit.js';
@@ -51,6 +52,7 @@ app.use(compression());
 
 // Stripe webhook requires raw body — must be before express.json()
 app.post('/api/webhooks/stripe', express.raw({ type: 'application/json' }), stripeWebhook);
+app.post('/api/webhooks/stripe-marketplace', express.raw({ type: 'application/json' }), marketplaceWebhook);
 
 app.use(cors(getCorsOptions()));
 app.use(express.json({ limit: '1mb' }));
@@ -150,6 +152,7 @@ app.use('/api', consultationRouter);
 app.use('/api', caseRouter);
 app.use('/api', professionalTrustRouter);
 app.use('/api', commerceRouter);
+app.use('/api', marketplacePaymentsRouter);
 app.use('/api/v1', v1Router);
 
 app.use(errorHandler);
