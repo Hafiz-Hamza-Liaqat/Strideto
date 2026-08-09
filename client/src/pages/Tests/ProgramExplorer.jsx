@@ -11,6 +11,7 @@ import { SeoHead } from '../../components/seo';
 import { programIntelligenceApi } from '../../services/listingsService';
 import { ROUTES } from '../../constants';
 import { Pagination } from '../../components/ui/Pagination';
+import { formatMoney } from '@shared/international/dateDisplay.js';
 
 const DEGREE_LABELS = {
   high_school: 'High School',
@@ -379,7 +380,7 @@ export function ProgramExplorerDetail() {
               <div className="mt-4 px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-sm">
                 <span className="text-gray-500 dark:text-gray-400">Tuition: </span>
                 <span className="font-medium text-gray-900 dark:text-white">
-                  {data.tuition.currency} {(data.tuition.amountMinor / 100).toLocaleString()}
+                  {formatMoney(data.tuition)}
                   {data.tuition.per ? ` / ${data.tuition.per}` : ''}
                 </span>
                 {data.tuition.notes && (

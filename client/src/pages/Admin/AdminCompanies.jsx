@@ -24,7 +24,7 @@ const EMPTY = {
   bannerUrl: '',
   city: '',
   province: '',
-  country: 'Pakistan',
+  country: '',
   status: 'draft',
   verified: false,
   isFeatured: false,

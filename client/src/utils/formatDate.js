@@ -1,7 +1,8 @@
-export function formatDate(dateStr) {
+import { formatDate as formatInternationalDate } from '@shared/international/dateDisplay.js';
+
+export function formatDate(dateStr, options = {}) {
   if (!dateStr) return '';
-  const d = new Date(dateStr);
-  return isNaN(d.getTime()) ? dateStr : d.toLocaleDateString('en-PK', { year: 'numeric', month: 'short', day: 'numeric' });
+  return formatInternationalDate(dateStr, options) || dateStr;
 }
 
 export function formatDeadline(dateStr) {

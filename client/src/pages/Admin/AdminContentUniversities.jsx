@@ -17,7 +17,7 @@ import { EscapeWhen } from '../../a11y/EscapeWhen';
 
 const EMPTY = {
   name: '',
-  country: 'Pakistan',
+  country: '',
   city: '',
   province: '',
   website: '',

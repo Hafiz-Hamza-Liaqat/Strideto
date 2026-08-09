@@ -11,6 +11,7 @@ import { useParams, Link } from 'react-router-dom';
 import { SeoHead } from '../../components/seo';
 import { canonicalScholarshipsApi } from '../../services/listingsService';
 import { ROUTES } from '../../constants';
+import { formatMoney } from '@shared/international/dateDisplay.js';
 
 const FUNDING_LABELS = {
   full: 'Fully Funded',
@@ -212,7 +213,7 @@ export default function ScholarshipIntelligenceDetail() {
                     </span>
                     <span className="text-gray-900 dark:text-white font-medium">
                       {c.amountMinor != null && c.currency
-                        ? `${c.currency} ${(c.amountMinor / 100).toLocaleString()}`
+                        ? formatMoney({ amountMinor: c.amountMinor, currency: c.currency })
                         : c.notes || 'See official source'}
                     </span>
                   </div>

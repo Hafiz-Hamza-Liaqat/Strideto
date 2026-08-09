@@ -15,7 +15,7 @@ const editorialWorkflowSchema = new mongoose.Schema(
     reviewRound: { type: Number, default: 0 },
     scheduledPublishAt: { type: Date, index: true },
     scheduledArchiveAt: { type: Date, index: true },
-    timezone: { type: String, default: 'Asia/Karachi' },
+    timezone: { type: String, default: 'UTC' },
     rejectionReason: { type: String, default: '' },
     lastActionAt: { type: Date },
     lastActionBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },

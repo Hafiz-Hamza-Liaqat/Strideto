@@ -12,7 +12,8 @@ const companySchema = new mongoose.Schema(
     location: { type: String, trim: true, default: '' },
     city: { type: String, trim: true, default: '' },
     province: { type: String, trim: true, default: '' },
-    country: { type: String, trim: true, default: 'Pakistan' },
+    // Legacy display field. New records must supply country explicitly; no implicit market.
+    country: { type: String, trim: true, default: '' },
     logoUrl: { type: String, default: '' },
     bannerUrl: { type: String, default: '' },
     socialLinks: {

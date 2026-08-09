@@ -214,7 +214,7 @@ export async function requestChanges(entityType, entityId, actor, reason = '') {
 export async function schedulePublish(entityType, entityId, actor, { scheduledPublishAt, timezone, scheduledArchiveAt }) {
   const wf = await getOrCreateWorkflow(entityType, entityId);
   wf.scheduledPublishAt = new Date(scheduledPublishAt);
-  wf.timezone = timezone || wf.timezone || 'Asia/Karachi';
+  wf.timezone = timezone || wf.timezone || 'UTC';
   if (scheduledArchiveAt) wf.scheduledArchiveAt = new Date(scheduledArchiveAt);
   wf.status = 'scheduled';
   wf.lastActionAt = new Date();

@@ -37,6 +37,7 @@ import { MarketplaceProviderAccount } from '../../models/commerce/MarketplacePro
 import { CommerceRefund } from '../../models/commerce/CommerceRefund.js';
 import { getCopilotProviderStatus } from '../../services/ai/copilotService.js';
 import { hasPermission, PERMISSIONS } from '../../config/rbac.js';
+import { COUNTRY_READINESS_STATES } from '../../../../shared/international/countryReadiness.js';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -547,6 +548,7 @@ export const getSystemReadiness = asyncHandler(async (req, res) => {
     reconciliationMismatches,
     brokenSources,
     refundsPending,
+    missingOrganizationCountry,
   ] = await Promise.all([
     OrganizationVerification.countDocuments({
       status: { $in: ['verification_pending', 'enhanced_review'] },
@@ -557,6 +559,7 @@ export const getSystemReadiness = asyncHandler(async (req, res) => {
       return CanonicalSource.countDocuments({ status: { $in: ['broken', 'unavailable'] } }).catch(() => null);
     })(),
     CommerceRefund.countDocuments({ status: 'requested' }).catch(() => null),
+    Organization.countDocuments({ $or: [{ countryCode: null }, { countryCode: '' }] }).catch(() => null),
   ]);
 
   const aiProvider = (() => {
@@ -571,9 +574,16 @@ export const getSystemReadiness = asyncHandler(async (req, res) => {
       reconciliationMismatches,
       brokenSources,
       refundsPending,
+      missingOrganizationCountry,
     },
     ai: {
       copilotProvider: aiProvider,
+    },
+    internationalReadiness: {
+      semantics: Object.values(COUNTRY_READINESS_STATES),
+      productionReadyInferred: false,
+      note: 'Country readiness requires explicit policy, data, currency, provider, and freshness evidence.',
+      diagnosticsAreReadOnly: true,
     },
     notes: [
       'No .env values are read or exposed here.',

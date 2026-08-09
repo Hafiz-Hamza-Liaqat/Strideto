@@ -101,6 +101,7 @@ export async function ensureUniqueOrganizationSlug(name, slugExists, { maxAttemp
 }
 
 const str = (v) => (typeof v === 'string' ? v.trim() : '');
+const hasUnsafeDisplayMarkup = (v) => /[<>\u0000-\u001F\u007F]/u.test(v);
 
 /**
  * Validate + normalize an organization identity candidate (the additive core
@@ -121,6 +122,9 @@ export function validateOrganizationCore(input = {}) {
   out.legalName = str(input.legalName);
   out.displayName = str(input.displayName) || out.legalName;
   if (!out.displayName) errors.push('displayName or legalName is required');
+  if (hasUnsafeDisplayMarkup(out.legalName) || hasUnsafeDisplayMarkup(out.displayName)) {
+    errors.push('organization names must be plain Unicode text without markup or control characters');
+  }
 
   if (input.countryCode !== undefined && input.countryCode !== null && str(input.countryCode)) {
     const cc = normalizeCountryCode(input.countryCode);

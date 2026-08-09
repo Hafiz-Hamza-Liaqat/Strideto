@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { jobSlug } from '../utils/slugify.js';
 import { translationFieldDefinition, applySlugLocaleIndex, ensureTranslationGroupHook } from './mixins/translationFields.js';
+import { normalizeCurrency } from '../../../shared/international/currency.js';
 
 const { ObjectId } = mongoose.Schema.Types;
 
@@ -179,7 +180,13 @@ const jobSchema = new mongoose.Schema(
     responsibilities: [{ type: String }],
     benefits: [{ type: String }],
     gender: { type: String },
-    salaryCurrency: { type: String, default: 'PKR' },
+    salaryCurrency: {
+      type: String,
+      trim: true,
+      uppercase: true,
+      default: '',
+      validate: { validator: value => value === '' || normalizeCurrency(value) === value, message: 'salaryCurrency must be a valid ISO 4217 code' },
+    },
     gallery: [{ type: String }],
     seoTitle: { type: String },
     metaDescription: { type: String },

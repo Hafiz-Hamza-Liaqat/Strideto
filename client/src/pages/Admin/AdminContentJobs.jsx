@@ -27,7 +27,7 @@ const EMPTY_JOB = {
   city: '',
   location: '',
   salaryRange: '',
-  salaryCurrency: 'PKR',
+  salaryCurrency: '',
   experience: '',
   educationRequirement: '',
   gender: '',

@@ -6,7 +6,7 @@ const universitySchema = new mongoose.Schema(
   {
     name: { type: String, required: true },
     slug: { type: String, sparse: true },
-    country: { type: String, required: true, default: 'Pakistan' },
+    country: { type: String, required: true },
     city: { type: String, default: '' },
     province: { type: String, default: '' },
     website: { type: String },
