@@ -15,7 +15,7 @@ export async function logAudit({
 }) {
   try {
     await AuditLog.create({
-      actorId: actor?.userId || actor?.employerId || actor?._id,
+      actorId: actor?.userId || actor?.employerId || actor?.agentAccountId || actor?._id,
       actorEmail: actor?.email || '',
       actorRole: actor?.role || '',
       action,

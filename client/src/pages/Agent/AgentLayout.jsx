@@ -9,6 +9,7 @@ const navItems = [
   { to: ROUTES.AGENT_MARKETPLACE, label: 'Marketplace' },
   { to: ROUTES.AGENT_CONSULTATIONS, label: 'Consultations' },
   { to: ROUTES.AGENT_CASES, label: 'Cases' },
+  { to: ROUTES.AGENT_TRUST, label: 'Trust' },
   { to: ROUTES.AGENT_AVAILABILITY, label: 'Availability' },
   { to: ROUTES.AGENT_VERIFICATION, label: 'Verification' },
   { to: ROUTES.AGENT_TEAM, label: 'Team' },

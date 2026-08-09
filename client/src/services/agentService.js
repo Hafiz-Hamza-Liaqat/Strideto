@@ -149,6 +149,9 @@ export const agentApi = {
   requestCaseDocument: (caseId, data) => agentAxios.post(`/api/agent/cases/${caseId}/document-requests`, data),
   getCaseMessages: (caseId, params) => agentAxios.get(`/api/agent/cases/${caseId}/messages`, { params }),
   sendCaseMessage: (caseId, data) => agentAxios.post(`/api/agent/cases/${caseId}/messages`, data),
+  getReviews: () => agentAxios.get('/api/agent/reviews'), respondToReview: (reviewId, body) => agentAxios.put(`/api/agent/reviews/${reviewId}/response`, { body }),
+  getReports: () => agentAxios.get('/api/agent/reports'), getDisputes: () => agentAxios.get('/api/agent/disputes'),
+  addDisputeEvent: (disputeId, data) => agentAxios.post(`/api/agent/disputes/${disputeId}/events`, data),
 };
 
 export const agentPublicApi = {
@@ -156,6 +159,7 @@ export const agentPublicApi = {
   getProfile: (slug) => agentAxios.get(`/api/agents/${slug}`),
   getMarketplace: (params) => agentAxios.get('/api/agents/marketplace/posts', { params }),
   getMarketplacePost: (slug) => agentAxios.get(`/api/agents/marketplace/posts/${slug}`),
+  getReviews: (slug) => agentAxios.get(`/api/agents/${slug}/reviews`),
 };
 
 export const studentMarketplaceApi = {
@@ -181,4 +185,11 @@ export const studentCaseApi = {
   completeTask: (caseId, taskId) => userAxios.post(`/cases/${caseId}/tasks/${taskId}/complete`),
   updateLifecycle: (caseId, lifecycle) => userAxios.post(`/cases/${caseId}/lifecycle`, { lifecycle }),
   getMessages: (caseId, params) => userAxios.get(`/cases/${caseId}/messages`, { params }), sendMessage: (caseId, text) => userAxios.post(`/cases/${caseId}/messages`, { text }),
+};
+
+export const studentTrustApi = {
+  eligibility: (interactionType, interactionId) => userAxios.get('/reviews/eligibility', { params: { interactionType, interactionId } }),
+  reviews: () => userAxios.get('/reviews/mine'), createReview: (data) => userAxios.post('/reviews', data), updateReview: (reviewId, data) => userAxios.patch(`/reviews/${reviewId}`, data),
+  reports: () => userAxios.get('/reports/mine'), createReport: (data) => userAxios.post('/reports', data),
+  disputes: () => userAxios.get('/disputes/mine'), openDispute: (data) => userAxios.post('/disputes', data), addDisputeEvent: (disputeId, data) => userAxios.post(`/disputes/${disputeId}/events`, data),
 };

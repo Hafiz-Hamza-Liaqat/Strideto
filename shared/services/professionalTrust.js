@@ -1,0 +1,11 @@
+export const REVIEW_STATUSES = ['draft', 'submitted', 'published', 'under_review', 'hidden', 'rejected', 'removed', 'withdrawn'];
+export const REVIEW_INTERACTIONS = ['consultation', 'professional_case'];
+export const RATING_DIMENSIONS = ['communication', 'professionalism', 'clarity', 'responsiveness', 'service_quality'];
+export const REPORT_STATUSES = ['submitted', 'triaged', 'under_review', 'needs_information', 'action_taken', 'dismissed', 'resolved', 'duplicate'];
+export const REPORT_CATEGORIES = ['misleading_claim', 'guarantee_claim', 'misconduct', 'harassment', 'privacy_concern', 'fraud_suspicion', 'impersonation', 'unauthorized_document_request', 'poor_service', 'spam', 'inaccurate_information', 'other'];
+export const REPORT_TARGETS = ['organization', 'marketplace_post', 'agent_service', 'consultation', 'professional_case', 'review', 'consultation_message', 'case_message'];
+export const DISPUTE_STATUSES = ['opened', 'awaiting_response', 'under_review', 'needs_information', 'proposed_resolution', 'resolved', 'closed', 'dismissed', 'escalated'];
+export const DISPUTE_CATEGORIES = ['service_not_delivered', 'service_quality', 'scope_disagreement', 'unauthorized_action', 'document_access', 'communication', 'cancellation', 'outcome_misrepresentation', 'other'];
+export const DISPUTE_CONTEXTS = ['consultation', 'professional_case', 'agent_service'];
+export const MODERATION_ACTIONS = ['no_action', 'warning', 'content_hidden', 'content_removed', 'request_changes', 'service_suspended', 'marketplace_post_suspended', 'verification_review_requested', 'organization_suspension_recommended', 'escalated'];
+export const VERIFIED_REVIEW_COPY = 'Linked to a real Strideto interaction; Strideto does not verify or endorse every statement.';
