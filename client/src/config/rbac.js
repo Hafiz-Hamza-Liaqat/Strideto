@@ -50,6 +50,12 @@ export const PERMISSIONS = {
   WORKFLOW_PUBLISH: 'workflow:publish',
   WORKFLOW_SCHEDULE: 'workflow:schedule',
   WORKFLOW_MANAGE: 'workflow:manage',
+  // Verification (Mission 2)
+  VERIFICATION_READ: 'verification:read',
+  VERIFICATION_REVIEW: 'verification:review',
+  VERIFICATION_APPROVE: 'verification:approve',
+  VERIFICATION_REVOKE: 'verification:revoke',
+
   USERS_DELETE: 'users:delete',
   ROLES_ASSIGN: 'roles:assign',
   SYSTEM_SETTINGS: 'system:settings',
@@ -92,6 +98,8 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.WORKFLOW_SCHEDULE,
     PERMISSIONS.ANALYTICS_READ,
     PERMISSIONS.AUDIT_READ,
+    PERMISSIONS.VERIFICATION_READ,
+    PERMISSIONS.VERIFICATION_REVIEW,
   ],
   [ROLES.ADMIN]: Object.values(PERMISSIONS).filter(
     (p) => ![
@@ -99,6 +107,7 @@ const ROLE_PERMISSIONS = {
       PERMISSIONS.ROLES_ASSIGN,
       PERMISSIONS.SYSTEM_SETTINGS,
       PERMISSIONS.SYSTEM_SECRETS,
+      PERMISSIONS.VERIFICATION_REVOKE,
     ].includes(p)
   ),
   [ROLES.SUPER_ADMIN]: Object.values(PERMISSIONS),
@@ -122,6 +131,7 @@ export function hasPermission(role, permission) {
       PERMISSIONS.ROLES_ASSIGN,
       PERMISSIONS.SYSTEM_SETTINGS,
       PERMISSIONS.SYSTEM_SECRETS,
+      PERMISSIONS.VERIFICATION_REVOKE,
     ];
     if (superOnly.includes(permission)) return false;
     return true;

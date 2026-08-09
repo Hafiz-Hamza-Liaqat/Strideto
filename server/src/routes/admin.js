@@ -50,6 +50,7 @@ import * as editorialWorkflow from '../controllers/admin/editorialWorkflowContro
 import { getPlatformHealth } from '../controllers/platformOpsController.js';
 import { uploadAdminImage as uploadAdminImageMw } from '../middleware/imageUpload.js';
 import { uploadMediaFiles } from '../middleware/mediaUpload.js';
+import { adminVerificationRouter } from './adminVerification.js';
 
 export const adminRouter = Router();
 
@@ -103,6 +104,9 @@ adminRouter.patch('/moderation/reports/:id', requirePermission(PERMISSIONS.MODER
 adminRouter.post('/moderation/:type/:id/suspend', requirePermission(PERMISSIONS.MODERATE_SUSPEND), moderation.suspendListing);
 
 adminRouter.get('/audit-logs', requirePermission(PERMISSIONS.AUDIT_READ), auditLogs.listAuditLogs);
+
+// Verification queue (Mission 2) — sub-router handles its own permission guards
+adminRouter.use('/verification', adminVerificationRouter);
 
 adminRouter.get('/export/:resource', requirePermission(PERMISSIONS.EXPORT_DATA), exportCtrl.exportData);
 

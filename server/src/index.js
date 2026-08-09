@@ -10,7 +10,7 @@ import { connectDB } from './config/db.js';
 import { registerGracefulShutdown } from './config/shutdown.js';
 import { getHelmetOptions } from './config/security.js';
 import { startScraperCron } from './scheduler/cron.js';
-import { healthRouter, jobsRouter, scholarshipsRouter, admissionsRouter, blogsRouter, foreignStudiesRouter, authRouter, adminRouter, trendingRouter, newsletterRouter, notificationsRouter, monetizationRouter, usersRouter, v1Router, examsRouter, internshipsRouter, chatbotRouter, webinarsRouter, intlScholarshipsRouter, badgesRouter, seoRouter, resumesRouter, employerRouter, publicProfilesRouter, careerArticlesRouter, resumeTemplatesRouter, cmsRouter, contactRouter, feedbackRouter, institutionsRouter, supportRouter, userInboxRouter, formsRouter, dynamicContentRouter, searchRouter, analyticsRouter, talentRouter, opportunityApplicationsRouter, timelineRouter, documentsRouter, credentialsRouter, careerDashboardRouter, migrationRouter, scoringRouter, assessmentsRouter, employerIntelligenceRouter } from './routes/index.js';import { registerCareerTimelineHandlers } from './services/career/careerEventHandlers.js';
+import { healthRouter, jobsRouter, scholarshipsRouter, admissionsRouter, blogsRouter, foreignStudiesRouter, authRouter, adminRouter, trendingRouter, newsletterRouter, notificationsRouter, monetizationRouter, usersRouter, v1Router, examsRouter, internshipsRouter, chatbotRouter, webinarsRouter, intlScholarshipsRouter, badgesRouter, seoRouter, resumesRouter, employerRouter, publicProfilesRouter, careerArticlesRouter, resumeTemplatesRouter, cmsRouter, contactRouter, feedbackRouter, institutionsRouter, supportRouter, userInboxRouter, formsRouter, dynamicContentRouter, searchRouter, analyticsRouter, talentRouter, opportunityApplicationsRouter, timelineRouter, documentsRouter, credentialsRouter, careerDashboardRouter, migrationRouter, scoringRouter, assessmentsRouter, employerIntelligenceRouter, organizationVerificationRouter } from './routes/index.js';import { registerCareerTimelineHandlers } from './services/career/careerEventHandlers.js';
 import { registerCareerNotificationHandlers } from './services/career/careerNotificationBridge.js';
 import { registerCareerScoringHandlers } from './services/career/careerScoringBridge.js';
 import { getSitemap, getRobots } from './controllers/seoController.js';
@@ -140,6 +140,7 @@ app.use('/api', migrationRouter);
 app.use('/api', scoringRouter);
 app.use('/api', assessmentsRouter);
 app.use('/api', employerIntelligenceRouter);
+app.use('/api/organizations', organizationVerificationRouter);
 app.use('/api/v1', v1Router);
 
 app.use(errorHandler);

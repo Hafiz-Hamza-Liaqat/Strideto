@@ -38,6 +38,7 @@ const GrowthDashboard = lazyLoad(() => import('../pages/Admin/GrowthDashboard'))
 const ExecutiveDashboard = lazyLoad(() => import('../pages/Admin/ExecutiveDashboard'));
 const ModerationQueue = lazyLoad(() => import('../pages/Admin/ModerationQueue'));
 const AdminReviewQueue = lazyLoad(() => import('../pages/Admin/AdminReviewQueue'));
+const AdminVerificationQueue = lazyLoad(() => import('../pages/Admin/AdminVerificationQueue'));
 const AuditLogPage = lazyLoad(() => import('../pages/Admin/AuditLogPage'));
 const AlertsAdmin = lazyLoad(() => import('../pages/Admin/AlertsAdmin'));
 const JobsProvinceLanding = lazyLoad(() => import('../pages/Landing/JobsProvinceLanding'));
@@ -335,6 +336,7 @@ export const routes = [
           { path: 'moderation', element: <ModerationQueue /> },
           { path: 'review', element: <AdminReviewQueue /> },
           { path: 'audit', element: <AuditLogPage /> },
+          { path: 'verification-queue', element: <AdminVerificationQueue /> },
           { path: 'growth-dashboard', element: <GrowthDashboard /> },
           { path: 'ai-job-generator', element: <AIJobGenerator /> },
           { path: 'analytics', element: <AnalyticsDashboard /> },
