@@ -169,6 +169,12 @@ const AgentMarketplaceForm = lazyLoad(() => import('../pages/Agent/AgentMarketpl
 const AgentMarketplacePublic = lazyLoad(() => import('../pages/Public/AgentMarketplace'));
 const AgentMarketplaceDetail = lazyLoad(() => import('../pages/Public/AgentMarketplaceDetail'));
 const AdminAgentMarketplace = lazyLoad(() => import('../pages/Admin/AdminAgentMarketplace'));
+const AgentConsultations = lazyLoad(() => import('../pages/Agent/AgentConsultations'));
+const AgentConsultationDetail = lazyLoad(() => import('../pages/Agent/AgentConsultationDetail'));
+const AgentAvailability = lazyLoad(() => import('../pages/Agent/AgentAvailability'));
+const Consultations = lazyLoad(() => import('../pages/Consultations/Consultations'));
+const ConsultationRequest = lazyLoad(() => import('../pages/Consultations/ConsultationRequest'));
+const ConsultationDetail = lazyLoad(() => import('../pages/Consultations/ConsultationDetail'));
 
 function lazyLoad(importFn) {
   const Lazy = lazy(importFn);
@@ -205,6 +211,9 @@ export const routes = [
       { path: 'marketplace', element: <AgentMarketplace /> },
       { path: 'marketplace/new', element: <AgentMarketplaceForm /> },
       { path: 'marketplace/:postId/edit', element: <AgentMarketplaceForm /> },
+      { path: 'consultations', element: <AgentConsultations /> },
+      { path: 'consultations/:consultationId', element: <AgentConsultationDetail /> },
+      { path: 'availability', element: <AgentAvailability /> },
       { path: 'verification', element: <AgentVerification /> },
       { path: 'team', element: <AgentTeam /> },
       { path: 'leads', element: <AgentLeads /> },
@@ -546,6 +555,18 @@ export const routes = [
             <VaultDocumentDetail />
           </ProtectedRoute>
         ),
+      },
+      {
+        path: ROUTES.CONSULTATIONS,
+        element: <ProtectedRoute><Consultations /></ProtectedRoute>,
+      },
+      {
+        path: ROUTES.CONSULTATION_REQUEST,
+        element: <ProtectedRoute><ConsultationRequest /></ProtectedRoute>,
+      },
+      {
+        path: ROUTES.CONSULTATION_DETAIL,
+        element: <ProtectedRoute><ConsultationDetail /></ProtectedRoute>,
       },
       { path: ROUTES.INTERNSHIPS, element: <Internships /> },
       { path: `${ROUTES.INTERNSHIPS}/:idOrSlug`, element: <InternshipDetail /> },

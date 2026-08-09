@@ -30,6 +30,7 @@ import {
 } from '../services/agentProfileService.js';
 import { canExercisePrivilegedCapability } from '../../../shared/international/verification.js';
 import { marketplaceCounts } from '../services/agentMarketplaceService.js';
+import { Consultation } from '../models/consultation/Consultation.js';
 
 // ---------------------------------------------------------------------------
 // Dashboard
@@ -49,6 +50,11 @@ export const getDashboard = asyncHandler(async (req, res) => {
   const verificationStatus = await getVerificationStatus(profile.organizationId);
   const isApproved = canExercisePrivilegedCapability(verificationStatus);
   const marketplace = await marketplaceCounts(agentAccountId);
+  const consultationCounts = await Consultation.aggregate([
+    { $match: { organizationId: profile.organizationId } },
+    { $group: { _id: '$status', count: { $sum: 1 } } },
+  ]);
+  const consultations = Object.fromEntries(consultationCounts.map((item) => [item._id, item.count]));
 
   return res.status(200).json({
     onboarding: !profile.onboardingCompletedAt,
@@ -59,10 +65,15 @@ export const getDashboard = asyncHandler(async (req, res) => {
     // Deferred — Mission 12–17
     leadsCount: null,
     clientsCount: null,
-    consultationsCount: null,
+    consultationsCount: Object.values(consultations).reduce((sum, value) => sum + value, 0),
     casesCount: null,
     earningsTotal: null,
-    comingSoon: ['leads', 'consultations', 'cases', 'payments'],
+    comingSoon: ['leads', 'cases', 'payments'],
+    consultations: {
+      incoming: (consultations.requested || 0) + (consultations.pending_confirmation || 0),
+      upcoming: consultations.confirmed || 0,
+      history: (consultations.completed || 0) + (consultations.cancelled || 0) + (consultations.declined || 0) + (consultations.no_show || 0),
+    },
     marketplace: {
       drafts: marketplace.not_submitted || 0,
       pendingReview: (marketplace.pending || 0) + (marketplace.under_review || 0),

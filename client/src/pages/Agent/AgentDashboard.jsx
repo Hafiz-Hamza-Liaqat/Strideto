@@ -96,7 +96,7 @@ export default function AgentDashboard() {
         {[
           { label: 'Leads', route: ROUTES.AGENT_LEADS },
           { label: 'Clients', route: ROUTES.AGENT_CLIENTS },
-          { label: 'Consultations', route: null },
+          { label: 'Consultations', route: ROUTES.AGENT_CONSULTATIONS },
           { label: 'Earnings', route: null },
         ].map((item) => (
           <div
@@ -115,6 +115,14 @@ export default function AgentDashboard() {
             )}
           </div>
         ))}
+      </div>
+
+      {/* Quick actions */}
+      <div className="bg-white rounded-xl border border-[#E5E7EB] p-5">
+        <div className="flex items-center justify-between gap-3"><p className="text-sm font-medium text-[#0F172A]">Consultations</p><Link to={ROUTES.AGENT_CONSULTATIONS} className="text-sm text-[#1D4ED8]">Open schedule →</Link></div>
+        <div className="mt-4 grid grid-cols-3 gap-3">{[
+          ['Incoming', dashboard?.consultations?.incoming], ['Upcoming', dashboard?.consultations?.upcoming], ['History', dashboard?.consultations?.history],
+        ].map(([label,value])=><div key={label} className="rounded-lg bg-slate-50 p-3"><p className="text-xl font-semibold">{value ?? 0}</p><p className="text-xs text-slate-500">{label}</p></div>)}</div>
       </div>
 
       {/* Quick actions */}

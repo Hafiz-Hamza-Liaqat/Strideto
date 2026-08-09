@@ -131,6 +131,15 @@ export const agentApi = {
   updateMarketplacePost: (postId, data) => agentAxios.patch(`/api/agent/marketplace/${postId}`, data),
   submitMarketplacePost: (postId) => agentAxios.post(`/api/agent/marketplace/${postId}/submit`),
   archiveMarketplacePost: (postId) => agentAxios.post(`/api/agent/marketplace/${postId}/archive`),
+  getConsultations: (params) => agentAxios.get('/api/agent/consultations', { params }),
+  getConsultation: (consultationId) => agentAxios.get(`/api/agent/consultations/${consultationId}`),
+  transitionConsultation: (consultationId, data) => agentAxios.post(`/api/agent/consultations/${consultationId}/transition`, data),
+  getAvailability: () => agentAxios.get('/api/agent/availability'),
+  saveAvailability: (data) => agentAxios.put('/api/agent/availability', data),
+  getConsultationMessages: (threadId, params) => agentAxios.get(`/api/agent/consultations/threads/${threadId}/messages`, { params }),
+  sendConsultationMessage: (threadId, data) => agentAxios.post(`/api/agent/consultations/threads/${threadId}/messages`, data),
+  markConsultationRead: (threadId) => agentAxios.post(`/api/agent/consultations/threads/${threadId}/read`),
+  resolveConsultationDocument: (threadId, messageId) => agentAxios.get(`/api/agent/consultations/threads/${threadId}/document-references/${messageId}`),
 };
 
 export const agentPublicApi = {
@@ -143,4 +152,15 @@ export const agentPublicApi = {
 export const studentMarketplaceApi = {
   expressInterest: (slug) => userAxios.post(`/agents/marketplace/posts/${slug}/interest`, { explicitConsent: true }),
   withdrawInterest: (slug) => userAxios.delete(`/agents/marketplace/posts/${slug}/interest`),
+};
+
+export const studentConsultationApi = {
+  getAvailability: (serviceId) => userAxios.get(`/consultations/availability/${serviceId}`),
+  list: (params) => userAxios.get('/consultations', { params }),
+  get: (consultationId) => userAxios.get(`/consultations/${consultationId}`),
+  request: (data) => userAxios.post('/consultations', data),
+  transition: (consultationId, data) => userAxios.post(`/consultations/${consultationId}/transition`, data),
+  getMessages: (threadId, params) => userAxios.get(`/consultations/threads/${threadId}/messages`, { params }),
+  sendMessage: (threadId, data) => userAxios.post(`/consultations/threads/${threadId}/messages`, data),
+  markRead: (threadId) => userAxios.post(`/consultations/threads/${threadId}/read`),
 };
