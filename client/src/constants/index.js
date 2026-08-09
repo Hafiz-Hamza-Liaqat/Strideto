@@ -117,6 +117,8 @@ export const ROUTES = {
   // Mission 10 — Secure Document Vault
   VAULT: '/vault',
   VAULT_DOCUMENT: '/vault/:id',
+  // Mission 19 — Evidence-Grounded AI Copilot
+  COPILOT: '/copilot',
 };
 
 export const ROLES = {
