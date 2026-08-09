@@ -61,6 +61,8 @@ const IntlScholarshipDetail = lazyLoad(() => import('../pages/IntlScholarships/I
 const Badges = lazyLoad(() => import('../pages/Badges/Badges'));
 const ResumeBuilder = lazyLoad(() => import('../pages/ResumeBuilder/ResumeBuilder'));
 const TalentProfileEditor = lazyLoad(() => import('../pages/TalentProfile/TalentProfileEditor'));
+const PersonalizationHub = lazyLoad(() => import('../pages/Personalization/PersonalizationHub'));
+const EligibilityDetail = lazyLoad(() => import('../pages/Personalization/EligibilityDetail').then((m) => ({ default: m.EligibilityDetailPage })));
 const MyApplications = lazyLoad(() => import('../pages/Applications/MyApplications'));
 const CreateApplication = lazyLoad(() => import('../pages/Applications/CreateApplication'));
 const ApplicationDetail = lazyLoad(() => import('../pages/Applications/ApplicationDetail'));
@@ -406,6 +408,30 @@ export const routes = [
       { path: `${ROUTES.CANONICAL_SCHOLARSHIPS}/:slug`, element: <ScholarshipIntelligenceDetail /> },
       { path: ROUTES.PROGRAM_EXPLORER, element: <ProgramExplorerList /> },
       { path: `${ROUTES.PROGRAM_EXPLORER}/:slug`, element: <ProgramExplorerDetail /> },
+      {
+        path: ROUTES.PERSONALIZATION_HUB,
+        element: (
+          <ProtectedRoute>
+            <PersonalizationHub />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: ROUTES.PERSONALIZATION_PROGRAM_ELIGIBILITY,
+        element: (
+          <ProtectedRoute>
+            <EligibilityDetail opportunityType="program" />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: ROUTES.PERSONALIZATION_SCHOLARSHIP_ELIGIBILITY,
+        element: (
+          <ProtectedRoute>
+            <EligibilityDetail opportunityType="scholarship" />
+          </ProtectedRoute>
+        ),
+      },
       { path: ROUTES.INTERNSHIPS, element: <Internships /> },
       { path: `${ROUTES.INTERNSHIPS}/:idOrSlug`, element: <InternshipDetail /> },
       { path: ROUTES.WEBINARS, element: <Webinars /> },

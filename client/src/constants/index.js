@@ -75,6 +75,9 @@ export const ROUTES = {
   CANONICAL_SCHOLARSHIP_DETAIL: '/scholarship-intelligence/:slug',
   PROGRAM_EXPLORER: '/program-explorer',
   PROGRAM_DETAIL: '/program-explorer/:slug',
+  PERSONALIZATION_HUB: '/personalization',
+  PERSONALIZATION_PROGRAM_ELIGIBILITY: '/personalization/programs/:programId/eligibility',
+  PERSONALIZATION_SCHOLARSHIP_ELIGIBILITY: '/personalization/scholarships/:scholarshipId/eligibility',
 };
 
 export const ROLES = {
