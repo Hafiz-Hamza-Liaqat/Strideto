@@ -164,6 +164,11 @@ const AgentClients = lazyLoad(() => import('../pages/Agent/AgentClients'));
 const AgentSettings = lazyLoad(() => import('../pages/Agent/AgentSettings'));
 const AgentDirectory = lazyLoad(() => import('../pages/Public/AgentDirectory'));
 const AgentPublicProfile = lazyLoad(() => import('../pages/Public/AgentPublicProfile'));
+const AgentMarketplace = lazyLoad(() => import('../pages/Agent/AgentMarketplace'));
+const AgentMarketplaceForm = lazyLoad(() => import('../pages/Agent/AgentMarketplaceForm'));
+const AgentMarketplacePublic = lazyLoad(() => import('../pages/Public/AgentMarketplace'));
+const AgentMarketplaceDetail = lazyLoad(() => import('../pages/Public/AgentMarketplaceDetail'));
+const AdminAgentMarketplace = lazyLoad(() => import('../pages/Admin/AdminAgentMarketplace'));
 
 function lazyLoad(importFn) {
   const Lazy = lazy(importFn);
@@ -197,6 +202,9 @@ export const routes = [
       { index: true, element: <AgentDashboard /> },
       { path: 'profile', element: <AgentProfile /> },
       { path: 'services', element: <AgentServices /> },
+      { path: 'marketplace', element: <AgentMarketplace /> },
+      { path: 'marketplace/new', element: <AgentMarketplaceForm /> },
+      { path: 'marketplace/:postId/edit', element: <AgentMarketplaceForm /> },
       { path: 'verification', element: <AgentVerification /> },
       { path: 'team', element: <AgentTeam /> },
       { path: 'leads', element: <AgentLeads /> },
@@ -284,6 +292,8 @@ export const routes = [
       { path: ROUTES.AGENT_LOGIN, element: <AgentLogin /> },
       { path: ROUTES.AGENT_REGISTER, element: <AgentRegister /> },
       { path: ROUTES.AGENT_PUBLIC_DIRECTORY, element: <AgentDirectory /> },
+      { path: ROUTES.AGENT_PUBLIC_MARKETPLACE, element: <AgentMarketplacePublic /> },
+      { path: ROUTES.AGENT_PUBLIC_MARKETPLACE_DETAIL, element: <AgentMarketplaceDetail /> },
       { path: ROUTES.AGENT_PUBLIC_PROFILE, element: <AgentPublicProfile /> },
       { path: 'employer/:slug', element: <EmployerPublicGate /> },
       { path: `${ROUTES.COMPANY}/:slug`, element: <CompanyProfile /> },
@@ -393,6 +403,7 @@ export const routes = [
           { path: 'review', element: <AdminReviewQueue /> },
           { path: 'audit', element: <AuditLogPage /> },
           { path: 'verification-queue', element: <AdminVerificationQueue /> },
+          { path: 'agent-marketplace', element: <AdminAgentMarketplace /> },
           { path: 'growth-dashboard', element: <GrowthDashboard /> },
           { path: 'ai-job-generator', element: <AIJobGenerator /> },
           { path: 'analytics', element: <AnalyticsDashboard /> },

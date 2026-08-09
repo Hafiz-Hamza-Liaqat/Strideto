@@ -14,6 +14,7 @@ const AGENT_PORTAL_ROOT_SEGMENTS = new Set([
   'leads',
   'clients',
   'settings',
+  'marketplace',
 ]);
 
 export function isAgentPublicAuthPath(pathname = '') {

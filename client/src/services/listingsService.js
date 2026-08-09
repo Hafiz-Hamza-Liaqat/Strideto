@@ -245,6 +245,9 @@ export const adminApi = {
   workflowAcquireLock: (entityType, entityId, force) => axiosInstance.post(`/admin/workflow/${entityType}/${entityId}/lock`, { force }),
   workflowReleaseLock: (entityType, entityId) => axiosInstance.delete(`/admin/workflow/${entityType}/${entityId}/lock`),
   workflowGetLock: (entityType, entityId) => axiosInstance.get(`/admin/workflow/${entityType}/${entityId}/lock`),
+  agentMarketplaceQueue: (params) => axiosInstance.get('/admin/agent-marketplace', { params }),
+  agentMarketplaceDetail: (postId) => axiosInstance.get(`/admin/agent-marketplace/${postId}`),
+  moderateAgentMarketplace: (postId, action, reason) => axiosInstance.patch(`/admin/agent-marketplace/${postId}/moderate`, { action, reason }),
 };
 
 export const examsApi = {

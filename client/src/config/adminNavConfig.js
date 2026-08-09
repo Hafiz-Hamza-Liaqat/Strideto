@@ -62,6 +62,7 @@ export const ADMIN_NAV_GROUPS = /** @type {AdminNavGroup[]} */ ([
       { path: `${ROUTES.ADMIN}/moderation`, labelKey: 'moderation', perm: [PERMISSIONS.MODERATE_JOBS, PERMISSIONS.MODERATE_EMPLOYERS], icon: 'shield' },
       { path: `${ROUTES.ADMIN}/review`, labelKey: 'editorialReview', perm: [PERMISSIONS.WORKFLOW_VIEW, PERMISSIONS.WORKFLOW_REVIEW, PERMISSIONS.WORKFLOW_APPROVE], icon: 'shield' },
       { path: `${ROUTES.ADMIN}/verification-queue`, labelKey: 'verificationQueue', perm: PERMISSIONS.VERIFICATION_READ, icon: 'shield' },
+      { path: `${ROUTES.ADMIN}/agent-marketplace`, labelKey: 'agentMarketplace', perm: PERMISSIONS.WORKFLOW_REVIEW, icon: 'megaphone' },
     ],
   },
   {

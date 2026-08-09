@@ -14,6 +14,8 @@ import mongoose from 'mongoose';
 import { UserAction } from '../models/action/UserAction.js';
 import { UserChecklist } from '../models/action/UserChecklist.js';
 import { SavedOpportunity } from '../models/action/SavedOpportunity.js';
+import { AgentMarketplacePost } from '../models/agent/AgentMarketplacePost.js';
+import { OrganizationVerification } from '../models/OrganizationVerification.js';
 import { UserDeadline } from '../models/action/UserDeadline.js';
 import { EducationApplication } from '../models/action/EducationApplication.js';
 import { AlertPreference } from '../models/action/AlertPreference.js';
@@ -190,6 +192,17 @@ export async function saveOpportunity(userId, entityType, entityId, notes = '') 
   const uidOid = toOid(userId);
   const eOid = toOid(entityId);
   if (!eOid) return { error: 'invalid_id' };
+  if (entityType === 'agent_marketplace_post') {
+    const post = await AgentMarketplacePost.findOne({
+      _id: eOid,
+      publicationStatus: 'published',
+      moderationStatus: 'approved',
+      $or: [{ endsAt: null }, { endsAt: { $gt: new Date() } }],
+    }).select('organizationId').lean();
+    if (!post || !(await OrganizationVerification.exists({ organizationId: post.organizationId, status: 'approved' }))) {
+      return { error: 'invalid_id' };
+    }
+  }
   try {
     const doc = await SavedOpportunity.findOneAndUpdate(
       { userId: uidOid, entityType, entityId: eOid },

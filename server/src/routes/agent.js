@@ -11,7 +11,7 @@
  * VAULT: Agent auth alone grants zero Vault access.
  */
 import { Router } from 'express';
-import { requireAuth, requireAgentAuth } from '../middleware/auth.js';
+import { requireAuth, requireAgentAuth, requireUserAuth } from '../middleware/auth.js';
 import { secureTrustedOrigin } from '../middleware/secureTrustedOrigin.js';
 import {
   employerAuthLimiter,
@@ -19,6 +19,7 @@ import {
 } from '../middleware/rateLimit.js';
 import * as agentAuth from '../controllers/agentAuthController.js';
 import * as agent from '../controllers/agentController.js';
+import * as marketplace from '../controllers/agentMarketplaceController.js';
 
 export const agentRouter = Router();
 
@@ -199,9 +200,22 @@ agentRouter.get(
   agent.listClients
 );
 
+// Structured Agent marketplace authoring
+agentRouter.get('/agent/marketplace/counts', requireAuth, requireAgentAuth, marketplace.counts);
+agentRouter.get('/agent/marketplace', requireAuth, requireAgentAuth, marketplace.listOwn);
+agentRouter.post('/agent/marketplace', requireAuth, requireAgentAuth, marketplace.create);
+agentRouter.get('/agent/marketplace/:postId', requireAuth, requireAgentAuth, marketplace.getOwn);
+agentRouter.patch('/agent/marketplace/:postId', requireAuth, requireAgentAuth, marketplace.update);
+agentRouter.post('/agent/marketplace/:postId/submit', requireAuth, requireAgentAuth, marketplace.submit);
+agentRouter.post('/agent/marketplace/:postId/archive', requireAuth, requireAgentAuth, marketplace.archive);
+
 // ---------------------------------------------------------------------------
 // Public — no auth required
 // ---------------------------------------------------------------------------
 
+agentRouter.get('/agents/marketplace/posts', marketplace.listPublic);
+agentRouter.get('/agents/marketplace/posts/:slug', marketplace.getPublic);
+agentRouter.post('/agents/marketplace/posts/:slug/interest', requireAuth, requireUserAuth, marketplace.interest);
+agentRouter.delete('/agents/marketplace/posts/:slug/interest', requireAuth, requireUserAuth, marketplace.withdraw);
 agentRouter.get('/agents', agent.listPublicAgents);
 agentRouter.get('/agents/:slug', agent.getPublicProfile);

@@ -119,6 +119,14 @@ export default function AgentDashboard() {
 
       {/* Quick actions */}
       <div className="bg-white rounded-xl border border-[#E5E7EB] p-5">
+        <div className="flex items-center justify-between gap-3"><p className="text-sm font-medium text-[#0F172A]">Marketplace</p><Link to={ROUTES.AGENT_MARKETPLACE} className="text-sm text-[#1D4ED8]">Manage posts →</Link></div>
+        <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">{[
+          ['Drafts', dashboard?.marketplace?.drafts], ['Pending review', dashboard?.marketplace?.pendingReview], ['Published', dashboard?.marketplace?.published], ['Needs changes', dashboard?.marketplace?.needsChanges],
+        ].map(([label,value])=><div key={label} className="rounded-lg bg-slate-50 p-3"><p className="text-xl font-semibold">{value ?? 0}</p><p className="text-xs text-slate-500">{label}</p></div>)}</div>
+      </div>
+
+      {/* Quick actions */}
+      <div className="bg-white rounded-xl border border-[#E5E7EB] p-5">
         <p className="text-sm font-medium text-[#0F172A] mb-3">Quick Actions</p>
         <div className="flex flex-wrap gap-3">
           <Link

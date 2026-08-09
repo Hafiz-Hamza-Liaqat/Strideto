@@ -47,6 +47,7 @@ export const PRIORITY_LEVELS = Object.freeze({
 export const SAVED_OPPORTUNITY_TYPES = Object.freeze({
   PROGRAM: 'program',
   CANONICAL_SCHOLARSHIP: 'canonical_scholarship',
+  AGENT_MARKETPLACE_POST: 'agent_marketplace_post',
 });
 
 // ── Deadline urgency ──────────────────────────────────────────────────────────

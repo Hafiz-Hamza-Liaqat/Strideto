@@ -6,6 +6,7 @@ const navItems = [
   { to: ROUTES.AGENT_DASHBOARD, label: 'Dashboard', end: true },
   { to: ROUTES.AGENT_PROFILE, label: 'Profile' },
   { to: ROUTES.AGENT_SERVICES, label: 'Services' },
+  { to: ROUTES.AGENT_MARKETPLACE, label: 'Marketplace' },
   { to: ROUTES.AGENT_VERIFICATION, label: 'Verification' },
   { to: ROUTES.AGENT_TEAM, label: 'Team' },
   { to: ROUTES.AGENT_LEADS, label: 'Leads' },

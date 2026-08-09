@@ -53,12 +53,14 @@ import { uploadMediaFiles } from '../middleware/mediaUpload.js';
 import { adminVerificationRouter } from './adminVerification.js';
 import { adminEducationRouter } from './adminEducation.js';
 import { adminFreshnessRouter } from './adminFreshness.js';
+import { adminAgentMarketplaceRouter } from './adminAgentMarketplace.js';
 
 export const adminRouter = Router();
 
 adminRouter.use(requireAuth, requireStaff, adminReadLimiter, adminWriteLimiter, adminDeleteLimiter);
 adminRouter.use(adminEducationRouter);
 adminRouter.use(adminFreshnessRouter);
+adminRouter.use(adminAgentMarketplaceRouter);
 
 adminRouter.get('/search', requirePermission(PERMISSIONS.CONTENT_SITE), adminSearch.adminSearch);
 adminRouter.get('/search/stats', requirePermission(PERMISSIONS.CONTENT_SITE), adminSearch.adminIndexStats);

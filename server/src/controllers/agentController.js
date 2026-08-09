@@ -29,6 +29,7 @@ import {
   getPublicDirectory,
 } from '../services/agentProfileService.js';
 import { canExercisePrivilegedCapability } from '../../../shared/international/verification.js';
+import { marketplaceCounts } from '../services/agentMarketplaceService.js';
 
 // ---------------------------------------------------------------------------
 // Dashboard
@@ -47,6 +48,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
 
   const verificationStatus = await getVerificationStatus(profile.organizationId);
   const isApproved = canExercisePrivilegedCapability(verificationStatus);
+  const marketplace = await marketplaceCounts(agentAccountId);
 
   return res.status(200).json({
     onboarding: !profile.onboardingCompletedAt,
@@ -61,6 +63,12 @@ export const getDashboard = asyncHandler(async (req, res) => {
     casesCount: null,
     earningsTotal: null,
     comingSoon: ['leads', 'consultations', 'cases', 'payments'],
+    marketplace: {
+      drafts: marketplace.not_submitted || 0,
+      pendingReview: (marketplace.pending || 0) + (marketplace.under_review || 0),
+      published: marketplace.approved || 0,
+      needsChanges: marketplace.needs_changes || 0,
+    },
   });
 });
 

@@ -4,6 +4,7 @@
  * refresh token as HttpOnly cookie.
  */
 import axios from 'axios';
+import userAxios from './axiosBase';
 import { API_BASE_URL } from '../constants';
 
 let inMemoryAgentAccessToken = null;
@@ -123,9 +124,23 @@ export const agentApi = {
   updateLeadStatus: (leadId, status) =>
     agentAxios.patch(`/api/agent/leads/${leadId}`, { status }),
   getClients: () => agentAxios.get('/api/agent/clients'),
+  getMarketplaceCounts: () => agentAxios.get('/api/agent/marketplace/counts'),
+  getMarketplacePosts: (params) => agentAxios.get('/api/agent/marketplace', { params }),
+  getMarketplacePost: (postId) => agentAxios.get(`/api/agent/marketplace/${postId}`),
+  createMarketplacePost: (data) => agentAxios.post('/api/agent/marketplace', data),
+  updateMarketplacePost: (postId, data) => agentAxios.patch(`/api/agent/marketplace/${postId}`, data),
+  submitMarketplacePost: (postId) => agentAxios.post(`/api/agent/marketplace/${postId}/submit`),
+  archiveMarketplacePost: (postId) => agentAxios.post(`/api/agent/marketplace/${postId}/archive`),
 };
 
 export const agentPublicApi = {
   getDirectory: (params) => agentAxios.get('/api/agents', { params }),
   getProfile: (slug) => agentAxios.get(`/api/agents/${slug}`),
+  getMarketplace: (params) => agentAxios.get('/api/agents/marketplace/posts', { params }),
+  getMarketplacePost: (slug) => agentAxios.get(`/api/agents/marketplace/posts/${slug}`),
+};
+
+export const studentMarketplaceApi = {
+  expressInterest: (slug) => userAxios.post(`/agents/marketplace/posts/${slug}/interest`, { explicitConsent: true }),
+  withdrawInterest: (slug) => userAxios.delete(`/agents/marketplace/posts/${slug}/interest`),
 };
