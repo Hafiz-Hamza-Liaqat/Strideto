@@ -119,6 +119,11 @@ export const ROUTES = {
   VAULT_DOCUMENT: '/vault/:id',
   // Mission 19 — Evidence-Grounded AI Copilot
   COPILOT: '/copilot',
+  // Mission 20 — Budget / Cost Planner
+  BUDGET: '/budget',
+  BUDGET_NEW: '/budget/new',
+  BUDGET_DETAIL: '/budget/:planId',
+  BUDGET_COMPARE: '/budget/compare',
 };
 
 export const ROLES = {

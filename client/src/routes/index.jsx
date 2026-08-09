@@ -181,6 +181,10 @@ const TrustCenter = lazyLoad(() => import('../pages/Trust/TrustCenter'));
 const AgentCommerce = lazyLoad(() => import('../pages/Agent/AgentCommerce')); const CommerceHistory = lazyLoad(() => import('../pages/Commerce/CommerceHistory'));
 const MarketplaceCheckout = lazyLoad(() => import('../pages/Commerce/MarketplaceCheckout'));
 const CopilotPage = lazyLoad(() => import('../pages/Copilot/CopilotPage'));
+const BudgetPlannerPage = lazyLoad(() => import('../pages/Budget/BudgetPlannerPage'));
+const NewBudgetPlanPage = lazyLoad(() => import('../pages/Budget/NewBudgetPlanPage'));
+const BudgetPlanDetailPage = lazyLoad(() => import('../pages/Budget/BudgetPlanDetailPage'));
+const BudgetComparePage = lazyLoad(() => import('../pages/Budget/BudgetComparePage'));
 
 function lazyLoad(importFn) {
   const Lazy = lazy(importFn);
@@ -574,6 +578,10 @@ export const routes = [
       { path: ROUTES.COMMERCE_HISTORY, element: <ProtectedRoute><CommerceHistory /></ProtectedRoute> },
       { path: ROUTES.MARKETPLACE_CHECKOUT, element: <ProtectedRoute><MarketplaceCheckout /></ProtectedRoute> },
       { path: ROUTES.COPILOT, element: <ProtectedRoute><CopilotPage /></ProtectedRoute> },
+      { path: ROUTES.BUDGET, element: <ProtectedRoute><BudgetPlannerPage /></ProtectedRoute> },
+      { path: ROUTES.BUDGET_NEW, element: <ProtectedRoute><NewBudgetPlanPage /></ProtectedRoute> },
+      { path: ROUTES.BUDGET_COMPARE, element: <ProtectedRoute><BudgetComparePage /></ProtectedRoute> },
+      { path: ROUTES.BUDGET_DETAIL, element: <ProtectedRoute><BudgetPlanDetailPage /></ProtectedRoute> },
       { path: `${ROUTES.CASES}/:caseId`, element: <ProtectedRoute><CaseDetail /></ProtectedRoute> },
       {
         path: ROUTES.CONSULTATION_REQUEST,
