@@ -47,6 +47,8 @@ const ResumeAnalyzer = lazyLoad(() => import('../pages/ResumeAnalyzer/ResumeAnal
 const ExamPrep = lazyLoad(() => import('../pages/ExamPrep/ExamPrep'));
 const ExamDetail = lazyLoad(() => import('../pages/ExamPrep/ExamDetail'));
 const QuizTake = lazyLoad(() => import('../pages/ExamPrep/QuizTake'));
+const TestHub = lazyLoad(() => import('../pages/Tests/TestHub'));
+const TestDetail = lazyLoad(() => import('../pages/Tests/TestDetail'));
 const Internships = lazyLoad(() => import('../pages/Internships/Internships'));
 const InternshipDetail = lazyLoad(() => import('../pages/Internships/InternshipDetail'));
 const Webinars = lazyLoad(() => import('../pages/Webinars/Webinars'));
@@ -394,6 +396,8 @@ export const routes = [
       { path: ROUTES.EXAM_PREP, element: <ExamPrep /> },
       { path: `${ROUTES.EXAM_PREP}/quiz/:quizId`, element: <QuizTake /> },
       { path: `${ROUTES.EXAM_PREP}/:slug`, element: <ExamDetail /> },
+      { path: ROUTES.TEST_HUB, element: <TestHub /> },
+      { path: `${ROUTES.TEST_HUB}/:slug`, element: <TestDetail /> },
       { path: ROUTES.INTERNSHIPS, element: <Internships /> },
       { path: `${ROUTES.INTERNSHIPS}/:idOrSlug`, element: <InternshipDetail /> },
       { path: ROUTES.WEBINARS, element: <Webinars /> },

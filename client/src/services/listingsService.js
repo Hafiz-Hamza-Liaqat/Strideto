@@ -272,3 +272,16 @@ export const resumesApi = {
   optimizeForJob: (resumeId, jobId, resumePayload) =>
     axiosInstance.post('/resumes/optimize-for-job', resumeId != null ? { resumeId, jobId } : { jobId, resume: resumePayload }),
 };
+
+export const testsApi = {
+  list: (params) => axiosInstance.get(`/tests${buildParams(params)}`),
+  get: (slug) => axiosInstance.get(`/tests/${encodeURIComponent(slug)}`),
+  getPrepGuide: (slug) => axiosInstance.get(`/tests/${encodeURIComponent(slug)}/prep-guide`),
+  getResources: (slug, params) => axiosInstance.get(`/tests/${encodeURIComponent(slug)}/resources${buildParams(params)}`),
+  getAlerts: (slug) => axiosInstance.get(`/tests/${encodeURIComponent(slug)}/alerts`),
+  listProviders: () => axiosInstance.get('/education/providers'),
+  listCountries: () => axiosInstance.get('/education/countries'),
+  getCountry: (code) => axiosInstance.get(`/education/countries/${encodeURIComponent(code)}`),
+  listInstitutions: (params) => axiosInstance.get(`/education/institutions${buildParams(params)}`),
+  getInstitution: (slug) => axiosInstance.get(`/education/institutions/${encodeURIComponent(slug)}`),
+};

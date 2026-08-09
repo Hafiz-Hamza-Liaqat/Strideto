@@ -69,6 +69,8 @@ export const ROUTES = {
   ASSESSMENTS: '/assessments',
   ASSESSMENT_DETAIL: '/assessments/:slug',
   ASSESSMENT_TAKE: '/assessments/:slug/take',
+  TEST_HUB: '/tests',
+  TEST_DETAIL: '/tests/:slug',
 };
 
 export const ROLES = {
