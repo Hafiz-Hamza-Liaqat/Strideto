@@ -152,6 +152,7 @@ export const agentApi = {
   getReviews: () => agentAxios.get('/api/agent/reviews'), respondToReview: (reviewId, body) => agentAxios.put(`/api/agent/reviews/${reviewId}/response`, { body }),
   getReports: () => agentAxios.get('/api/agent/reports'), getDisputes: () => agentAxios.get('/api/agent/disputes'),
   addDisputeEvent: (disputeId, data) => agentAxios.post(`/api/agent/disputes/${disputeId}/events`, data),
+  getCommerceHistory: (params) => agentAxios.get('/api/agent/commerce/history', { params }),
 };
 
 export const agentPublicApi = {
@@ -193,3 +194,5 @@ export const studentTrustApi = {
   reports: () => userAxios.get('/reports/mine'), createReport: (data) => userAxios.post('/reports', data),
   disputes: () => userAxios.get('/disputes/mine'), openDispute: (data) => userAxios.post('/disputes', data), addDisputeEvent: (disputeId, data) => userAxios.post(`/disputes/${disputeId}/events`, data),
 };
+
+export const studentCommerceApi = { history: (params) => userAxios.get('/commerce/history', { params }), products: (params) => userAxios.get('/commerce/products', { params }), createOrder: (data, idempotencyKey) => userAxios.post('/commerce/orders', data, { headers: { 'Idempotency-Key': idempotencyKey } }) };

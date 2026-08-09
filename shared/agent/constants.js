@@ -54,6 +54,10 @@ export const AGENT_SERVICE_PRICING_MODES = Object.freeze({
   FREE: 'free',
   PAID_FUTURE: 'paid_future',
   CONTACT_FOR_DETAILS: 'contact_for_details',
+  FIXED_PRICE: 'fixed_price',
+  STARTING_FROM: 'starting_from',
+  QUOTE_REQUIRED: 'quote_required',
+  PAYMENT_NOT_CONFIGURED: 'payment_not_configured',
 });
 
 export const AGENT_SERVICE_STATUSES = Object.freeze({

@@ -366,6 +366,7 @@ export async function createService(agentAccountId, data) {
     journeyType: data.journeyType,
     deliveryMode: data.deliveryMode,
     pricingMode: data.pricingMode,
+    price: data.price,
     durationEstimate: data.durationEstimate || '',
     status: AGENT_SERVICE_STATUSES.DRAFT,
   });
@@ -411,7 +412,7 @@ export async function updateService(agentAccountId, serviceId, data) {
   const allowed = [
     'title', 'category', 'description', 'eligibilityNotes',
     'countriesServed', 'destinationCountries', 'journeyType',
-    'deliveryMode', 'pricingMode', 'durationEstimate', 'status',
+    'deliveryMode', 'pricingMode', 'price', 'durationEstimate', 'status',
   ];
   for (const key of allowed) {
     if (key in data) service[key] = data[key];
@@ -653,7 +654,7 @@ export async function getPublicProfileBySlug(slug) {
     organizationId: profile.organizationId,
     status: AGENT_SERVICE_STATUSES.ACTIVE,
   })
-    .select('title category description countriesServed destinationCountries deliveryMode pricingMode')
+    .select('title category description countriesServed destinationCountries deliveryMode pricingMode price')
     .lean();
 
   return {

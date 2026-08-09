@@ -11,6 +11,7 @@
  * No service may claim guaranteed visa, admission, scholarship, or job.
  */
 import mongoose from 'mongoose';
+import { normalizeCurrency } from '../../../../shared/international/currency.js';
 import {
   AGENT_SERVICE_CATEGORIES,
   AGENT_SERVICE_PRICING_MODES,
@@ -67,6 +68,10 @@ const agentServiceSchema = new mongoose.Schema(
       enum: Object.values(AGENT_SERVICE_PRICING_MODES),
       default: AGENT_SERVICE_PRICING_MODES.CONTACT_FOR_DETAILS,
     },
+    price: {
+      amountMinor: { type: Number, default: null, validate: (v) => v == null || (Number.isSafeInteger(v) && v >= 0) },
+      currency: { type: String, default: null, validate: (v) => v == null || normalizeCurrency(v) === v },
+    },
 
     // Optional duration
     durationEstimate: { type: String, trim: true, maxlength: 200, default: '' },
@@ -83,6 +88,10 @@ const agentServiceSchema = new mongoose.Schema(
 
 agentServiceSchema.index({ organizationId: 1, status: 1 });
 agentServiceSchema.index({ category: 1, status: 1 });
+agentServiceSchema.pre('validate', function validatePrice() {
+  if (['fixed_price', 'starting_from'].includes(this.pricingMode) && (!Number.isSafeInteger(this.price?.amountMinor) || !normalizeCurrency(this.price?.currency))) throw new Error('Fixed and starting prices require Money');
+  if (!['fixed_price', 'starting_from'].includes(this.pricingMode)) this.price = { amountMinor: null, currency: null };
+});
 
 export const AgentService =
   mongoose.models.AgentService ||

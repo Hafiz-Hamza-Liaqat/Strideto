@@ -178,6 +178,7 @@ const ConsultationDetail = lazyLoad(() => import('../pages/Consultations/Consult
 const Cases = lazyLoad(() => import('../pages/Cases/Cases')); const CaseDetail = lazyLoad(() => import('../pages/Cases/CaseDetail')); const AgentCases = lazyLoad(() => import('../pages/Agent/AgentCases')); const AgentCaseDetail = lazyLoad(() => import('../pages/Agent/AgentCaseDetail'));
 const AgentTrust = lazyLoad(() => import('../pages/Agent/AgentTrust'));
 const TrustCenter = lazyLoad(() => import('../pages/Trust/TrustCenter'));
+const AgentCommerce = lazyLoad(() => import('../pages/Agent/AgentCommerce')); const CommerceHistory = lazyLoad(() => import('../pages/Commerce/CommerceHistory'));
 
 function lazyLoad(importFn) {
   const Lazy = lazy(importFn);
@@ -218,6 +219,7 @@ export const routes = [
       { path: 'consultations/:consultationId', element: <AgentConsultationDetail /> },
       { path: 'cases', element: <AgentCases /> }, { path: 'cases/:caseId', element: <AgentCaseDetail /> },
       { path: 'trust', element: <AgentTrust /> },
+      { path: 'commerce', element: <AgentCommerce /> },
       { path: 'availability', element: <AgentAvailability /> },
       { path: 'verification', element: <AgentVerification /> },
       { path: 'team', element: <AgentTeam /> },
@@ -567,6 +569,7 @@ export const routes = [
       },
       { path: ROUTES.CASES, element: <ProtectedRoute><Cases /></ProtectedRoute> },
       { path: ROUTES.TRUST_CENTER, element: <ProtectedRoute><TrustCenter /></ProtectedRoute> },
+      { path: ROUTES.COMMERCE_HISTORY, element: <ProtectedRoute><CommerceHistory /></ProtectedRoute> },
       { path: `${ROUTES.CASES}/:caseId`, element: <ProtectedRoute><CaseDetail /></ProtectedRoute> },
       {
         path: ROUTES.CONSULTATION_REQUEST,
