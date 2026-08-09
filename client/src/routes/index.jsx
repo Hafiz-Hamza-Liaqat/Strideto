@@ -63,6 +63,11 @@ const ResumeBuilder = lazyLoad(() => import('../pages/ResumeBuilder/ResumeBuilde
 const TalentProfileEditor = lazyLoad(() => import('../pages/TalentProfile/TalentProfileEditor'));
 const PersonalizationHub = lazyLoad(() => import('../pages/Personalization/PersonalizationHub'));
 const EligibilityDetail = lazyLoad(() => import('../pages/Personalization/EligibilityDetail').then((m) => ({ default: m.EligibilityDetailPage })));
+const JourneyDashboard = lazyLoad(() => import('../pages/Journey/JourneyDashboard'));
+const JourneyTasksPage = lazyLoad(() => import('../pages/Journey/TasksPage'));
+const JourneyCalendarPage = lazyLoad(() => import('../pages/Journey/CalendarPage'));
+const JourneyApplicationsPage = lazyLoad(() => import('../pages/Journey/ApplicationsPage'));
+const JourneySavedPage = lazyLoad(() => import('../pages/Journey/SavedOpportunitiesPage'));
 const MyApplications = lazyLoad(() => import('../pages/Applications/MyApplications'));
 const CreateApplication = lazyLoad(() => import('../pages/Applications/CreateApplication'));
 const ApplicationDetail = lazyLoad(() => import('../pages/Applications/ApplicationDetail'));
@@ -429,6 +434,46 @@ export const routes = [
         element: (
           <ProtectedRoute>
             <EligibilityDetail opportunityType="scholarship" />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: ROUTES.JOURNEY,
+        element: (
+          <ProtectedRoute>
+            <JourneyDashboard />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: ROUTES.JOURNEY_TASKS,
+        element: (
+          <ProtectedRoute>
+            <JourneyTasksPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: ROUTES.JOURNEY_DEADLINES,
+        element: (
+          <ProtectedRoute>
+            <JourneyCalendarPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: ROUTES.JOURNEY_APPLICATIONS,
+        element: (
+          <ProtectedRoute>
+            <JourneyApplicationsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: ROUTES.JOURNEY_SAVED,
+        element: (
+          <ProtectedRoute>
+            <JourneySavedPage />
           </ProtectedRoute>
         ),
       },

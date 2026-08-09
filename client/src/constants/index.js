@@ -78,6 +78,12 @@ export const ROUTES = {
   PERSONALIZATION_HUB: '/personalization',
   PERSONALIZATION_PROGRAM_ELIGIBILITY: '/personalization/programs/:programId/eligibility',
   PERSONALIZATION_SCHOLARSHIP_ELIGIBILITY: '/personalization/scholarships/:scholarshipId/eligibility',
+  // Mission 9 — Action Engine / Journey Planner
+  JOURNEY: '/journey',
+  JOURNEY_TASKS: '/journey/tasks',
+  JOURNEY_DEADLINES: '/journey/deadlines',
+  JOURNEY_APPLICATIONS: '/journey/applications',
+  JOURNEY_SAVED: '/journey/saved',
 };
 
 export const ROLES = {
