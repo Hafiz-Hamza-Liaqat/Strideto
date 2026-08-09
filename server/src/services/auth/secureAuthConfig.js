@@ -22,6 +22,8 @@ export const USER_ACCESS_AUDIENCE = 'strideto-user-access';
 export const USER_REFRESH_AUDIENCE = 'strideto-user-refresh';
 export const EMPLOYER_ACCESS_AUDIENCE = 'strideto-employer-access';
 export const EMPLOYER_REFRESH_AUDIENCE = 'strideto-employer-refresh';
+export const AGENT_ACCESS_AUDIENCE = 'strideto-agent-access';
+export const AGENT_REFRESH_AUDIENCE = 'strideto-agent-refresh';
 
 /**
  * Reuses the exact same origin sources `config/cors.js` already trusts
@@ -94,6 +96,14 @@ export function buildSecureAuthConfig(env = {}) {
     refreshAudience: EMPLOYER_REFRESH_AUDIENCE,
   });
 
+  const agentJwtProvider = createJwtSessionProvider({
+    accessSecret,
+    refreshSecret,
+    issuer: JWT_ISSUER,
+    accessAudience: AGENT_ACCESS_AUDIENCE,
+    refreshAudience: AGENT_REFRESH_AUDIENCE,
+  });
+
   const mode = resolveRuntimeMode({ nodeEnv, appEnv });
   const trustedOrigins = collectTrustedOrigins(env);
   const apiOrigin = resolveApiOrigin(env);
@@ -117,6 +127,7 @@ export function buildSecureAuthConfig(env = {}) {
     mode,
     userJwtProvider,
     employerJwtProvider,
+    agentJwtProvider,
     cookiePolicy,
     originPolicy,
     requireSharedDenylistStore,

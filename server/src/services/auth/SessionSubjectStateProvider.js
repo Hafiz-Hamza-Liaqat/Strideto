@@ -1,5 +1,6 @@
 import { User } from '../../models/User.js';
 import { Employer } from '../../models/Employer.js';
+import { AgentAccount } from '../../models/agent/AgentAccount.js';
 import { isKnownRealm } from './AuthSessionPrimitiveContracts.js';
 
 /**
@@ -68,6 +69,7 @@ function validateInput({ realm, subjectId, expectedTokenVersion }) {
 export function createSessionSubjectStateProvider({
   userModel = User,
   employerModel = Employer,
+  agentModel = AgentAccount,
 } = {}) {
   if (!userModel || typeof userModel.findById !== 'function') {
     throw new TypeError('A User model with findById is required');
@@ -75,8 +77,11 @@ export function createSessionSubjectStateProvider({
   if (!employerModel || typeof employerModel.findById !== 'function') {
     throw new TypeError('An Employer model with findById is required');
   }
+  if (!agentModel || typeof agentModel.findById !== 'function') {
+    throw new TypeError('An AgentAccount model with findById is required');
+  }
 
-  const modelsByRealm = { user: userModel, employer: employerModel };
+  const modelsByRealm = { user: userModel, employer: employerModel, agent: agentModel };
 
   /**
    * Exactly one authoritative read per call — no cache, no Redis, no

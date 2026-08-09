@@ -19,6 +19,16 @@ function attachSecurePrincipal(req, principal) {
       tokenVersion: principal.tokenVersion,
       exp: principal.exp,
     };
+  } else if (principal.realm === 'agent') {
+    req.agent = {
+      agentAccountId: principal.subjectId,
+      subjectId: principal.subjectId,
+      role: 'agent',
+      sid: principal.sid,
+      jti: principal.jti,
+      tokenVersion: principal.tokenVersion,
+      exp: principal.exp,
+    };
   } else {
     req.user = {
       userId: principal.subjectId,
@@ -80,6 +90,14 @@ export function optionalAuth(req, res, next) {
 export function requireEmployerAuth(req, res, next) {
   if (!req.employer) {
     return res.status(401).json({ error: 'Employer authentication required' });
+  }
+  next();
+}
+
+/** Requires an Agent token. Use for agent portal routes. */
+export function requireAgentAuth(req, res, next) {
+  if (!req.agent) {
+    return res.status(401).json({ error: 'Agent authentication required' });
   }
   next();
 }

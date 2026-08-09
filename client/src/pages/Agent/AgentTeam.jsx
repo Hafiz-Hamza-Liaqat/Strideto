@@ -1,0 +1,11 @@
+import { useEffect, useState } from 'react';
+import { agentApi } from '../../services/agentService';
+
+export default function AgentTeam() {
+  const [members, setMembers] = useState([]); const [loading, setLoading] = useState(true); const [error, setError] = useState(''); const [busy, setBusy] = useState('');
+  const load = () => agentApi.getTeam().then(({ data }) => setMembers(data.members));
+  useEffect(() => { load().catch((err) => setError(err.response?.data?.error || 'Unable to load team.')).finally(() => setLoading(false)); }, []);
+  const toggle = async (member) => { setBusy(member._id); setError(''); try { await agentApi.changeMemberStatus(member.agentAccountId, !member.active); await load(); } catch (err) { setError(err.response?.data?.error || 'Unable to update membership.'); } finally { setBusy(''); } };
+  if (loading) return <p className="text-sm text-slate-500">Loading team…</p>;
+  return <div className="space-y-5"><div><h1 className="text-2xl font-semibold">Agency team</h1><p className="mt-1 text-sm text-slate-500">Membership is organization-scoped. Individual agents do not have a team.</p></div>{error && <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</p>}{members.length === 0 ? <p className="rounded-xl border bg-white p-5 text-sm text-slate-500">No agency team is available for this account.</p> : <div className="overflow-x-auto rounded-xl border bg-white"><table className="min-w-full text-left text-sm"><thead className="bg-slate-50"><tr><th className="p-3">Member ID</th><th className="p-3">Role</th><th className="p-3">Status</th><th className="p-3">Action</th></tr></thead><tbody>{members.map((member) => <tr key={member._id} className="border-t"><td className="p-3">{member.agentAccountId}</td><td className="p-3">{member.role}</td><td className="p-3">{member.active ? 'Active' : 'Inactive'}</td><td className="p-3"><button disabled={busy === member._id || member.role === 'owner'} onClick={() => toggle(member)} className="text-blue-700 disabled:text-slate-400">{member.active ? 'Deactivate' : 'Activate'}</button></td></tr>)}</tbody></table></div>}<p className="text-xs text-slate-500">Invitations and enterprise role management are deferred. Owners and admins may manage existing membership roles only.</p></div>;
+}

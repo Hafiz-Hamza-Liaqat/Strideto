@@ -14,6 +14,22 @@
 import * as verificationService from '../../services/verificationService.js';
 import { resolveCredentialPolicy } from '../../services/credentialPolicyService.js';
 import { Organization } from '../../models/Organization.js';
+import { AgentProfile } from '../../models/agent/AgentProfile.js';
+import { AgentMembership } from '../../models/agent/AgentMembership.js';
+import { AgentAccount } from '../../models/agent/AgentAccount.js';
+
+async function prepareAgentSubmission(req, organizationId) {
+  if (!req.agent?.agentAccountId) return;
+  const record = await verificationService.getVerification(organizationId);
+  if (record.status !== 'draft') return;
+  const account = await AgentAccount.findById(req.agent.agentAccountId).select('emailVerified');
+  if (!account?.emailVerified) {
+    throw Object.assign(new Error('Verify the Agent account email before submitting verification'), {
+      code: 'EMAIL_VERIFICATION_REQUIRED', status: 409,
+    });
+  }
+  await verificationService.markEmailVerified(organizationId, actor(req, organizationId));
+}
 
 /**
  * Derive actor from request. Supports future org realm; for now also handles
@@ -21,9 +37,9 @@ import { Organization } from '../../models/Organization.js';
  */
 function actor(req, organizationId) {
   return {
-    userId: req.user?.userId || req.employer?.employerId,
-    role: req.user?.role || 'employer',
-    realm: req.user ? 'admin' : 'employer',
+    userId: req.user?.userId || req.employer?.employerId || req.agent?.agentAccountId,
+    role: req.user?.role || (req.agent ? 'agent' : 'employer'),
+    realm: req.user ? 'admin' : (req.agent ? 'agent' : 'employer'),
     correlationId: req.headers['x-request-id'] || '',
   };
 }
@@ -45,6 +61,28 @@ async function assertOwnership(req, organizationId) {
       legacyEmployerId: req.employer.employerId,
     }).select('_id');
     if (!org) {
+      throw Object.assign(
+        new Error('Access denied: organization does not belong to this account'),
+        { code: 'FORBIDDEN', status: 403 }
+      );
+    }
+    return;
+  }
+
+  // Agent realm: the profile link and an active organization membership must
+  // both match. This prevents stale or cross-agency profile links from being
+  // used as authorization.
+  if (req.agent?.agentAccountId) {
+    const profile = await AgentProfile.findOne({
+      agentAccountId: req.agent.agentAccountId,
+      organizationId,
+    }).select('_id');
+    const membership = await AgentMembership.findOne({
+      agentAccountId: req.agent.agentAccountId,
+      organizationId,
+      active: true,
+    }).select('_id');
+    if (!profile || !membership) {
       throw Object.assign(
         new Error('Access denied: organization does not belong to this account'),
         { code: 'FORBIDDEN', status: 403 }
@@ -100,6 +138,8 @@ export async function submitVerification(req, res) {
     if (!profile || typeof profile !== 'object') {
       return res.status(422).json({ error: 'profile is required' });
     }
+
+    await prepareAgentSubmission(req, organizationId);
 
     const updated = await verificationService.submitVerification(
       organizationId,
@@ -160,6 +200,8 @@ export async function respondToInformationRequest(req, res) {
     if (!profile || typeof profile !== 'object') {
       return res.status(422).json({ error: 'profile is required' });
     }
+
+    await prepareAgentSubmission(req, organizationId);
 
     const updated = await verificationService.submitVerification(
       organizationId,

@@ -4,6 +4,7 @@ import { MainLayoutWrapper } from '../layouts/MainLayout';
 import { LocaleMainLayout } from '../layouts/LocaleMainLayout';
 import { ProtectedRoute } from '../components/auth/ProtectedRoute';
 import { ProtectedEmployerRoute } from '../components/employer/ProtectedEmployerRoute';
+import { ProtectedAgentRoute } from '../components/agent/ProtectedAgentRoute';
 import { ROUTES } from '../constants';
 
 const Home = lazyLoad(() => import('../pages/Home/Home'));
@@ -149,6 +150,20 @@ const EmployerSettings = lazyLoad(() => import('../pages/Employer/EmployerSettin
 const EmployerPublicGate = lazyLoad(() => import('../pages/Public/EmployerPublicProfile'));
 const CompanyProfile = lazyLoad(() => import('../pages/Public/CompanyProfile'));
 const UniversityProfile = lazyLoad(() => import('../pages/Public/UniversityProfile'));
+const AgentLogin = lazyLoad(() => import('../pages/Agent/AgentLogin'));
+const AgentRegister = lazyLoad(() => import('../pages/Agent/AgentRegister'));
+const AgentLayout = lazyLoad(() => import('../pages/Agent/AgentLayout'));
+const AgentDashboard = lazyLoad(() => import('../pages/Agent/AgentDashboard'));
+const AgentOnboarding = lazyLoad(() => import('../pages/Agent/AgentOnboarding'));
+const AgentProfile = lazyLoad(() => import('../pages/Agent/AgentProfile'));
+const AgentServices = lazyLoad(() => import('../pages/Agent/AgentServices'));
+const AgentVerification = lazyLoad(() => import('../pages/Agent/AgentVerification'));
+const AgentTeam = lazyLoad(() => import('../pages/Agent/AgentTeam'));
+const AgentLeads = lazyLoad(() => import('../pages/Agent/AgentLeads'));
+const AgentClients = lazyLoad(() => import('../pages/Agent/AgentClients'));
+const AgentSettings = lazyLoad(() => import('../pages/Agent/AgentSettings'));
+const AgentDirectory = lazyLoad(() => import('../pages/Public/AgentDirectory'));
+const AgentPublicProfile = lazyLoad(() => import('../pages/Public/AgentPublicProfile'));
 
 function lazyLoad(importFn) {
   const Lazy = lazy(importFn);
@@ -171,6 +186,28 @@ function PageFallback() {
 }
 
 export const routes = [
+  {
+    path: ROUTES.AGENT_DASHBOARD,
+    element: (
+      <ProtectedAgentRoute>
+        <AgentLayout />
+      </ProtectedAgentRoute>
+    ),
+    children: [
+      { index: true, element: <AgentDashboard /> },
+      { path: 'profile', element: <AgentProfile /> },
+      { path: 'services', element: <AgentServices /> },
+      { path: 'verification', element: <AgentVerification /> },
+      { path: 'team', element: <AgentTeam /> },
+      { path: 'leads', element: <AgentLeads /> },
+      { path: 'clients', element: <AgentClients /> },
+      { path: 'settings', element: <AgentSettings /> },
+    ],
+  },
+  {
+    path: ROUTES.AGENT_ONBOARDING,
+    element: <ProtectedAgentRoute><AgentOnboarding /></ProtectedAgentRoute>,
+  },
   {
     path: ROUTES.EMPLOYER_DASHBOARD,
     element: (
@@ -244,6 +281,10 @@ export const routes = [
       { path: ROUTES.REGISTER, element: <Register /> },
       { path: ROUTES.EMPLOYER_LOGIN, element: <EmployerLogin /> },
       { path: ROUTES.EMPLOYER_REGISTER, element: <EmployerRegister /> },
+      { path: ROUTES.AGENT_LOGIN, element: <AgentLogin /> },
+      { path: ROUTES.AGENT_REGISTER, element: <AgentRegister /> },
+      { path: ROUTES.AGENT_PUBLIC_DIRECTORY, element: <AgentDirectory /> },
+      { path: ROUTES.AGENT_PUBLIC_PROFILE, element: <AgentPublicProfile /> },
       { path: 'employer/:slug', element: <EmployerPublicGate /> },
       { path: `${ROUTES.COMPANY}/:slug`, element: <CompanyProfile /> },
       { path: `${ROUTES.UNIVERSITY}/:slug`, element: <UniversityProfile /> },

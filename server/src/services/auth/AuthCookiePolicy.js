@@ -29,6 +29,10 @@ const COOKIE_DESCRIPTORS = Object.freeze({
       name: '__Secure-strideto_employer_rt',
       path: '/api/auth/employer/refresh-token',
     }),
+    agent: Object.freeze({
+      name: '__Secure-strideto_agent_rt',
+      path: '/api/auth/agent/refresh-token',
+    }),
   }),
   development: Object.freeze({
     user: Object.freeze({
@@ -38,6 +42,10 @@ const COOKIE_DESCRIPTORS = Object.freeze({
     employer: Object.freeze({
       name: 'strideto_dev_employer_rt',
       path: '/api/auth/employer/refresh-token',
+    }),
+    agent: Object.freeze({
+      name: 'strideto_dev_agent_rt',
+      path: '/api/auth/agent/refresh-token',
     }),
   }),
 });
@@ -113,7 +121,7 @@ export function createAuthCookiePolicy(config) {
 
   function descriptorFor(realm) {
     if (!isKnownRealm(realm)) {
-      throw new TypeError('realm must be "user" or "employer"');
+      throw new TypeError('realm must be "user", "employer", or "agent"');
     }
     return descriptors[realm];
   }

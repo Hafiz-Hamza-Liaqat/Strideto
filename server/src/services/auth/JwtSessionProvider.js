@@ -83,7 +83,7 @@ function assertRealm(realm) {
   if (!REFRESH_SESSION_SUBJECT_TYPES.includes(realm)) {
     throw new RefreshSessionContractError(
       'REFRESH_SESSION_CONTRACT_INVALID',
-      'realm must be "user" or "employer"'
+      'realm must be "user", "employer", or "agent"'
     );
   }
 }

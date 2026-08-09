@@ -179,9 +179,9 @@ await check('legacy employer address compatibility adapter', () => {
 await check('realm vocabulary integrity', () => {
   assert.strictEqual(realms.assertRealmIntegrity(), true);
   assert.strictEqual(realms.isValidRealm('employer'), true);
-  assert.strictEqual(realms.isActiveRealm('agent'), false); // declared, not live
+  assert.strictEqual(realms.isActiveRealm('agent'), true); // activated by Mission 11
   assert.strictEqual(realms.isValidRealm('AGENT'), false); // casing drift rejected
-  assert.deepStrictEqual([...realms.ACTIVE_REALMS].sort(), ['admin', 'employer', 'user']);
+  assert.deepStrictEqual([...realms.ACTIVE_REALMS].sort(), ['admin', 'agent', 'employer', 'user']);
 });
 
 // 13. Audit metadata rejects sensitive keys

@@ -9,6 +9,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { BrandProvider } from './design-system/BrandProvider';
 import { AuthProvider } from './context/AuthContext';
 import { EmployerAuthProvider } from './context/EmployerAuthContext';
+import { AgentAuthProvider } from './context/AgentAuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { LanguageProvider } from './context/LanguageContext';
@@ -62,6 +63,7 @@ function Bootstrap() {
           <BrandProvider>
             <AuthProvider>
               <EmployerAuthProvider>
+                <AgentAuthProvider>
                 <LanguageProvider>
                   <ToastProvider>
                     <NotificationProvider>
@@ -73,6 +75,7 @@ function Bootstrap() {
                     </NotificationProvider>
                   </ToastProvider>
                 </LanguageProvider>
+                </AgentAuthProvider>
               </EmployerAuthProvider>
             </AuthProvider>
           </BrandProvider>

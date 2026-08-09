@@ -43,6 +43,9 @@ export async function canAccessDocument({
   if (String(grant.documentId) !== String(document._id)) {
     return { allowed: false, reason: 'grant_document_mismatch' };
   }
+  if (grant.granteeType !== actor.type) {
+    return { allowed: false, reason: 'grantee_type_mismatch' };
+  }
   if (grant.status !== 'active') return { allowed: false, reason: 'grant_inactive' };
   if (grant.revokedAt) return { allowed: false, reason: 'grant_revoked' };
   if (grant.expiresAt && new Date(grant.expiresAt) <= new Date()) {

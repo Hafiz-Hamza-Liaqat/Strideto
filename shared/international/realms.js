@@ -30,11 +30,11 @@ export const ACTIVE_REALMS = Object.freeze([
   ACTOR_REALMS.USER,
   ACTOR_REALMS.EMPLOYER,
   ACTOR_REALMS.ADMIN,
+  ACTOR_REALMS.AGENT,
 ]);
 
 /** Realms declared for later missions (contract only, no live auth). */
 export const FUTURE_REALMS = Object.freeze([
-  ACTOR_REALMS.AGENT,
   ACTOR_REALMS.INSTITUTION,
 ]);
 

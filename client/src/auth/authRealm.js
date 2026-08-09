@@ -1,7 +1,8 @@
 /**
- * Authentication realm boundaries (user vs employer vs public).
+ * Authentication realm boundaries (user vs employer vs agent vs public).
  * Pure path logic — safe to unit-test without React.
  */
+import { isAgentPortalPath, isAgentPublicAuthPath } from './agentAuthRealm';
 
 export const EMPLOYER_PUBLIC_AUTH_PATHS = ['/employer/login', '/employer/register'];
 
@@ -34,14 +35,16 @@ export function isEmployerPortalPath(pathname = '') {
  * User session bootstrap (/auth/me) must not run on employer portal or employer auth pages.
  */
 export function shouldSkipUserAuthBootstrap(pathname = '') {
-  return isEmployerPortalPath(pathname) || isEmployerPublicAuthPath(pathname);
+  return isEmployerPortalPath(pathname) || isEmployerPublicAuthPath(pathname) ||
+    isAgentPortalPath(pathname) || isAgentPublicAuthPath(pathname);
 }
 
 /**
  * Navbar user widgets (notifications, talent summary) must not run on employer routes.
  */
 export function shouldEnableUserNavbarSession(pathname = '', { isUserAuthenticated = false } = {}) {
-  if (isEmployerPortalPath(pathname) || isEmployerPublicAuthPath(pathname)) return false;
+  if (isEmployerPortalPath(pathname) || isEmployerPublicAuthPath(pathname) ||
+      isAgentPortalPath(pathname) || isAgentPublicAuthPath(pathname)) return false;
   return isUserAuthenticated;
 }
 
