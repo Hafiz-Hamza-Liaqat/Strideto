@@ -85,6 +85,7 @@ export const ROUTES = {
   AGENT_PUBLIC_MARKETPLACE_DETAIL: '/agents/marketplace/:slug',
   // Institution portal routes (Mission 18 UX closure)
   INSTITUTION_LOGIN: '/institution/login',
+  INSTITUTION_REGISTER: '/institution/register',
   INSTITUTION_DASHBOARD: '/institution',
   INSTITUTION_ONBOARDING: '/institution/onboarding',
   INSTITUTION_PROFILE: '/institution/profile',

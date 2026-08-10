@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAgentAuth } from '../../context/AgentAuthContext';
+import { getAgentRegistrationError } from '../../utils/portalRegistrationErrors';
 import { ROUTES } from '../../constants';
 
 export default function AgentRegister() {
@@ -30,7 +31,7 @@ export default function AgentRegister() {
       });
       navigate(ROUTES.AGENT_ONBOARDING, { replace: true });
     } catch (err) {
-      setCtxError?.(err.response?.data?.error || 'Registration failed. Please try again.');
+      setCtxError?.(getAgentRegistrationError(err));
     } finally {
       setSubmitting(false);
     }
@@ -103,6 +104,7 @@ export default function AgentRegister() {
                 minLength={8}
                 className="w-full px-4 py-2 rounded-lg border border-[#E5E7EB] bg-white text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
+              <p className="mt-1 text-xs text-slate-500">Use 8–128 characters with uppercase, lowercase, and a number.</p>
             </div>
             <button
               type="submit"

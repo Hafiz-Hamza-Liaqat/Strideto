@@ -33,7 +33,10 @@ function isAgentNoRefreshUrl(url = '') {
 }
 
 const agentAxios = axios.create({
-  baseURL: API_BASE_URL,
+  // Agent endpoints below include the canonical `/api` prefix. Strip only a
+  // trailing API segment from the configured base so runtime requests never
+  // become `/api/api/...` behind the reverse proxy.
+  baseURL: API_BASE_URL.replace(/\/api\/?$/, ''),
   timeout: 15000,
   withCredentials: true,
   headers: { 'Content-Type': 'application/json' },

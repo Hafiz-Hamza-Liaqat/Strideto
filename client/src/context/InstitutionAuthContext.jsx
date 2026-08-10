@@ -50,6 +50,13 @@ export function InstitutionAuthProvider({ children }) {
     return loadMe();
   }, [loadMe]);
 
+  const register = useCallback(async (payload) => {
+    setError('');
+    const { data } = await institutionAuthApi.register(payload);
+    setInstitutionAccessToken(data.accessToken);
+    return loadMe();
+  }, [loadMe]);
+
   const logout = useCallback(async () => {
     try {
       if (getInstitutionAccessToken()) await institutionAuthApi.logout();
@@ -93,8 +100,9 @@ export function InstitutionAuthProvider({ children }) {
     error,
     setError,
     login,
+    register,
     logout,
-  }), [session, loading, error, login, logout]);
+  }), [session, loading, error, login, register, logout]);
 
   return <InstitutionAuthContext.Provider value={value}>{children}</InstitutionAuthContext.Provider>;
 }

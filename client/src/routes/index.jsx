@@ -183,6 +183,7 @@ const AgentConsultations = lazyLoad(() => import('../pages/Agent/AgentConsultati
 const AgentConsultationDetail = lazyLoad(() => import('../pages/Agent/AgentConsultationDetail'));
 const AgentAvailability = lazyLoad(() => import('../pages/Agent/AgentAvailability'));
 const InstitutionLogin = lazyLoad(() => import('../pages/Institution/InstitutionLogin'));
+const InstitutionRegister = lazyLoad(() => import('../pages/Institution/InstitutionRegister'));
 const InstitutionLayout = lazyLoad(() => import('../pages/Institution/InstitutionLayout'));
 const InstitutionDashboard = lazyLoad(() => import('../pages/Institution/InstitutionDashboard'));
 const InstitutionOnboarding = lazyLoad(() => import('../pages/Institution/InstitutionOnboarding'));
@@ -229,6 +230,7 @@ function PageFallback() {
 
 export const routes = [
   { path: ROUTES.INSTITUTION_LOGIN, element: <InstitutionLogin /> },
+  { path: ROUTES.INSTITUTION_REGISTER, element: <InstitutionRegister /> },
   {
     path: ROUTES.INSTITUTION_DASHBOARD,
     element: <ProtectedInstitutionRoute><InstitutionLayout /></ProtectedInstitutionRoute>,

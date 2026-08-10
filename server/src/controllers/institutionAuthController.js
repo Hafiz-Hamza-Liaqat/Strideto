@@ -27,6 +27,8 @@ import {
   isInstitutionOrgType,
 } from '../../../shared/institution/institutionPortal.js';
 import { VERIFICATION_STATUSES } from '../../../shared/international/verification.js';
+import { normalizeCountryCode } from '../../../shared/international/country.js';
+import { validateEmail, validatePassword } from '../validators/authValidator.js';
 
 function writeInstitutionRefreshCookie(res, token) {
   secureAuthConfig.cookiePolicy.writeRefreshCookie({ res, realm: 'institution', token });
@@ -75,34 +77,42 @@ export const institutionRegister = asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'email, password, displayName, and institutionType are required' });
   }
 
+  const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  const normalizedDisplayName = typeof displayName === 'string' ? displayName.trim() : '';
+  const normalizedCountryCode = countryCode ? normalizeCountryCode(countryCode) : '';
+  const emailError = validateEmail(normalizedEmail);
+  const passwordError = validatePassword(password, true);
+  if (emailError) return res.status(422).json({ error: emailError });
+  if (passwordError) return res.status(422).json({ error: passwordError });
+  if (!normalizedDisplayName) return res.status(422).json({ error: 'Institution name is required' });
+  if (countryCode && !normalizedCountryCode) {
+    return res.status(422).json({ error: 'countryCode must be a valid ISO 3166-1 alpha-2 code' });
+  }
+
   if (!isInstitutionOrgType(institutionType)) {
     return res.status(400).json({
       error: 'institutionType must be one of: university, college, institute, school, training_center',
     });
   }
 
-  if (password.length < 8) {
-    return res.status(400).json({ error: 'password must be at least 8 characters' });
-  }
-
-  const existing = await InstitutionAccount.findOne({ email: email.trim().toLowerCase() });
+  const existing = await InstitutionAccount.findOne({ email: normalizedEmail });
   if (existing) {
-    return res.status(409).json({ error: 'An account with this email already exists' });
+    return res.status(409).json({ error: 'An Institution account with this email already exists' });
   }
 
   // Create shared Organization identity
-  const orgSlug = await ensureUniqueOrganizationSlug(displayName, (s) => Organization.exists({ slug: s }));
+  const orgSlug = await ensureUniqueOrganizationSlug(normalizedDisplayName, (s) => Organization.exists({ slug: s }));
   const org = await Organization.create({
     organizationType: institutionType,
-    displayName: displayName.trim(),
-    legalName: displayName.trim(),
+    displayName: normalizedDisplayName,
+    legalName: normalizedDisplayName,
     slug: orgSlug,
-    countryCode: (countryCode || '').toUpperCase(),
+    countryCode: normalizedCountryCode || '',
     status: 'draft',
   });
 
   // Create InstitutionAccount
-  const account = await InstitutionAccount.create({ email: email.trim().toLowerCase(), password });
+  const account = await InstitutionAccount.create({ email: normalizedEmail, password });
 
   // Create owner membership
   await InstitutionMembership.create({
@@ -120,7 +130,7 @@ export const institutionRegister = asyncHandler(async (req, res) => {
   await OrganizationVerification.create({
     organizationId: org._id,
     organizationType: institutionType,
-    countryCode: (countryCode || '').toUpperCase(),
+    countryCode: normalizedCountryCode || '',
     status: VERIFICATION_STATUSES.DRAFT,
   });
 

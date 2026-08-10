@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Navigate, useLocation, useNavigate } from 'react-router-dom';
+import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { FormField } from '../../components/common/FormField';
 import { useInstitutionAuth } from '../../context/InstitutionAuthContext';
 import { ROUTES } from '../../constants';
@@ -54,6 +54,13 @@ export default function InstitutionLogin() {
           </FormField>
           <button type="submit" disabled={busy || loading} className={`${primaryButton} w-full`}>{busy ? 'Signing in…' : 'Sign in to Institution Portal'}</button>
         </form>
+        <p className="mt-5 text-sm text-slate-600">
+          Need Institution access?{' '}
+          <Link className="font-semibold text-blue-700 underline" to={ROUTES.INSTITUTION_REGISTER}>
+            Create a restricted verification account
+          </Link>
+        </p>
+        <p className="mt-2 text-xs text-slate-500">Registration does not verify or approve an Institution. Canonical claims and authoritative publishing require separate review.</p>
         <PageState role="note"><strong>Privacy boundary:</strong> this portal does not provide Student search, profiles, Vault documents, cases, Budget plans, or Copilot conversations.</PageState>
       </div>
     </main>

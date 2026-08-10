@@ -8,6 +8,7 @@ import { AgentAccount } from '../models/agent/AgentAccount.js';
 import { AgentProfile } from '../models/agent/AgentProfile.js';
 import { AgentMembership } from '../models/agent/AgentMembership.js';
 import { Organization } from '../models/Organization.js';
+import { OrganizationVerification } from '../models/OrganizationVerification.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { logAudit } from '../services/auditService.js';
 import { secureAuthConfig } from '../services/auth/secureAuthConfig.js';
@@ -15,6 +16,9 @@ import { agentSecureAuthFlows } from '../services/auth/agentSecureAuthFlows.js';
 import { getOrCreateProfile } from '../services/agentProfileService.js';
 import { ORGANIZATION_TYPES } from '../../../shared/international/organization.js';
 import { ensureUniqueOrganizationSlug } from '../../../shared/international/organization.js';
+import { normalizeCountryCode } from '../../../shared/international/country.js';
+import { VERIFICATION_STATUSES } from '../../../shared/international/verification.js';
+import { validateEmail, validatePassword } from '../validators/authValidator.js';
 
 function writeAgentRefreshCookie(res, token) {
   secureAuthConfig.cookiePolicy.writeRefreshCookie({ res, realm: 'agent', token });
@@ -60,11 +64,32 @@ function readAgentRefreshCookie(req) {
 // Register
 // ---------------------------------------------------------------------------
 
-export const agentRegister = asyncHandler(async (req, res) => {
+export function createAgentRegisterHandler({
+  agentAccountModel = AgentAccount,
+  organizationModel = Organization,
+  agentMembershipModel = AgentMembership,
+  organizationVerificationModel = OrganizationVerification,
+  createProfile = getOrCreateProfile,
+  writeAudit = logAudit,
+  issueSession = issueSecureAgentSession,
+} = {}) {
+  return async (req, res) => {
   const { email, password, displayName, agentType, countryCode } = req.body || {};
 
   if (!email || !password || !displayName || !agentType) {
     return res.status(400).json({ error: 'email, password, displayName, and agentType are required' });
+  }
+
+  const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
+  const normalizedDisplayName = typeof displayName === 'string' ? displayName.trim() : '';
+  const normalizedCountryCode = countryCode ? normalizeCountryCode(countryCode) : '';
+  const emailError = validateEmail(normalizedEmail);
+  const passwordError = validatePassword(password, true);
+  if (emailError) return res.status(422).json({ error: emailError });
+  if (passwordError) return res.status(422).json({ error: passwordError });
+  if (!normalizedDisplayName) return res.status(422).json({ error: 'Organization / professional name is required' });
+  if (countryCode && !normalizedCountryCode) {
+    return res.status(422).json({ error: 'countryCode must be a valid ISO 3166-1 alpha-2 code' });
   }
 
   const validTypes = [ORGANIZATION_TYPES.AGENT, ORGANIZATION_TYPES.AGENCY];
@@ -72,39 +97,35 @@ export const agentRegister = asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'agentType must be agent or agency' });
   }
 
-  const existing = await AgentAccount.findOne({ email: email.trim().toLowerCase() });
+  const existing = await agentAccountModel.findOne({ email: normalizedEmail });
   if (existing) {
-    return res.status(409).json({ error: 'An account with this email already exists' });
-  }
-
-  if (password.length < 8) {
-    return res.status(400).json({ error: 'password must be at least 8 characters' });
+    return res.status(409).json({ error: 'An Agent account with this email already exists' });
   }
 
   // Create the shared Organization identity first.
   const orgSlug = await ensureUniqueOrganizationSlug(
-    displayName,
-    (s) => Organization.exists({ slug: s })
+    normalizedDisplayName,
+    (s) => organizationModel.exists({ slug: s })
   );
 
-  const org = await Organization.create({
+  const org = await organizationModel.create({
     organizationType: agentType,
-    displayName: displayName.trim(),
-    legalName: displayName.trim(),
+    displayName: normalizedDisplayName,
+    legalName: normalizedDisplayName,
     slug: orgSlug,
-    countryCode: (countryCode || '').toUpperCase(),
+    countryCode: normalizedCountryCode || '',
     status: 'draft',
   });
 
   // Create AgentAccount
-  const account = await AgentAccount.create({
-    email: email.trim().toLowerCase(),
+  const account = await agentAccountModel.create({
+    email: normalizedEmail,
     password,
   });
 
   // Create profile linked to organization
-  await getOrCreateProfile(account._id, { organizationId: org._id, agentType });
-  await AgentMembership.create({
+  await createProfile(account._id, { organizationId: org._id, agentType });
+  await agentMembershipModel.create({
     organizationId: org._id,
     agentAccountId: account._id,
     role: 'owner',
@@ -112,16 +133,26 @@ export const agentRegister = asyncHandler(async (req, res) => {
     joinedAt: new Date(),
   });
 
-  await logAudit({
+  await organizationVerificationModel.create({
+    organizationId: org._id,
+    organizationType: agentType,
+    countryCode: normalizedCountryCode || '',
+    status: VERIFICATION_STATUSES.DRAFT,
+  });
+
+  await writeAudit({
     action: 'agent_registered',
     actor: { userId: account._id, role: 'agent' },
     metadata: { organizationId: org._id, agentType },
   });
 
-  const result = await issueSecureAgentSession(res, account);
+  const result = await issueSession(res, account);
   if (!result.ok) return res.status(result.status).json(result.body);
   return res.status(201).json(result.body);
-});
+  };
+}
+
+export const agentRegister = asyncHandler(createAgentRegisterHandler());
 
 // ---------------------------------------------------------------------------
 // Login

@@ -51,6 +51,7 @@ client.interceptors.response.use(
 );
 
 export const institutionAuthApi = {
+  register: (payload) => client.post('/auth/institution/register', payload),
   login: (email, password) => client.post('/auth/institution/login', { email, password }),
   me: () => client.get('/auth/institution/me'),
   refresh: () => client.post('/auth/institution/refresh-token'),
