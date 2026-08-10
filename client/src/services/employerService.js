@@ -145,6 +145,17 @@ export const employerApi = {
   intelligenceRankingWeights: () => employerAxios.get('/employer/intelligence/ranking/weights'),
   intelligenceCompareCandidates: (ids) =>
     employerAxios.post('/employer/intelligence/candidates/compare', { legacyApplicationIds: ids }),
+
+  /**
+   * Read one applicant's skill claims and safe evidence metadata.
+   *
+   * Employer-realm on purpose: the route is guarded by `requireEmployerAuth`
+   * and the server independently checks this applicant actually applied to one
+   * of this employer's jobs — so it must carry the employer token, not the
+   * User-realm one. Read-only; there is no employer path that writes trust.
+   */
+  applicantSkills: (applicantUserId, params) =>
+    employerAxios.get(`/employer/applicants/${applicantUserId}/skills`, { params }),
 };
 
 /**

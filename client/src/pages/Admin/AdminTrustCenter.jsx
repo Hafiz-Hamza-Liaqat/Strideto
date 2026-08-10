@@ -5,8 +5,12 @@ import { AdminTableFilters } from '../../components/admin/AdminTableFilters';
 import { AdminConfirmDialog } from '../../components/admin/AdminConfirmDialog';
 import { usePermissions } from '../../hooks/usePermissions';
 import { PERMISSIONS } from '../../config/rbac';
+import { SkillVerificationReviewPanel } from '../../components/skills/SkillVerificationReviewPanel';
 
-const TABS = ['Reports', 'Disputes', 'Reviews'];
+// Skill claims join the Trust Center rather than getting an admin area of their
+// own — it is the same question ("what do we actually stand behind?") asked
+// about a person's evidence instead of an organization's conduct.
+const TABS = ['Reports', 'Disputes', 'Reviews', 'Skill Claims'];
 
 const REPORT_STATUS_OPTIONS = [
   { value: '', label: 'All' },
@@ -302,6 +306,7 @@ export default function AdminTrustCenter() {
       {tab === 0 && <ReportsList />}
       {tab === 1 && <DisputesList />}
       {tab === 2 && <ReviewsList />}
+      {tab === 3 && <SkillVerificationReviewPanel />}
     </div>
   );
 }

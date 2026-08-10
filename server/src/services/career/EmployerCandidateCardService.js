@@ -213,6 +213,27 @@ export async function buildCandidateCard(userId, applicationCtx = {}) {
     portfolioCount: profile?.portfolioReferences?.length || 0,
     assessmentScores: assessmentScoresByCategory(verifiedSkills || []),
     appliedAt: legacy?.appliedDate || legacy?.createdAt || null,
+    /*
+     * Skill trust frozen at the moment this application was submitted, straight
+     * off the stored application. Deliberately separate from the live claims an
+     * employer can also fetch: the applicant may have added evidence, or had a
+     * verification lapse, since. Both are shown, labelled by which is which, so
+     * neither silently rewrites the other. Older applications carry no snapshot
+     * and report null rather than pretending to be empty.
+     */
+    applicationSkillSnapshot: legacy?.skillSnapshot?.capturedAt
+      ? {
+          capturedAt: legacy.skillSnapshot.capturedAt,
+          skills: (legacy.skillSnapshot.skills || []).map((s) => ({
+            skillName: s.skillName,
+            skillCategory: s.skillCategory,
+            claimedLevel: s.claimedLevel,
+            trustState: s.trustState,
+            isCurrentlyVerified: s.isCurrentlyVerified,
+            evidenceCount: s.evidenceCount,
+          })),
+        }
+      : null,
     jobType: jobDoc?.type || jobDoc?.jobType || null,
     recentActivityAt: timelineItems?.[0]?.occurredAt
       || timelineItems?.[0]?.createdAt

@@ -7,6 +7,7 @@ import { ROUTES } from '../../constants';
 import { PIPELINE_STAGES } from '@shared/career/constants.js';
 import { stageLabel } from '../../utils/applicationUi';
 import { ScoreExplainPanel } from '../../components/career/ScoreExplainPanel';
+import { ApplicantSkillPanel } from '../../components/skills/ApplicantSkillPanel';
 import { isEmployerIntelligenceEnabled } from '../../config/careerFeatureFlags';
 
 /** Modes the interview subdocument already supports (mirrors the User-side panel). */
@@ -296,6 +297,23 @@ export default function EmployerCandidateDetail() {
             ))}
           </ul>
           <p className="text-xs text-gray-500 mt-2">{t('employer:advisoryOnly', { defaultValue: 'Suggestions only — you decide all hiring actions.' })}</p>
+        </section>
+      )}
+
+      {/*
+        Claimed skills with their evidence, each labelled with its real trust
+        state. Distinct from the assessment-derived `verifiedSkills` list below:
+        a link an applicant pasted is not the same assertion as a score we
+        measured, and the two must not read as one badge. Server-scoped — this
+        only resolves for a candidate who applied to one of this employer's jobs.
+      */}
+      {candidate?.userId && (
+        <section className="rounded-xl border p-4 bg-white dark:bg-gray-900 dark:border-gray-700">
+          <ApplicantSkillPanel
+            applicantId={candidate.userId}
+            applicantName={candidate?.basic?.displayName || t('employer:unnamedCandidate')}
+            applicationSnapshot={candidate?.applicationSkillSnapshot}
+          />
         </section>
       )}
 

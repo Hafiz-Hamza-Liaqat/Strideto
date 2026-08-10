@@ -68,6 +68,14 @@ export const PERMISSIONS = {
   VERIFICATION_APPROVE: 'verification:approve',
   VERIFICATION_REVOKE: 'verification:revoke',
 
+  // Applicant skill claim verification — separate from organization
+  // verification: reviewing a person's portfolio link is a different authority
+  // from approving a company's registration documents.
+  SKILL_VERIFICATION_READ: 'skill_verification:read',
+  SKILL_VERIFICATION_REVIEW: 'skill_verification:review',
+  SKILL_VERIFICATION_APPROVE: 'skill_verification:approve',
+  SKILL_VERIFICATION_REVOKE: 'skill_verification:revoke',
+
   // Super Control Center (Mission 21)
   ORGANIZATIONS_READ: 'admin.organizations.read',
   ORGANIZATIONS_MANAGE: 'admin.organizations.manage',
@@ -88,6 +96,24 @@ export const PERMISSIONS = {
   SYSTEM_SECRETS: 'system:secrets',
   PRIVILEGED_SUPPORT: 'admin.privileged_support',
 };
+
+/**
+ * Permissions no Admin may hold — reserved for SuperAdmin.
+ *
+ * Single source of truth, consumed by BOTH the Admin permission list and
+ * `hasPermission`. These were previously two hand-maintained copies of the
+ * same array; a permission added to one and missed in the other silently
+ * grants or denies the wrong role.
+ */
+const SUPER_ADMIN_ONLY_PERMISSIONS = [
+  PERMISSIONS.USERS_DELETE,
+  PERMISSIONS.ROLES_ASSIGN,
+  PERMISSIONS.SYSTEM_SETTINGS,
+  PERMISSIONS.SYSTEM_SECRETS,
+  PERMISSIONS.VERIFICATION_REVOKE,
+  PERMISSIONS.SKILL_VERIFICATION_REVOKE,
+  PERMISSIONS.PRIVILEGED_SUPPORT,
+];
 
 const ROLE_PERMISSIONS = {
   [ROLES.EDITOR]: [
@@ -128,6 +154,11 @@ const ROLE_PERMISSIONS = {
     // Verification: Moderator can inspect, request info, escalate
     PERMISSIONS.VERIFICATION_READ,
     PERMISSIONS.VERIFICATION_REVIEW,
+    // Skill claims: Moderator may inspect, request info, reject, and mark
+    // evidence-backed — but NOT issue a verified skill. Approval is a
+    // deliberately higher bar than triage.
+    PERMISSIONS.SKILL_VERIFICATION_READ,
+    PERMISSIONS.SKILL_VERIFICATION_REVIEW,
     // Super Control Center: Moderator bounded inspection
     PERMISSIONS.ORGANIZATIONS_READ,
     PERMISSIONS.TRUST_TRIAGE,
@@ -137,16 +168,7 @@ const ROLE_PERMISSIONS = {
     PERMISSIONS.SYSTEM_READ,
   ],
   [ROLES.ADMIN]: [
-    ...Object.values(PERMISSIONS).filter(
-      (p) => ![
-        PERMISSIONS.USERS_DELETE,
-        PERMISSIONS.ROLES_ASSIGN,
-        PERMISSIONS.SYSTEM_SETTINGS,
-        PERMISSIONS.SYSTEM_SECRETS,
-        PERMISSIONS.VERIFICATION_REVOKE,
-        PERMISSIONS.PRIVILEGED_SUPPORT,
-      ].includes(p)
-    ),
+    ...Object.values(PERMISSIONS).filter((p) => !SUPER_ADMIN_ONLY_PERMISSIONS.includes(p)),
   ],
   [ROLES.SUPER_ADMIN]: Object.values(PERMISSIONS),
 };
@@ -164,15 +186,7 @@ export function hasPermission(role, permission) {
   if (!role || !permission) return false;
   if (role === ROLES.SUPER_ADMIN) return true;
   if (role === ROLES.ADMIN) {
-    const superOnly = [
-      PERMISSIONS.USERS_DELETE,
-      PERMISSIONS.ROLES_ASSIGN,
-      PERMISSIONS.SYSTEM_SETTINGS,
-      PERMISSIONS.SYSTEM_SECRETS,
-      PERMISSIONS.VERIFICATION_REVOKE,
-      PERMISSIONS.PRIVILEGED_SUPPORT,
-    ];
-    if (superOnly.includes(permission)) return false;
+    if (SUPER_ADMIN_ONLY_PERMISSIONS.includes(permission)) return false;
     return true;
   }
   const perms = getPermissionsForRole(role);

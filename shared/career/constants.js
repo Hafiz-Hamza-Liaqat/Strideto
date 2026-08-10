@@ -67,7 +67,22 @@ export const EMPLOYMENT_STATUSES = [
   'open_to_work',
 ];
 
-export const SKILL_CATEGORIES = ['technical', 'soft'];
+/**
+ * Skill categories. Additive-only: 'technical' and 'soft' are the original
+ * values and remain valid for all stored records. The rest were added so skill
+ * claims and their evidence are not implicitly developer-shaped — a designer,
+ * researcher, translator or accountant needs a category that fits their
+ * evidence, not a forced choice between "technical" and "soft".
+ */
+export const SKILL_CATEGORIES = [
+  'technical',
+  'soft',
+  'design',
+  'business',
+  'research',
+  'language',
+  'other',
+];
 
 export const LANGUAGE_PROFICIENCY = ['basic', 'conversational', 'professional', 'native'];
 

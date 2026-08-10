@@ -1,0 +1,98 @@
+/**
+ * SkillVerification — the provenance record for one verification decision.
+ *
+ * Every decision that grants, withholds or withdraws trust creates one of
+ * these. Existence of this record is what makes a claim's `verified` status
+ * legitimate: the claim merely caches the outcome, this row carries the
+ * evidence.
+ *
+ * Required on every record, without exception:
+ *   - `method`      how the reviewer established the outcome
+ *   - `reason`      why (free text, bounded, no markup)
+ *   - `actorId`     server-derived from the authenticated session
+ *   - `actorRole`   the role that authorized it
+ *   - `decidedAt`   when
+ * and for a trust-granting outcome, at least one `evidenceRefs` entry.
+ *
+ * Records are append-only: a later decision supersedes an earlier one, it does
+ * not edit it.
+ */
+import mongoose from 'mongoose';
+import {
+  VERIFICATION_METHODS,
+  SKILL_CLAIM_STATUSES,
+  SKILL_CLAIM_LIMITS,
+} from '../../../../shared/career/skillVerification.js';
+
+const skillVerificationSchema = new mongoose.Schema(
+  {
+    claimId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'UserSkillClaim',
+      required: true,
+      index: true,
+    },
+    /** Subject of the verification — the applicant, never the actor. */
+    userId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'User',
+      required: true,
+      index: true,
+    },
+
+    /** The claim status this decision produced. */
+    outcome: {
+      type: String,
+      enum: Object.values(SKILL_CLAIM_STATUSES),
+      required: true,
+      index: true,
+    },
+
+    method: {
+      type: String,
+      enum: Object.values(VERIFICATION_METHODS),
+      required: true,
+    },
+
+    /** Evidence this decision actually rested on. */
+    evidenceRefs: {
+      type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'SkillEvidence' }],
+      default: [],
+      validate: {
+        validator: (v) => v.length <= SKILL_CLAIM_LIMITS.MAX_EVIDENCE_REFS_PER_VERIFICATION,
+        message: 'Too many evidence references',
+      },
+    },
+
+    reason: {
+      type: String,
+      required: true,
+      trim: true,
+      maxlength: SKILL_CLAIM_LIMITS.MAX_REASON_LENGTH,
+    },
+
+    // --- Actor: always derived from the authenticated session ---
+    actorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+    actorRole: { type: String, trim: true, required: true },
+    actorRealm: { type: String, trim: true, default: 'admin' },
+
+    /** Server-computed confidence at decision time. Never client-supplied. */
+    score: { type: Number, min: 0, max: 100, default: 0 },
+
+    decidedAt: { type: Date, default: Date.now, immutable: true },
+    /** Null means "no expiry"; a date makes the grant time-boxed. */
+    expiresAt: { type: Date, default: null },
+
+    /** Set when a later action withdraws this specific grant. */
+    supersededAt: { type: Date, default: null },
+
+    correlationId: { type: String, trim: true, default: '' },
+  },
+  { timestamps: true }
+);
+
+skillVerificationSchema.index({ claimId: 1, decidedAt: -1 });
+skillVerificationSchema.index({ userId: 1, outcome: 1 });
+skillVerificationSchema.index({ actorId: 1, decidedAt: -1 });
+
+export const SkillVerification = mongoose.model('SkillVerification', skillVerificationSchema);

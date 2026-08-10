@@ -1,4 +1,32 @@
 import mongoose from 'mongoose';
+import { SKILL_CLAIM_STATUSES } from '../../../shared/career/skillVerification.js';
+
+/**
+ * Frozen copy of one skill's trust state at the moment of application.
+ *
+ * Historical evidence, not a live view: if the applicant later edits their
+ * profile — or a verification is revoked, or expires — what the employer
+ * decided on stays intact and attributable to the time it was captured.
+ *
+ * Built server-side by `buildApplicationSkillSnapshot` from stored claim
+ * records. No request body reaches these fields.
+ */
+const applicationSkillSnapshotEntrySchema = new mongoose.Schema(
+  {
+    skillName: { type: String, trim: true, default: '' },
+    skillCategory: { type: String, trim: true, default: 'other' },
+    claimedLevel: { type: String, trim: true, default: '' },
+    trustState: {
+      type: String,
+      enum: Object.values(SKILL_CLAIM_STATUSES),
+      default: SKILL_CLAIM_STATUSES.CLAIMED,
+    },
+    isCurrentlyVerified: { type: Boolean, default: false },
+    verificationScore: { type: Number, min: 0, max: 100, default: 0 },
+    evidenceCount: { type: Number, min: 0, default: 0 },
+  },
+  { _id: false }
+);
 
 const applicationSchema = new mongoose.Schema(
   {
@@ -20,6 +48,12 @@ const applicationSchema = new mongoose.Schema(
     },
     appliedDate: { type: Date, default: Date.now },
     note: { type: String },
+
+    /** Server-built skill trust snapshot; see the schema comment above. */
+    skillSnapshot: {
+      capturedAt: { type: Date, default: null },
+      skills: { type: [applicationSkillSnapshotEntrySchema], default: [] },
+    },
   },
   { timestamps: true }
 );

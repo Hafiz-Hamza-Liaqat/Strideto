@@ -10,6 +10,7 @@ import { onJobApplication } from '../services/automationService.js';
 import { TalentProfileReadService } from '../services/career/TalentProfileReadService.js';
 import { ApplicationMigrationService } from '../services/career/migration/ApplicationMigrationService.js';
 import { JobVacancyService } from '../services/career/JobVacancyService.js';
+import { skillVerificationService } from '../services/career/SkillVerificationService.js';
 
 export const applyToJob = asyncHandler(async (req, res) => {
   const userId = req.user.userId;
@@ -57,6 +58,14 @@ export const applyToJob = asyncHandler(async (req, res) => {
   const existing = await Application.findOne({ userId, jobId });
   if (existing) return res.status(400).json({ error: 'You have already applied to this job' });
 
+  /*
+   * Capture the applicant's skill trust state as it stands right now, read
+   * from their stored claims. Built from `userId` alone — the request body
+   * contributes nothing — so an applicant cannot post a snapshot claiming
+   * skills they never had verified.
+   */
+  const skillSnapshot = await skillVerificationService.buildApplicationSkillSnapshot({ userId });
+
   let application;
   try {
     application = await Application.create({
@@ -68,6 +77,7 @@ export const applyToJob = asyncHandler(async (req, res) => {
       resumeSource,
       coverLetter: stripAllHtml(req.body?.coverLetter),
       status: 'submitted',
+      skillSnapshot,
     });
   } catch (err) {
     if (err?.code === 11000) {

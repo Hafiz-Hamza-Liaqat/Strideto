@@ -17,6 +17,7 @@ import { TalentProfileForm } from './TalentProfileForm';
 import { CareerOnboardingBanner } from './CareerOnboardingBanner';
 import { ResumeVersionsPanel } from './ResumeVersionsPanel';
 import { DocumentsPanel } from './DocumentsPanel';
+import { SkillClaimManager } from '../../components/skills/SkillClaimManager';
 
 export default function TalentProfileEditor() {
   const { t } = useTranslation(['talent', 'common']);
@@ -137,6 +138,18 @@ export default function TalentProfileEditor() {
               <DocumentsPanel profileLoaded={profileLoaded} />
             ) : (
               <TalentProfileForm form={form} setForm={setForm} activeTab={activeTab} />
+            )}
+
+            {/*
+              Evidence-backed skills live alongside the self-reported skill list,
+              deliberately: the profile field is what the applicant says, this is
+              what they can show for it. Kept a separate surface because it saves
+              through its own audited endpoints, not through `handleSave`.
+            */}
+            {activeTab === 'skills' && (
+              <div className="rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
+                <SkillClaimManager />
+              </div>
             )}
 
             {activeTab !== 'resumes' && activeTab !== 'documents' && (
