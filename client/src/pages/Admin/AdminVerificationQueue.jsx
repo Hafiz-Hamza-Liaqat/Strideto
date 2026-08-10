@@ -1,5 +1,4 @@
 import { useState } from 'react';
-import { useTranslation } from 'react-i18next';
 import { useToast } from '../../context/ToastContext';
 import { usePermissions } from '../../hooks/usePermissions';
 import { PERMISSIONS } from '../../config/rbac';
@@ -61,7 +60,7 @@ const RISK_COLOR = {
   critical: 'red',
 };
 
-function VerificationDetailPanel({ orgId, onClose, onAction, can, canAny }) {
+function VerificationDetailPanel({ orgId, onClose, onAction, can }) {
   const { toast } = useToast();
   const [detail, setDetail] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -339,7 +338,7 @@ function VerificationDetailPanel({ orgId, onClose, onAction, can, canAny }) {
                       <span className="font-medium text-gray-900 dark:text-white">{t.fromStatus}</span>
                       {' → '}
                       <span className="font-medium text-gray-900 dark:text-white">{t.toStatus}</span>
-                      {t.reason && <span className="ml-1 italic">"{t.reason}"</span>}
+                      {t.reason && <span className="ml-1 italic">&quot;{t.reason}&quot;</span>}
                     </span>
                   </li>
                 ))}
@@ -353,8 +352,7 @@ function VerificationDetailPanel({ orgId, onClose, onAction, can, canAny }) {
 }
 
 export default function AdminVerificationQueue() {
-  const { can, canAny } = usePermissions();
-  const { toast } = useToast();
+  const { can } = usePermissions();
   const [selectedOrgId, setSelectedOrgId] = useState(null);
 
   const { data, pagination, filters, setFilters, loading, error, setPage, refetch } = useAdminList(
@@ -489,7 +487,6 @@ export default function AdminVerificationQueue() {
             onClose={() => setSelectedOrgId(null)}
             onAction={refetch}
             can={can}
-            canAny={canAny}
           />
         )}
       </div>

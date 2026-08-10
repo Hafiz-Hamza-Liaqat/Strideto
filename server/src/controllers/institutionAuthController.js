@@ -20,7 +20,7 @@ import { secureAuthConfig } from '../services/auth/secureAuthConfig.js';
 import { institutionSecureAuthFlows } from '../services/auth/institutionSecureAuthFlows.js';
 import {
   ensureUniqueOrganizationSlug,
-  ORGANIZATION_TYPES,
+  ORGANIZATION_TYPES as _ORGANIZATION_TYPES,
 } from '../../../shared/international/organization.js';
 import {
   INSTITUTION_ROLES,

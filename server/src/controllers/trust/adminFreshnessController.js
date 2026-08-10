@@ -96,7 +96,7 @@ export const adminCreateSource = asyncHandler(async (req, res) => {
 
   const { normalizeSourceUrl, isValidAuthorityType, isValidSourceStatus } =
     await import('../../../../shared/trust/sourceVerification.js');
-  const { SOURCE_TYPES, isValidSourceType } =
+  const { SOURCE_TYPES: _SOURCE_TYPES, isValidSourceType } =
     await import('../../../../shared/international/evidence.js');
 
   const normalizedUrl = normalizeSourceUrl(url);

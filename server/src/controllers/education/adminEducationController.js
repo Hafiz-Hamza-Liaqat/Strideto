@@ -68,7 +68,7 @@ function parseSources(rawSources, { strict = false } = {}) {
  * Extract sources array from a parseSources result, or respond with 400 on error.
  * Convenience wrapper for controller use.
  */
-function extractSources(rawSources, res, { strict = false } = {}) {
+function _extractSources(rawSources, res, { strict = false } = {}) {
   const result = parseSources(rawSources, { strict });
   if (!result.ok) {
     res.status(400).json({ error: result.errors.join('; ') });

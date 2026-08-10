@@ -10,7 +10,7 @@
  * Duplicate protection: slug uniqueness enforced at DB + application layer.
  * Audit: important publication/update actions are logged via AuditLog.
  */
-import mongoose from 'mongoose';
+import _mongoose from 'mongoose';
 import { CanonicalScholarship } from '../../models/education/CanonicalScholarship.js';
 import { ScholarshipCycle } from '../../models/education/ScholarshipCycle.js';
 import { ScholarshipApplicability } from '../../models/education/ScholarshipApplicability.js';

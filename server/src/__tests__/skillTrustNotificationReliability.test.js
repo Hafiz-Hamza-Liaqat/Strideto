@@ -261,10 +261,9 @@ await check('22. reconciliation remains internal and delivery failure is surface
   assert.equal(failedEmission.status, 'PENDING_RECONCILIATION');
 });
 
-await check('23. source policy currently leaves automatic model index creation enabled', () => {
-  const db = read('server/src/config/db.js');
-  assert.doesNotMatch(db, /autoIndex\s*:\s*false/);
-  assert.notEqual(UserNotification.schema.options.autoIndex, false);
+await check('23. source policy disables uncontrolled model index creation', () => {
+  assert.equal(UserNotification.schema.options.autoIndex, false);
+  assert.equal(UserNotification.schema.options.autoCreate, false);
 });
 
 console.log(`\n${passed}/${total} skill trust reliability checks passed.`);

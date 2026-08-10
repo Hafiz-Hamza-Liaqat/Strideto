@@ -145,7 +145,7 @@ function buildMockResponse({ question, contextType, intent, evidenceItems, stude
   let groundingStatus = GROUNDING_STATUS.WELL_GROUNDED;
   if (freshItems.length === 0 && staleItems.length > 0) {
     groundingStatus = GROUNDING_STATUS.STALE_EVIDENCE;
-  } else if (freshItems.length === 0) {
+  } else if (staleItems.length > 0) {
     groundingStatus = GROUNDING_STATUS.INSUFFICIENT_EVIDENCE;
   } else if (freshItems.length === 0) {
     groundingStatus = GROUNDING_STATUS.PARTIALLY_GROUNDED;
@@ -170,7 +170,7 @@ function buildMockResponse({ question, contextType, intent, evidenceItems, stude
   };
 }
 
-function buildMockAnswerText({ intent, contextType, freshItems, studentContext, question }) {
+function buildMockAnswerText({ intent, contextType: _contextType, freshItems, studentContext: _studentContext, question: _question }) {
   if (freshItems.length === 0) {
     return 'The verified information needed to answer this question is not currently available in Strideto\'s data. ' +
       'Please verify with official sources.';
@@ -204,7 +204,7 @@ function buildMockAnswerText({ intent, contextType, freshItems, studentContext, 
     'This is a deterministic evidence summary. Verify deadlines and requirements with official sources.';
 }
 
-function buildMockFollowUps(intent, contextType) {
+function buildMockFollowUps(intent, _contextType) {
   const followUps = {
     test_question: ['Which programs accept this test?', 'What score do I need for my target program?', 'What are the test registration deadlines?'],
     acceptance_question: ['What is the minimum accepted score?', 'Are there exceptions for this program?', 'Which other tests are accepted here?'],

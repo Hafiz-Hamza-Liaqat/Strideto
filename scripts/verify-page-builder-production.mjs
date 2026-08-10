@@ -165,7 +165,12 @@ function read(rel) { return readFileSync(join(root, rel), 'utf8'); }
 // Page shell main landmark
 {
   const view = readFileSync(join(clientSrc, 'components/pageBuilder/PageBuilderPageView.jsx'), 'utf8');
-  if (view.includes('<main') && view.includes('resolvePageBuilderSeo')) pass('runtime seo shell');
+  const mainLayout = readFileSync(join(clientSrc, 'layouts/MainLayout.jsx'), 'utf8');
+  if (
+    view.includes('className="page-builder-runtime"') &&
+    view.includes('resolvePageBuilderSeo') &&
+    mainLayout.includes('<main id="main-content"')
+  ) pass('runtime seo shell');
   else fail('runtime seo shell');
 }
 

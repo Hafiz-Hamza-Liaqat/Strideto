@@ -58,7 +58,10 @@ function exists(rel) { return docExists(root, rel); }
   const ok = validateSubmission(form, { email: 'a@b.com' });
   if (ok.ok) pass('submission valid');
   else fail('submission valid');
-  const hp = checkFormSpam({ spamSettings: { honeypot: true, honeypotField: 'website' } }, { website: 'spam' });
+  const hp = await checkFormSpam(
+    { spamSettings: { honeypot: true, honeypotField: 'website' } },
+    { website: 'spam' }
+  );
   if (hp.blocked && hp.silent) pass('honeypot spam');
   else fail('honeypot spam');
 }

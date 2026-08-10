@@ -76,7 +76,7 @@ function ApplicationCard({ app, onStatusChange, onDelete }) {
                 <li key={i} className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-2">
                   <span>{new Date(h.changedAt).toLocaleDateString()}</span>
                   <span>{h.fromStatus ? `${h.fromStatus.replace(/_/g, ' ')} →` : 'Started →'} {h.toStatus.replace(/_/g, ' ')}</span>
-                  {h.note && <span className="italic">"{h.note}"</span>}
+                  {h.note && <span className="italic">&quot;{h.note}&quot;</span>}
                 </li>
               ))}
             </ul>

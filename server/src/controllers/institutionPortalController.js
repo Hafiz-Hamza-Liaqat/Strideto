@@ -12,12 +12,12 @@
  * Public projection helpers strip internal fields before responding.
  */
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { Organization } from '../models/Organization.js';
+import { Organization as _Organization } from '../models/Organization.js';
 import { CanonicalInstitution } from '../models/education/CanonicalInstitution.js';
 import { Program } from '../models/education/Program.js';
 import { ProgramRequirement } from '../models/education/ProgramRequirement.js';
-import { TestAcceptance } from '../models/education/TestAcceptance.js';
-import { CanonicalScholarship } from '../models/education/CanonicalScholarship.js';
+import { TestAcceptance as _TestAcceptance } from '../models/education/TestAcceptance.js';
+import { CanonicalScholarship as _CanonicalScholarship } from '../models/education/CanonicalScholarship.js';
 import { InstitutionMembership } from '../models/institution/InstitutionMembership.js';
 import { InstitutionClaim } from '../models/institution/InstitutionClaim.js';
 import { InstitutionProfile } from '../models/institution/InstitutionProfile.js';
@@ -29,13 +29,13 @@ import {
   INSTITUTION_ROLES,
   CLAIM_STATES,
   CONFLICT_STATES,
-  CHANGE_CATEGORIES,
-  INSTITUTION_NOTIFICATION_TYPES,
+  CHANGE_CATEGORIES as _CHANGE_CATEGORIES,
+  INSTITUTION_NOTIFICATION_TYPES as _INSTITUTION_NOTIFICATION_TYPES,
   canSubmitOfficialChanges,
   canManageTeam,
 } from '../../../shared/institution/institutionPortal.js';
 import { PUB_STATUSES } from '../../../shared/education/taxonomy.js';
-import { ACCEPTANCE_SCOPES } from '../../../shared/education/acceptanceExplorer.js';
+import { ACCEPTANCE_SCOPES as _ACCEPTANCE_SCOPES } from '../../../shared/education/acceptanceExplorer.js';
 
 // ---------------------------------------------------------------------------
 // Helpers

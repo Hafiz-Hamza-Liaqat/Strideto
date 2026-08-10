@@ -1,4 +1,4 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { vaultApi } from '../../services/vaultApi';
@@ -107,7 +107,9 @@ function ShareModal({ documentId, onClose }) {
     try {
       await vaultApi.revokeGrant(documentId, revokeConfirm);
       setGrants((g) => g.map((gr) => String(gr._id) === revokeConfirm ? { ...gr, status: 'revoked' } : gr));
-    } catch {}
+    } catch (err) {
+      setError(err?.response?.data?.error || t('vault.revokeError', 'Failed to revoke access'));
+    }
     setRevokeConfirm(null);
   }
 

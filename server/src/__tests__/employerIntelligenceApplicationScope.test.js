@@ -48,14 +48,12 @@ function scopedApplications(jobs, applications) {
 
 // ---- Fixtures: two Employers, mixed internal/external Jobs, one orphaned Application ----
 const employerX = 'employerX';
-const employerY = 'employerY';
 
 const jobsForEmployerX = [
   { _id: 'jobX-internal', employerId: employerX, applyType: 'internal' },
   { _id: 'jobX-external-applyType', employerId: employerX, applyType: 'external' },
   { _id: 'jobX-external-link', employerId: employerX, applicationLink: 'https://apply.example.com' }, // applyType unset — resolved via canonical helper, not a duplicate ad hoc rule
 ];
-const jobsForEmployerY = [{ _id: 'jobY-internal', employerId: employerY, applyType: 'internal' }];
 
 const allApplications = [
   { _id: 'app1', jobId: 'jobX-internal', status: 'submitted' },

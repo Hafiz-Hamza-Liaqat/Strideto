@@ -45,7 +45,14 @@ const userNotificationSchema = new mongoose.Schema(
      */
     dedupeKey: { type: String, maxlength: 200 },
   },
-  { timestamps: true }
+  {
+    timestamps: true,
+    // Production indexes are provisioned and verified explicitly. In
+    // particular, the dedupe uniqueness boundary must never be built as an
+    // uncontrolled side effect of an application process starting.
+    autoIndex: false,
+    autoCreate: false,
+  }
 );
 
 userNotificationSchema.index({ userId: 1, read: 1, createdAt: -1 });

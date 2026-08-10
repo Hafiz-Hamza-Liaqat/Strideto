@@ -158,7 +158,7 @@ adminInstitution.patch('/claims/:claimId', async (req, res) => {
   const { CanonicalInstitution } = await import('../models/education/CanonicalInstitution.js');
   const { Organization } = await import('../models/Organization.js');
   const { logAudit } = await import('../services/auditService.js');
-  const { CLAIM_STATES, CLAIM_TRANSITIONS, isValidClaimTransition } = await import('../../../shared/institution/institutionPortal.js');
+  const { CLAIM_STATES, CLAIM_TRANSITIONS: _CLAIM_TRANSITIONS, isValidClaimTransition } = await import('../../../shared/institution/institutionPortal.js');
   const { claimId } = req.params;
   const { action, reason } = req.body;
 

@@ -23,7 +23,6 @@ import { randomUUID } from 'crypto';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const root = path.resolve(__dirname, '../../..');
-const sharedDir = path.join(root, 'shared');
 const svcDir = path.join(__dirname, '..', 'services', 'ai');
 
 const load = (rel) => import(pathToFileURL(path.join(root, rel)).href);

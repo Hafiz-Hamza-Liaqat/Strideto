@@ -480,9 +480,23 @@ async function run() {
       if (loaded && !options.hardLoad) {
         await client.evaluate(`history.pushState({}, '', ${JSON.stringify(route)}); dispatchEvent(new PopStateEvent('popstate'))`);
       } else {
+        // Each synthetic realm is an independent fixture session. Do not let
+        // another realm's non-authoritative UI cache make bootstrap timing
+        // depend on the order of matrix cases; authority still comes from the
+        // intercepted refresh/me contracts below.
+        if (loaded && options.hardLoad) {
+          await client.evaluate(`localStorage.clear(); sessionStorage.clear()`);
+        }
+        // A ready previous document also has #root, so waiting on readyState/root
+        // alone can race Page.navigate (especially when probing the same path
+        // under several synthetic realms). The marker exists only in the old
+        // window and disappears when the requested hard navigation commits.
+        if (loaded) await client.evaluate(`window.__stridetoNavigationMarker = ${navigationId}`);
         await client.send('Page.navigate', { url: `${baseUrl}${route}` });
       }
-      await waitFor(() => client.evaluate(`document.readyState === 'complete' && !!document.getElementById('root')`));
+      await waitFor(() => client.evaluate(`document.readyState === 'complete'
+        && !!document.getElementById('root')
+        && window.__stridetoNavigationMarker !== ${navigationId}`));
       try {
         if (options.waitFor) await waitFor(() => client.evaluate(options.waitFor));
         else await waitFor(() => client.evaluate(`(() => {
@@ -783,6 +797,9 @@ async function run() {
     console.log(`STRIDETO MISSION 26 CROSS-ROLE UX: ${assertions}/${assertions} assertions passed`);
     console.log('Tooling: local Chromium CDP + local Vite; intercepted synthetic fixtures; external DNS blackholed; no live service, provider, DB or account');
   } finally {
+    try {
+      if (client) await Promise.race([client.send('Browser.close'), delay(1_000)]);
+    } catch { /* browser may close the CDP socket before acknowledging */ }
     client?.close();
     if (chrome && chrome.exitCode == null) chrome.kill();
     if (vite && vite.exitCode == null) vite.kill();

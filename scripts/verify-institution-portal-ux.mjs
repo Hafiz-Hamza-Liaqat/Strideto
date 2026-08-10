@@ -223,6 +223,9 @@ async function run() {
     console.log(`STRIDETO INSTITUTION PORTAL UX: ${assertions}/${assertions} assertions passed`);
     console.log('Tooling: local Chromium CDP; intercepted synthetic Institution fixtures; no network or live services');
   } finally {
+    try {
+      if (client) await Promise.race([client.send('Browser.close'), delay(1_000)]);
+    } catch { /* browser may close the CDP socket before acknowledging */ }
     client?.close(); if (chrome && chrome.exitCode == null) chrome.kill(); if (vite && vite.exitCode == null) vite.kill(); await delay(400);
     try { await rm(browserProfile, { recursive: true, force: true, maxRetries: 3, retryDelay: 150 }); } catch { /* synthetic browser profile only */ }
   }

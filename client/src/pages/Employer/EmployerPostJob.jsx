@@ -14,7 +14,6 @@ import {
   APPLY_METHOD_VALUES,
   DEFAULT_APPLY_METHOD,
   validateApplyMethodSelection,
-  buildApplyMethodPayload,
   resolveApplyMethodFromJob,
 } from './employerPostJobValidation';
 
@@ -150,7 +149,9 @@ export default function EmployerPostJob() {
     // append to) the generic validator's own optional-fields checks for
     // those two fields, so a stale error can't be shown for a field the
     // selected method has since hidden.
-    const { applyLink: _genericLinkError, applyEmail: _genericEmailError, ...baseErrors } = result.errors;
+    const baseErrors = { ...result.errors };
+    delete baseErrors.applyLink;
+    delete baseErrors.applyEmail;
     const methodResult = validateApplyMethodSelection(form);
     const mergedErrors = { ...baseErrors, ...methodResult.errors };
     if (!result.ok || !methodResult.ok) {

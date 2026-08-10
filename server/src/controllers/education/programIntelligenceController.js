@@ -9,7 +9,7 @@
  * adminNotes never projected.
  */
 import { Program } from '../../models/education/Program.js';
-import { CanonicalInstitution } from '../../models/education/CanonicalInstitution.js';
+import { CanonicalInstitution as _CanonicalInstitution } from '../../models/education/CanonicalInstitution.js';
 import { ProgramRequirement } from '../../models/education/ProgramRequirement.js';
 import { TestAcceptance } from '../../models/education/TestAcceptance.js';
 import { CanonicalScholarship } from '../../models/education/CanonicalScholarship.js';

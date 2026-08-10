@@ -15,12 +15,10 @@ const load = (rel) => import(pathToFileURL(path.join(sharedDir, rel)).href);
 
 const {
   parseTalentProfileInput,
-  validateTalentProfileInput,
   parseExamScoreEntry,
   validateExamScoreEntry,
   parseStudyGoalEntry,
   validateStudyGoalEntry,
-  parseStudentPreferences,
   validateStudentPreferences,
   parseBudgetProfile,
   validateBudgetProfile,
@@ -39,9 +37,7 @@ const {
 const {
   EXAM_TYPES,
   GRADING_SYSTEMS,
-  QUALIFICATION_LEVELS,
   GOAL_TYPES,
-  STUDY_MODES,
 } = await load('career/studentProfile.js');
 
 let passed = 0;

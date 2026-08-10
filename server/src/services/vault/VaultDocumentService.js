@@ -11,7 +11,7 @@ import { DocumentAccessGrant } from '../../models/vault/DocumentAccessGrant.js';
 import { vaultUploadFile } from './vaultStorageService.js';
 import { initialScanStatus } from './securityScanService.js';
 import { withExpiryState } from './vaultExpiryService.js';
-import { assertOwnership, getOwnedDocument, revokeGrant } from './vaultAccessPolicy.js';
+import { assertOwnership as _assertOwnership, getOwnedDocument, revokeGrant } from './vaultAccessPolicy.js';
 import { logAudit } from '../auditService.js';
 import {
   VAULT_DOCUMENT_TYPES,
@@ -27,7 +27,7 @@ function toId(v) {
   return new mongoose.Types.ObjectId(String(v));
 }
 
-function clientProjection(doc) {
+function _clientProjection(doc) {
   const plain = doc.toObject ? doc.toObject() : { ...doc };
   return withExpiryState(plain);
 }
@@ -474,7 +474,7 @@ function safeMetadata(raw) {
 
 function sanitizeFilename(name) {
   if (!name || typeof name !== 'string') return 'upload';
-  return path.basename(name).replace(/[^\w.\-]/g, '_').slice(0, 200);
+  return path.basename(name).replace(/[^\w.-]/g, '_').slice(0, 200);
 }
 
 // path needed for sanitizeFilename

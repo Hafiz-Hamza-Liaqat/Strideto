@@ -23,7 +23,7 @@ import {
   DISCLAIMER_TEXTS,
   containsGuaranteeLanguage,
   containsInjectionPattern,
-  FRESHNESS_GROUNDING_RULES,
+  FRESHNESS_GROUNDING_RULES as _FRESHNESS_GROUNDING_RULES,
 } from '../../../../shared/ai/copilot.js';
 import { FRESHNESS_STATES } from '../../../../shared/trust/sourceVerification.js';
 
@@ -177,7 +177,7 @@ export function computeFinalGroundingStatus({
   guaranteeBlocked,
   certaintBlocked,
   hasInjectionAttempt,
-  evidenceItems = [],
+  evidenceItems: _evidenceItems = [],
 }) {
   if (guaranteeBlocked || certaintBlocked) return GROUNDING_STATUS.POLICY_BLOCKED;
   if (packetGroundingStatus === GROUNDING_STATUS.CONFLICTING_EVIDENCE) return GROUNDING_STATUS.CONFLICTING_EVIDENCE;

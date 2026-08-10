@@ -19,13 +19,13 @@ import { Organization } from '../models/Organization.js';
 import { logAudit } from './auditService.js';
 import {
   VERIFICATION_STATUSES,
-  EVIDENCE_TYPES,
+  EVIDENCE_TYPES as _EVIDENCE_TYPES,
   EVIDENCE_STATUSES,
   RISK_LEVELS,
   isValidTransition,
   isValidEvidenceType,
   isValidEvidenceStatus,
-  isValidRiskLevel,
+  isValidRiskLevel as _isValidRiskLevel,
   isValidRiskSignal,
   requiresEnhancedReview,
   canExercisePrivilegedCapability,

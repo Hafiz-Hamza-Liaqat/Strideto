@@ -6,7 +6,7 @@
  * No admission probability language.
  */
 import { useState, useEffect } from 'react';
-import { useParams, Link, useLocation } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { SeoHead } from '../../components/seo';
 import { personalizationApi } from '../../services/personalizationApi';
 import { ROUTES } from '../../constants';

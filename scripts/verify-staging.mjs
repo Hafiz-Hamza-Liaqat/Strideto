@@ -59,7 +59,7 @@ function runDockerComposeConfig() {
     'scripts/backup/crontab.example',
     'docs/AI_BUDGET_POLICY.md',
     'docs/STAGING_DEPLOYMENT.md',
-    'docs/SPRINT_L2_IMPLEMENTATION_REPORT.md',
+    'docs/archive/l2/SPRINT_L2_IMPLEMENTATION_REPORT.md',
     '.cursor/rules/ai-budget-policy.mdc',
   ];
   for (const f of required) {
@@ -113,7 +113,11 @@ function runDockerComposeConfig() {
 // SSL / DNS readiness docs in Caddyfile
 {
   const caddy = read('deploy/Caddyfile');
-  if (caddy.includes('reverse_proxy') && caddy.includes('yourdomain.com')) pass('Caddy TLS front door');
+  if (
+    caddy.includes('reverse_proxy') &&
+    caddy.includes('strideto.com') &&
+    caddy.includes('staging.strideto.com')
+  ) pass('Caddy TLS front door');
   else fail('Caddy TLS front door');
   const vps = read('deploy/setup-vps.sh');
   if (vps.includes('ufw allow 443') && vps.includes('caddy')) pass('VPS SSL/DNS ports');

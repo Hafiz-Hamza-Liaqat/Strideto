@@ -9,33 +9,33 @@ import mongoose from 'mongoose';
 import { StudentCostPlan } from '../models/budget/StudentCostPlan.js';
 import { CostItem } from '../models/budget/CostItem.js';
 import { Program } from '../models/education/Program.js';
-import { CanonicalScholarship } from '../models/education/CanonicalScholarship.js';
+import { CanonicalScholarship as _CanonicalScholarship } from '../models/education/CanonicalScholarship.js';
 import {
   PLAN_STATUSES,
-  TRUTH_CATEGORIES,
+  TRUTH_CATEGORIES as _TRUTH_CATEGORIES,
   AMOUNT_STATES,
-  COST_CATEGORIES,
+  COST_CATEGORIES as _COST_CATEGORIES,
   COST_CADENCES,
   COST_FRESHNESS,
-  TUITION_BASES,
-  FUNDING_SCENARIOS,
+  TUITION_BASES as _TUITION_BASES,
+  FUNDING_SCENARIOS as _FUNDING_SCENARIOS,
   PLAN_EVENT_TYPES,
   isValidCategory,
   isValidCadence,
   isValidTruthCategory,
   isValidTuitionBasis,
-  isValidPlanStatus,
+  isValidPlanStatus as _isValidPlanStatus,
   isStudentSupplied,
   isCanonical,
 } from '../../../shared/budget/costPlanner.js';
 import {
   groupTotalsByCurrency,
-  deriveTuitionTotal,
+  deriveTuitionTotal as _deriveTuitionTotal,
   calculateBudgetGap,
   resolveMultiCurrencyAffordability,
   dataQualitySummary,
   planCompleteness,
-  applyScholarshipFunding,
+  applyScholarshipFunding as _applyScholarshipFunding,
 } from '../../../shared/budget/calculationEngine.js';
 import { normalizeCurrency } from '../../../shared/international/currency.js';
 
@@ -228,7 +228,7 @@ export async function cloneCostPlan(userId, planId) {
   const items = await CostItem.find({ planId: original._id, removedAt: null }).lean();
   if (items.length > 0) {
     const clonedItems = items.map((item) => {
-      const { _id, planId: _, createdAt, updatedAt, __v, ...rest } = item;
+      const { _id, planId: _, createdAt: _createdAt, updatedAt: _updatedAt, __v, ...rest } = item;
       return { ...rest, planId: newPlan._id, ownerUserId: userId };
     });
     await CostItem.insertMany(clonedItems);

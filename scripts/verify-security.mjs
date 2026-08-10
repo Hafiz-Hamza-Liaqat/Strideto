@@ -34,8 +34,14 @@ else fail('env validation');
 if (read('server/src/utils/fileValidation.js').includes('rejectDangerousFilename')) pass('upload validation');
 else fail('upload validation');
 
-const token = read('server/src/utils/tokenStore.js');
-if (token.includes('refresh') || token.includes('Refresh')) pass('token store');
+const refreshSession = read('server/src/models/RefreshSession.js');
+const refreshRotation = read('server/src/services/auth/RefreshSessionRotationService.js');
+if (
+  refreshSession.includes('currentTokenHash') &&
+  refreshSession.includes('autoIndex: false') &&
+  refreshRotation.includes('RefreshSession') &&
+  refreshRotation.includes('findOneAndUpdate')
+) pass('durable refresh-session store');
 else fail('token store');
 
 const employerAuth = read('server/src/controllers/employerAuthController.js');
@@ -43,9 +49,13 @@ const employerRoutes = read('server/src/routes/employer.js');
 if (
   employerAuth.includes('employerRefreshToken') &&
   employerAuth.includes('employerLogout') &&
-  employerAuth.includes("storeRefreshToken") &&
+  employerAuth.includes('employerSecureAuthFlows.refresh') &&
+  employerAuth.includes('extractRefreshToken') &&
+  employerAuth.includes('logoutCurrent') &&
   employerRoutes.includes('/auth/employer/refresh-token') &&
-  employerRoutes.includes('/auth/employer/logout')
+  employerRoutes.includes('/auth/employer/logout') &&
+  employerRoutes.includes('secureTrustedOrigin') &&
+  employerRoutes.includes('requireEmployerAuth')
 ) pass('employer refresh/logout');
 else fail('employer refresh/logout');
 

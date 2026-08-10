@@ -84,7 +84,7 @@ export default function BudgetComparePage() {
 
       <div className="mb-4 p-3 rounded-md bg-blue-50 dark:bg-blue-900/20 text-sm text-blue-800 dark:text-blue-200">
         Comparison is based on currently known costs only. Unknown costs and currency differences affect reliability.
-        This tool does not determine which plan is "cheapest" unless currencies and all costs are fully known.
+        This tool does not determine which plan is &quot;cheapest&quot; unless currencies and all costs are fully known.
       </div>
 
       <div className="grid grid-cols-2 gap-4 mb-4">

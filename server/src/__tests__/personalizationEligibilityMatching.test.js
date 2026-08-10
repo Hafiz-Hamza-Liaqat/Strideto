@@ -84,7 +84,6 @@ const {
   CRITERION_STATES,
   GAP_SEVERITIES,
   MATCH_COMPONENT_KEYS,
-  DEFAULT_MATCH_WEIGHTS,
   evaluateNationalityResidence,
   evaluateDegreeLevel,
   evaluateAcademicThreshold,
@@ -94,7 +93,6 @@ const {
   evaluateStudyMode,
   evaluateDestination,
   evaluateFundingPreference,
-  evaluateFinancialNeed,
   evaluateScholarshipCriteria,
   deriveOverallEligibilityState,
   buildEligibilityResult,
@@ -104,7 +102,6 @@ const {
   buildFreshnessWarning,
   buildTestGuidance,
   makeCriterionResult,
-  qualificationMatchesDegreeLevel,
 } = eng;
 
 let passed = 0;

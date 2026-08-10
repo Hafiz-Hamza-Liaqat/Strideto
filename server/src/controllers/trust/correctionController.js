@@ -12,7 +12,7 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import { sanitizeString } from '../../utils/sanitize.js';
 import {
   CORRECTION_STATUSES,
-  CORRECTION_TYPES,
+  CORRECTION_TYPES as _CORRECTION_TYPES,
   isValidCorrectionType,
 } from '../../../../shared/trust/sourceVerification.js';
 

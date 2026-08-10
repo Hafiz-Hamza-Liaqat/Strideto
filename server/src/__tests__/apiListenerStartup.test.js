@@ -52,7 +52,7 @@ const { registerGracefulShutdown, isShuttingDown } = await import('../config/shu
   // SIGTERM/SIGINT handler is ever attached to this test's own process.
   const originalOn = process.on;
   const registeredSignals = [];
-  process.on = (event, handler) => {
+  process.on = (event, _handler) => {
     if (event === 'SIGTERM' || event === 'SIGINT') registeredSignals.push(event);
     return process;
   };

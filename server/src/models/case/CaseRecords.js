@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { APPROVAL_STATUSES, HIGH_VALUE_ACTIONS, SUBMISSION_METHODS } from '../../../../shared/services/cases.js';
+import { APPROVAL_STATUSES, HIGH_VALUE_ACTIONS, SUBMISSION_METHODS as _SUBMISSION_METHODS } from '../../../../shared/services/cases.js';
 const base = { caseId: { type: mongoose.Schema.Types.ObjectId, ref: 'ProfessionalCase', required: true, index: true } };
 const eventSchema = new mongoose.Schema({ ...base, organizationId: { type: mongoose.Schema.Types.ObjectId, required: true, index: true }, eventType: { type: String, required: true, maxlength: 80 }, actorType: { type: String, enum: ['student','agent','system'], required: true }, actorId: { type: String, required: true }, metadata: { type: mongoose.Schema.Types.Mixed, default: {} } }, { timestamps: { createdAt: true, updatedAt: false }, collection: 'case_events' });
 eventSchema.pre(['updateOne','updateMany','findOneAndUpdate','deleteOne','deleteMany'], function immutable() { throw new Error('Case timeline is immutable'); });

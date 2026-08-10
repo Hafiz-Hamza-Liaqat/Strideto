@@ -77,7 +77,6 @@ const dateDisplay = await import(sharedUrl('international/dateDisplay.js'));
 // token, touching a session store, or reaching a database.
 
 const STUDENT = { user: { userId: 'student-1', role: 'User' } };
-const OTHER_STUDENT = { user: { userId: 'student-2', role: 'User' } };
 const EMPLOYER = { employer: { employerId: 'employer-1', role: 'employer' } };
 const AGENT = { agent: { agentAccountId: 'agent-1', role: 'agent' } };
 const INSTITUTION = {

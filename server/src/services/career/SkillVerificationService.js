@@ -62,6 +62,7 @@ import {
   reconcileSkillTrustNotifications,
   SKILL_TRUST_IN_APP_DELIVERY,
 } from './skillTrustNotificationBridge.js';
+import { logger } from '../../utils/logger.js';
 
 const S = SKILL_CLAIM_STATUSES;
 
@@ -94,7 +95,7 @@ async function commitStatusTransition({ claimId, fromStatus, set, inc = null }) 
  */
 async function notifyTransition({ claim, history }) {
   try {
-    return await emitSkillTrustNotifications({
+    const delivery = await emitSkillTrustNotifications({
       claim,
       fromStatus: history.fromStatus,
       toStatus: history.toStatus,
@@ -102,7 +103,16 @@ async function notifyTransition({ claim, history }) {
       applicantVisibleRequest: history.applicantVisibleRequest ?? '',
       occurredAt: history.occurredAt,
     });
+    if (delivery.status === SKILL_TRUST_IN_APP_DELIVERY.PENDING_RECONCILIATION) {
+      logger.warn('skill_trust_notification_pending_reconciliation', {
+        transitionId: String(history._id),
+      });
+    }
+    return delivery;
   } catch {
+    logger.warn('skill_trust_notification_pending_reconciliation', {
+      transitionId: String(history._id),
+    });
     return {
       created: 0,
       skipped: 0,

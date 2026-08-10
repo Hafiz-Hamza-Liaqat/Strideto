@@ -35,7 +35,7 @@ async function prepareAgentSubmission(req, organizationId) {
  * Derive actor from request. Supports future org realm; for now also handles
  * admin actors acting on behalf of an organization (e.g. onboarding support).
  */
-function actor(req, organizationId) {
+function actor(req, _organizationId) {
   return {
     userId: req.user?.userId || req.employer?.employerId || req.agent?.agentAccountId,
     role: req.user?.role || (req.agent ? 'agent' : 'employer'),

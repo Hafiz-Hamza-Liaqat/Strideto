@@ -59,7 +59,7 @@ function actorFromReq(req) {
  * layer — privacy projection is applied when sharing with third parties, not
  * on own-profile access).
  */
-function safeOwnProjection(profile) {
+function _safeOwnProjection(profile) {
   if (!profile) return null;
   // All fields are readable by the owner. Agents/employers get a restricted view (Mission 11+).
   return profile;

@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { STUDY_MODES, FUNDING_PREFERENCES, QUALIFICATION_LEVELS } from '../../../../shared/career/studentProfile.js';
+import { STUDY_MODES, FUNDING_PREFERENCES, QUALIFICATION_LEVELS as _QUALIFICATION_LEVELS } from '../../../../shared/career/studentProfile.js';
 
 export const studentPreferencesSchema = new mongoose.Schema(
   {

@@ -16,9 +16,9 @@ import { CanonicalInstitution } from '../models/education/CanonicalInstitution.j
 import { logAudit } from './auditService.js';
 import { assertApprovedVerification } from './agentProfileService.js';
 import { deriveBadges, VERIFICATION_STATUSES } from '../../../shared/international/verification.js';
-import { deriveFreshness, FRESHNESS_STATES, SOURCE_STATUS } from '../../../shared/trust/sourceVerification.js';
+import { deriveFreshness, FRESHNESS_STATES, SOURCE_STATUS as _SOURCE_STATUS } from '../../../shared/trust/sourceVerification.js';
 import {
-  MARKETPLACE_POST_TYPES, MARKETPLACE_CONTENT_KINDS, MARKETPLACE_REFERENCE_TYPES,
+  MARKETPLACE_POST_TYPES, MARKETPLACE_CONTENT_KINDS as _MARKETPLACE_CONTENT_KINDS, MARKETPLACE_REFERENCE_TYPES,
   MARKETPLACE_PUBLICATION_STATUSES as PS, MARKETPLACE_MODERATION_STATUSES as MS,
   MARKETPLACE_INTEREST_STATUSES, marketplaceClaimSignals, requiresMarketplaceProvenance,
   freshnessWarning, isMarketplaceCurrentlyActive,

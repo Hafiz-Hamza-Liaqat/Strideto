@@ -15,7 +15,7 @@ import {
   VERIFICATION_STATUSES,
   FRESHNESS_STATES,
   PUBLICATION_POLICY_TYPES,
-  SOURCE_STATUS,
+  SOURCE_STATUS as _SOURCE_STATUS,
 } from '../../../../shared/trust/sourceVerification.js';
 
 const factProvenanceSchema = new mongoose.Schema(

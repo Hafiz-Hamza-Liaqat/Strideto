@@ -2,7 +2,6 @@ import { useEffect, useState } from 'react';
 import { agentApi } from '../../services/agentService';
 
 export default function AgentProfile() {
-  const [profile, setProfile] = useState(null);
   const [completeness, setCompleteness] = useState(null);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -13,7 +12,6 @@ export default function AgentProfile() {
   useEffect(() => {
     Promise.all([agentApi.getProfile(), agentApi.getCompleteness()])
       .then(([pr, cr]) => {
-        setProfile(pr.data.profile);
         setForm(pr.data.profile || {});
         setCompleteness(cr.data.completeness);
       })
@@ -45,7 +43,7 @@ export default function AgentProfile() {
         officialEmail: form.officialEmail,
         phone: form.phone,
       });
-      setProfile(data.profile);
+      setForm(data.profile || form);
       setSuccess(true);
       // Refresh completeness
       const cr = await agentApi.getCompleteness();

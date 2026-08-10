@@ -11,14 +11,14 @@
  *   - Conflicts detected and stored rather than silently overwritten.
  *   - Suspended/revoked/expired organizations lose privileged publishing authority.
  */
-import { Organization } from '../models/Organization.js';
+import { Organization as _Organization } from '../models/Organization.js';
 import { OrganizationVerification } from '../models/OrganizationVerification.js';
 import { CanonicalInstitution } from '../models/education/CanonicalInstitution.js';
 import { Program } from '../models/education/Program.js';
-import { ProgramRequirement } from '../models/education/ProgramRequirement.js';
+import { ProgramRequirement as _ProgramRequirement } from '../models/education/ProgramRequirement.js';
 import { TestAcceptance } from '../models/education/TestAcceptance.js';
 import { CanonicalScholarship } from '../models/education/CanonicalScholarship.js';
-import { CanonicalSource } from '../models/trust/CanonicalSource.js';
+import { CanonicalSource as _CanonicalSource } from '../models/trust/CanonicalSource.js';
 import { InstitutionMembership } from '../models/institution/InstitutionMembership.js';
 import { InstitutionClaim } from '../models/institution/InstitutionClaim.js';
 import { InstitutionProfile } from '../models/institution/InstitutionProfile.js';
@@ -27,16 +27,16 @@ import { InstitutionChangeEvent } from '../models/institution/InstitutionChangeE
 import { InstitutionNotificationEvent } from '../models/institution/InstitutionNotificationEvent.js';
 import { logAudit } from './auditService.js';
 import {
-  INSTITUTION_ROLES,
+  INSTITUTION_ROLES as _INSTITUTION_ROLES,
   CLAIM_STATES,
   CHANGE_CATEGORIES,
   CONFLICT_STATES,
   INSTITUTION_NOTIFICATION_TYPES,
   INSTITUTION_SOURCE_TYPE,
   canSubmitOfficialChanges,
-  canManageTeam,
+  canManageTeam as _canManageTeam,
   claimGrantsAuthority,
-  isInstitutionOrgType,
+  isInstitutionOrgType as _isInstitutionOrgType,
   computeInstitutionCompleteness,
 } from '../../../shared/institution/institutionPortal.js';
 import {
@@ -351,7 +351,7 @@ export async function getOrCreateProfile(organizationId) {
   return profile;
 }
 
-export async function updateProfile({ organizationId, updates, actor, membership }) {
+export async function updateProfile({ organizationId, updates, actor, membership: _membership }) {
   const profile = await getOrCreateProfile(organizationId);
 
   const allowed = [

@@ -13,11 +13,20 @@ function recipientContext(req) {
   if (req.employer) {
     return { recipientType: 'employer', employerId: req.employer.employerId || req.employer._id };
   }
+  // The canonical inbox currently has user/staff/employer recipient types.
+  // Agent and Institution tokens are valid platform principals, but they do
+  // not map to one of those stores. Deny them explicitly instead of falling
+  // through and dereferencing a missing req.user.
+  if (!req.user?.userId) return null;
   const isStaff = req.user?.role && STAFF_ROLES.includes(req.user.role);
   return {
     recipientType: isStaff ? 'staff' : 'user',
     userId: req.user.userId,
   };
+}
+
+function denyUnsupportedInboxRealm(res) {
+  return res.status(403).json({ error: 'Notification inbox is not available for this account type' });
 }
 
 function buildFilter(ctx, query) {
@@ -33,6 +42,7 @@ function buildFilter(ctx, query) {
 
 export const listUserNotifications = asyncHandler(async (req, res) => {
   const ctx = recipientContext(req);
+  if (!ctx) return denyUnsupportedInboxRealm(res);
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
   const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(req.query.limit, 10) || DEFAULT_LIMIT));
   const skip = (page - 1) * limit;
@@ -49,6 +59,7 @@ export const listUserNotifications = asyncHandler(async (req, res) => {
 
 export const getUnreadCount = asyncHandler(async (req, res) => {
   const ctx = recipientContext(req);
+  if (!ctx) return denyUnsupportedInboxRealm(res);
   const filter = buildFilter(ctx, { read: 'false' });
   const unreadCount = await UserNotification.countDocuments(filter);
   res.json({ unreadCount });
@@ -56,6 +67,7 @@ export const getUnreadCount = asyncHandler(async (req, res) => {
 
 export const markRead = asyncHandler(async (req, res) => {
   const ctx = recipientContext(req);
+  if (!ctx) return denyUnsupportedInboxRealm(res);
   const { id } = req.params;
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
 
@@ -70,6 +82,7 @@ export const markRead = asyncHandler(async (req, res) => {
 
 export const markAllRead = asyncHandler(async (req, res) => {
   const ctx = recipientContext(req);
+  if (!ctx) return denyUnsupportedInboxRealm(res);
   const filter = buildFilter(ctx, { read: 'false' });
   const result = await UserNotification.updateMany(filter, { read: true, readAt: new Date() });
   res.json({ updated: result.modifiedCount });
@@ -77,6 +90,7 @@ export const markAllRead = asyncHandler(async (req, res) => {
 
 export const removeNotification = asyncHandler(async (req, res) => {
   const ctx = recipientContext(req);
+  if (!ctx) return denyUnsupportedInboxRealm(res);
   const { id } = req.params;
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
 

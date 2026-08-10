@@ -28,7 +28,7 @@ import {
   COPILOT_INTENT,
   COPILOT_BOUNDS,
   isValidContextType,
-  isValidIntent,
+  isValidIntent as _isValidIntent,
   GROUNDING_STATUS,
   ANSWER_TYPES,
   PROVIDER_STATES,

@@ -152,7 +152,7 @@ function buildServiceHarness({ currentInterview, pipelineStage = 'interview', le
 // --- Contract B: Genuine appointment change while legacy status is already interview ---
 {
   const currentInterview = { scheduledAt: new Date('2026-08-01T10:00:00Z'), mode: 'video', meetingUrl: 'http://meet', location: 'Office', notes: 'Private note', outcome: 'Pending' };
-  const { self, calls, application } = buildServiceHarness({ currentInterview });
+  const { self, calls } = buildServiceHarness({ currentInterview });
 
   const result = await self.scheduleInterview('emp-1', 'app-1', { scheduledAt: '2026-08-02T10:00:00Z', mode: 'video' });
   

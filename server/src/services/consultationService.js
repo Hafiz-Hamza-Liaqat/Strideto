@@ -206,7 +206,7 @@ export async function listStudentConsultations(userId, query = {}) {
 }
 
 export async function getStudentConsultation(userId, consultationId) {
-  const record = await Consultation.findOne({ _id: id(consultationId, 'consultation id'), studentUserId }).lean();
+  const record = await Consultation.findOne({ _id: id(consultationId, 'consultation id'), studentUserId: userId }).lean();
   if (!record) fail('Consultation not found', 404);
   const [history, thread, verificationStatus] = await Promise.all([ConsultationEvent.find({ consultationId: record._id }).sort({ createdAt: 1 }).lean(), ConsultationThread.findOne({ consultationId: record._id }).lean(), verificationFor(record)]);
   return { consultation: studentProjection(record, verificationStatus), history: historyProjection(history, 'student'), threadId: thread ? String(thread._id) : null };

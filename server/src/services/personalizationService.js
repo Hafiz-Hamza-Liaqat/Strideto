@@ -10,21 +10,21 @@
  */
 import { TalentProfile } from '../models/career/TalentProfile.js';
 import { CanonicalScholarship } from '../models/education/CanonicalScholarship.js';
-import { ScholarshipCycle } from '../models/education/ScholarshipCycle.js';
+import { ScholarshipCycle as _ScholarshipCycle } from '../models/education/ScholarshipCycle.js';
 import { Program } from '../models/education/Program.js';
 import { ProgramRequirement } from '../models/education/ProgramRequirement.js';
 import { TestAcceptance } from '../models/education/TestAcceptance.js';
 import { Test } from '../models/education/Test.js';
 import {
-  evaluateNationalityResidence,
+  evaluateNationalityResidence as _evaluateNationalityResidence,
   evaluateDegreeLevel,
   evaluateAcademicThreshold,
   evaluateTestRequirement,
   evaluateExperience,
   evaluateField,
-  evaluateStudyMode,
+  evaluateStudyMode as _evaluateStudyMode,
   evaluateDestination,
-  evaluateFinancialNeed,
+  evaluateFinancialNeed as _evaluateFinancialNeed,
   evaluateScholarshipCriteria,
   computeMatchScore,
   analyzeGaps,
@@ -32,10 +32,10 @@ import {
   buildRecommendation,
   buildFreshnessWarning,
   buildTestGuidance,
-  ELIGIBILITY_STATES,
+  ELIGIBILITY_STATES as _ELIGIBILITY_STATES,
   CRITERION_STATES,
   makeCriterionResult,
-  DEFAULT_MATCH_WEIGHTS,
+  DEFAULT_MATCH_WEIGHTS as _DEFAULT_MATCH_WEIGHTS,
 } from '../../../shared/education/eligibilityEngine.js';
 import { PROGRAM_REQUIREMENT_TYPES, REQUIREMENT_SEMANTICS } from '../../../shared/education/scholarshipIntelligence.js';
 import { FRESHNESS_STATES } from '../../../shared/trust/sourceVerification.js';
@@ -297,7 +297,7 @@ export async function evaluateScholarshipEligibility(userId, scholarshipId) {
 
 // ── Resolve test contexts for scholarship criteria ────────────────────────────
 
-async function buildTestContextsFromCriteria(criteria, profileExamScores) {
+async function buildTestContextsFromCriteria(criteria, _profileExamScores) {
   const langTestCriteria = criteria.filter((c) => c.criteriaType === 'language_test');
   if (langTestCriteria.length === 0) return [];
 

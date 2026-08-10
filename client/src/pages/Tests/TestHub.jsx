@@ -1,6 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
 import { testsApi } from '../../services/listingsService';
 import { ROUTES } from '../../constants';
@@ -65,7 +64,6 @@ function TestCard({ test }) {
 }
 
 export default function TestHub() {
-  const { t } = useTranslation('common');
   const [tests, setTests] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);

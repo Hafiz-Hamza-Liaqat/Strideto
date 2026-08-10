@@ -297,10 +297,13 @@ await check('31/32. Employer, Agent and Institution cannot reach skill-review al
   const ctx = notifCtrlSrc.slice(notifCtrlSrc.indexOf('function recipientContext'));
   assert.ok(/if \(req\.employer\)/.test(ctx) && /recipientType: 'employer'/.test(ctx),
     'employer sessions are pinned to the employer recipient type');
-  // Agent/Institution are non-staff users: they resolve to recipientType
-  // 'user' filtered by their OWN userId, so another user's rows never match.
-  assert.ok(/isStaff \? 'staff' : 'user'/.test(ctx),
-    'non-staff roles are pinned to their own user inbox');
+  // Agent/Institution are valid platform realms but have no canonical inbox
+  // recipient type in this release. They are explicitly denied rather than
+  // falling through to a Student inbox or dereferencing a missing req.user.
+  assert.ok(/if \(!req\.user\?\.userId\) return null;/.test(ctx),
+    'unsupported realms cannot fall through to the user/staff inbox');
+  assert.ok(/Notification inbox is not available for this account type/.test(notifCtrlSrc),
+    'unsupported realms receive an explicit denial');
 });
 
 await check('31b. no employer notification is generated from profile skill activity', () => {

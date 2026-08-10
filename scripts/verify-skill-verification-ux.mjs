@@ -546,6 +546,9 @@ async function run() {
     console.log(`STRIDETO SKILL VERIFICATION BROWSER UX: ${assertions}/${assertions} assertions passed`);
     console.log('Tooling: local Chromium CDP; deterministic intercepted API fixtures; no network or live services');
   } finally {
+    try {
+      if (client) await Promise.race([client.send('Browser.close'), delay(1_000)]);
+    } catch { /* browser may close the CDP socket before acknowledging */ }
     client?.close();
     if (chrome && chrome.exitCode == null) chrome.kill();
     if (vite && vite.exitCode == null) vite.kill();
