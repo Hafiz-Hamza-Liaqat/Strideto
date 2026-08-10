@@ -58,7 +58,7 @@ export default function TasksPage() {
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, [filterStatus]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void load(); }, [filterStatus]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleStatusChange(id, status) {
     try {

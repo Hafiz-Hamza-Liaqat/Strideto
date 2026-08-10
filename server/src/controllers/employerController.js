@@ -396,10 +396,15 @@ export const getJobApplications = asyncHandler(async (req, res) => {
     });
   }
 
-  const applications = await Application.find({ jobId: job._id })
+  const APPLICATION_LIST_LIMIT = 500;
+  const [applications, applicationTotal] = await Promise.all([
+    Application.find({ jobId: job._id })
     .populate('userId', 'name email')
     .sort({ appliedDate: -1 })
-    .lean();
+    .limit(APPLICATION_LIST_LIMIT)
+    .lean(),
+    Application.countDocuments({ jobId: job._id }),
+  ]);
 
   // Canonical hiring stage for each row, batched (no N+1). Ownership is already
   // established above — every Application here belongs to this Employer's Job —
@@ -412,25 +417,26 @@ export const getJobApplications = asyncHandler(async (req, res) => {
     )).map((oa) => [String(oa.legacyApplicationId), oa.pipelineStage || null])
   );
 
-  const enriched = await Promise.all(
-    applications.map(async (app) => {
+  const candidateByUserId = await TalentProfileReadService.getCandidateCardsForUsers(
+    applications.map((app) => app.userId?._id || app.userId)
+  );
+  const enriched = applications.map((app) => {
       const userId = app.userId?._id || app.userId;
-      const candidate = userId
-        ? await TalentProfileReadService.getCandidateCardForUser(userId)
-        : null;
       return {
         ...app,
-        candidate,
+        candidate: userId ? candidateByUserId.get(String(userId)) || null : null,
         hiringStage: stageByLegacyId.get(String(app._id)) || null,
       };
-    })
-  );
+    });
 
   res.json({
     data: enriched,
     job: jobMeta,
     applicationsTracked: true,
-    submittedApplicationsCount: enriched.length,
+    submittedApplicationsCount: applicationTotal,
+    returnedApplicationsCount: enriched.length,
+    listLimit: APPLICATION_LIST_LIMIT,
+    truncated: applicationTotal > enriched.length,
   });
 });
 

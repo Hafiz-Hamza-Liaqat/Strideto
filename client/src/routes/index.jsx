@@ -652,7 +652,7 @@ export const routes = [
   },
   ...ENABLED_CONTENT_LOCALES.filter((locale) => locale !== DEFAULT_LOCALE).map((locale) => ({
     path: `/${locale}`,
-    element: <LocaleMainLayout />,
+    element: <LocaleMainLayout locale={locale} />,
     children: [
       { index: true, element: <Home /> },
       { path: 'search', element: <SearchResults /> },

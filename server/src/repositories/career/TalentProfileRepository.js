@@ -5,6 +5,11 @@ export const TalentProfileRepository = {
     return TalentProfile.findOne({ userId }).lean();
   },
 
+  async findByUserIds(userIds) {
+    if (!userIds?.length) return [];
+    return TalentProfile.find({ userId: { $in: userIds } }).lean();
+  },
+
   async findById(id) {
     return TalentProfile.findById(id).lean();
   },

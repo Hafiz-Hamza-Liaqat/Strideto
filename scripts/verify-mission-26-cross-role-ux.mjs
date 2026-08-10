@@ -809,7 +809,11 @@ async function run() {
   }
 }
 
-run().catch((error) => {
-  console.error(error.stack || error.message);
-  process.exitCode = 1;
-});
+export { json as mission26FixtureResponse };
+
+if (path.resolve(process.argv[1] || '') === fileURLToPath(import.meta.url)) {
+  run().catch((error) => {
+    console.error(error.stack || error.message);
+    process.exitCode = 1;
+  });
+}

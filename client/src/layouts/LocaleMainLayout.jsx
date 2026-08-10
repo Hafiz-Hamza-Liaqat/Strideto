@@ -8,8 +8,9 @@ import { MainLayout } from './MainLayout';
 /**
  * Syncs URL locale prefix with LanguageContext (C.7.0.8).
  */
-export function LocaleMainLayout({ invalidElement = null }) {
-  const { locale } = useParams();
+export function LocaleMainLayout({ invalidElement = null, locale: localeProp = null }) {
+  const { locale: routeLocale } = useParams();
+  const locale = localeProp || routeLocale;
   const { setLang } = useLanguage();
 
   useEffect(() => {

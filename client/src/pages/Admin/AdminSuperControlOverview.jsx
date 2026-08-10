@@ -66,8 +66,8 @@ export default function AdminSuperControlOverview() {
       </Section>
 
       <Section title="Trust Operations">
-        <MetricCard label="Open Reports" value={trustOperations?.openReports} warn to={`${ROUTES.ADMIN}/trust-center`} />
-        <MetricCard label="Open Disputes" value={trustOperations?.openDisputes} warn to={`${ROUTES.ADMIN}/trust-center`} />
+        <MetricCard label="Open Reports" value={trustOperations?.openReports} warn to={`${ROUTES.ADMIN}/sc/trust`} />
+        <MetricCard label="Open Disputes" value={trustOperations?.openDisputes} warn to={`${ROUTES.ADMIN}/sc/trust`} />
         <MetricCard label="Institution Claims" value={institutions?.claimsPending} warn to={`${ROUTES.ADMIN}/institutions`} />
         <MetricCard label="Marketplace Pending" value={marketplace?.pendingModeration} warn to={`${ROUTES.ADMIN}/agent-marketplace`} />
       </Section>
@@ -78,14 +78,14 @@ export default function AdminSuperControlOverview() {
       </Section>
 
       <Section title="Commerce">
-        <MetricCard label="Refund Requests" value={commerce?.refundRequests} warn to={`${ROUTES.ADMIN}/commerce-center`} />
-        <MetricCard label="Reconciliation Mismatches" value={commerce?.reconciliationMismatches} warn to={`${ROUTES.ADMIN}/commerce-center`} />
+        <MetricCard label="Refund Requests" value={commerce?.refundRequests} warn to={`${ROUTES.ADMIN}/sc/commerce`} />
+        <MetricCard label="Reconciliation Mismatches" value={commerce?.reconciliationMismatches} warn to={`${ROUTES.ADMIN}/sc/commerce`} />
       </Section>
 
       <Section title="Data Quality">
-        <MetricCard label="Stale Facts" value={dataQuality?.staleFacts} warn to={`${ROUTES.ADMIN}/data-quality`} />
-        <MetricCard label="Review Due Facts" value={dataQuality?.reviewDueFacts} warn to={`${ROUTES.ADMIN}/data-quality`} />
-        <MetricCard label="Broken Sources" value={dataQuality?.brokenSources} warn to={`${ROUTES.ADMIN}/data-quality`} />
+        <MetricCard label="Stale Facts" value={dataQuality?.staleFacts} warn to={`${ROUTES.ADMIN}/sc/data-quality`} />
+        <MetricCard label="Review Due Facts" value={dataQuality?.reviewDueFacts} warn to={`${ROUTES.ADMIN}/sc/data-quality`} />
+        <MetricCard label="Broken Sources" value={dataQuality?.brokenSources} warn to={`${ROUTES.ADMIN}/sc/data-quality`} />
       </Section>
 
       <Section title="AI Provider">

@@ -29,7 +29,7 @@ function ReconciliationPanel() {
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, [query]);
+  useEffect(() => { void load(); }, [query]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleManualReview() {
     if (!actionRow || !reason.trim()) return;

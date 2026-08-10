@@ -24,7 +24,7 @@ export default function SavedOpportunitiesPage() {
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void load(); }, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleUnsave(entityType, entityId) {
     try {

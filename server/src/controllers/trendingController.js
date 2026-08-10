@@ -9,10 +9,12 @@ import { CACHE_KEYS } from '../utils/cacheKeys.js';
 
 const TRENDING_LIMIT = 10;
 const CACHE_TTL = 300;
+const TRENDING_CANDIDATE_LIMIT = 5000;
+const BOOKMARK_USER_LIMIT = 10000;
 
 async function getBookmarkCounts(collection) {
   const field = collection === 'jobs' ? 'savedJobs' : collection === 'scholarships' ? 'savedScholarships' : 'savedAdmissions';
-  const users = await User.find({ [field]: { $exists: true, $ne: [] } }).select(field).lean();
+  const users = await User.find({ [field]: { $exists: true, $ne: [] } }).select(field).limit(BOOKMARK_USER_LIMIT).lean();
   const countMap = {};
   users.forEach((u) => {
     (u[field] || []).forEach((id) => {
@@ -39,7 +41,7 @@ export const getTrendingJobs = asyncHandler(async (req, res) => {
   let data = await cacheGet(CACHE_KEYS.TRENDING_JOBS);
   if (!data) data = getTrending('jobs');
   if (!data) {
-    const jobs = await Job.find({ status: 'active' }).lean();
+    const jobs = await Job.find({ status: 'active' }).sort({ views: -1, deadline: 1 }).limit(TRENDING_CANDIDATE_LIMIT).lean();
     const bookmarkCounts = await getBookmarkCounts('jobs');
     const scored = jobs.map((j) => {
       const views = j.views || 0;
@@ -60,7 +62,7 @@ export const getTrendingScholarships = asyncHandler(async (req, res) => {
   let data = await cacheGet(CACHE_KEYS.TRENDING_SCHOLARSHIPS);
   if (!data) data = getTrending('scholarships');
   if (!data) {
-    const scholarships = await Scholarship.find({ status: 'active' }).lean();
+    const scholarships = await Scholarship.find({ status: 'active' }).sort({ views: -1, deadline: 1 }).limit(TRENDING_CANDIDATE_LIMIT).lean();
     const bookmarkCounts = await getBookmarkCounts('scholarships');
     const scored = scholarships.map((s) => {
       const views = s.views || 0;
@@ -81,7 +83,7 @@ export const getTrendingAdmissions = asyncHandler(async (req, res) => {
   let data = await cacheGet(CACHE_KEYS.TRENDING_ADMISSIONS);
   if (!data) data = getTrending('admissions');
   if (!data) {
-    const admissions = await Admission.find({ status: 'active' }).lean();
+    const admissions = await Admission.find({ status: 'active' }).sort({ views: -1, deadline: 1 }).limit(TRENDING_CANDIDATE_LIMIT).lean();
     const bookmarkCounts = await getBookmarkCounts('admissions');
     const scored = admissions.map((a) => {
       const views = a.views || 0;

@@ -51,7 +51,7 @@ function ReportsList() {
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, [query]);
+  useEffect(() => { void load(); }, [query]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleAction() {
     if (!actionRow || !actionForm.reason?.trim()) return;
@@ -149,7 +149,7 @@ function DisputesList() {
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, [query]);
+  useEffect(() => { void load(); }, [query]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleResolve() {
     if (!resolveRow || !resolveForm.reason?.trim()) return;

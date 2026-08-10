@@ -108,7 +108,7 @@ export default function ApplicationsPage() {
       .finally(() => setLoading(false));
   }
 
-  useEffect(load, []); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleCreate(e) {
     e.preventDefault();

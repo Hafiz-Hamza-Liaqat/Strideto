@@ -7,7 +7,7 @@ export default function ConsultationDetail() {
   const { consultationId } = useParams();
   const [data, setData] = useState(null); const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
   const load = () => studentConsultationApi.get(consultationId).then((response) => setData(response.data)).catch((e) => setError(e.response?.data?.error || 'Unable to load consultation.'));
-  useEffect(load, [consultationId]);
+  useEffect(() => { void load(); }, [consultationId]); // eslint-disable-line react-hooks/exhaustive-deps
   const transition = async (status) => {
     const requestedStart = status === 'reschedule_requested' ? window.prompt('Enter the proposed start as an ISO instant, for example 2026-08-20T10:00:00Z') : '';
     if (status === 'reschedule_requested' && !requestedStart) return;

@@ -8,6 +8,9 @@ const poolOptions = {
   minPoolSize: Number(process.env.MONGO_MIN_POOL_SIZE) || 2,
   serverSelectionTimeoutMS: Number(process.env.MONGO_SERVER_SELECTION_TIMEOUT_MS) || 10_000,
   socketTimeoutMS: Number(process.env.MONGO_SOCKET_TIMEOUT_MS) || 45_000,
+  // Index rollout is an explicit operational action. Never let application
+  // startup create or alter indexes merely because Mongoose defaults permit it.
+  autoIndex: process.env.MONGO_AUTO_INDEX === '1',
 };
 
 export async function connectDB() {

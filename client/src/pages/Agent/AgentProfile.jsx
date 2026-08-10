@@ -100,8 +100,9 @@ export default function AgentProfile() {
           { label: 'Years of Experience (self-declared)', key: 'yearsOfExperience', type: 'number', min: 0 },
         ].map((field) => (
           <div key={field.key}>
-            <label className="block text-sm font-medium text-[#0F172A] mb-1">{field.label}</label>
+            <label htmlFor={`agent-profile-${field.key}`} className="block text-sm font-medium text-[#0F172A] mb-1">{field.label}</label>
             <input
+              id={`agent-profile-${field.key}`}
               type={field.type}
               value={form[field.key] || ''}
               onChange={set(field.key)}
@@ -112,10 +113,11 @@ export default function AgentProfile() {
           </div>
         ))}
         <div>
-          <label className="block text-sm font-medium text-[#0F172A] mb-1">
+          <label htmlFor="agent-profile-professionalSummary" className="block text-sm font-medium text-[#0F172A] mb-1">
             Professional Summary
           </label>
           <textarea
+            id="agent-profile-professionalSummary"
             rows={4}
             value={form.professionalSummary || ''}
             onChange={set('professionalSummary')}
@@ -132,7 +134,7 @@ export default function AgentProfile() {
           { label: 'Destination Countries (comma separated)', key: 'destinationCountries' },
           { label: 'Languages (comma separated)', key: 'languages' },
           { label: 'Specialties (comma separated)', key: 'specialties' },
-        ].map((field) => <div key={field.key}><label className="block text-sm font-medium text-[#0F172A] mb-1">{field.label}</label><input value={Array.isArray(form[field.key]) ? form[field.key].join(', ') : (form[field.key] || '')} onChange={set(field.key)} className="w-full px-4 py-2 rounded-lg border border-[#E5E7EB] bg-white text-sm" /></div>)}
+        ].map((field) => <div key={field.key}><label htmlFor={`agent-profile-${field.key}`} className="block text-sm font-medium text-[#0F172A] mb-1">{field.label}</label><input id={`agent-profile-${field.key}`} value={Array.isArray(form[field.key]) ? form[field.key].join(', ') : (form[field.key] || '')} onChange={set(field.key)} className="w-full px-4 py-2 rounded-lg border border-[#E5E7EB] bg-white text-sm" /></div>)}
         <button
           type="submit"
           disabled={saving}

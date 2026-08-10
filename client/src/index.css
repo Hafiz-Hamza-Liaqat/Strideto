@@ -84,9 +84,10 @@
     outline-offset: 2px;
   }
   .skip-link {
-    position: absolute;
-    left: -9999px;
+    position: fixed;
+    left: 0.5rem;
     top: 0;
+    transform: translateY(-200%);
     z-index: 200;
     padding: 0.625rem 1rem;
     border-radius: 0.5rem;
@@ -97,8 +98,8 @@
   }
   .skip-link:focus,
   .skip-link:focus-visible {
-    left: 0.5rem;
     top: 0.5rem;
+    transform: translateY(0);
     outline: 2px solid #fff;
     outline-offset: 2px;
   }

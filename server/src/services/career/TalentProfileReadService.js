@@ -204,6 +204,24 @@ export const TalentProfileReadService = {
     return talentProfileToCandidateCard(p, version);
   },
 
+  async getCandidateCardsForUsers(userIds) {
+    const ids = [...new Set((userIds || []).filter(Boolean).map(String))];
+    if (!ids.length) return new Map();
+    const profiles = await TalentProfileRepository.findByUserIds(ids);
+    const versions = await ResumeVersionRepository.findPrimaryByProfileIds(profiles.map((profile) => profile._id));
+    const versionByProfile = new Map(versions.map((version) => [String(version.talentProfileId), version]));
+    const cards = new Map(profiles.map((profile) => [
+      String(profile.userId),
+      talentProfileToCandidateCard(profile, versionByProfile.get(String(profile._id)) || null),
+    ]));
+    if (!shouldReadCanonical()) {
+      const missingIds = ids.filter((id) => !cards.has(id));
+      const users = missingIds.length ? await User.find({ _id: { $in: missingIds } }).select('name email').lean() : [];
+      for (const user of users) cards.set(String(user._id), { displayName: user.name, email: user.email, source: 'legacy-user' });
+    }
+    return cards;
+  },
+
   async getFormPrefill(userId, authEmail = '') {
     const profile = await this.getProfileForUser(userId);
     return talentProfileToPrefill(profile, authEmail);

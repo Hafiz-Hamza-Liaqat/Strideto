@@ -20,6 +20,11 @@ export const ResumeVersionRepository = {
     return ResumeVersion.findOne({ talentProfileId, isPrimary: true }).lean();
   },
 
+  async findPrimaryByProfileIds(talentProfileIds) {
+    if (!talentProfileIds?.length) return [];
+    return ResumeVersion.find({ talentProfileId: { $in: talentProfileIds }, isPrimary: true }).lean();
+  },
+
   async create(data) {
     return ResumeVersion.create(data);
   },
