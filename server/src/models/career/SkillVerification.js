@@ -76,8 +76,26 @@ const skillVerificationSchema = new mongoose.Schema(
     actorRole: { type: String, trim: true, required: true },
     actorRealm: { type: String, trim: true, default: 'admin' },
 
-    /** Server-computed confidence at decision time. Never client-supplied. */
-    score: { type: Number, min: 0, max: 100, default: 0 },
+    /**
+     * Proficiency measured by this decision, or null when nothing measured it.
+     * Only methods whose policy sets `supportsProficiency` may record one.
+     */
+    proficiencyScore: { type: Number, min: 0, max: 100, default: null },
+
+    /**
+     * The rubric a structured assessment was scored against. Required by
+     * policy for assessment methods — an assessment with no rubric on record
+     * is an opinion, and must not read as a measurement.
+     */
+    rubricId: { type: String, trim: true, default: '' },
+    rubricVersion: { type: String, trim: true, default: '' },
+
+    /**
+     * The issuer or referee actually contacted. Required by policy for the
+     * methods whose whole claim to authority is that someone outside the
+     * applicant confirmed it.
+     */
+    corroborationRef: { type: String, trim: true, default: '', maxlength: 200 },
 
     decidedAt: { type: Date, default: Date.now, immutable: true },
     /** Null means "no expiry"; a date makes the grant time-boxed. */

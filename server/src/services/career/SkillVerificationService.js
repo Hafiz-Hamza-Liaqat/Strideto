@@ -39,11 +39,14 @@ import {
   getTransitionRequirements,
   isEnabledVerificationMethod,
   isValidVerificationMethod,
+  methodMayIssueVerified,
+  evaluateVerificationSufficiency,
+  resolveProficiencyScore,
+  isProficiencyEvidenced,
   isValidSkillEvidenceType,
   validateEvidenceUrl,
   validateEvidenceDescription,
   validateSkillName,
-  computeVerificationScore,
   deriveCurrentTrustState,
   buildSkillSnapshot,
   projectClaimForEmployer,
@@ -170,6 +173,22 @@ export function authorizeClaimTransition({ claim, toStatus, actor, method, reaso
         'METHOD_NOT_ENABLED',
         422,
         `Verification method '${method}' is not available in this release`
+      );
+    }
+    /*
+     * The method policy gate, applied before anything else about the request
+     * is considered. Reviewing a self-published link — however carefully —
+     * establishes that the work exists, which is `evidence_backed`. Only a
+     * method that reaches outside the applicant's own publishing may conclude
+     * `verified`, and no permission, role or payload can substitute for one.
+     */
+    if (toStatus === S.VERIFIED && !methodMayIssueVerified(method)) {
+      return fail(
+        'METHOD_CANNOT_VERIFY',
+        422,
+        `'${method}' can establish that evidence exists and is relevant, which is `
+          + `'${S.EVIDENCE_BACKED}'. Issuing '${S.VERIFIED}' requires a credential, a `
+          + 'confirmed reference, or a structured assessment.'
       );
     }
   }
@@ -365,7 +384,7 @@ export async function createClaim({ userId, payload, correlationId = '' }) {
     ...validated.value,
     status: S.CLAIMED,
     statusChangedAt: new Date(),
-    verificationScore: 0,
+    proficiencyScore: null,
   });
 
   await appendHistory({
@@ -497,6 +516,10 @@ export async function recordVerificationDecision({
   method,
   reason,
   evidenceRefs = [],
+  /** { rubricId, rubricVersion, score } — required by rubric-scored methods. */
+  assessment = null,
+  /** Issuer or referee actually contacted, for methods that demand one. */
+  corroborationRef = '',
   expiresAt = null,
   correlationId = '',
 }) {
@@ -538,21 +561,46 @@ export async function recordVerificationDecision({
     }
   }
 
+  /*
+   * The sufficiency gate, run against the evidence that was ACTUALLY cited —
+   * which is why it happens here rather than in the pure authorization step.
+   * A reviewer citing only a GitHub repository, a Figma file or a portfolio
+   * cannot reach `verified` no matter which method they name: those are
+   * self-published, so the applicant remains the only source.
+   */
+  const sufficiency = evaluateVerificationSufficiency({
+    toStatus,
+    method,
+    evidenceTypes: resolvedEvidence.map((e) => e.evidenceType),
+    assessment,
+    corroborationRef,
+  });
+  if (!sufficiency.ok) {
+    return fail(sufficiency.code, 422, sufficiency.message);
+  }
+
   const now = new Date();
   const grantsTrust = toStatus === S.VERIFIED || toStatus === S.EVIDENCE_BACKED;
+  const policy = sufficiency.policy;
 
-  const score = grantsTrust
-    ? computeVerificationScore(
-        {
-          status: toStatus,
-          acceptedEvidenceTypes: resolvedEvidence.map((e) => e.evidenceType),
-          method,
-          revokedAt: null,
-          expiresAt,
-        },
-        now
-      )
-    : 0;
+  // Measured, or null. Never inferred from how many links were attached.
+  const proficiencyScore = resolveProficiencyScore(
+    { status: toStatus, method, assessment, revokedAt: null, expiresAt },
+    now
+  );
+
+  /*
+   * Verification lifetime. Policy supplies a default so a credential check or
+   * an assessment does not stand unreviewed forever; an explicit expiry from
+   * the reviewer wins.
+   */
+  const effectiveExpiry =
+    toStatus === S.VERIFIED
+      ? (expiresAt
+        ?? (policy.defaultValidityDays
+          ? new Date(now.getTime() + policy.defaultValidityDays * 86_400_000)
+          : null))
+      : null;
 
   const verification = await SkillVerification.create({
     claimId: claim._id,
@@ -564,9 +612,12 @@ export async function recordVerificationDecision({
     actorId: actor.id,
     actorRole: actor.role,
     actorRealm: actor.realm,
-    score,
+    proficiencyScore,
+    rubricId: assessment?.rubricId ? String(assessment.rubricId).trim() : '',
+    rubricVersion: assessment?.rubricVersion != null ? String(assessment.rubricVersion).trim() : '',
+    corroborationRef: corroborationRef ? String(corroborationRef).trim() : '',
     decidedAt: now,
-    expiresAt: grantsTrust ? expiresAt : null,
+    expiresAt: effectiveExpiry,
     correlationId,
   });
 
@@ -587,14 +638,15 @@ export async function recordVerificationDecision({
   claim.status = toStatus;
   claim.statusChangedAt = now;
   claim.currentVerificationId = verification._id;
-  claim.verificationScore = score;
+  // Null unless a scoring assessment produced one — evidence-backed never does.
+  claim.proficiencyScore = proficiencyScore;
   claim.verificationMethod = grantsTrust ? method : null;
 
   if (toStatus === S.VERIFIED) {
     claim.verifiedBy = actor.id;
     claim.verifiedByRole = actor.role;
     claim.verifiedAt = now;
-    claim.expiresAt = expiresAt ?? null;
+    claim.expiresAt = effectiveExpiry;
   } else {
     // Any non-verified outcome clears prior verified standing outright.
     claim.verifiedBy = null;
@@ -649,7 +701,7 @@ export async function applyExpiry({ claimId, correlationId = '' }, now = new Dat
   const fromStatus = claim.status;
   claim.status = S.EXPIRED;
   claim.statusChangedAt = now;
-  claim.verificationScore = 0;
+  claim.proficiencyScore = null;
   await claim.save();
 
   await appendHistory({
@@ -694,7 +746,10 @@ export async function listOwnClaims({ userId, limit = 50 }) {
     yearsOfExperience: claim.yearsOfExperience,
     // Read-time derivation: an expired/revoked grant is never shown as current
     trustState: deriveCurrentTrustState(claim, now),
-    verificationScore: claim.verificationScore,
+    // Null unless an assessment measured it. Owners see the same truth
+    // employers do — no private "real" score exists behind the projection.
+    proficiencyScore: isProficiencyEvidenced(claim, now) ? claim.proficiencyScore : null,
+    proficiencyEvidenced: isProficiencyEvidenced(claim, now),
     verificationMethod: claim.verificationMethod,
     verifiedAt: claim.verifiedAt,
     expiresAt: claim.expiresAt,
@@ -745,7 +800,12 @@ export async function listClaimsForEmployer({ applicantUserId, trustFilter = 'an
     const name = validateSkillName(skill);
     if (name.ok) query.normalizedSkillName = name.normalized;
   }
-  const claims = await UserSkillClaim.find(query).sort({ verificationScore: -1 }).limit(SKILL_CLAIM_LIMITS.MAX_CLAIMS_PER_USER).lean();
+  // Ordered by how recently trust was established, not by any score — there is
+  // no ranking number to sort on, and inventing one is what this release removed.
+  const claims = await UserSkillClaim.find(query)
+    .sort({ verifiedAt: -1, statusChangedAt: -1 })
+    .limit(SKILL_CLAIM_LIMITS.MAX_CLAIMS_PER_USER)
+    .lean();
   const evidence = await SkillEvidence.find({
     claimId: { $in: claims.map((c) => c._id) },
     status: { $ne: SKILL_EVIDENCE_STATUSES.REJECTED },

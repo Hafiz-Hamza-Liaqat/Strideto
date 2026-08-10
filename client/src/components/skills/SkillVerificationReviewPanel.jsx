@@ -4,6 +4,9 @@ import {
   SKILL_CLAIM_LIMITS,
   VERIFICATION_METHODS,
   isEnabledVerificationMethod,
+  getVerificationMethodPolicy,
+  methodMayIssueVerified,
+  isIssuerAnchoredEvidenceType,
 } from '@shared/career/skillVerification.js';
 import { usePermissions } from '../../hooks/usePermissions';
 import { PERMISSIONS } from '../../config/rbac';
@@ -33,14 +36,18 @@ const OUTCOMES = [
     label: 'Mark evidence-backed',
     permission: PERMISSIONS.SKILL_VERIFICATION_REVIEW,
     needsEvidence: true,
-    hint: 'The evidence exists and is relevant. This is NOT a skill verification.',
+    hint: 'The evidence exists and is relevant. This is NOT a skill verification and NOT an assessment result.',
   },
   {
     value: SKILL_CLAIM_STATUSES.VERIFIED,
     label: 'Verify skill',
     permission: PERMISSIONS.SKILL_VERIFICATION_APPROVE,
     needsEvidence: true,
-    hint: 'Full verification. Requires method, cited evidence and a reason.',
+    // Offered only for methods whose policy reaches `verified` — reviewing a
+    // link cannot get here, so the option is withheld rather than shown and
+    // then refused by the server.
+    requiresVerifiedCapableMethod: true,
+    hint: 'Confirmed against something outside the applicant\'s own links. Requires the method\'s own evidence, plus a reason.',
   },
   {
     value: SKILL_CLAIM_STATUSES.NEEDS_INFORMATION,
@@ -166,7 +173,10 @@ export function SkillVerificationReviewPanel() {
                     {' · '}applicant {claim.applicantUserId}
                   </p>
                 </div>
-                <SkillTrustBadge trustState={claim.trustState} />
+                <SkillTrustBadge
+                  trustState={claim.trustState}
+                  verificationMethod={claim.verificationMethod}
+                />
               </div>
 
               {claim.evidence?.length ? (
@@ -222,23 +232,57 @@ export function SkillVerificationReviewPanel() {
 /** One claim's decision form. Kept per-claim so field state cannot leak across rows. */
 function DecisionForm({ claim, onDone, onError }) {
   const { can } = usePermissions();
-  const available = OUTCOMES.filter((o) => can(o.permission));
-  const [toStatus, setToStatus] = useState(available[0]?.value ?? '');
   const [method, setMethod] = useState(ENABLED_METHODS[0]);
   const [reason, setReason] = useState('');
   const [refs, setRefs] = useState([]);
+  const [rubricId, setRubricId] = useState('');
+  const [rubricVersion, setRubricVersion] = useState('');
+  const [corroborationRef, setCorroborationRef] = useState('');
+  const [score, setScore] = useState('');
   const [busy, setBusy] = useState(false);
 
   const outcomeId = useId();
   const methodId = useId();
   const reasonId = useId();
+  const rubricIdField = useId();
+  const rubricVersionField = useId();
+  const corroborationId = useId();
+  const scoreId = useId();
+
+  const policy = getVerificationMethodPolicy(method);
+
+  /*
+   * The available outcomes depend on the METHOD, not just on permissions.
+   * With manual evidence review selected, "Verify skill" is not in this list
+   * at all — the reviewer cannot pick an outcome the method cannot support.
+   */
+  const available = OUTCOMES.filter(
+    (o) => can(o.permission) && (!o.requiresVerifiedCapableMethod || methodMayIssueVerified(method))
+  );
+  const [preferredStatus, setPreferredStatus] = useState('');
+  const toStatus = available.some((o) => o.value === preferredStatus)
+    ? preferredStatus
+    : available[0]?.value ?? '';
 
   const outcome = OUTCOMES.find((o) => o.value === toStatus);
   const needsEvidence = Boolean(outcome?.needsEvidence);
-  // Mirrors the server's requirements exactly, so the disabled state explains
-  // the refusal rather than the user discovering it as a 422.
+  const verifying = toStatus === SKILL_CLAIM_STATUSES.VERIFIED;
+  const citedTypes = (claim.evidence ?? [])
+    .filter((e) => refs.includes(e.id))
+    .map((e) => e.evidenceType);
+
+  // Every one of these mirrors a server-side refusal, so the disabled state
+  // explains the rule rather than the reviewer discovering it as a 422.
+  const needsIssuerAnchored = verifying && Boolean(policy?.requiresIssuerAnchoredEvidence);
+  const issuerAnchoredCited = citedTypes.some(isIssuerAnchoredEvidenceType);
+  const needsRubric = verifying && Boolean(policy?.requiresRubric);
+  const needsCorroboration = verifying && Boolean(policy?.requiresCorroboration);
+
   const ready = Boolean(toStatus) && Boolean(method) && reason.trim().length > 0
-    && (!needsEvidence || refs.length > 0);
+    && (!needsEvidence || refs.length > 0)
+    && (!needsIssuerAnchored || issuerAnchoredCited)
+    && (!needsRubric || (rubricId.trim() && String(rubricVersion).trim()))
+    && (!needsCorroboration || corroborationRef.trim());
 
   if (!available.length) {
     return (
@@ -258,6 +302,18 @@ function DecisionForm({ claim, onDone, onError }) {
         method,
         reason: reason.trim(),
         evidenceRefs: needsEvidence ? refs : [],
+        // Sent only when the method actually measures or corroborates. A score
+        // travels solely with an assessment; the server refuses one otherwise.
+        assessment: needsRubric
+          ? {
+            rubricId: rubricId.trim(),
+            rubricVersion: String(rubricVersion).trim(),
+            ...(policy?.supportsProficiency && String(score).trim() !== ''
+              ? { score: Number(score) }
+              : {}),
+          }
+          : null,
+        corroborationRef: needsCorroboration ? corroborationRef.trim() : '',
       });
       await onDone();
     } catch (err) {
@@ -276,7 +332,7 @@ function DecisionForm({ claim, onDone, onError }) {
         <select
           id={outcomeId}
           value={toStatus}
-          onChange={(e) => setToStatus(e.target.value)}
+          onChange={(e) => setPreferredStatus(e.target.value)}
           className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
         >
           {available.map((o) => (
@@ -299,10 +355,99 @@ function DecisionForm({ claim, onDone, onError }) {
           className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
         >
           {ENABLED_METHODS.map((m) => (
-            <option key={m} value={m}>{methodLabel(m)}</option>
+            <option key={m} value={m}>
+              {methodLabel(m)}
+              {methodMayIssueVerified(m) ? '' : ' — evidence-backed only'}
+            </option>
           ))}
         </select>
+        {!methodMayIssueVerified(method) && (
+          <span className="break-words text-[11px] text-gray-500 dark:text-gray-400">
+            Reading the applicant&apos;s own links establishes that the work
+            exists. It cannot conclude that they have the skill, so this method
+            stops at evidence-backed.
+          </span>
+        )}
       </div>
+
+      {needsRubric && (
+        <>
+          <div className="flex min-w-0 flex-col gap-1">
+            <label htmlFor={rubricIdField} className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              Rubric (required)
+            </label>
+            <input
+              id={rubricIdField}
+              type="text"
+              value={rubricId}
+              maxLength={120}
+              onChange={(e) => setRubricId(e.target.value)}
+              className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
+            />
+          </div>
+          <div className="flex min-w-0 flex-col gap-1">
+            <label htmlFor={rubricVersionField} className="text-xs font-medium text-gray-700 dark:text-gray-300">
+              Rubric version (required)
+            </label>
+            <input
+              id={rubricVersionField}
+              type="text"
+              value={rubricVersion}
+              maxLength={40}
+              onChange={(e) => setRubricVersion(e.target.value)}
+              className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
+            />
+          </div>
+          {policy?.supportsProficiency && (
+            <div className="flex min-w-0 flex-col gap-1 sm:col-span-2">
+              <label htmlFor={scoreId} className="text-xs font-medium text-gray-700 dark:text-gray-300">
+                Assessed proficiency 0-100 (optional)
+              </label>
+              <input
+                id={scoreId}
+                type="number"
+                min="0"
+                max="100"
+                value={score}
+                onChange={(e) => setScore(e.target.value)}
+                className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
+              />
+              <span className="break-words text-[11px] text-gray-500 dark:text-gray-400">
+                Only the result this assessment actually measured. Left blank, no
+                score is shown anywhere — never a number inferred from evidence.
+              </span>
+            </div>
+          )}
+        </>
+      )}
+
+      {needsCorroboration && (
+        <div className="flex min-w-0 flex-col gap-1 sm:col-span-2">
+          <label htmlFor={corroborationId} className="text-xs font-medium text-gray-700 dark:text-gray-300">
+            Issuer or referee contacted (required)
+          </label>
+          <input
+            id={corroborationId}
+            type="text"
+            value={corroborationRef}
+            maxLength={200}
+            onChange={(e) => setCorroborationRef(e.target.value)}
+            className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
+          />
+          <span className="break-words text-[11px] text-gray-500 dark:text-gray-400">
+            Who confirmed this, outside the applicant. This is the part that
+            makes it a verification rather than a reading of their own links.
+          </span>
+        </div>
+      )}
+
+      {needsIssuerAnchored && !issuerAnchoredCited && (
+        <p className="sm:col-span-2 break-words text-xs text-red-600 dark:text-red-400">
+          This method needs a credential or certificate among the cited evidence.
+          Repository, portfolio, design and profile links are self-published, so
+          they support evidence-backed but cannot establish verified.
+        </p>
+      )}
 
       {needsEvidence && (
         <fieldset className="min-w-0 sm:col-span-2">
@@ -361,7 +506,14 @@ function DecisionForm({ claim, onDone, onError }) {
         </button>
         {!ready && (
           <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">
-            Method, reason{needsEvidence ? ' and cited evidence' : ''} are required.
+            {[
+              'method',
+              'reason',
+              needsEvidence ? 'cited evidence' : null,
+              needsIssuerAnchored ? 'a credential among the cited evidence' : null,
+              needsRubric ? 'rubric and version' : null,
+              needsCorroboration ? 'the issuer or referee contacted' : null,
+            ].filter(Boolean).join(', ')} required.
           </span>
         )}
       </div>

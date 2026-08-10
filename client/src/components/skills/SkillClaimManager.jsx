@@ -91,8 +91,12 @@ export function SkillClaimManager() {
         Skills &amp; evidence
       </h2>
       <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-        Add the skills you have and link evidence for them. Adding a link does not
-        make a skill verified — a reviewer checks the evidence first.
+        Add the skills you have and link evidence for them. Links you publish
+        yourself — a repository, a design file, a portfolio, a profile — can get
+        a skill to <strong>evidence-backed</strong>, meaning a reviewer opened
+        them and found the work real. Going further, to <strong>verified</strong>,
+        needs something from outside your own links: a credential, a reference we
+        contact, or an assessment.
       </p>
 
       <form onSubmit={addClaim} className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
@@ -182,11 +186,14 @@ export function SkillClaimManager() {
                     {claim.skillName}
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 break-words">
-                    {claim.skillCategory} · claims {claim.claimedLevel}
+                    {claim.skillCategory} · self-reported: {claim.claimedLevel}
                     {claim.evidenceCount ? ` · ${claim.evidenceCount} evidence link(s)` : ''}
                   </p>
                 </div>
-                <SkillTrustBadge trustState={claim.trustState} />
+                <SkillTrustBadge
+                  trustState={claim.trustState}
+                  verificationMethod={claim.verificationMethod}
+                />
               </div>
 
               {claim.evidence?.length ? (

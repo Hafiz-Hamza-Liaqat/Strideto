@@ -22,8 +22,11 @@ const TONE_CLASSES = {
   muted: 'bg-gray-50 text-gray-500 border-gray-200 line-through dark:bg-gray-900 dark:text-gray-500 dark:border-gray-700',
 };
 
-export function SkillTrustBadge({ trustState, className = '', showDescription = false }) {
-  const display = getTrustStateDisplay(trustState);
+export function SkillTrustBadge({ trustState, verificationMethod, className = '', showDescription = false }) {
+  // Method-specific wording where there is one: "Credential verified",
+  // "Reference verified" and "Assessment verified" are different assertions,
+  // and a single "Verified" pill would quietly equate them.
+  const display = getTrustStateDisplay(trustState, verificationMethod);
   const tone = TONE_CLASSES[display.tone] ?? TONE_CLASSES.neutral;
   const isVerified = trustState === SKILL_CLAIM_STATUSES.VERIFIED;
 

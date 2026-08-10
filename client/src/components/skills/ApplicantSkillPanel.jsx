@@ -101,7 +101,11 @@ export function ApplicantSkillPanel({ applicantId, applicantName = 'This applica
             {applicationSnapshot.skills.map((s, i) => (
               <li key={`${s.skillName}-${i}`} className="flex min-w-0 max-w-full flex-wrap items-center gap-1">
                 <span className="break-words text-xs text-gray-700 dark:text-gray-300">{s.skillName}</span>
-                <SkillTrustBadge trustState={s.trustState} className="shrink-0" />
+                <SkillTrustBadge
+                  trustState={s.trustState}
+                  verificationMethod={s.verificationMethod}
+                  className="shrink-0"
+                />
               </li>
             ))}
           </ul>
@@ -142,22 +146,44 @@ export function ApplicantSkillPanel({ applicantId, applicantName = 'This applica
                   </p>
                   <p className="text-xs text-gray-500 dark:text-gray-400 break-words">
                     {skill.skillCategory}
-                    {skill.claimedLevel ? ` · claims ${skill.claimedLevel}` : ''}
+                    {/*
+                      Always "self-reported", never a bare level. A level is
+                      the applicant's own estimate unless an assessment
+                      measured it — and where one did, the measured result is
+                      shown below instead of this.
+                    */}
+                    {skill.claimedLevel && !skill.proficiencyEvidenced
+                      ? ` · self-reported: ${skill.claimedLevel}`
+                      : ''}
                     {skill.evidenceCount ? ` · ${skill.evidenceCount} evidence link(s)` : ' · no evidence attached'}
                   </p>
                 </div>
-                <SkillTrustBadge trustState={skill.trustState} />
+                <SkillTrustBadge
+                  trustState={skill.trustState}
+                  verificationMethod={skill.verificationMethod}
+                />
               </div>
 
               {/* Spell out what the state means, so no employer over-reads a label. */}
               <p className="mt-2 text-xs text-gray-600 dark:text-gray-400 break-words">
-                {getTrustStateDisplay(skill.trustState).description}
+                {getTrustStateDisplay(skill.trustState, skill.verificationMethod).description}
               </p>
 
               {skill.trustState === SKILL_CLAIM_STATUSES.VERIFIED && skill.verifiedAt ? (
                 <p className="mt-1 text-xs text-gray-500 dark:text-gray-500">
                   Verified {new Date(skill.verifiedAt).toLocaleDateString()}
                   {skill.verificationMethod ? ` · ${String(skill.verificationMethod).replace(/_/g, ' ')}` : ''}
+                </p>
+              ) : null}
+
+              {/*
+                A number appears only when an assessment actually produced one.
+                No score is shown for evidence-backed, and none is derived from
+                how many links were attached.
+              */}
+              {skill.proficiencyEvidenced && typeof skill.proficiencyScore === 'number' ? (
+                <p className="mt-1 text-xs font-medium text-gray-700 dark:text-gray-300">
+                  Assessed proficiency: {skill.proficiencyScore}/100
                 </p>
               ) : null}
 

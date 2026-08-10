@@ -23,6 +23,7 @@ import {
   SKILL_CLAIM_STATUSES,
   VERIFICATION_METHODS,
   isEnabledVerificationMethod,
+  getVerificationMethodPolicy,
 } from '../../../../shared/career/skillVerification.js';
 
 /** Server-derived principal. The body cannot contribute to this. */
@@ -155,7 +156,8 @@ export const getApplicantSkillsForEmployer = asyncHandler(async (req, res) => {
  * audited path; each maps to a different required permission.
  */
 export const recordSkillVerification = asyncHandler(async (req, res) => {
-  const { toStatus, method, reason, evidenceRefs, expiresAt } = req.body ?? {};
+  const { toStatus, method, reason, evidenceRefs, assessment, corroborationRef, expiresAt } =
+    req.body ?? {};
   const result = await skillVerificationService.recordVerificationDecision({
     actor: actorFromRequest(req),
     claimId: req.params.claimId,
@@ -163,6 +165,12 @@ export const recordSkillVerification = asyncHandler(async (req, res) => {
     method,
     reason,
     evidenceRefs: Array.isArray(evidenceRefs) ? evidenceRefs : [],
+    // Reviewer-supplied provenance. The service decides whether the method
+    // policy actually requires these, and refuses the decision without them.
+    assessment: assessment && typeof assessment === 'object' && !Array.isArray(assessment)
+      ? assessment
+      : null,
+    corroborationRef: typeof corroborationRef === 'string' ? corroborationRef : '',
     expiresAt: expiresAt ? new Date(expiresAt) : null,
     correlationId: req.id ?? '',
   });
@@ -170,7 +178,8 @@ export const recordSkillVerification = asyncHandler(async (req, res) => {
   return res.json({
     data: {
       trustState: result.claim.status,
-      verificationScore: result.claim.verificationScore,
+      // Null unless an assessment measured it — never a derived number.
+      proficiencyScore: result.claim.proficiencyScore ?? null,
       verificationMethod: result.claim.verificationMethod,
       verifiedAt: result.claim.verifiedAt,
       expiresAt: result.claim.expiresAt,
@@ -206,7 +215,24 @@ export const getSkillVerificationOptions = asyncHandler(async (_req, res) => {
       // Only methods this release will actually accept. Deferred ones
       // (practical assessment, automated provider check) are withheld rather
       // than offered and then refused.
-      methods: Object.values(VERIFICATION_METHODS).filter(isEnabledVerificationMethod),
+      //
+      // Each carries what policy lets it conclude, so a reviewer sees up front
+      // that manual evidence review tops out at evidence-backed rather than
+      // discovering it as a rejected submission.
+      methods: Object.values(VERIFICATION_METHODS)
+        .filter(isEnabledVerificationMethod)
+        .map((method) => {
+          const policy = getVerificationMethodPolicy(method);
+          return {
+            method,
+            maxOutcome: policy.maxOutcome,
+            mayIssueVerified: policy.maxOutcome === SKILL_CLAIM_STATUSES.VERIFIED,
+            requiresIssuerAnchoredEvidence: policy.requiresIssuerAnchoredEvidence,
+            requiresRubric: policy.requiresRubric,
+            requiresCorroboration: policy.requiresCorroboration,
+            supportsProficiency: policy.supportsProficiency,
+          };
+        }),
     },
   });
 });

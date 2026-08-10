@@ -227,9 +227,16 @@ export async function buildCandidateCard(userId, applicationCtx = {}) {
           skills: (legacy.skillSnapshot.skills || []).map((s) => ({
             skillName: s.skillName,
             skillCategory: s.skillCategory,
+            // The applicant's own words at the time — never presented as
+            // substantiated unless an assessment measured it.
             claimedLevel: s.claimedLevel,
             trustState: s.trustState,
             isCurrentlyVerified: s.isCurrentlyVerified,
+            // Carried so evidence-backed, credential-verified and
+            // assessment-verified stay distinguishable in the frozen record.
+            verificationMethod: s.verificationMethod ?? null,
+            proficiencyScore: s.proficiencyEvidenced ? (s.proficiencyScore ?? null) : null,
+            proficiencyEvidenced: Boolean(s.proficiencyEvidenced),
             evidenceCount: s.evidenceCount,
           })),
         }

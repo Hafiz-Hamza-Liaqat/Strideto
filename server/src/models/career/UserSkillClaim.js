@@ -6,7 +6,7 @@
  * SkillVerificationService, which requires an authorized reviewer, a method,
  * an evidence reference and a reason.
  *
- * The trust-bearing fields below (`status`, `verificationScore`, `verifiedBy`,
+ * The trust-bearing fields below (`status`, `proficiencyScore`, `verifiedBy`,
  * `verifiedAt`, `verificationMethod`, `expiresAt`, `revokedAt`) are written
  * ONLY by that service. No controller binds request-body values to them — see
  * `extractApplicantInput` in shared/career/skillVerification.js, which rejects
@@ -52,8 +52,15 @@ const userSkillClaimSchema = new mongoose.Schema(
     },
     statusChangedAt: { type: Date, default: Date.now },
 
-    /** Server-computed (computeVerificationScore). Never accepted from input. */
-    verificationScore: { type: Number, min: 0, max: 100, default: 0 },
+    /**
+     * Result of an actual scoring assessment, or null.
+     *
+     * Null is the normal case and means "nobody measured this" — not zero.
+     * There is deliberately no score derived from evidence counts or method
+     * weighting: a number computed from how many portfolio links someone
+     * attached looks like a proficiency measure while measuring nothing.
+     */
+    proficiencyScore: { type: Number, min: 0, max: 100, default: null },
     verificationMethod: { type: String, enum: [...Object.values(VERIFICATION_METHODS), null], default: null },
     verifiedBy: { type: mongoose.Schema.Types.ObjectId, ref: 'User', default: null },
     verifiedByRole: { type: String, trim: true, default: '' },

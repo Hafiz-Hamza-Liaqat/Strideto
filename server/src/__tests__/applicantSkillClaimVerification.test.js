@@ -71,11 +71,18 @@ const claimAt = (status, extra = {}) => ({
   ...extra,
 });
 
-/** A well-formed approval request — individual tests remove one part at a time. */
+/**
+ * A well-formed approval request — individual tests remove one part at a time.
+ *
+ * Uses ISSUER_CONFIRMATION because method policy no longer lets a manual
+ * review of self-published links conclude `verified`; a fixture built on
+ * MANUAL_EVIDENCE_REVIEW would now fail for the wrong reason and mask whatever
+ * each test is actually probing.
+ */
 const approval = {
   toStatus: S.VERIFIED,
-  method: M.MANUAL_EVIDENCE_REVIEW,
-  reason: 'Reviewed the linked repository; commit history supports the claim.',
+  method: M.ISSUER_CONFIRMATION,
+  reason: 'Issuer confirmed the credential directly.',
   evidenceRefs: [EVIDENCE_ID],
 };
 
@@ -93,10 +100,10 @@ await check('1. applicant creates a skill claim, which starts as claimed (not ve
   assert.strictEqual(result.value.skillName, 'React');
   assert.strictEqual(result.value.normalizedSkillName, 'react');
   assert.strictEqual(result.value.yearsOfExperience, 4);
-  // A new claim is `claimed` — the weakest state — and scores zero.
+  // A new claim is `claimed` — the weakest state — and carries no score.
   assert.strictEqual(sv.deriveCurrentTrustState(claimAt(S.CLAIMED)), S.CLAIMED);
   assert.strictEqual(sv.isCurrentlyVerified(claimAt(S.CLAIMED)), false);
-  assert.strictEqual(sv.computeVerificationScore({ status: S.CLAIMED }), 0);
+  assert.strictEqual(sv.resolveProficiencyScore({ status: S.CLAIMED }), null);
 });
 
 // ===========================================================================
@@ -293,22 +300,40 @@ await check('8. applicant cannot set a verification score; score is server-deriv
     assert.strictEqual(r.status, 403);
     assert.ok(r.fields.includes(field));
   }
-  // The score function ignores any caller notion of score and derives from state
-  assert.strictEqual(sv.computeVerificationScore({ status: S.CLAIMED, score: 99 }), 0);
-  assert.strictEqual(sv.computeVerificationScore({ status: S.EVIDENCE_SUBMITTED }), 0);
-  const verified = sv.computeVerificationScore({
-    status: S.VERIFIED,
-    acceptedEvidenceTypes: [T.CODE_REPOSITORY, T.LIVE_PROJECT],
-    method: M.ISSUER_CONFIRMATION,
-  });
-  assert.ok(verified > 0 && verified <= 100, 'verified score within bounds');
-  // evidence-backed always scores below an equivalent verified claim
-  const backed = sv.computeVerificationScore({
-    status: S.EVIDENCE_BACKED,
-    acceptedEvidenceTypes: [T.CODE_REPOSITORY, T.LIVE_PROJECT],
-    method: M.ISSUER_CONFIRMATION,
-  });
-  assert.ok(backed < verified, 'evidence-backed must score below verified');
+  // No score exists unless an assessment measured one. Null, not zero —
+  // "nobody measured this" is a different statement from "scored zero".
+  assert.strictEqual(sv.resolveProficiencyScore({ status: S.CLAIMED, score: 99 }), null);
+  assert.strictEqual(sv.resolveProficiencyScore({ status: S.EVIDENCE_SUBMITTED }), null);
+  // Evidence-backed never carries a score, whatever the method
+  assert.strictEqual(
+    sv.resolveProficiencyScore({ status: S.EVIDENCE_BACKED, method: M.INTERVIEW_ASSESSMENT, assessment: { score: 90 } }),
+    null,
+    'evidence-backed must never carry a proficiency score'
+  );
+  // Nor does a verified claim reached by a non-measuring method
+  assert.strictEqual(
+    sv.resolveProficiencyScore({ status: S.VERIFIED, method: M.ISSUER_CONFIRMATION, assessment: { score: 90 } }),
+    null,
+    'a credential check measures no proficiency'
+  );
+  // Only a measuring method, and only the number it actually produced
+  assert.strictEqual(
+    sv.resolveProficiencyScore({ status: S.VERIFIED, method: M.INTERVIEW_ASSESSMENT, assessment: { score: 72 } }),
+    72
+  );
+  assert.strictEqual(
+    sv.resolveProficiencyScore({ status: S.VERIFIED, method: M.INTERVIEW_ASSESSMENT }),
+    null,
+    'no assessment result means no score'
+  );
+  // Out-of-range values are discarded rather than clamped into a plausible number
+  for (const bad of [-1, 101, NaN, Infinity, '80']) {
+    assert.strictEqual(
+      sv.resolveProficiencyScore({ status: S.VERIFIED, method: M.INTERVIEW_ASSESSMENT, assessment: { score: bad } }),
+      null,
+      `score ${String(bad)} must be discarded`
+    );
+  }
 });
 
 // ===========================================================================
@@ -622,16 +647,18 @@ await check('17. expired or revoked verification immediately stops reading as ve
   const empExpired = sv.projectClaimForEmployer(expired, []);
   assert.strictEqual(empExpired.isCurrentlyVerified, false);
   assert.strictEqual(empExpired.trustState, S.EXPIRED);
-  assert.strictEqual(empExpired.verificationScore, 0, 'expired claim must not carry a score');
+  assert.strictEqual(empExpired.proficiencyScore, null, 'expired claim must not carry a score');
+  assert.strictEqual(empExpired.proficiencyEvidenced, false);
   assert.strictEqual(empExpired.verifiedAt, null);
 
   const pubRevoked = sv.projectClaimForPublic(revoked);
   assert.strictEqual(pubRevoked.isCurrentlyVerified, false);
   assert.strictEqual(pubRevoked.trustState, S.REVOKED);
 
-  // Score derivation agrees
-  assert.strictEqual(sv.computeVerificationScore({ status: S.VERIFIED, expiresAt: past, acceptedEvidenceTypes: [T.CODE_REPOSITORY] }), 0);
-  assert.strictEqual(sv.computeVerificationScore({ status: S.VERIFIED, revokedAt: past, acceptedEvidenceTypes: [T.CODE_REPOSITORY] }), 0);
+  // A lapsed or withdrawn grant surrenders its measured score too
+  const assessed = { method: M.INTERVIEW_ASSESSMENT, assessment: { score: 88 } };
+  assert.strictEqual(sv.resolveProficiencyScore({ status: S.VERIFIED, expiresAt: past, ...assessed }), null);
+  assert.strictEqual(sv.resolveProficiencyScore({ status: S.VERIFIED, revokedAt: past, ...assessed }), null);
   // An expired evidence-backed claim also decays
   assert.strictEqual(sv.deriveCurrentTrustState(claimAt(S.EVIDENCE_BACKED, { expiresAt: past })), S.EXPIRED);
 });
@@ -731,28 +758,34 @@ await check('21. application skill snapshot is server-built and cannot be forged
   const now = new Date();
   const past = new Date(Date.now() - 86_400_000);
   const claims = [
-    { skillName: 'React', skillCategory: 'technical', claimedLevel: 'advanced', status: S.VERIFIED, verificationScore: 84, evidenceCount: 2 },
-    { skillName: 'Figma', skillCategory: 'design', claimedLevel: 'expert', status: S.CLAIMED, verificationScore: 0, evidenceCount: 0 },
-    { skillName: 'Node', skillCategory: 'technical', status: S.VERIFIED, verificationScore: 90, expiresAt: past, evidenceCount: 1 },
+    { skillName: 'React', skillCategory: 'technical', claimedLevel: 'advanced', status: S.VERIFIED, verificationMethod: M.INTERVIEW_ASSESSMENT, proficiencyScore: 84, evidenceCount: 2 },
+    { skillName: 'Figma', skillCategory: 'design', claimedLevel: 'expert', status: S.CLAIMED, evidenceCount: 0 },
+    { skillName: 'Node', skillCategory: 'technical', status: S.VERIFIED, verificationMethod: M.INTERVIEW_ASSESSMENT, proficiencyScore: 90, expiresAt: past, evidenceCount: 1 },
   ];
   const snap = sv.buildSkillSnapshot(claims, now);
   assert.ok(snap.capturedAt, 'snapshot records when it was captured');
   assert.strictEqual(snap.skills.length, 3);
   assert.strictEqual(snap.skills[0].isCurrentlyVerified, true);
   assert.strictEqual(snap.skills[1].isCurrentlyVerified, false, 'a claimed skill is never snapshot as verified');
-  assert.strictEqual(snap.skills[1].verificationScore, 0);
+  assert.strictEqual(snap.skills[1].proficiencyScore, null);
   // An already-expired verification is snapshot as expired, not verified
   assert.strictEqual(snap.skills[2].trustState, S.EXPIRED);
   assert.strictEqual(snap.skills[2].isCurrentlyVerified, false);
-  assert.strictEqual(snap.skills[2].verificationScore, 0);
+  assert.strictEqual(snap.skills[2].proficiencyScore, null,
+    'an expired grant surrenders its measured score too');
 
   // The snapshot ignores any trust values a caller tries to inject
   const forged = sv.buildSkillSnapshot(
-    [{ skillName: 'Rust', status: S.CLAIMED, isCurrentlyVerified: true, verificationScore: 100, trustState: S.VERIFIED }],
+    [{
+      skillName: 'Rust', status: S.CLAIMED, isCurrentlyVerified: true,
+      proficiencyScore: 100, proficiencyEvidenced: true, trustState: S.VERIFIED,
+      verificationMethod: M.INTERVIEW_ASSESSMENT,
+    }],
     now
   );
   assert.strictEqual(forged.skills[0].isCurrentlyVerified, false, 'forged verified flag must be ignored');
-  assert.strictEqual(forged.skills[0].verificationScore, 0, 'forged score must be ignored');
+  assert.strictEqual(forged.skills[0].proficiencyScore, null, 'forged score must be ignored');
+  assert.strictEqual(forged.skills[0].proficiencyEvidenced, false, 'forged evidenced flag must be ignored');
   assert.strictEqual(forged.skills[0].trustState, S.CLAIMED, 'trust state is recomputed, not copied');
 
   // The apply path builds it from userId alone — no body input
@@ -1063,18 +1096,29 @@ await check('30. no client surface offers a control that mints trust', () => {
     }
   }
 
-  // The reviewer panel sends an outcome, method, reason and evidence — and
-  // nothing that would carry a score or an identity.
+  /*
+   * The reviewer panel sends an outcome, a method, a reason, the cited
+   * evidence and — only for a rubric-scored assessment — that assessment's
+   * result. It never sends an identity or a trust field: the server derives
+   * the actor and computes everything else.
+   */
   const review = readFileSync(
     path.join(repoRoot, 'client/src/components/skills/SkillVerificationReviewPanel.jsx'), 'utf8'
   );
   const payload = review.slice(review.indexOf('recordDecision('), review.indexOf('await onDone()'));
-  for (const forbidden of ['verifiedBy', 'score', 'actorId', 'verifiedAt', 'trustBadge']) {
+  for (const forbidden of ['verifiedBy', 'actorId', 'verifiedAt', 'trustBadge', 'verificationStatus', 'trustState']) {
     assert.ok(!payload.includes(forbidden), `review payload must not carry ${forbidden}`);
   }
   for (const required of ['toStatus', 'method', 'reason', 'evidenceRefs']) {
     assert.ok(payload.includes(required), `review payload must carry ${required}`);
   }
+  // A score is only ever sent nested inside `assessment`, never as a bare
+  // top-level field — and only when the method actually measures one.
+  assert.ok(!/^\s*score[:,]/m.test(payload), 'a score must not be a top-level payload field');
+  assert.ok(/supportsProficiency && String\(score\)/.test(payload),
+    'a score must only be sent for a method whose policy measures proficiency');
+  assert.ok(/assessment: needsRubric/.test(payload),
+    'assessment provenance must only be sent when the method requires a rubric');
 
   // Every trust-bearing field is refused server-side whoever sends it
   for (const field of sv.TRUST_CONTROLLED_FIELDS) {
@@ -1085,9 +1129,317 @@ await check('30. no client surface offers a control that mints trust', () => {
 });
 
 // ===========================================================================
+// 31-39. Verification method policy
+//
+// The invariant: submitted social / portfolio / project evidence ALONE must
+// never be sufficient to issue `verified`.
+// ===========================================================================
+
+/** The self-published evidence types this invariant is really about. */
+const SOCIAL_EVIDENCE = [
+  ['GitHub repository', T.CODE_REPOSITORY],
+  ['Figma / design portfolio', T.DESIGN_PORTFOLIO],
+  ['portfolio site', T.PORTFOLIO_SITE],
+  ['deployed project', T.LIVE_PROJECT],
+  ['LinkedIn / professional profile', T.PROFESSIONAL_PROFILE],
+  ['generic work sample', T.WORK_SAMPLE],
+];
+
+await check('31. GitHub evidence alone cannot reach verified, by any method', () => {
+  // The method a URL review would actually use tops out at evidence-backed
+  const authz = svc.authorizeClaimTransition({
+    claim: claimAt(S.VERIFICATION_PENDING),
+    toStatus: S.VERIFIED,
+    actor: superAdmin,
+    method: M.MANUAL_EVIDENCE_REVIEW,
+    reason: 'Repository looks strong and the commit history is real.',
+    evidenceRefs: [EVIDENCE_ID],
+  });
+  assert.strictEqual(authz.ok, false, 'manual review of a repo must not verify');
+  assert.strictEqual(authz.code, 'METHOD_CANNOT_VERIFY');
+  assert.strictEqual(authz.status, 422);
+
+  // And no verified-capable method accepts a repository as its anchor
+  const sufficiency = sv.evaluateVerificationSufficiency({
+    toStatus: S.VERIFIED,
+    method: M.DOCUMENT_REVIEW,
+    evidenceTypes: [T.CODE_REPOSITORY],
+  });
+  assert.strictEqual(sufficiency.ok, false, 'a repo is not a credential document');
+  assert.strictEqual(sufficiency.code, sv.SUFFICIENCY_CODES.SELF_ATTESTED_EVIDENCE_INSUFFICIENT);
+});
+
+await check('32. Figma / design portfolio evidence alone cannot reach verified', () => {
+  const authz = svc.authorizeClaimTransition({
+    claim: claimAt(S.VERIFICATION_PENDING),
+    toStatus: S.VERIFIED,
+    actor: superAdmin,
+    method: M.MANUAL_EVIDENCE_REVIEW,
+    reason: 'Figma file shows a complete design system.',
+    evidenceRefs: [EVIDENCE_ID],
+  });
+  assert.strictEqual(authz.ok, false);
+  assert.strictEqual(authz.code, 'METHOD_CANNOT_VERIFY');
+
+  const sufficiency = sv.evaluateVerificationSufficiency({
+    toStatus: S.VERIFIED, method: M.ISSUER_CONFIRMATION,
+    evidenceTypes: [T.DESIGN_PORTFOLIO], corroborationRef: 'design-lead@example.test',
+  });
+  assert.strictEqual(sufficiency.ok, false, 'a design file is not issuer-anchored');
+  assert.strictEqual(sufficiency.code, sv.SUFFICIENCY_CODES.SELF_ATTESTED_EVIDENCE_INSUFFICIENT);
+});
+
+await check('33. portfolio / project / profile evidence alone cannot reach verified', () => {
+  for (const [label, type] of SOCIAL_EVIDENCE) {
+    assert.strictEqual(sv.isSelfAttestedEvidenceType(type), true, `${label} must be self-attested`);
+    for (const method of [M.DOCUMENT_REVIEW, M.ISSUER_CONFIRMATION]) {
+      const r = sv.evaluateVerificationSufficiency({
+        toStatus: S.VERIFIED, method, evidenceTypes: [type], corroborationRef: 'issuer@example.test',
+      });
+      assert.strictEqual(r.ok, false, `${label} must not satisfy ${method}`);
+      assert.strictEqual(r.code, sv.SUFFICIENCY_CODES.SELF_ATTESTED_EVIDENCE_INSUFFICIENT);
+    }
+    // Even all of them together are still only self-published links
+    const combined = sv.evaluateVerificationSufficiency({
+      toStatus: S.VERIFIED, method: M.DOCUMENT_REVIEW,
+      evidenceTypes: SOCIAL_EVIDENCE.map(([, t]) => t),
+    });
+    assert.strictEqual(combined.ok, false, 'quantity of self-published links is not corroboration');
+  }
+});
+
+await check('34. the same social evidence DOES support evidence_backed', () => {
+  for (const [label, type] of SOCIAL_EVIDENCE) {
+    const r = sv.evaluateVerificationSufficiency({
+      toStatus: S.EVIDENCE_BACKED, method: M.MANUAL_EVIDENCE_REVIEW, evidenceTypes: [type],
+    });
+    assert.strictEqual(r.ok, true, `${label} must support evidence_backed: ${r.code}`);
+  }
+  // And the full authorization path agrees, for a reviewer holding review only
+  const d = svc.authorizeClaimTransition({
+    claim: claimAt(S.VERIFICATION_PENDING),
+    toStatus: S.EVIDENCE_BACKED,
+    actor: moderator,
+    method: M.MANUAL_EVIDENCE_REVIEW,
+    reason: 'Opened the repository and the portfolio; both are real and relevant.',
+    evidenceRefs: [EVIDENCE_ID],
+  });
+  assert.strictEqual(d.ok, true, `evidence_backed must remain reachable: ${d.code}`);
+  // needs_information and rejected are likewise unaffected by the policy
+  for (const target of [S.NEEDS_INFORMATION, S.REJECTED]) {
+    const r = sv.evaluateVerificationSufficiency({
+      toStatus: target, method: M.MANUAL_EVIDENCE_REVIEW, evidenceTypes: [T.CODE_REPOSITORY],
+    });
+    assert.strictEqual(r.ok, true, `${target} must not be blocked by verification policy`);
+  }
+});
+
+await check('35. a method policy does not permit to verify cannot issue verified', () => {
+  // Policy is the single source of truth, and manual review caps below verified
+  assert.strictEqual(sv.methodMayIssueVerified(M.MANUAL_EVIDENCE_REVIEW), false);
+  assert.strictEqual(
+    sv.VERIFICATION_METHOD_POLICY[M.MANUAL_EVIDENCE_REVIEW].maxOutcome, S.EVIDENCE_BACKED
+  );
+  assert.ok(!sv.VERIFIED_CAPABLE_METHODS.includes(M.MANUAL_EVIDENCE_REVIEW));
+
+  // Deferred methods cannot verify either, however they are addressed
+  for (const method of sv.DEFERRED_METHODS) {
+    assert.strictEqual(sv.methodMayIssueVerified(method), false, `${method} must not verify`);
+    const r = sv.evaluateVerificationSufficiency({ toStatus: S.VERIFIED, method });
+    assert.strictEqual(r.ok, false);
+    assert.strictEqual(r.code, sv.SUFFICIENCY_CODES.METHOD_NOT_ENABLED);
+  }
+  // An unknown method fails closed rather than defaulting to permitted
+  for (const method of ['', null, undefined, 'vibes', 'ai_review']) {
+    assert.strictEqual(sv.methodMayIssueVerified(method), false, `${String(method)} must not verify`);
+  }
+  // Every method that CAN verify demands corroboration of some kind
+  for (const method of sv.VERIFIED_CAPABLE_METHODS) {
+    const policy = sv.getVerificationMethodPolicy(method);
+    assert.ok(
+      policy.requiresIssuerAnchoredEvidence || policy.requiresRubric || policy.requiresCorroboration,
+      `${method} may verify, so it must require corroboration of some kind`
+    );
+  }
+});
+
+await check('36. an approved method issues verified with evidence, reason and provenance', () => {
+  // Credential route: issuer-anchored evidence + the issuer actually contacted
+  const credential = sv.evaluateVerificationSufficiency({
+    toStatus: S.VERIFIED,
+    method: M.ISSUER_CONFIRMATION,
+    evidenceTypes: [T.CREDENTIAL_CERTIFICATE],
+    corroborationRef: 'registrar@issuer.example',
+  });
+  assert.strictEqual(credential.ok, true, `credential route must verify: ${credential.code}`);
+
+  // ...but not without the issuer contact on record
+  const noContact = sv.evaluateVerificationSufficiency({
+    toStatus: S.VERIFIED, method: M.ISSUER_CONFIRMATION, evidenceTypes: [T.CREDENTIAL_CERTIFICATE],
+  });
+  assert.strictEqual(noContact.ok, false);
+  assert.strictEqual(noContact.code, sv.SUFFICIENCY_CODES.CORROBORATION_REQUIRED);
+
+  // Assessment route: a rubric AND its version, over any evidence
+  const assessed = sv.evaluateVerificationSufficiency({
+    toStatus: S.VERIFIED, method: M.INTERVIEW_ASSESSMENT,
+    evidenceTypes: [T.CODE_REPOSITORY],
+    assessment: { rubricId: 'frontend-v3', rubricVersion: 3 },
+  });
+  assert.strictEqual(assessed.ok, true, `assessment route must verify: ${assessed.code}`);
+
+  const noRubric = sv.evaluateVerificationSufficiency({
+    toStatus: S.VERIFIED, method: M.INTERVIEW_ASSESSMENT, evidenceTypes: [T.CODE_REPOSITORY],
+  });
+  assert.strictEqual(noRubric.ok, false, 'an assessment with no rubric is an opinion');
+  assert.strictEqual(noRubric.code, sv.SUFFICIENCY_CODES.RUBRIC_REQUIRED);
+  // A rubric id with no version is not a versioned rubric
+  assert.strictEqual(sv.isValidRubricReference({ rubricId: 'frontend-v3' }), false);
+  assert.strictEqual(sv.isValidRubricReference({ rubricId: '', rubricVersion: 3 }), false);
+  assert.strictEqual(sv.isValidRubricReference({ rubricId: 'frontend-v3', rubricVersion: 3 }), true);
+
+  // Reference route: a named referee
+  const reference = sv.evaluateVerificationSufficiency({
+    toStatus: S.VERIFIED, method: M.EMPLOYER_REFERENCE,
+    evidenceTypes: [T.PROFESSIONAL_PROFILE], corroborationRef: 'Head of Engineering, Acme',
+  });
+  assert.strictEqual(reference.ok, true, `reference route must verify: ${reference.code}`);
+
+  // The full authorization path still demands permission, reason and evidence
+  const authorized = svc.authorizeClaimTransition({
+    claim: claimAt(S.VERIFICATION_PENDING), toStatus: S.VERIFIED, actor: admin, ...approval,
+  });
+  assert.strictEqual(authorized.ok, true, `authorized verification must pass: ${authorized.code}`);
+});
+
+await check('37. no fabricated score or proficiency level anywhere', () => {
+  // The old evidence-count-weighted score is gone, not merely unused
+  assert.strictEqual(sv.computeVerificationScore, undefined,
+    'the inferred confidence score must not exist');
+
+  // A score cannot ride along with a method that measured nothing
+  const smuggled = sv.evaluateVerificationSufficiency({
+    toStatus: S.VERIFIED, method: M.ISSUER_CONFIRMATION,
+    evidenceTypes: [T.CREDENTIAL_CERTIFICATE], corroborationRef: 'registrar@issuer.example',
+    assessment: { score: 95 },
+  });
+  assert.strictEqual(smuggled.ok, false, 'a credential check cannot carry a proficiency score');
+  assert.strictEqual(smuggled.code, sv.SUFFICIENCY_CODES.PROFICIENCY_NOT_SUPPORTED);
+
+  // Applicants cannot supply proficiency or the records that would justify it
+  for (const field of ['proficiencyScore', 'proficiencyEvidenced', 'assessment', 'rubricId', 'rubricVersion', 'corroborationRef']) {
+    assert.ok(sv.TRUST_CONTROLLED_FIELDS.includes(field), `${field} must be trust-controlled`);
+    const r = svc.validateClaimInput({ skillName: 'React', [field]: 'x' });
+    assert.strictEqual(r.ok, false, `${field} must be refused on claim input`);
+    assert.strictEqual(r.code, 'TRUST_FIELD_FORBIDDEN');
+  }
+
+  // An evidence-backed claim exposes no score and no substantiated level
+  const backed = sv.projectClaimForEmployer(
+    claimAt(S.EVIDENCE_BACKED, { verificationMethod: M.MANUAL_EVIDENCE_REVIEW, claimedLevel: 'expert', proficiencyScore: 90 }),
+    []
+  );
+  assert.strictEqual(backed.proficiencyScore, null, 'evidence-backed must expose no score');
+  assert.strictEqual(backed.proficiencyEvidenced, false);
+
+  // Even a stored score is withheld unless the method actually measured it
+  const credentialVerified = sv.projectClaimForEmployer(
+    claimAt(S.VERIFIED, { verificationMethod: M.ISSUER_CONFIRMATION, proficiencyScore: 90 }), []
+  );
+  assert.strictEqual(credentialVerified.proficiencyScore, null,
+    'a credential check exposes no proficiency, even with a stored value');
+
+  const assessmentVerified = sv.projectClaimForEmployer(
+    claimAt(S.VERIFIED, { verificationMethod: M.INTERVIEW_ASSESSMENT, proficiencyScore: 74 }), []
+  );
+  assert.strictEqual(assessmentVerified.proficiencyScore, 74, 'a measured score is shown');
+  assert.strictEqual(assessmentVerified.proficiencyEvidenced, true);
+
+  // The public projection exposes neither a score nor a claimed level at all
+  const pub = sv.projectClaimForPublic(claimAt(S.VERIFIED, { verificationMethod: M.INTERVIEW_ASSESSMENT, proficiencyScore: 74, claimedLevel: 'expert' }));
+  for (const leaked of ['proficiencyScore', 'proficiencyEvidenced', 'claimedLevel']) {
+    assert.ok(!Object.keys(pub).includes(leaked), `public projection must not expose ${leaked}`);
+  }
+});
+
+await check('38. employer projection distinguishes evidence-backed from the verifieds', () => {
+  const backed = sv.projectClaimForEmployer(
+    claimAt(S.EVIDENCE_BACKED, { verificationMethod: M.MANUAL_EVIDENCE_REVIEW }), []
+  );
+  const credential = sv.projectClaimForEmployer(
+    claimAt(S.VERIFIED, { verificationMethod: M.ISSUER_CONFIRMATION }), []
+  );
+  const assessed = sv.projectClaimForEmployer(
+    claimAt(S.VERIFIED, { verificationMethod: M.INTERVIEW_ASSESSMENT }), []
+  );
+  const referenced = sv.projectClaimForEmployer(
+    claimAt(S.VERIFIED, { verificationMethod: M.EMPLOYER_REFERENCE }), []
+  );
+
+  assert.strictEqual(backed.isCurrentlyVerified, false, 'evidence-backed is not verified');
+  assert.strictEqual(backed.trustLabel, 'Evidence-backed');
+  for (const projection of [credential, assessed, referenced]) {
+    assert.strictEqual(projection.isCurrentlyVerified, true);
+  }
+
+  //     Evidence-backed != Skill verified != Assessment verified
+  const labels = [backed.trustLabel, credential.trustLabel, assessed.trustLabel, referenced.trustLabel];
+  assert.strictEqual(new Set(labels).size, labels.length, `labels must all differ: ${labels.join(' / ')}`);
+  assert.strictEqual(assessed.trustLabel, 'Assessment verified');
+  assert.strictEqual(credential.trustLabel, 'Credential verified');
+  assert.strictEqual(referenced.trustLabel, 'Reference verified');
+
+  // The method reaches the employer, so the distinction is not label-deep
+  assert.strictEqual(backed.verificationMethod, M.MANUAL_EVIDENCE_REVIEW);
+  assert.strictEqual(assessed.verificationMethod, M.INTERVIEW_ASSESSMENT);
+
+  // The trust filter still treats evidence-backed as short of verified
+  assert.strictEqual(
+    sv.matchesTrustFilter(claimAt(S.EVIDENCE_BACKED), sv.EMPLOYER_TRUST_FILTERS.VERIFIED), false
+  );
+});
+
+await check('39. the application snapshot preserves the distinction', () => {
+  const now = new Date();
+  const snap = sv.buildSkillSnapshot([
+    { skillName: 'React', status: S.EVIDENCE_BACKED, verificationMethod: M.MANUAL_EVIDENCE_REVIEW, claimedLevel: 'expert', proficiencyScore: 95, evidenceCount: 3 },
+    { skillName: 'Figma', status: S.VERIFIED, verificationMethod: M.INTERVIEW_ASSESSMENT, proficiencyScore: 74, evidenceCount: 1 },
+    { skillName: 'PMP', status: S.VERIFIED, verificationMethod: M.ISSUER_CONFIRMATION, proficiencyScore: 99, evidenceCount: 1 },
+  ], now);
+
+  const [backed, assessed, credential] = snap.skills;
+  assert.strictEqual(backed.isCurrentlyVerified, false, 'evidence-backed must freeze as not verified');
+  assert.strictEqual(backed.verificationMethod, M.MANUAL_EVIDENCE_REVIEW,
+    'the method must survive the freeze, or the distinction is lost');
+  assert.strictEqual(backed.proficiencyScore, null, 'evidence-backed carries no score into history');
+  assert.strictEqual(backed.proficiencyEvidenced, false);
+
+  assert.strictEqual(assessed.isCurrentlyVerified, true);
+  assert.strictEqual(assessed.proficiencyScore, 74, 'a measured score is preserved');
+  assert.strictEqual(assessed.proficiencyEvidenced, true);
+
+  assert.strictEqual(credential.isCurrentlyVerified, true);
+  assert.strictEqual(credential.proficiencyScore, null,
+    'a credential check freezes with no proficiency, even with a stored value');
+
+  // The frozen record renders with the same three-way distinction
+  const labels = snap.skills.map((s) => sv.getTrustStateDisplay(s.trustState, s.verificationMethod).label);
+  assert.deepStrictEqual(labels, ['Evidence-backed', 'Assessment verified', 'Credential verified']);
+
+  // And the employer-facing snapshot projection keeps the method + score rule
+  const cardSrc = readFileSync(
+    path.join(repoRoot, 'server/src/services/career/EmployerCandidateCardService.js'), 'utf8'
+  );
+  const proj = cardSrc.slice(cardSrc.indexOf('applicationSkillSnapshot:'), cardSrc.indexOf('jobType:'));
+  assert.ok(/verificationMethod/.test(proj), 'snapshot projection must carry the method');
+  assert.ok(/proficiencyEvidenced \? \(s\.proficiencyScore \?\? null\) : null/.test(proj),
+    'snapshot projection must withhold an unevidenced score');
+});
+
+// ===========================================================================
 // Summary
 // ===========================================================================
-console.log(`\n${passed}/30 skill claim + evidence + verification checks passed`);
+console.log(`\n${passed}/39 skill claim + evidence + verification checks passed`);
 if (process.exitCode) {
   console.error('FAILURES PRESENT');
 } else {

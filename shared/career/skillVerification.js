@@ -170,19 +170,132 @@ export const VERIFICATION_METHODS = Object.freeze({
 
 const M = VERIFICATION_METHODS;
 
-const ENABLED_METHODS = new Set([
-  M.MANUAL_EVIDENCE_REVIEW,
-  M.DOCUMENT_REVIEW,
-  M.ISSUER_CONFIRMATION,
-  M.EMPLOYER_REFERENCE,
-  M.INTERVIEW_ASSESSMENT,
-]);
+/**
+ * Verification method policy — the single source of truth for what each method
+ * is actually capable of concluding.
+ *
+ * The invariant it exists to enforce:
+ *
+ *     SUBMITTED SOCIAL / PORTFOLIO / PROJECT EVIDENCE ALONE
+ *     MUST NOT BE SUFFICIENT TO ISSUE `verified`.
+ *
+ * A reviewer opening a GitHub, Figma, Behance, LinkedIn or portfolio URL and
+ * finding it plausible has established one thing: the artefact exists and is
+ * relevant. That is `evidence_backed`. It is not a demonstration that the
+ * person has the skill, and it is not a check against anyone who would know —
+ * the link is self-published, so the applicant is still the only source.
+ *
+ * `verified` therefore requires a method that introduces corroboration from
+ * outside the applicant's own publishing:
+ *
+ *   - an issuer or credential document that a third party stands behind
+ *   - a named professional reference who was actually contacted
+ *   - a structured human assessment against a versioned rubric
+ *   - (future) a controlled practical/coding assessment — NOT in this release
+ *
+ * `maxOutcome` is what the method can conclude at best. MANUAL_EVIDENCE_REVIEW
+ * caps at `evidence_backed` by construction, which is what makes the invariant
+ * hold no matter who calls it or what they cite.
+ */
+export const VERIFICATION_METHOD_POLICY = Object.freeze({
+  [M.MANUAL_EVIDENCE_REVIEW]: Object.freeze({
+    enabled: true,
+    maxOutcome: S.EVIDENCE_BACKED,
+    requiresIssuerAnchoredEvidence: false,
+    requiresRubric: false,
+    requiresCorroboration: false,
+    supportsProficiency: false,
+    verifiedLabel: null,
+    defaultValidityDays: null,
+  }),
+  [M.DOCUMENT_REVIEW]: Object.freeze({
+    enabled: true,
+    maxOutcome: S.VERIFIED,
+    // A document review only verifies if there is actually a credential
+    // document to review — a repository link is not one.
+    requiresIssuerAnchoredEvidence: true,
+    requiresRubric: false,
+    requiresCorroboration: false,
+    supportsProficiency: false,
+    verifiedLabel: 'Credential verified',
+    defaultValidityDays: 730,
+  }),
+  [M.ISSUER_CONFIRMATION]: Object.freeze({
+    enabled: true,
+    maxOutcome: S.VERIFIED,
+    requiresIssuerAnchoredEvidence: true,
+    requiresRubric: false,
+    requiresCorroboration: true,
+    supportsProficiency: false,
+    verifiedLabel: 'Credential verified',
+    defaultValidityDays: 1095,
+  }),
+  [M.EMPLOYER_REFERENCE]: Object.freeze({
+    enabled: true,
+    maxOutcome: S.VERIFIED,
+    // The corroboration is the reference itself, not the links — so a
+    // reference must be recorded, and self-published evidence is permitted
+    // alongside it rather than in place of it.
+    requiresIssuerAnchoredEvidence: false,
+    requiresRubric: false,
+    requiresCorroboration: true,
+    supportsProficiency: false,
+    verifiedLabel: 'Reference verified',
+    defaultValidityDays: 730,
+  }),
+  [M.INTERVIEW_ASSESSMENT]: Object.freeze({
+    enabled: true,
+    maxOutcome: S.VERIFIED,
+    requiresIssuerAnchoredEvidence: false,
+    // A "structured assessment" with no rubric on record is just an opinion.
+    requiresRubric: true,
+    requiresCorroboration: false,
+    // The only currently-enabled method that observed the person perform, so
+    // the only one that may carry a proficiency result.
+    supportsProficiency: true,
+    verifiedLabel: 'Assessment verified',
+    defaultValidityDays: 365,
+  }),
+  [M.PRACTICAL_ASSESSMENT]: Object.freeze({
+    enabled: false, // requires the sandbox work that is out of scope here
+    maxOutcome: S.VERIFIED,
+    requiresIssuerAnchoredEvidence: false,
+    requiresRubric: true,
+    requiresCorroboration: false,
+    supportsProficiency: true,
+    verifiedLabel: 'Assessment verified',
+    defaultValidityDays: 365,
+  }),
+  [M.AUTOMATED_PROVIDER_CHECK]: Object.freeze({
+    enabled: false, // requires the provider API integration this release forbids
+    // Even once enabled, an automated read of a public profile is still a
+    // check that the artefact exists — it is not a skill demonstration.
+    maxOutcome: S.EVIDENCE_BACKED,
+    requiresIssuerAnchoredEvidence: false,
+    requiresRubric: false,
+    requiresCorroboration: false,
+    supportsProficiency: false,
+    verifiedLabel: null,
+    defaultValidityDays: null,
+  }),
+});
 
-/** Declared but refused in this checkpoint. */
-export const DEFERRED_METHODS = Object.freeze([
-  M.PRACTICAL_ASSESSMENT,
-  M.AUTOMATED_PROVIDER_CHECK,
-]);
+export function getVerificationMethodPolicy(method) {
+  if (typeof method !== 'string') return null;
+  return VERIFICATION_METHOD_POLICY[method] ?? null;
+}
+
+/** Declared but refused in this checkpoint. Derived from the policy table. */
+export const DEFERRED_METHODS = Object.freeze(
+  Object.entries(VERIFICATION_METHOD_POLICY).filter(([, p]) => !p.enabled).map(([m]) => m)
+);
+
+/** Methods policy permits to conclude `verified`, and that are enabled now. */
+export const VERIFIED_CAPABLE_METHODS = Object.freeze(
+  Object.entries(VERIFICATION_METHOD_POLICY)
+    .filter(([, p]) => p.enabled && p.maxOutcome === S.VERIFIED)
+    .map(([m]) => m)
+);
 
 export function isValidVerificationMethod(value) {
   return typeof value === 'string' && Object.values(M).includes(value);
@@ -190,7 +303,22 @@ export function isValidVerificationMethod(value) {
 
 /** True only for a method this checkpoint will actually accept. */
 export function isEnabledVerificationMethod(value) {
-  return typeof value === 'string' && ENABLED_METHODS.has(value);
+  return getVerificationMethodPolicy(value)?.enabled === true;
+}
+
+/**
+ * Whether policy lets this method conclude `verified` at all. False for
+ * manual evidence review — reviewing a link tops out at evidence-backed.
+ */
+export function methodMayIssueVerified(method) {
+  const policy = getVerificationMethodPolicy(method);
+  return policy?.enabled === true && policy.maxOutcome === S.VERIFIED;
+}
+
+/** True when the method's conclusion can carry a proficiency result. */
+export function methodSupportsProficiency(method) {
+  const policy = getVerificationMethodPolicy(method);
+  return policy?.enabled === true && policy.supportsProficiency === true;
 }
 
 // ---------------------------------------------------------------------------
@@ -220,6 +348,37 @@ const EVIDENCE_TYPE_SET = new Set(Object.values(SKILL_EVIDENCE_TYPES));
 
 export function isValidSkillEvidenceType(value) {
   return typeof value === 'string' && EVIDENCE_TYPE_SET.has(value);
+}
+
+/**
+ * Evidence anchored to a third party who stands behind it — a certificate, a
+ * credential record, an issuer page. Only these can carry verification weight
+ * on their own.
+ *
+ * Everything else is SELF-ATTESTED: the applicant chose the URL, controls the
+ * account, and can change the contents. A GitHub repository, a Figma file, a
+ * Behance project, a LinkedIn profile and a personal portfolio are all the
+ * applicant telling us about themselves in a place they own. That is genuinely
+ * useful — it is what `evidence_backed` records — but it is not independent
+ * confirmation, and this split is what stops it being read as one.
+ */
+export const ISSUER_ANCHORED_EVIDENCE_TYPES = Object.freeze([
+  SKILL_EVIDENCE_TYPES.CREDENTIAL_CERTIFICATE,
+]);
+
+const ISSUER_ANCHORED_SET = new Set(ISSUER_ANCHORED_EVIDENCE_TYPES);
+
+/** Self-published evidence: everything not issuer-anchored. */
+export const SELF_ATTESTED_EVIDENCE_TYPES = Object.freeze(
+  Object.values(SKILL_EVIDENCE_TYPES).filter((t) => !ISSUER_ANCHORED_SET.has(t))
+);
+
+export function isSelfAttestedEvidenceType(value) {
+  return isValidSkillEvidenceType(value) && !ISSUER_ANCHORED_SET.has(value);
+}
+
+export function isIssuerAnchoredEvidenceType(value) {
+  return isValidSkillEvidenceType(value) && ISSUER_ANCHORED_SET.has(value);
 }
 
 /**
@@ -480,6 +639,132 @@ export function validateEvidenceDescription(rawValue) {
 }
 
 // ---------------------------------------------------------------------------
+// 6b. Verification sufficiency — is this outcome actually earned?
+// ---------------------------------------------------------------------------
+
+export const SUFFICIENCY_CODES = Object.freeze({
+  METHOD_UNKNOWN: 'METHOD_UNKNOWN',
+  METHOD_NOT_ENABLED: 'METHOD_NOT_ENABLED',
+  METHOD_CANNOT_VERIFY: 'METHOD_CANNOT_VERIFY',
+  SELF_ATTESTED_EVIDENCE_INSUFFICIENT: 'SELF_ATTESTED_EVIDENCE_INSUFFICIENT',
+  RUBRIC_REQUIRED: 'RUBRIC_REQUIRED',
+  CORROBORATION_REQUIRED: 'CORROBORATION_REQUIRED',
+  PROFICIENCY_NOT_SUPPORTED: 'PROFICIENCY_NOT_SUPPORTED',
+});
+
+const MAX_RUBRIC_ID_LENGTH = 120;
+const MAX_CORROBORATION_LENGTH = 200;
+
+/**
+ * Decide whether a reviewer's method, cited evidence and supporting record
+ * actually justify the outcome they are asking for.
+ *
+ * Pure and evidence-type-driven, so the invariant can be exercised directly:
+ * a GitHub link plus a sincere reviewer is `evidence_backed`, and no
+ * combination of caller inputs turns it into `verified`.
+ *
+ * @param {object} args
+ * @param {string} args.toStatus       requested outcome
+ * @param {string} args.method         verification method
+ * @param {string[]} [args.evidenceTypes] types of the CITED evidence
+ * @param {object} [args.assessment]   { rubricId, rubricVersion, score }
+ * @param {string} [args.corroborationRef] issuer/reference actually contacted
+ * @returns {{ ok: true, policy: object } | { ok: false, code: string, message: string }}
+ */
+export function evaluateVerificationSufficiency({
+  toStatus,
+  method,
+  evidenceTypes = [],
+  assessment = null,
+  corroborationRef = '',
+} = {}) {
+  const policy = getVerificationMethodPolicy(method);
+  if (!policy) {
+    return { ok: false, code: SUFFICIENCY_CODES.METHOD_UNKNOWN, message: 'Unknown verification method' };
+  }
+  if (!policy.enabled) {
+    return {
+      ok: false,
+      code: SUFFICIENCY_CODES.METHOD_NOT_ENABLED,
+      message: `Verification method '${method}' is not available in this release`,
+    };
+  }
+
+  // Only `verified` carries the extra burden. evidence_backed, needs_info,
+  // rejected and revoked are unaffected — self-published links are exactly
+  // what evidence_backed is for.
+  if (toStatus !== S.VERIFIED) return { ok: true, policy };
+
+  if (policy.maxOutcome !== S.VERIFIED) {
+    return {
+      ok: false,
+      code: SUFFICIENCY_CODES.METHOD_CANNOT_VERIFY,
+      message:
+        `'${method}' can establish that evidence exists and is relevant, which is `
+        + `'${S.EVIDENCE_BACKED}'. Issuing '${S.VERIFIED}' requires a credential, a `
+        + 'confirmed reference, or a structured assessment.',
+    };
+  }
+
+  const types = (Array.isArray(evidenceTypes) ? evidenceTypes : []).filter(isValidSkillEvidenceType);
+
+  if (policy.requiresIssuerAnchoredEvidence && !types.some(isIssuerAnchoredEvidenceType)) {
+    return {
+      ok: false,
+      code: SUFFICIENCY_CODES.SELF_ATTESTED_EVIDENCE_INSUFFICIENT,
+      message:
+        `'${method}' requires evidence a third party stands behind. Self-published `
+        + 'links (repository, portfolio, design file, professional profile) support '
+        + `'${S.EVIDENCE_BACKED}' but cannot on their own establish '${S.VERIFIED}'.`,
+    };
+  }
+
+  if (policy.requiresRubric && !isValidRubricReference(assessment)) {
+    return {
+      ok: false,
+      code: SUFFICIENCY_CODES.RUBRIC_REQUIRED,
+      message: `'${method}' requires a rubric id and version on record`,
+    };
+  }
+
+  if (policy.requiresCorroboration && !isValidCorroborationRef(corroborationRef)) {
+    return {
+      ok: false,
+      code: SUFFICIENCY_CODES.CORROBORATION_REQUIRED,
+      message: `'${method}' requires a reference to the issuer or referee actually contacted`,
+    };
+  }
+
+  // A proficiency result may only ride along with a method that measured one.
+  if (assessment?.score !== undefined && assessment?.score !== null && !policy.supportsProficiency) {
+    return {
+      ok: false,
+      code: SUFFICIENCY_CODES.PROFICIENCY_NOT_SUPPORTED,
+      message: `'${method}' does not measure proficiency, so it cannot carry a score`,
+    };
+  }
+
+  return { ok: true, policy };
+}
+
+/** A rubric reference is only meaningful if it names a rubric AND a version. */
+export function isValidRubricReference(assessment) {
+  if (!assessment || typeof assessment !== 'object') return false;
+  const id = typeof assessment.rubricId === 'string' ? assessment.rubricId.trim() : '';
+  const version = assessment.rubricVersion;
+  if (!id || id.length > MAX_RUBRIC_ID_LENGTH || /[<>]/.test(id)) return false;
+  if (typeof version === 'number') return Number.isFinite(version) && version > 0;
+  if (typeof version === 'string') return version.trim().length > 0 && version.trim().length <= 40;
+  return false;
+}
+
+export function isValidCorroborationRef(value) {
+  if (typeof value !== 'string') return false;
+  const trimmed = value.trim();
+  return trimmed.length > 0 && trimmed.length <= MAX_CORROBORATION_LENGTH && !/[<>]/.test(trimmed);
+}
+
+// ---------------------------------------------------------------------------
 // 7. Mass-assignment boundary
 // ---------------------------------------------------------------------------
 
@@ -508,6 +793,15 @@ export const TRUST_CONTROLLED_FIELDS = Object.freeze([
   'verificationStatus',
   'verificationScore',
   'score',
+  // Proficiency and the records that could justify it are reviewer territory:
+  // a caller supplying a rubric or a referee is fabricating the corroboration
+  // that separates evidence-backed from verified.
+  'proficiencyScore',
+  'proficiencyEvidenced',
+  'assessment',
+  'rubricId',
+  'rubricVersion',
+  'corroborationRef',
   'verifiedBy',
   'verifiedByRole',
   'verifiedAt',
@@ -590,47 +884,76 @@ export const TRUST_STATE_DISPLAY = Object.freeze({
   [S.CLAIMED]: { label: 'Claimed', tone: 'neutral', verified: false, description: 'Self-reported by the applicant. Not checked.' },
   [S.EVIDENCE_SUBMITTED]: { label: 'Evidence submitted', tone: 'info', verified: false, description: 'Applicant supplied links. Not yet reviewed.' },
   [S.VERIFICATION_PENDING]: { label: 'Verification pending', tone: 'info', verified: false, description: 'Queued for review. Not yet verified.' },
-  [S.EVIDENCE_BACKED]: { label: 'Evidence-backed', tone: 'progress', verified: false, description: 'A reviewer confirmed the evidence exists and is relevant. Not a full skill verification.' },
-  [S.VERIFIED]: { label: 'Verified', tone: 'success', verified: true, description: 'Verified by Strideto review, with recorded method and evidence.' },
+  [S.EVIDENCE_BACKED]: { label: 'Evidence-backed', tone: 'progress', verified: false, description: 'A reviewer opened the links and found them real and relevant. That is all it means: the work exists. It is not a skill verification and not an assessment result.' },
+  [S.VERIFIED]: { label: 'Verified', tone: 'success', verified: true, description: 'Confirmed against something outside the applicant\'s own links — a credential, a contacted reference, or a scored assessment.' },
   [S.NEEDS_INFORMATION]: { label: 'Needs information', tone: 'warning', verified: false, description: 'Reviewer requested more evidence.' },
   [S.REJECTED]: { label: 'Rejected', tone: 'danger', verified: false, description: 'Evidence did not support the claim.' },
   [S.EXPIRED]: { label: 'Expired', tone: 'muted', verified: false, description: 'Verification lapsed and is no longer current.' },
   [S.REVOKED]: { label: 'Revoked', tone: 'danger', verified: false, description: 'Verification was withdrawn.' },
 });
 
-export function getTrustStateDisplay(status) {
-  return TRUST_STATE_DISPLAY[status] ?? TRUST_STATE_DISPLAY[S.CLAIMED];
+/**
+ * Display contract for a state, specialised by the method that produced it.
+ *
+ * "Verified" alone is too coarse once methods differ in what they establish:
+ * a checked certificate, a contacted referee and a scored assessment are three
+ * different claims, and collapsing them loses exactly the distinction this
+ * module exists to preserve —
+ *
+ *     Evidence-backed != Skill verified != Assessment verified
+ *
+ * @param {string} status
+ * @param {string} [method] verification method, when the state is `verified`
+ */
+export function getTrustStateDisplay(status, method) {
+  const base = TRUST_STATE_DISPLAY[status] ?? TRUST_STATE_DISPLAY[S.CLAIMED];
+  if (status !== S.VERIFIED || !method) return base;
+  const policy = getVerificationMethodPolicy(method);
+  if (!policy?.verifiedLabel) return base;
+  return { ...base, label: policy.verifiedLabel };
 }
 
 // ---------------------------------------------------------------------------
-// 9. Verification score (server-derived only)
+// 9. Proficiency score — measured, never inferred
 // ---------------------------------------------------------------------------
 
 /**
- * Deterministic 0-100 confidence score derived ONLY from server-held facts:
- * the reviewed state, how many distinct evidence types a reviewer accepted,
- * and the method used. No client input reaches this function, and a claim that
- * is not currently verified/evidence-backed scores 0 by construction.
+ * The proficiency result of an actual assessment, or null.
+ *
+ * This deliberately replaces the earlier "confidence score", which added
+ * points for how many distinct evidence types a reviewer accepted and which
+ * method they used. That number looked like a proficiency measure and was
+ * nothing of the kind — counting someone's portfolio links cannot tell you
+ * how good they are, and displaying the result next to a skill implied it
+ * could. Null means "nobody measured this", which is the truth for every
+ * claim that has not been through a rubric-scored assessment.
+ *
+ * @returns {number|null} 0-100 from the assessment, or null when unmeasured
  */
-export function computeVerificationScore({ status, acceptedEvidenceTypes = [], method, revokedAt, expiresAt } = {}, now = new Date()) {
+export function resolveProficiencyScore(
+  { status, method, assessment = null, revokedAt, expiresAt } = {},
+  now = new Date()
+) {
   const state = deriveCurrentTrustState({ status, revokedAt, expiresAt }, now);
-  if (state !== S.VERIFIED && state !== S.EVIDENCE_BACKED) return 0;
+  // Evidence-backed is explicitly included in the "no score" case: a reviewer
+  // confirming a link exists has measured nothing.
+  if (state !== S.VERIFIED) return null;
+  if (!methodSupportsProficiency(method)) return null;
 
-  const base = state === S.VERIFIED ? 60 : 30;
-  const distinctTypes = new Set(
-    (Array.isArray(acceptedEvidenceTypes) ? acceptedEvidenceTypes : []).filter(isValidSkillEvidenceType)
-  );
-  const evidenceBonus = Math.min(distinctTypes.size, 3) * 8;
+  const raw = assessment?.score;
+  if (typeof raw !== 'number' || !Number.isFinite(raw) || raw < 0 || raw > 100) return null;
+  return Math.round(raw);
+}
 
-  const methodBonus =
-    method === M.ISSUER_CONFIRMATION ? 16
-      : method === M.INTERVIEW_ASSESSMENT ? 12
-        : method === M.DOCUMENT_REVIEW ? 8
-          : method === M.EMPLOYER_REFERENCE ? 8
-            : method === M.MANUAL_EVIDENCE_REVIEW ? 4
-              : 0;
-
-  return Math.max(0, Math.min(100, base + evidenceBonus + methodBonus));
+/**
+ * Whether a claimed proficiency level may be shown as substantiated rather
+ * than self-reported. False unless a scoring assessment actually ran.
+ */
+export function isProficiencyEvidenced(claim, now = new Date()) {
+  if (!claim) return false;
+  if (deriveCurrentTrustState(claim, now) !== S.VERIFIED) return false;
+  if (!methodSupportsProficiency(claim.verificationMethod)) return false;
+  return typeof claim.proficiencyScore === 'number';
 }
 
 // ---------------------------------------------------------------------------
@@ -645,18 +968,25 @@ export function computeVerificationScore({ status, acceptedEvidenceTypes = [], m
 export function projectClaimForEmployer(claim, evidence = [], now = new Date()) {
   if (!claim) return null;
   const state = deriveCurrentTrustState(claim, now);
-  const display = getTrustStateDisplay(state);
+  const method =
+    state === S.VERIFIED || state === S.EVIDENCE_BACKED ? (claim.verificationMethod ?? null) : null;
+  const display = getTrustStateDisplay(state, method);
+  const proficiencyEvidenced = isProficiencyEvidenced(claim, now);
   return {
     id: String(claim.id ?? claim._id ?? ''),
     skillName: claim.skillName ?? '',
     skillCategory: claim.skillCategory ?? 'other',
+    // Always the applicant's own words. Never presented as substantiated
+    // unless an assessment actually measured it (below).
     claimedLevel: claim.claimedLevel ?? '',
     trustState: state,
     trustLabel: display.label,
     isCurrentlyVerified: state === S.VERIFIED,
-    verificationScore: state === S.VERIFIED || state === S.EVIDENCE_BACKED ? (claim.verificationScore ?? 0) : 0,
+    // Null unless a scoring assessment ran. Evidence-backed never carries one.
+    proficiencyScore: proficiencyEvidenced ? claim.proficiencyScore : null,
+    proficiencyEvidenced,
     verifiedAt: state === S.VERIFIED ? (claim.verifiedAt ?? null) : null,
-    verificationMethod: state === S.VERIFIED || state === S.EVIDENCE_BACKED ? (claim.verificationMethod ?? null) : null,
+    verificationMethod: method,
     evidenceCount: Array.isArray(evidence) ? evidence.length : (claim.evidenceCount ?? 0),
     evidence: (Array.isArray(evidence) ? evidence : []).map(projectEvidenceForEmployer),
   };
@@ -685,11 +1015,14 @@ export function projectEvidenceForEmployer(item) {
 export function projectClaimForPublic(claim, now = new Date()) {
   if (!claim) return null;
   const state = deriveCurrentTrustState(claim, now);
+  const method = state === S.VERIFIED ? (claim.verificationMethod ?? null) : null;
   return {
     skillName: claim.skillName ?? '',
     skillCategory: claim.skillCategory ?? 'other',
     trustState: state,
-    trustLabel: getTrustStateDisplay(state).label,
+    // Method-specific wording, so a public badge cannot read as more than the
+    // method established. No score and no claimed level are exposed here at all.
+    trustLabel: getTrustStateDisplay(state, method).label,
     isCurrentlyVerified: state === S.VERIFIED,
   };
 }
@@ -712,13 +1045,20 @@ export function buildSkillSnapshot(claims = [], now = new Date()) {
     capturedAt: new Date(now).toISOString(),
     skills: list.map((claim) => {
       const state = deriveCurrentTrustState(claim, now);
+      const proficiencyEvidenced = isProficiencyEvidenced(claim, now);
       return {
         skillName: claim.skillName ?? '',
         skillCategory: claim.skillCategory ?? 'other',
         claimedLevel: claim.claimedLevel ?? '',
         trustState: state,
         isCurrentlyVerified: state === S.VERIFIED,
-        verificationScore: state === S.VERIFIED || state === S.EVIDENCE_BACKED ? (claim.verificationScore ?? 0) : 0,
+        // The snapshot carries the method too, so an employer reading it later
+        // can still tell an evidence-backed claim from a credential check from
+        // a scored assessment — the distinction survives the freeze.
+        verificationMethod:
+          state === S.VERIFIED || state === S.EVIDENCE_BACKED ? (claim.verificationMethod ?? null) : null,
+        proficiencyScore: proficiencyEvidenced ? claim.proficiencyScore : null,
+        proficiencyEvidenced,
         evidenceCount: claim.evidenceCount ?? 0,
       };
     }),

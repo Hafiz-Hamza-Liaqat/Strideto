@@ -22,7 +22,16 @@ const applicationSkillSnapshotEntrySchema = new mongoose.Schema(
       default: SKILL_CLAIM_STATUSES.CLAIMED,
     },
     isCurrentlyVerified: { type: Boolean, default: false },
-    verificationScore: { type: Number, min: 0, max: 100, default: 0 },
+    /**
+     * Frozen with the method, so a reader of an old application can still tell
+     * an evidence-backed claim from a credential check from a scored
+     * assessment. Losing the method would collapse the distinction the moment
+     * the snapshot was taken.
+     */
+    verificationMethod: { type: String, trim: true, default: null },
+    /** Measured proficiency at application time, or null. Never inferred. */
+    proficiencyScore: { type: Number, min: 0, max: 100, default: null },
+    proficiencyEvidenced: { type: Boolean, default: false },
     evidenceCount: { type: Number, min: 0, default: 0 },
   },
   { _id: false }

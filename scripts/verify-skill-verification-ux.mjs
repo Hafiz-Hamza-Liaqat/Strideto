@@ -120,18 +120,25 @@ const OWN_CLAIMS = [
       { id: 'ev-2', evidenceType: 'design_portfolio', url: LONG_FIGMA, hostname: 'www.figma.com', provider: 'figma', description: '', status: 'submitted' },
     ],
   },
-  { id: 'claim-2', skillName: 'Figma', skillCategory: 'design', claimedLevel: 'expert', trustState: 'verified', verificationScore: 84, verificationMethod: 'manual_evidence_review', verifiedAt: '2026-07-01T00:00:00.000Z', evidenceCount: 1, evidence: [] },
+  { id: 'claim-2', skillName: 'Figma', skillCategory: 'design', claimedLevel: 'expert', trustState: 'verified', proficiencyScore: 74, proficiencyEvidenced: true, verificationMethod: 'interview_assessment', verifiedAt: '2026-07-01T00:00:00.000Z', evidenceCount: 1, evidence: [] },
   { id: 'claim-3', skillName: 'Claimed only', skillCategory: 'other', claimedLevel: 'beginner', trustState: 'claimed', verificationScore: 0, evidenceCount: 0, evidence: [] },
   { id: 'claim-4', skillName: 'Lapsed credential', skillCategory: 'business', claimedLevel: 'intermediate', trustState: 'expired', verificationScore: 0, evidenceCount: 1, evidence: [] },
   { id: 'claim-5', skillName: 'Withdrawn', skillCategory: 'research', claimedLevel: 'advanced', trustState: 'revoked', verificationScore: 0, evidenceCount: 1, evidence: [] },
 ];
 
+/*
+ * Deliberately spans the three assertions that must never collapse into one:
+ * evidence-backed (links a reviewer opened), credential-verified (an issuer
+ * confirmed), and assessment-verified (a rubric-scored assessment, the only
+ * one carrying a proficiency number).
+ */
 const EMPLOYER_SKILLS = [
-  { id: 'claim-1', skillName: LONG_SKILL, skillCategory: 'technical', claimedLevel: 'advanced', trustState: 'evidence_backed', trustLabel: 'Evidence-backed', isCurrentlyVerified: false, verificationScore: 46, verificationMethod: 'manual_evidence_review', evidenceCount: 2, evidence: [{ evidenceType: 'code_repository', provider: 'github', hostname: 'github.com', url: LONG_GITHUB, description: 'Monorepo package' }] },
-  { id: 'claim-2', skillName: 'Figma', skillCategory: 'design', claimedLevel: 'expert', trustState: 'verified', trustLabel: 'Verified', isCurrentlyVerified: true, verificationScore: 84, verificationMethod: 'manual_evidence_review', verifiedAt: '2026-07-01T00:00:00.000Z', evidenceCount: 1, evidence: [{ evidenceType: 'design_portfolio', provider: 'figma', hostname: 'www.figma.com', url: LONG_FIGMA, description: '' }] },
-  { id: 'claim-3', skillName: 'Claimed only', skillCategory: 'other', claimedLevel: 'beginner', trustState: 'claimed', trustLabel: 'Claimed', isCurrentlyVerified: false, verificationScore: 0, evidenceCount: 0, evidence: [] },
-  { id: 'claim-4', skillName: 'Lapsed credential', skillCategory: 'business', claimedLevel: 'intermediate', trustState: 'expired', trustLabel: 'Expired', isCurrentlyVerified: false, verificationScore: 0, evidenceCount: 1, evidence: [] },
-  { id: 'claim-5', skillName: 'Withdrawn', skillCategory: 'research', claimedLevel: 'advanced', trustState: 'revoked', trustLabel: 'Revoked', isCurrentlyVerified: false, verificationScore: 0, evidenceCount: 1, evidence: [] },
+  { id: 'claim-1', skillName: LONG_SKILL, skillCategory: 'technical', claimedLevel: 'advanced', trustState: 'evidence_backed', trustLabel: 'Evidence-backed', isCurrentlyVerified: false, proficiencyScore: null, proficiencyEvidenced: false, verificationMethod: 'manual_evidence_review', evidenceCount: 2, evidence: [{ evidenceType: 'code_repository', provider: 'github', hostname: 'github.com', url: LONG_GITHUB, description: 'Monorepo package' }] },
+  { id: 'claim-2', skillName: 'Figma', skillCategory: 'design', claimedLevel: 'expert', trustState: 'verified', trustLabel: 'Assessment verified', isCurrentlyVerified: true, proficiencyScore: 74, proficiencyEvidenced: true, verificationMethod: 'interview_assessment', verifiedAt: '2026-07-01T00:00:00.000Z', evidenceCount: 1, evidence: [{ evidenceType: 'design_portfolio', provider: 'figma', hostname: 'www.figma.com', url: LONG_FIGMA, description: '' }] },
+  { id: 'claim-6', skillName: 'PMP', skillCategory: 'business', claimedLevel: 'advanced', trustState: 'verified', trustLabel: 'Credential verified', isCurrentlyVerified: true, proficiencyScore: null, proficiencyEvidenced: false, verificationMethod: 'issuer_confirmation', verifiedAt: '2026-07-01T00:00:00.000Z', evidenceCount: 1, evidence: [] },
+  { id: 'claim-3', skillName: 'Claimed only', skillCategory: 'other', claimedLevel: 'beginner', trustState: 'claimed', trustLabel: 'Claimed', isCurrentlyVerified: false, proficiencyScore: null, proficiencyEvidenced: false, evidenceCount: 0, evidence: [] },
+  { id: 'claim-4', skillName: 'Lapsed credential', skillCategory: 'business', claimedLevel: 'intermediate', trustState: 'expired', trustLabel: 'Expired', isCurrentlyVerified: false, proficiencyScore: null, proficiencyEvidenced: false, evidenceCount: 1, evidence: [] },
+  { id: 'claim-5', skillName: 'Withdrawn', skillCategory: 'research', claimedLevel: 'advanced', trustState: 'revoked', trustLabel: 'Revoked', isCurrentlyVerified: false, proficiencyScore: null, proficiencyEvidenced: false, evidenceCount: 1, evidence: [] },
 ];
 
 const REVIEW_QUEUE = [
@@ -158,8 +165,8 @@ const CANDIDATE = {
   applicationSkillSnapshot: {
     capturedAt: '2026-06-01T00:00:00.000Z',
     skills: [
-      { skillName: LONG_SKILL, skillCategory: 'technical', claimedLevel: 'advanced', trustState: 'claimed', isCurrentlyVerified: false, evidenceCount: 0 },
-      { skillName: 'Figma', skillCategory: 'design', claimedLevel: 'expert', trustState: 'evidence_submitted', isCurrentlyVerified: false, evidenceCount: 1 },
+      { skillName: LONG_SKILL, skillCategory: 'technical', claimedLevel: 'advanced', trustState: 'claimed', isCurrentlyVerified: false, verificationMethod: null, proficiencyScore: null, proficiencyEvidenced: false, evidenceCount: 0 },
+      { skillName: 'Figma', skillCategory: 'design', claimedLevel: 'expert', trustState: 'evidence_submitted', isCurrentlyVerified: false, verificationMethod: null, proficiencyScore: null, proficiencyEvidenced: false, evidenceCount: 1 },
     ],
   },
 };
@@ -339,8 +346,9 @@ async function run() {
       await delay(250);
       const info = await responsiveChecks(`student skills ${width}x${height}`);
       check(/Skills & evidence/i.test(info.text), `student skills ${width}: claim manager rendered`);
-      // Distinct trust states, never one generic checkmark
-      for (const state of ['Claimed', 'Verified', 'Expired', 'Revoked', 'Evidence submitted']) {
+      // Distinct trust states, never one generic checkmark. Note "Assessment
+      // verified" rather than a bare "Verified": the method is part of the claim.
+      for (const state of ['Claimed', 'Assessment verified', 'Expired', 'Revoked', 'Evidence submitted']) {
         check(info.text.includes(state), `student skills ${width}: '${state}' state shown distinctly`);
       }
       // The long skill name and the long GitHub host must not force a scroll
@@ -433,6 +441,28 @@ async function run() {
       const info = await responsiveChecks(`employer skills ${width}x${height}`);
       check(/Skills & evidence/i.test(info.text), `employer skills ${width}: panel rendered`);
       check(/Evidence-backed/i.test(info.text), `employer skills ${width}: evidence-backed shown as its own state`);
+      /*
+       *   Evidence-backed != Skill verified != Assessment verified
+       * All three are on screen at once here, and each must read differently.
+       */
+      check(/Assessment verified/i.test(info.text), `employer skills ${width}: assessment-verified named distinctly`);
+      check(/Credential verified/i.test(info.text), `employer skills ${width}: credential-verified named distinctly`);
+      check(
+        !/(^|[^t])\bVerified\b(?! )/m.test(info.text.replace(/Assessment verified|Credential verified|Reference verified|Verified \d/gi, '')),
+        `employer skills ${width}: no bare "Verified" badge that hides the method`
+      );
+      // A score appears only against the assessed skill, never the others
+      check(/Assessed proficiency: 74\/100/.test(info.text), `employer skills ${width}: measured score shown`);
+      check(
+        (info.text.match(/Assessed proficiency/g) || []).length === 1,
+        `employer skills ${width}: only the assessed skill may show a score`
+      );
+      // A self-reported level must never read as substantiated
+      check(/self-reported: beginner/i.test(info.text), `employer skills ${width}: claimed level marked self-reported`);
+      check(
+        !/self-reported: expert/i.test(info.text),
+        `employer skills ${width}: an assessed skill shows its measured result, not a self-reported level`
+      );
       check(/At time of application/i.test(info.text), `employer skills ${width}: application-time snapshot distinguished from current`);
       check(/Current profile/i.test(info.text), `employer skills ${width}: current profile labelled`);
       check(info.smallTargets === 0, `employer skills ${width}: control smaller than a usable target`);
@@ -472,6 +502,32 @@ async function run() {
     await delay(250);
     const decision = await responsiveChecks('admin decision form 320');
     check(/Method \(required\)/i.test(decision.text), 'admin: method is required and labelled');
+    /*
+     * The policy invariant, as the reviewer actually meets it: with manual
+     * evidence review selected — the method for reading someone's GitHub or
+     * Figma link — "Verify skill" is not offered at all. It is withheld rather
+     * than shown and then refused.
+     */
+    const outcomeOptions = await client.evaluate(`(() => {
+      // Match on the decision verbs, not on "evidence-backed" alone — the
+      // queue's own status filter also carries that word.
+      const select = [...document.querySelectorAll('[data-skill-surface="review"] select')]
+        .find(s => [...s.options].some(o => /Mark evidence-backed|Request information/i.test(o.textContent)));
+      return select ? [...select.options].map(o => o.textContent.trim()) : null;
+    })()`);
+    check(Array.isArray(outcomeOptions), 'admin: outcome selector present');
+    check(
+      (outcomeOptions || []).some((o) => /Mark evidence-backed/i.test(o)),
+      'admin: evidence-backed offered for a link review'
+    );
+    check(
+      !(outcomeOptions || []).some((o) => /Verify skill/i.test(o)),
+      `admin: manual evidence review must not offer verification — got ${JSON.stringify(outcomeOptions)}`
+    );
+    check(
+      /stops at evidence-backed/i.test(decision.text),
+      'admin: the reviewer is told why this method cannot verify'
+    );
     check(/Reason \(required/i.test(decision.text), 'admin: reason is required and labelled');
     check(/Evidence this decision rests on \(required\)/i.test(decision.text), 'admin: evidence citation is required');
     // The submit stays disabled until every requirement the server enforces is met
