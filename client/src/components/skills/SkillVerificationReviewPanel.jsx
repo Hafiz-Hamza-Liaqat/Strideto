@@ -234,6 +234,7 @@ function DecisionForm({ claim, onDone, onError }) {
   const { can } = usePermissions();
   const [method, setMethod] = useState(ENABLED_METHODS[0]);
   const [reason, setReason] = useState('');
+  const [applicantVisibleRequest, setApplicantVisibleRequest] = useState('');
   const [refs, setRefs] = useState([]);
   const [rubricId, setRubricId] = useState('');
   const [rubricVersion, setRubricVersion] = useState('');
@@ -244,6 +245,7 @@ function DecisionForm({ claim, onDone, onError }) {
   const outcomeId = useId();
   const methodId = useId();
   const reasonId = useId();
+  const applicantRequestId = useId();
   const rubricIdField = useId();
   const rubricVersionField = useId();
   const corroborationId = useId();
@@ -267,6 +269,7 @@ function DecisionForm({ claim, onDone, onError }) {
   const outcome = OUTCOMES.find((o) => o.value === toStatus);
   const needsEvidence = Boolean(outcome?.needsEvidence);
   const verifying = toStatus === SKILL_CLAIM_STATUSES.VERIFIED;
+  const needsApplicantRequest = toStatus === SKILL_CLAIM_STATUSES.NEEDS_INFORMATION;
   const citedTypes = (claim.evidence ?? [])
     .filter((e) => refs.includes(e.id))
     .map((e) => e.evidenceType);
@@ -279,6 +282,7 @@ function DecisionForm({ claim, onDone, onError }) {
   const needsCorroboration = verifying && Boolean(policy?.requiresCorroboration);
 
   const ready = Boolean(toStatus) && Boolean(method) && reason.trim().length > 0
+    && (!needsApplicantRequest || applicantVisibleRequest.trim().length > 0)
     && (!needsEvidence || refs.length > 0)
     && (!needsIssuerAnchored || issuerAnchoredCited)
     && (!needsRubric || (rubricId.trim() && String(rubricVersion).trim()))
@@ -301,6 +305,7 @@ function DecisionForm({ claim, onDone, onError }) {
         toStatus,
         method,
         reason: reason.trim(),
+        applicantVisibleRequest: needsApplicantRequest ? applicantVisibleRequest.trim() : '',
         evidenceRefs: needsEvidence ? refs : [],
         // Sent only when the method actually measures or corroborates. A score
         // travels solely with an assessment; the server refuses one otherwise.
@@ -482,9 +487,28 @@ function DecisionForm({ claim, onDone, onError }) {
         </fieldset>
       )}
 
+      {needsApplicantRequest && (
+        <div className="flex min-w-0 flex-col gap-1 sm:col-span-2">
+          <label htmlFor={applicantRequestId} className="text-xs font-medium text-gray-700 dark:text-gray-300">
+            Instructions shown to the applicant (required)
+          </label>
+          <textarea
+            id={applicantRequestId}
+            value={applicantVisibleRequest}
+            rows={2}
+            maxLength={SKILL_CLAIM_LIMITS.MAX_APPLICANT_VISIBLE_REQUEST_LENGTH}
+            onChange={(e) => setApplicantVisibleRequest(e.target.value)}
+            className="w-full min-w-0 rounded-lg border border-gray-300 bg-white px-3 py-2 text-sm dark:border-gray-600 dark:bg-gray-900"
+          />
+          <span className="break-words text-[11px] text-gray-500 dark:text-gray-400">
+            State exactly what evidence or correction is needed. This text appears in the applicant&apos;s notification.
+          </span>
+        </div>
+      )}
+
       <div className="flex min-w-0 flex-col gap-1 sm:col-span-2">
         <label htmlFor={reasonId} className="text-xs font-medium text-gray-700 dark:text-gray-300">
-          Reason (required, recorded in history)
+          Internal review reason (required, not shown to the applicant)
         </label>
         <textarea
           id={reasonId}
@@ -509,6 +533,7 @@ function DecisionForm({ claim, onDone, onError }) {
             {[
               'method',
               'reason',
+              needsApplicantRequest ? 'applicant instructions' : null,
               needsEvidence ? 'cited evidence' : null,
               needsIssuerAnchored ? 'a credential among the cited evidence' : null,
               needsRubric ? 'rubric and version' : null,

@@ -46,6 +46,7 @@ import {
   isValidSkillEvidenceType,
   validateEvidenceUrl,
   validateEvidenceDescription,
+  validateApplicantVisibleRequest,
   validateSkillName,
   deriveCurrentTrustState,
   buildSkillSnapshot,
@@ -56,8 +57,61 @@ import {
   APPLICANT_CLAIM_INPUT_FIELDS,
   APPLICANT_EVIDENCE_INPUT_FIELDS,
 } from '../../../../shared/career/skillVerification.js';
+import {
+  emitSkillTrustNotifications,
+  reconcileSkillTrustNotifications,
+  SKILL_TRUST_IN_APP_DELIVERY,
+} from './skillTrustNotificationBridge.js';
 
 const S = SKILL_CLAIM_STATUSES;
+
+/**
+ * Commit a status transition atomically.
+ *
+ * Compare-and-set on the status we authorized FROM. Two reviewers deciding the
+ * same claim concurrently both pass the pure authorization check — it runs
+ * against a read copy — so without this guard both would write, producing two
+ * verifications, two history rows and two contradictory notifications for one
+ * decision. The conditional update makes exactly one of them the winner; the
+ * loser is told the claim moved.
+ *
+ * @returns {Promise<object|null>} the updated claim, or null if someone else won
+ */
+async function commitStatusTransition({ claimId, fromStatus, set, inc = null }) {
+  const update = { $set: set };
+  // Counters ride along as `$inc` so a concurrent writer's increment is never
+  // clobbered by a value computed from this request's stale read.
+  if (inc) update.$inc = inc;
+  return UserSkillClaim.findOneAndUpdate({ _id: claimId, status: fromStatus }, update, { new: true });
+}
+
+/**
+ * Fire notifications for a committed transition.
+ *
+ * Deliberately awaited but never allowed to throw: trust state is already
+ * durable at this point. The returned status distinguishes a successfully
+ * ensured inbox row from a recoverable pending-reconciliation side effect.
+ */
+async function notifyTransition({ claim, history }) {
+  try {
+    return await emitSkillTrustNotifications({
+      claim,
+      fromStatus: history.fromStatus,
+      toStatus: history.toStatus,
+      historyId: history._id,
+      applicantVisibleRequest: history.applicantVisibleRequest ?? '',
+      occurredAt: history.occurredAt,
+    });
+  } catch {
+    return {
+      created: 0,
+      skipped: 0,
+      failed: 1,
+      status: SKILL_TRUST_IN_APP_DELIVERY.PENDING_RECONCILIATION,
+      transitionId: String(history._id),
+    };
+  }
+}
 
 /** Realms that may ever act on a skill claim. Everything else is refused. */
 const USER_REALM = 'user';
@@ -90,7 +144,15 @@ function fail(code, status, message, extra = {}) {
  * @returns {{ ok: true, actorClass: string, requirements: object }
  *          | { ok: false, code: string, status: number, message: string }}
  */
-export function authorizeClaimTransition({ claim, toStatus, actor, method, reason, evidenceRefs } = {}) {
+export function authorizeClaimTransition({
+  claim,
+  toStatus,
+  actor,
+  method,
+  reason,
+  evidenceRefs,
+  applicantVisibleRequest,
+} = {}) {
   if (!claim || !isValidClaimStatus(claim.status)) {
     return fail('CLAIM_NOT_FOUND', 404, 'Skill claim not found');
   }
@@ -206,6 +268,31 @@ export function authorizeClaimTransition({ claim, toStatus, actor, method, reaso
     }
   }
 
+  let safeApplicantVisibleRequest = '';
+  if (requirements.requiresApplicantVisibleRequest) {
+    const request = validateApplicantVisibleRequest(applicantVisibleRequest);
+    if (!request.ok) {
+      const code = request.reason === 'too_long'
+        ? 'APPLICANT_VISIBLE_REQUEST_TOO_LONG'
+        : 'APPLICANT_VISIBLE_REQUEST_INVALID';
+      return fail(
+        code,
+        422,
+        'Plain-text instructions for the applicant are required when requesting more information'
+      );
+    }
+    safeApplicantVisibleRequest = request.value;
+  } else if (
+    typeof applicantVisibleRequest === 'string' &&
+    applicantVisibleRequest.trim().length > 0
+  ) {
+    return fail(
+      'APPLICANT_VISIBLE_REQUEST_NOT_ALLOWED',
+      422,
+      'Applicant-visible instructions are only accepted for needs-information decisions'
+    );
+  }
+
   if (requirements.requiresEvidenceRef) {
     const refs = Array.isArray(evidenceRefs) ? evidenceRefs : [];
     if (refs.length === 0) {
@@ -220,7 +307,12 @@ export function authorizeClaimTransition({ claim, toStatus, actor, method, reaso
     }
   }
 
-  return { ok: true, actorClass: TRANSITION_ACTORS.REVIEWER, requirements };
+  return {
+    ok: true,
+    actorClass: TRANSITION_ACTORS.REVIEWER,
+    requirements,
+    applicantVisibleRequest: safeApplicantVisibleRequest,
+  };
 }
 
 /**
@@ -337,6 +429,7 @@ async function appendHistory({
   actorClass,
   method = null,
   reason = '',
+  applicantVisibleRequest = '',
   evidenceRefs = [],
   verificationId = null,
   correlationId = '',
@@ -352,6 +445,7 @@ async function appendHistory({
     actorClass,
     method,
     reason,
+    applicantVisibleRequest,
     evidenceRefs,
     verificationId,
     correlationId,
@@ -439,27 +533,42 @@ export async function addEvidence({ userId, claimId, payload, correlationId = ''
     status: SKILL_EVIDENCE_STATUSES.SUBMITTED,
   });
 
-  claim.evidenceCount = existingCount + 1;
-  if (shouldTransition) {
-    claim.status = S.EVIDENCE_SUBMITTED;
-    claim.statusChangedAt = new Date();
-  }
-  await claim.save();
-
-  if (shouldTransition) {
-    await appendHistory({
-      claim,
-      fromStatus,
-      toStatus: S.EVIDENCE_SUBMITTED,
-      actor,
-      actorClass: TRANSITION_ACTORS.APPLICANT,
-      reason: 'Evidence attached by applicant',
-      evidenceRefs: [evidence._id],
-      correlationId,
-    });
+  if (!shouldTransition) {
+    // Additional evidence on an already-submitted claim: the counter moves, the
+    // trust state does not, and no state-change notification is warranted.
+    await UserSkillClaim.updateOne({ _id: claim._id }, { $inc: { evidenceCount: 1 } });
+    claim.evidenceCount = existingCount + 1;
+    return { ok: true, evidence, claim };
   }
 
-  return { ok: true, evidence, claim };
+  const now = new Date();
+  const committed = await commitStatusTransition({
+    claimId: claim._id,
+    fromStatus,
+    set: { status: S.EVIDENCE_SUBMITTED, statusChangedAt: now },
+    inc: { evidenceCount: 1 },
+  });
+  if (!committed) {
+    // Lost the race — the evidence is stored, but this request did not own the
+    // transition, so it must not append history or notify a second time.
+    await UserSkillClaim.updateOne({ _id: claim._id }, { $inc: { evidenceCount: 1 } });
+    return { ok: true, evidence, claim: await UserSkillClaim.findById(claim._id) };
+  }
+
+  const history = await appendHistory({
+    claim: committed,
+    fromStatus,
+    toStatus: S.EVIDENCE_SUBMITTED,
+    actor,
+    actorClass: TRANSITION_ACTORS.APPLICANT,
+    reason: 'Evidence attached by applicant',
+    evidenceRefs: [evidence._id],
+    correlationId,
+  });
+
+  const notificationDelivery = await notifyTransition({ claim: committed, history });
+
+  return { ok: true, evidence, claim: committed, notificationDelivery };
 }
 
 /** Applicant submits their evidence-backed claim for review. */
@@ -484,12 +593,20 @@ export async function submitForReview({ userId, claimId, correlationId = '' }) {
   }
 
   const fromStatus = claim.status;
-  claim.status = S.VERIFICATION_PENDING;
-  claim.statusChangedAt = new Date();
-  await claim.save();
+  const now = new Date();
+  const committed = await commitStatusTransition({
+    claimId: claim._id,
+    fromStatus,
+    set: { status: S.VERIFICATION_PENDING, statusChangedAt: now },
+  });
+  // A double-submit races here: only the request that actually moved the claim
+  // queues it for review and tells the reviewers about it.
+  if (!committed) {
+    return fail('CLAIM_STATE_CHANGED', 409, 'This skill claim was already updated');
+  }
 
-  await appendHistory({
-    claim,
+  const history = await appendHistory({
+    claim: committed,
     fromStatus,
     toStatus: S.VERIFICATION_PENDING,
     actor,
@@ -498,7 +615,9 @@ export async function submitForReview({ userId, claimId, correlationId = '' }) {
     correlationId,
   });
 
-  return { ok: true, claim };
+  const notificationDelivery = await notifyTransition({ claim: committed, history });
+
+  return { ok: true, claim: committed, notificationDelivery };
 }
 
 /**
@@ -516,6 +635,7 @@ export async function recordVerificationDecision({
   method,
   reason,
   evidenceRefs = [],
+  applicantVisibleRequest = '',
   /** { rubricId, rubricVersion, score } — required by rubric-scored methods. */
   assessment = null,
   /** Issuer or referee actually contacted, for methods that demand one. */
@@ -536,6 +656,7 @@ export async function recordVerificationDecision({
     method,
     reason,
     evidenceRefs,
+    applicantVisibleRequest,
   });
   if (!decision.ok) return decision;
 
@@ -602,13 +723,63 @@ export async function recordVerificationDecision({
           : null))
       : null;
 
+  const fromStatus = claim.status;
+
+  /*
+   * The verification id is allocated BEFORE anything is written so the claim
+   * transition can be the compare-and-set that decides the race. Creating the
+   * SkillVerification first (as this originally did) meant a reviewer who lost
+   * a concurrent decision had already written a verification record that no
+   * claim pointed at — a permanent orphan in the trust audit trail, and, once
+   * notifications exist, a second contradictory alert for one decision.
+   */
+  const verificationId = new mongoose.Types.ObjectId();
+
+  const set = {
+    status: toStatus,
+    statusChangedAt: now,
+    currentVerificationId: verificationId,
+    // Null unless a scoring assessment produced one — evidence-backed never does.
+    proficiencyScore,
+    verificationMethod: grantsTrust ? method : null,
+  };
+
+  if (toStatus === S.VERIFIED) {
+    set.verifiedBy = actor.id;
+    set.verifiedByRole = actor.role;
+    set.verifiedAt = now;
+    set.expiresAt = effectiveExpiry;
+  } else {
+    // Any non-verified outcome clears prior verified standing outright.
+    set.verifiedBy = null;
+    set.verifiedByRole = '';
+    set.verifiedAt = null;
+    if (toStatus !== S.EVIDENCE_BACKED) set.expiresAt = null;
+  }
+
+  if (toStatus === S.REVOKED) {
+    set.revokedAt = now;
+    set.revokedBy = actor.id;
+  }
+
+  const committed = await commitStatusTransition({ claimId: claim._id, fromStatus, set });
+  if (!committed) {
+    return fail(
+      'CLAIM_STATE_CHANGED',
+      409,
+      'This skill claim was decided by another reviewer; reload before deciding again'
+    );
+  }
+
   const verification = await SkillVerification.create({
+    _id: verificationId,
     claimId: claim._id,
     userId: claim.userId,
     outcome: toStatus,
     method,
     evidenceRefs: resolvedEvidence.map((e) => e._id),
     reason: String(reason).trim(),
+    applicantVisibleRequest: decision.applicantVisibleRequest,
     actorId: actor.id,
     actorRole: actor.role,
     actorRealm: actor.realm,
@@ -634,48 +805,28 @@ export async function recordVerificationDecision({
     );
   }
 
-  const fromStatus = claim.status;
-  claim.status = toStatus;
-  claim.statusChangedAt = now;
-  claim.currentVerificationId = verification._id;
-  // Null unless a scoring assessment produced one — evidence-backed never does.
-  claim.proficiencyScore = proficiencyScore;
-  claim.verificationMethod = grantsTrust ? method : null;
-
-  if (toStatus === S.VERIFIED) {
-    claim.verifiedBy = actor.id;
-    claim.verifiedByRole = actor.role;
-    claim.verifiedAt = now;
-    claim.expiresAt = effectiveExpiry;
-  } else {
-    // Any non-verified outcome clears prior verified standing outright.
-    claim.verifiedBy = null;
-    claim.verifiedByRole = '';
-    claim.verifiedAt = null;
-    if (toStatus !== S.EVIDENCE_BACKED) claim.expiresAt = null;
-  }
-
-  if (toStatus === S.REVOKED) {
-    claim.revokedAt = now;
-    claim.revokedBy = actor.id;
-  }
-
-  await claim.save();
-
-  await appendHistory({
-    claim,
+  const history = await appendHistory({
+    claim: committed,
     fromStatus,
     toStatus,
     actor,
     actorClass: TRANSITION_ACTORS.REVIEWER,
     method,
     reason: String(reason).trim(),
+    applicantVisibleRequest: decision.applicantVisibleRequest,
     evidenceRefs: resolvedEvidence.map((e) => e._id),
     verificationId: verification._id,
     correlationId,
   });
 
-  return { ok: true, claim, verification };
+  /*
+   * Only now — after the authoritative transition is durable — may anything
+   * announce it. A "verification approved" notification cannot precede or
+   * outlive the transition that earned it.
+   */
+  const notificationDelivery = await notifyTransition({ claim: committed, history });
+
+  return { ok: true, claim: committed, verification, notificationDelivery };
 }
 
 /**
@@ -699,13 +850,19 @@ export async function applyExpiry({ claimId, correlationId = '' }, now = new Dat
   }
 
   const fromStatus = claim.status;
-  claim.status = S.EXPIRED;
-  claim.statusChangedAt = now;
-  claim.proficiencyScore = null;
-  await claim.save();
+  const committed = await commitStatusTransition({
+    claimId: claim._id,
+    fromStatus,
+    // Expiry clears any measured score: nothing current measures this any more.
+    set: { status: S.EXPIRED, statusChangedAt: now, proficiencyScore: null },
+  });
+  // A sweep running twice over the same claim expires it once.
+  if (!committed) {
+    return fail('CLAIM_STATE_CHANGED', 409, 'This skill claim was already updated');
+  }
 
-  await appendHistory({
-    claim,
+  const history = await appendHistory({
+    claim: committed,
     fromStatus,
     toStatus: S.EXPIRED,
     actor,
@@ -714,7 +871,9 @@ export async function applyExpiry({ claimId, correlationId = '' }, now = new Dat
     correlationId,
   });
 
-  return { ok: true, claim };
+  const notificationDelivery = await notifyTransition({ claim: committed, history });
+
+  return { ok: true, claim: committed, notificationDelivery };
 }
 
 // ---------------------------------------------------------------------------
@@ -902,6 +1061,35 @@ export async function listPublicClaims({ userId }) {
   return claims.map((claim) => projectClaimForPublic(claim, now));
 }
 
+/** Pure read-authority decision for the private transition history. */
+export function authorizeClaimHistoryRead({ claim, actor }) {
+  const isOwner =
+    actor?.realm === USER_REALM &&
+    String(actor?.id ?? '') === String(claim.userId);
+  const isReviewer =
+    actor?.realm === USER_REALM &&
+    isStaffRole(actor?.role) &&
+    hasPermission(actor.role, 'skill_verification:read');
+  return { allowed: isOwner || isReviewer, isOwner, isReviewer };
+}
+
+/** Pure privacy projection: internal reasons are reviewer-only. */
+export function projectClaimHistory(history, { isReviewer = false } = {}) {
+  return history.map((h) => ({
+    fromStatus: h.fromStatus,
+    toStatus: h.toStatus,
+    actorClass: h.actorClass,
+    // Reviewer identity stays internal; the owner sees the role, not the person.
+    actorRole: h.actorRole,
+    method: h.method,
+    ...(isReviewer ? { reason: h.reason } : {}),
+    ...(h.toStatus === S.NEEDS_INFORMATION && h.applicantVisibleRequest
+      ? { applicantVisibleRequest: h.applicantVisibleRequest }
+      : {}),
+    occurredAt: h.occurredAt,
+  }));
+}
+
 /** Append-only history for one claim. Owner or authorized reviewer only. */
 export async function getClaimHistory({ claimId, actor }) {
   if (!mongoose.Types.ObjectId.isValid(claimId)) {
@@ -910,14 +1098,8 @@ export async function getClaimHistory({ claimId, actor }) {
   const claim = await UserSkillClaim.findById(claimId).lean();
   if (!claim) return fail('CLAIM_NOT_FOUND', 404, 'Skill claim not found');
 
-  const isOwner = String(actor?.id ?? '') === String(claim.userId);
-  const isReviewer =
-    actor?.realm === USER_REALM &&
-    isStaffRole(actor?.role) &&
-    hasPermission(actor.role, 'skill_verification:read');
-  if (!isOwner && !isReviewer) {
-    return fail('CLAIM_NOT_FOUND', 404, 'Skill claim not found');
-  }
+  const authority = authorizeClaimHistoryRead({ claim, actor });
+  if (!authority.allowed) return fail('CLAIM_NOT_FOUND', 404, 'Skill claim not found');
 
   const history = await SkillVerificationHistory.find({ claimId })
     .sort({ occurredAt: -1 })
@@ -926,16 +1108,7 @@ export async function getClaimHistory({ claimId, actor }) {
 
   return {
     ok: true,
-    history: history.map((h) => ({
-      fromStatus: h.fromStatus,
-      toStatus: h.toStatus,
-      actorClass: h.actorClass,
-      // Reviewer identity stays internal; the owner sees the role, not the person.
-      actorRole: h.actorRole,
-      method: h.method,
-      reason: h.reason,
-      occurredAt: h.occurredAt,
-    })),
+    history: projectClaimHistory(history, authority),
   };
 }
 
@@ -962,11 +1135,14 @@ export const skillVerificationService = {
   submitForReview,
   recordVerificationDecision,
   applyExpiry,
+  reconcileSkillTrustNotifications,
   listOwnClaims,
   assertEmployerMayViewApplicant,
   listClaimsForEmployer,
   listClaimsForReview,
   listPublicClaims,
+  authorizeClaimHistoryRead,
+  projectClaimHistory,
   getClaimHistory,
   buildApplicationSkillSnapshot,
 };

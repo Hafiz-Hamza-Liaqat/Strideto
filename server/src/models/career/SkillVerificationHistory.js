@@ -48,6 +48,16 @@ const skillVerificationHistorySchema = new mongoose.Schema(
 
     method: { type: String, enum: [...Object.values(VERIFICATION_METHODS), null], default: null },
     reason: { type: String, trim: true, default: '', maxlength: SKILL_CLAIM_LIMITS.MAX_REASON_LENGTH },
+    /** Applicant-safe instructions; deliberately independent from internal reason. */
+    applicantVisibleRequest: {
+      type: String,
+      trim: true,
+      default: '',
+      required() {
+        return this.toStatus === SKILL_CLAIM_STATUSES.NEEDS_INFORMATION;
+      },
+      maxlength: SKILL_CLAIM_LIMITS.MAX_APPLICANT_VISIBLE_REQUEST_LENGTH,
+    },
     evidenceRefs: {
       type: [{ type: mongoose.Schema.Types.ObjectId, ref: 'SkillEvidence' }],
       default: [],

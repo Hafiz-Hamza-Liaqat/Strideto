@@ -51,6 +51,12 @@ function sendFailure(res, result) {
   });
 }
 
+/** Public status only; recipient fan-out counts remain internal. */
+function projectNotificationDelivery(delivery) {
+  if (!delivery?.status) return null;
+  return { inAppStatus: delivery.status, externalStatus: 'NOT_CONFIGURED' };
+}
+
 // ---------------------------------------------------------------------------
 // Applicant
 // ---------------------------------------------------------------------------
@@ -102,6 +108,7 @@ export const addSkillEvidence = asyncHandler(async (req, res) => {
     },
     // Named explicitly so no client can mistake "submitted" for "verified".
     trustState: result.claim.status,
+    notificationDelivery: projectNotificationDelivery(result.notificationDelivery),
   });
 });
 
@@ -112,7 +119,10 @@ export const submitSkillClaimForReview = asyncHandler(async (req, res) => {
     correlationId: req.id ?? '',
   });
   if (!result.ok) return sendFailure(res, result);
-  return res.json({ data: { trustState: result.claim.status } });
+  return res.json({
+    data: { trustState: result.claim.status },
+    notificationDelivery: projectNotificationDelivery(result.notificationDelivery),
+  });
 });
 
 export const getSkillClaimHistory = asyncHandler(async (req, res) => {
@@ -156,14 +166,23 @@ export const getApplicantSkillsForEmployer = asyncHandler(async (req, res) => {
  * audited path; each maps to a different required permission.
  */
 export const recordSkillVerification = asyncHandler(async (req, res) => {
-  const { toStatus, method, reason, evidenceRefs, assessment, corroborationRef, expiresAt } =
-    req.body ?? {};
+  const {
+    toStatus,
+    method,
+    reason,
+    applicantVisibleRequest,
+    evidenceRefs,
+    assessment,
+    corroborationRef,
+    expiresAt,
+  } = req.body ?? {};
   const result = await skillVerificationService.recordVerificationDecision({
     actor: actorFromRequest(req),
     claimId: req.params.claimId,
     toStatus,
     method,
     reason,
+    applicantVisibleRequest,
     evidenceRefs: Array.isArray(evidenceRefs) ? evidenceRefs : [],
     // Reviewer-supplied provenance. The service decides whether the method
     // policy actually requires these, and refuses the decision without them.
@@ -184,6 +203,7 @@ export const recordSkillVerification = asyncHandler(async (req, res) => {
       verifiedAt: result.claim.verifiedAt,
       expiresAt: result.claim.expiresAt,
     },
+    notificationDelivery: projectNotificationDelivery(result.notificationDelivery),
   });
 });
 

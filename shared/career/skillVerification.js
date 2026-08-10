@@ -124,7 +124,7 @@ const TRANSITION_REQUIREMENTS = Object.freeze({
   [S.VERIFICATION_PENDING]: { actor: TRANSITION_ACTORS.APPLICANT, permission: null, requiresMethod: false, requiresReason: false, requiresEvidenceRef: false },
   [S.EVIDENCE_BACKED]: { actor: TRANSITION_ACTORS.REVIEWER, permission: P.REVIEW, requiresMethod: true, requiresReason: true, requiresEvidenceRef: true },
   [S.VERIFIED]: { actor: TRANSITION_ACTORS.REVIEWER, permission: P.APPROVE, requiresMethod: true, requiresReason: true, requiresEvidenceRef: true },
-  [S.NEEDS_INFORMATION]: { actor: TRANSITION_ACTORS.REVIEWER, permission: P.REVIEW, requiresMethod: true, requiresReason: true, requiresEvidenceRef: false },
+  [S.NEEDS_INFORMATION]: { actor: TRANSITION_ACTORS.REVIEWER, permission: P.REVIEW, requiresMethod: true, requiresReason: true, requiresEvidenceRef: false, requiresApplicantVisibleRequest: true },
   [S.REJECTED]: { actor: TRANSITION_ACTORS.REVIEWER, permission: P.REVIEW, requiresMethod: true, requiresReason: true, requiresEvidenceRef: false },
   [S.REVOKED]: { actor: TRANSITION_ACTORS.REVIEWER, permission: P.REVOKE, requiresMethod: true, requiresReason: true, requiresEvidenceRef: false },
   [S.EXPIRED]: { actor: TRANSITION_ACTORS.SYSTEM, permission: null, requiresMethod: false, requiresReason: false, requiresEvidenceRef: false },
@@ -471,6 +471,7 @@ export const SKILL_CLAIM_LIMITS = Object.freeze({
   MAX_DESCRIPTION_LENGTH: 500,
   MAX_SKILL_NAME_LENGTH: 80,
   MAX_REASON_LENGTH: 1000,
+  MAX_APPLICANT_VISIBLE_REQUEST_LENGTH: 500,
   MAX_EVIDENCE_REFS_PER_VERIFICATION: 10,
 });
 
@@ -638,6 +639,28 @@ export function validateEvidenceDescription(rawValue) {
   return { ok: true, value: trimmed };
 }
 
+/**
+ * Validate instructions deliberately written for an applicant.
+ *
+ * This is separate from the reviewer's internal `reason`: only this bounded,
+ * plain-text value may cross the review boundary into applicant history and
+ * notification copy. Markup is rejected rather than interpreted or stored.
+ */
+export function validateApplicantVisibleRequest(rawValue) {
+  if (typeof rawValue !== 'string') return { ok: false, reason: 'not_a_string' };
+  const trimmed = rawValue.normalize('NFKC').trim().replace(/\s+/g, ' ');
+  if (!trimmed) return { ok: false, reason: 'empty' };
+  if (trimmed.length > SKILL_CLAIM_LIMITS.MAX_APPLICANT_VISIBLE_REQUEST_LENGTH) {
+    return { ok: false, reason: 'too_long' };
+  }
+  if (/[<>]/.test(trimmed)) return { ok: false, reason: 'markup_injection' };
+  if (hasControlCharacters(trimmed)) return { ok: false, reason: 'control_characters' };
+  if (/\b(?:skill|claim)\b[^.!?]{0,50}\bis verified\b|\bverification approved\b/i.test(trimmed)) {
+    return { ok: false, reason: 'trust_promotion' };
+  }
+  return { ok: true, value: trimmed };
+}
+
 // ---------------------------------------------------------------------------
 // 6b. Verification sufficiency — is this outcome actually earned?
 // ---------------------------------------------------------------------------
@@ -802,6 +825,7 @@ export const TRUST_CONTROLLED_FIELDS = Object.freeze([
   'rubricId',
   'rubricVersion',
   'corroborationRef',
+  'applicantVisibleRequest',
   'verifiedBy',
   'verifiedByRole',
   'verifiedAt',

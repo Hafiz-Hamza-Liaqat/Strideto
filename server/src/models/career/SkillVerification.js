@@ -71,6 +71,20 @@ const skillVerificationSchema = new mongoose.Schema(
       maxlength: SKILL_CLAIM_LIMITS.MAX_REASON_LENGTH,
     },
 
+    /**
+     * Plain-text instructions intentionally shared with the applicant when the
+     * outcome is `needs_information`. This is never inferred from `reason`.
+     */
+    applicantVisibleRequest: {
+      type: String,
+      trim: true,
+      default: '',
+      required() {
+        return this.outcome === SKILL_CLAIM_STATUSES.NEEDS_INFORMATION;
+      },
+      maxlength: SKILL_CLAIM_LIMITS.MAX_APPLICANT_VISIBLE_REQUEST_LENGTH,
+    },
+
     // --- Actor: always derived from the authenticated session ---
     actorId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     actorRole: { type: String, trim: true, required: true },

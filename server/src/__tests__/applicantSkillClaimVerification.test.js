@@ -344,7 +344,7 @@ await check('9. applicant cannot set verifiedBy / verifiedAt / trust badge / exp
     'verifiedBy', 'verifiedByRole', 'verifiedAt', 'verificationLevel',
     'trustBadge', 'badges', 'status', 'verificationStatus', 'expiresAt',
     'revokedAt', 'revokedBy', 'currentVerificationId', 'verificationMethod',
-    'method', 'evidenceStatus', 'reviewedBy', 'reviewedAt',
+    'method', 'applicantVisibleRequest', 'evidenceStatus', 'reviewedBy', 'reviewedAt',
   ];
   for (const field of forbidden) {
     const claimRes = svc.validateClaimInput({ skillName: 'React', [field]: 'x' });
@@ -440,6 +440,9 @@ await check('12. staff without the specific permission cannot verify or revoke',
       method: M.MANUAL_EVIDENCE_REVIEW,
       reason: 'Evidence reviewed',
       evidenceRefs: [EVIDENCE_ID],
+      ...(target === S.NEEDS_INFORMATION
+        ? { applicantVisibleRequest: 'Please provide another professional profile.' }
+        : {}),
     });
     assert.strictEqual(d.ok, true, `Moderator must be able to set ${target}: ${d.code}`);
   }
