@@ -2,8 +2,8 @@
  * Authentication realm boundaries (user vs employer vs agent vs public).
  * Pure path logic — safe to unit-test without React.
  */
-import { isAgentPortalPath, isAgentPublicAuthPath } from './agentAuthRealm';
-import { isInstitutionPortalPath, isInstitutionPublicAuthPath } from './institutionAuthRealm';
+import { isAgentPortalPath, isAgentPublicAuthPath } from './agentAuthRealm.js';
+import { isInstitutionPortalPath, isInstitutionPublicAuthPath } from './institutionAuthRealm.js';
 
 export const EMPLOYER_PUBLIC_AUTH_PATHS = ['/employer/login', '/employer/register'];
 

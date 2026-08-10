@@ -210,6 +210,8 @@ export const GUARANTEE_PATTERNS = Object.freeze([
   /\bwill\s+definitely\s+get\s+(?:a\s+)?visa\b/i,
   /\bwill\s+definitely\s+be\s+admitted\b/i,
   /\bwill\s+definitely\s+receive\s+(?:the\s+)?scholarship\b/i,
+  // Verb form: "we guarantee your admission", "I can guarantee you a visa".
+  /\bguarantees?\b[^.!?]{0,40}\b(admission|visa|scholarship|job|employment|acceptance)\b/i,
 ]);
 
 export function containsGuaranteeLanguage(text) {
@@ -224,8 +226,9 @@ export function containsGuaranteeLanguage(text) {
  * These are signals to downgrade trust, not definitive detection.
  */
 export const INJECTION_PATTERNS = Object.freeze([
-  /ignore\s+(previous|all|above|prior)\s+instructions?/i,
-  /disregard\s+(previous|all|above|prior)\s+instructions?/i,
+  // "ignore all previous instructions", "disregard the above instruction",
+  // "forget your prior instructions" — qualifiers may stack in any order.
+  /\b(ignore|disregard|forget)\b(?:\s+\w+){0,4}?\s+instructions?\b/i,
   /you\s+are\s+now\s+(?:a|an)\s+/i,
   /system\s+prompt\s*:/i,
   /\[SYSTEM\]/i,

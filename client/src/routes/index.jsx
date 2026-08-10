@@ -7,6 +7,7 @@ import { ProtectedRoute } from '../components/auth/ProtectedRoute';
 import { ProtectedEmployerRoute } from '../components/employer/ProtectedEmployerRoute';
 import { ProtectedAgentRoute } from '../components/agent/ProtectedAgentRoute';
 import { ProtectedInstitutionRoute } from '../components/institution/ProtectedInstitutionRoute';
+import { RouteErrorBoundary } from '../components/common/RouteErrorBoundary';
 import { ROUTES } from '../constants';
 
 const Home = lazyLoad(() => import('../pages/Home/Home'));
@@ -208,9 +209,11 @@ function lazyLoad(importFn) {
   const Lazy = lazy(importFn);
   return function Wrapped(props) {
     return (
-      <Suspense fallback={<PageFallback />}>
-        <Lazy {...props} />
-      </Suspense>
+      <RouteErrorBoundary>
+        <Suspense fallback={<PageFallback />}>
+          <Lazy {...props} />
+        </Suspense>
+      </RouteErrorBoundary>
     );
   };
 }

@@ -174,7 +174,7 @@ export default function JourneyDashboard() {
                   <p className="text-sm font-medium text-gray-900 dark:text-gray-100">{app.targetTitle || app.targetType}</p>
                   {app.targetInstitution && <p className="text-xs text-gray-500 dark:text-gray-400">{app.targetInstitution}</p>}
                 </div>
-                <span className="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">{app.status.replace(/_/g, ' ')}</span>
+                <span className="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400">{(app.status || 'unknown').replace(/_/g, ' ')}</span>
               </li>
             ))}
           </ul>
@@ -191,7 +191,7 @@ export default function JourneyDashboard() {
           <ul className="space-y-2">
             {savedOpportunities.slice(0, 4).map((s) => (
               <li key={s._id} className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3">
-                <span className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">{s.entityType.replace(/_/g, ' ')}</span>
+                <span className="text-sm font-medium text-gray-900 dark:text-gray-100 capitalize">{(s.entityType || 'opportunity').replace(/_/g, ' ')}</span>
                 <span className="text-xs text-gray-400">{s.entityId}</span>
               </li>
             ))}
