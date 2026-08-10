@@ -1,0 +1,38 @@
+{
+  "manifestVersion": 1,
+  "batchId": "fixture-synthetic-batch-0001",
+  "createdAt": "2026-01-01T00:00:00.000Z",
+  "createdByProcess": "mission-25-test-fixture",
+  "environmentIntent": "test",
+  "reviewState": "draft",
+  "scope": { "label": "SYNTHETIC TEST FIXTURE — NOT REAL DATA", "countries": ["ZZ"] },
+  "sourceSnapshot": [
+    {
+      "sourceKey": "fixture-source-1",
+      "url": "https://www.example-testorg.org/policy",
+      "sourceType": "official",
+      "authorityType": "official_test_org",
+      "publisher": "Example Test Organisation (fixture)",
+      "status": "active",
+      "dataType": "test_policy",
+      "lastVerifiedAt": "2026-07-20T00:00:00.000Z"
+    }
+  ],
+  "records": [
+    {
+      "recordKey": "fixture.test.example",
+      "entityType": "test",
+      "operation": "upsert",
+      "provenance": {
+        "origin": "synthetic_fixture",
+        "sourceKeys": ["fixture-source-1"],
+        "facts": {}
+      },
+      "payload": {
+        "stableId": "fixture-example-test",
+        "name": "Example Fixture Test",
+        "category": "english_proficiency"
+      }
+    }
+  ]
+}

@@ -55,6 +55,7 @@ import { adminEducationRouter } from './adminEducation.js';
 import { adminFreshnessRouter } from './adminFreshness.js';
 import { adminAgentMarketplaceRouter } from './adminAgentMarketplace.js';
 import { adminSuperControlRouter } from './adminSuperControl.js';
+import { adminVerifiedLaunchRouter } from './adminVerifiedLaunch.js';
 
 export const adminRouter = Router();
 
@@ -63,6 +64,7 @@ adminRouter.use(adminEducationRouter);
 adminRouter.use(adminFreshnessRouter);
 adminRouter.use(adminAgentMarketplaceRouter);
 adminRouter.use(adminSuperControlRouter);
+adminRouter.use(adminVerifiedLaunchRouter);
 
 adminRouter.get('/search', requirePermission(PERMISSIONS.CONTENT_SITE), adminSearch.adminSearch);
 adminRouter.get('/search/stats', requirePermission(PERMISSIONS.CONTENT_SITE), adminSearch.adminIndexStats);
