@@ -1,0 +1,23 @@
+{
+  "manifestVersion": 1,
+  "batchId": "strideto-launch-2026-08-10-initial-001",
+  "createdAt": "2026-08-10T00:00:00.000Z",
+  "createdByProcess": "mission-25-controlled-verified-data-launch",
+  "environmentIntent": "local",
+  "reviewState": "draft",
+  "scope": {
+    "label": "Strideto initial controlled verified-data launch",
+    "corridors": [],
+    "countries": [],
+    "entityTypes": [],
+    "note": "Scope is intentionally empty. Scope is declared per batch and is never encoded universally in the schema; a future batch states its own corridor."
+  },
+  "sourceSnapshot": [],
+  "records": [],
+  "dataAcquisitionBlocker": {
+    "state": "blocked",
+    "summary": "Verified launch pack contains 0 records because repository evidence was insufficient for trustworthy launch.",
+    "detail": "Mission 25 inventoried every candidate education record already present in this repository. No record met the bar of REAL + SOURCE-BACKED. Every candidate is a demo/placeholder, a synthetic generator output, or a test fixture. Attaching an official-looking URL to those records would be exactly the fabrication this pipeline exists to prevent, so the pack is empty by design.",
+    "resolutionRequires": "A separately approved research/data acquisition operation that retrieves and records first-party evidence (official test-provider, government, institution and scholarship-provider pages) with retrieval and verification timestamps. Mission 25 performs no network access, no scraping and no live source verification."
+  }
+}
