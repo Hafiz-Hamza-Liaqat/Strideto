@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { adminApi } from '../../services/listingsService';
+import { adminApi } from '../../../services/listingsService';
 
 /**
  * Shows content lock banner for admin editors (C.7.0.6).
