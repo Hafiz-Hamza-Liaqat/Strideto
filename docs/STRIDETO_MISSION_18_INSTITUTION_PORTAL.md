@@ -437,6 +437,8 @@ No fabricated applications, Student leads, enrollments, or revenue.
 
 `server/src/__tests__/institutionPortal.test.js` — 50/50 behavioral and security tests. No DB/network. Pure JS.
 
+The Institution Portal UX closure re-executed this isolated regression after frontend/auth changes: **50/50 passed**.
+
 Tests cover:
 - Institution realm JWT isolation
 - Middleware isolation (User/Employer/Agent rejected)
@@ -461,9 +463,40 @@ Tests cover:
 
 ---
 
+## Frontend Portal UX Closure
+
+Institution-owned browser routes now cover:
+
+```
+/institution/login
+/institution
+/institution/onboarding
+/institution/profile
+/institution/programs
+/institution/programs/new
+/institution/programs/:programId/edit
+/institution/data-quality
+/institution/team
+```
+
+- `InstitutionAuthProvider` and the dedicated axios client keep Institution access tokens, refresh, logout, and realm routing isolated from User, Employer, and Agent auth.
+- Protected routing requires a resolved Institution account and active organization membership before rendering the portal.
+- Dashboard, verification/onboarding, official profile, canonical Programs, Program requirements, TestAcceptance, freshness/conflicts/history, and team/settings surfaces use the existing Mission 18 APIs.
+- Completeness, verification, canonical authority, review, and freshness remain separate textual states; the frontend does not infer approval.
+- Unsupported scholarships, invitations, commerce, Student/Vault access, Agent/Employer authority, and provider actions are stated as unavailable rather than represented by fake controls.
+- International content acceptance includes long Unicode Institution/Program names and explicit ISO currency alongside locale-aware minor-unit formatting.
+- Auth revalidation occurs when entering/leaving the Institution realm rather than on every portal subroute, preventing navigation flicker and duplicate session requests.
+
+Focused real-browser acceptance: `node scripts/verify-institution-portal-ux.mjs` — **89/89 passed** in local Chromium using intercepted deterministic fixtures and blocked external DNS.
+
+Evidence:
+
+- `docs/screenshots/responsive/mission-18-institution-mobile-320.png`
+- `docs/screenshots/responsive/mission-18-institution-desktop-1440.png`
+
 ## Build
 
-Frontend production build passes unchanged.
+Final frontend production build passes with the Institution Portal included.
 
 ---
 

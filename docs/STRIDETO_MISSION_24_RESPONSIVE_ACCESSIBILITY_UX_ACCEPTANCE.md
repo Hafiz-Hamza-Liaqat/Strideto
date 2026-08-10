@@ -2,17 +2,17 @@
 
 ## Acceptance statement
 
-Mission 24 acceptance passed for the implemented browser surfaces and synthetic states listed below. A real local Chromium browser executed 246 deterministic assertions at representative mobile, tablet, and desktop sizes. No internet, live database, real account, provider, payment, email, AI, or Vault storage operation was used.
+Mission 24 acceptance passed for the implemented browser surfaces and synthetic states listed below. The original cross-role suite executed 246 deterministic assertions, and the focused Institution Portal closure added 89/89 assertions, for 335 accepted browser assertions at representative mobile, tablet, and desktop sizes. No internet, live database, real account, provider, payment, email, AI, or Vault storage operation was used.
 
 This is a WCAG-oriented product acceptance exercise, not an external audit and not a claim of WCAG 2.2 AA certification. Axe, a formal contrast analyzer, assistive-technology testing, complete RTL acceptance, and full text-zoom certification were not available in the installed local toolchain.
 
 ## Tooling and fixtures
 
-- Browser runner: dependency-free Chrome DevTools Protocol harness in `scripts/verify-mission-24-ux.mjs`.
+- Browser runners: dependency-free Chrome DevTools Protocol harnesses in `scripts/verify-mission-24-ux.mjs` and `scripts/verify-institution-portal-ux.mjs`.
 - Browser: locally installed headless Google Chrome, launched against the local Vite development server.
 - Accessibility checks: executable DOM, landmark, heading, accessible-name, label, error-association, dialog-name, keyboard, focus, and status-text assertions. No accessibility package was installed or downloaded.
 - Fixtures: request interception returned deterministic, role-specific synthetic JSON. External DNS was blocked. Long Unicode names, long organization/program labels, six currencies, empty queues, unknown costs, and provider-not-configured states were included.
-- Evidence: six compact screenshots in `docs/screenshots/responsive/`.
+- Evidence: eight compact screenshots in `docs/screenshots/responsive/`, including focused Institution mobile and desktop captures.
 
 ## Viewport matrix
 
@@ -32,7 +32,7 @@ Each size is an acceptance sample, not a device-specific guarantee. Page-level o
 | Student | `/auth/login`, `/dashboard`, `/profile`, `/personalization`, `/journey`, `/journey/tasks`, `/vault`, `/consultations`, `/cases`, `/trust-center`, `/copilot`, `/budget/m24-plan`, unauthorized Admin navigation |
 | Employer | `/employer/login`, `/employer`, `/employer/jobs/new`, mobile role navigation |
 | Agent / Agency | `/agent/login`, `/agent`, `/agent/services`, `/agent/consultations`, `/agent/cases`, `/agent/commerce` |
-| Institution | No Institution-owned frontend route exists in the accepted repository baseline. Mission 18 realm, lifecycle, role, trust, privacy, and no-worker contracts were re-executed at 50/50; no missing UI was fabricated in Mission 24. |
+| Institution | `/institution/login`, `/institution`, `/institution/onboarding`, `/institution/profile`, `/institution/programs`, `/institution/programs/:programId/edit`, `/institution/data-quality`, `/institution/team`; user/employer/agent denial; loading, empty, error, and forbidden states |
 | Admin | `/admin/sc/overview`, `/admin/sc/organizations`, `/admin/sc/trust`, `/admin/sc/data-quality`, `/admin/sc/commerce` on desktop and narrow screens |
 
 ## Findings
@@ -51,10 +51,10 @@ Each size is an acceptance sample, not a device-specific guarantee. Page-level o
 | M24-10 | MINOR | Agent consultations | Status filtering lacked a robust accessible label and narrow touch sizing. | Added labeling, textual error/status semantics, and practical control sizing. Fixed. |
 | M24-11 | MINOR | Copilot | Long evidence/source content and small muted text could wrap poorly or lose clarity on mobile. | Added safe wrapping, responsive context controls, touch sizing, and stronger muted-text contrast. Fixed. |
 | M24-12 | MINOR | Newsletter / common forms | Newsletter email/frequency controls lacked complete label and autocomplete/touch behavior. | Added associated labels, translation keys, autocomplete, and mobile control sizing. Fixed. |
-| M24-13 | INFO | Institution browser UX | Mission 18 has server contracts but no Institution-owned frontend route in this baseline. | Deferred; Mission 24 did not invent a missing product area. Backend acceptance remains 50/50. |
+| M24-13 | INFO | Institution browser UX | The focused closure exercises the Institution-owned realm, dashboard, verification, profile, Programs, data quality, and team/settings surfaces in real local Chromium. | Closed with 89/89 browser assertions and the Mission 18 50/50 contract regression. |
 | M24-14 | INFO | Formal accessibility / localization | No installed axe/contrast suite, assistive-technology lab, or complete RTL language surface was available. | Deferred to a formal audit and verified localization work; no certification claim made. |
 
-Summary: 14 findings — 0 BLOCKER, 9 MAJOR, 3 MINOR, 2 INFO; 12 fixed and 2 documented/deferred. Unresolved BLOCKER: 0. Unresolved MAJOR: 0.
+Summary: 14 findings — 0 BLOCKER, 9 MAJOR, 3 MINOR, 2 INFO; 13 fixed/closed and 1 documented/deferred. Unresolved BLOCKER: 0. Unresolved MAJOR: 0.
 
 ## Shared-component fixes
 
@@ -67,7 +67,7 @@ Summary: 14 findings — 0 BLOCKER, 9 MAJOR, 3 MINOR, 2 INFO; 12 fixed and 2 doc
 
 ## Responsive and global shell acceptance
 
-- Public, authenticated Student, Employer, Agent, and Admin shells remained within tested viewport bounds.
+- Public, authenticated Student, Employer, Agent, Institution, and Admin shells remained within tested viewport bounds.
 - Public and Employer mobile navigation opened and closed with keyboard operation; role navigation remained reachable.
 - Agent layout gained a skip link, named navigation, a focusable main target, and practical mobile targets.
 - Employer, Journey, Vault, Budget, Admin, and Case action groups wrap instead of forcing page-level overflow.
@@ -77,7 +77,7 @@ Summary: 14 findings — 0 BLOCKER, 9 MAJOR, 3 MINOR, 2 INFO; 12 fixed and 2 doc
 
 - Student, Employer, and Agent login fields have accessible names and password/autocomplete semantics at 320 px.
 - Empty Student login submission produced visible alerts, `aria-invalid`, and an associated error description without reporting success.
-- Representative profile, search/filter, Copilot, Budget, Agent service/consultation, and Admin filter/reason fields were checked for accessible names.
+- Representative profile, search/filter, Copilot, Budget, Agent service/consultation, Institution profile/Program/data-quality/team, and Admin filter/reason fields were checked for accessible names.
 - Tab-reachable controls, Enter/Space-native button semantics, Escape dismissal, dialog naming, focus movement, and focus restoration were exercised on representative navigation and overlays.
 - Vault file input remains a native labeled input; no real upload was attempted.
 - Busy/disabled props remain available on mutation/confirmation controls; no live mutation or double-submit was executed.
@@ -116,8 +116,13 @@ Summary: 14 findings — 0 BLOCKER, 9 MAJOR, 3 MINOR, 2 INFO; 12 fixed and 2 doc
 
 ### Institution
 
-- No browser-owned Institution dashboard or Program editing route exists in the accepted frontend route table, so Mission 24 did not fabricate one.
-- Mission 18's isolated realm, verification/data-quality authority, Program change review, trust, team, privacy, and no-worker contracts passed 50/50.
+- User, Employer, and Agent realms were denied the Institution portal and received coherent Institution-specific sign-in UX.
+- Dashboard, verification/onboarding, profile, Programs, Program editing, data quality, and team/settings passed at 320 px; dashboard containment also passed at 375, 768, 1024, and 1440 px widths.
+- Long Unicode Institution and Program names wrapped safely; JPY retained its zero-decimal value and explicit ISO currency code.
+- Completeness, organization verification, canonical claim, freshness, conflicts, and review states remained distinct and textual.
+- Profile validation exposed a visible alert and `aria-invalid`; Program requirement and TestAcceptance controls were labeled, with protected country scope stated truthfully.
+- Page load performed no freshness mutation. Empty, API error, forbidden-membership, and loading states remained understandable, and unsupported scholarships/invitations/commerce were not fabricated.
+- No Student/Vault, Agent, Employer, payment, or Stripe controls appeared. Mission 18's isolated realm, authority, privacy, audit, and no-worker contracts also passed 50/50.
 
 ### Admin
 
@@ -134,21 +139,24 @@ Summary: 14 findings — 0 BLOCKER, 9 MAJOR, 3 MINOR, 2 INFO; 12 fixed and 2 doc
 
 ## Loading, empty, error, unauthorized, and not-configured states
 
-- The harness waited for lazy route/loading transitions and rejected blank, missing-heading, or permanently loading tested surfaces.
+- The harnesses waited for committed lazy-route/loading transitions and rejected blank, missing-heading, or permanently loading tested surfaces.
 - Student cases, consultations, Vault, Budget plans, Agent cases/services/consultations, and Admin queues used truthful empty fixtures; no fake rows were inserted.
 - Login validation error association, safe 404 navigation, and unauthorized Admin-to-login behavior were asserted.
 - Copilot and Agent payment readiness stayed explicitly not configured/unavailable.
-- Browser runtime exceptions and uncontrolled request loops were tracked; final acceptance observed neither.
+- Browser runtime exceptions, unintended writes-on-load, and uncontrolled request loops were tracked; final acceptance observed none.
 
 ## Executed verification
 
 - Mission 24 browser/UX: **246/246 assertions passed** in real local Chromium.
+- Focused Institution Portal browser/UX closure: **89/89 assertions passed** in real local Chromium.
+- Combined accepted browser evidence: **335 assertions**.
+- Focused Institution frontend lint: **0 errors, 5 Fast Refresh warnings**.
 - Mission-touched frontend lint: **0 errors, 1 established Fast Refresh warning**.
 - Repository-wide frontend lint: not green due to **22 errors and 57 warnings outside the Mission 24 change set**; no unrelated lint cleanup was undertaken.
 - Mission 22 international hardening: **60/60 passed**.
 - Mission 20 Budget Planner contracts: **56/56 passed**.
 - Mission 18 Institution Portal contracts: **50/50 passed**.
-- Frontend production build: **passed**, Vite 5.4.21, 1,140 modules transformed. Existing Browserslist age, mixed static/dynamic import, and chunk-size warnings were non-blocking.
+- Frontend production build: **passed**, Vite 5.4.21, 1,157 modules transformed. Existing Browserslist age, mixed static/dynamic import, and chunk-size warnings were non-blocking.
 
 ## Screenshot evidence
 
@@ -158,10 +166,11 @@ Summary: 14 findings — 0 BLOCKER, 9 MAJOR, 3 MINOR, 2 INFO; 12 fixed and 2 doc
 - `mission-24-agent-tablet-768.png`
 - `mission-24-admin-desktop-1440.png`
 - `mission-24-admin-mobile-320.png`
+- `mission-18-institution-mobile-320.png`
+- `mission-18-institution-desktop-1440.png`
 
 ## Residual and deferred items
 
-- Implement and then independently accept an Institution-owned browser portal when that product surface exists; Mission 18 server contracts alone are not browser UX evidence.
 - Run a formal accessibility audit with automated rules, manual contrast/zoom checks, screen readers, and switch/voice input across supported browsers before making a conformance claim.
 - Complete verified Arabic/Urdu RTL language acceptance separately; Mission 24 checked only obvious directly touched blockers.
 - Resolve repository-wide pre-existing lint debt and existing build optimization warnings in their appropriate maintenance/performance scope.
