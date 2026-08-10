@@ -485,5 +485,8 @@
   "adAnalytics": "Analytics",
   "adRemainingImpressions": "Remaining impression limit",
   "adRemainingClicks": "Remaining click limit",
-  "refresh": "Refresh"
+  "refresh": "Refresh",
+  "filterFromDate": "From date",
+  "filterToDate": "To date",
+  "dataTable": "Data table"
 }

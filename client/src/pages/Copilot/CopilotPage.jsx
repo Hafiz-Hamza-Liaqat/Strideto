@@ -23,7 +23,6 @@
  */
 import { useState, useCallback, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../constants';
 
 const API_BASE = '/api';
@@ -69,7 +68,6 @@ const FRESHNESS_LABELS = {
 };
 
 export default function CopilotPage() {
-  const { t } = useTranslation('common');
   const [searchParams] = useSearchParams();
 
   const initialContext = searchParams.get('context') || '';
@@ -454,14 +452,14 @@ const styles = {
   title: { fontSize: 28, fontWeight: 700, color: 'var(--color-text, #111827)', margin: 0 },
   subtitle: { marginTop: 6, color: 'var(--color-text-secondary, #6b7280)', fontSize: 15 },
   form: { background: 'var(--color-surface, #fff)', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: 24 },
-  contextRow: { display: 'flex', alignItems: 'center', gap: 12, marginBottom: 14 },
+  contextRow: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 12, marginBottom: 14 },
   label: { fontSize: 13, fontWeight: 600, color: 'var(--color-text-secondary, #374151)', whiteSpace: 'nowrap' },
-  select: { flex: 1, padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14, background: 'var(--color-surface, #fff)', color: 'var(--color-text, #111827)' },
+  select: { flex: '1 1 180px', minWidth: 0, minHeight: 44, padding: '6px 10px', borderRadius: 6, border: '1px solid #d1d5db', fontSize: 14, background: 'var(--color-surface, #fff)', color: 'var(--color-text, #111827)' },
   questionRow: { display: 'flex', flexDirection: 'column', gap: 8 },
   textarea: { width: '100%', padding: '10px 12px', borderRadius: 8, border: '1px solid #d1d5db', fontSize: 15, resize: 'vertical', fontFamily: 'inherit', boxSizing: 'border-box', background: 'var(--color-surface, #fff)', color: 'var(--color-text, #111827)' },
   questionMeta: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  charCount: { fontSize: 12, color: '#9ca3af' },
-  submitBtn: { padding: '9px 20px', borderRadius: 8, background: '#4f46e5', color: '#fff', border: 'none', fontWeight: 600, fontSize: 14, cursor: 'pointer' },
+  charCount: { fontSize: 12, color: '#64748b' },
+  submitBtn: { minHeight: 44, padding: '9px 20px', borderRadius: 8, background: '#4f46e5', color: '#fff', border: 'none', fontWeight: 600, fontSize: 14, cursor: 'pointer' },
   errorBox: { background: '#fef2f2', border: '1px solid #fecaca', borderRadius: 8, padding: '12px 16px', color: '#dc2626', marginBottom: 16 },
   responseArea: { background: 'var(--color-surface, #fff)', borderRadius: 12, padding: 24, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: 24 },
   notConfiguredBox: { background: '#eff6ff', border: '1px solid #bfdbfe', borderRadius: 8, padding: '12px 16px', color: '#1d4ed8', marginBottom: 16, fontSize: 14 },
@@ -482,9 +480,9 @@ const styles = {
   disclaimerList: { marginBottom: 16 },
   disclaimerItem: { fontSize: 12, color: '#6b7280', padding: '4px 10px', background: '#f9fafb', borderRadius: 6, marginBottom: 4, lineHeight: 1.5 },
   evidenceSection: { marginTop: 20 },
-  evidenceToggle: { background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 14, color: '#4f46e5', padding: '4px 0' },
+  evidenceToggle: { minHeight: 44, background: 'none', border: 'none', cursor: 'pointer', fontWeight: 600, fontSize: 14, color: '#4f46e5', padding: '4px 0' },
   evidenceList: { marginTop: 12, display: 'flex', flexDirection: 'column', gap: 10 },
-  evidenceCard: { border: '1px solid #e5e7eb', borderRadius: 8, padding: '12px 14px', fontSize: 13, background: 'var(--color-surface, #f9fafb)' },
+  evidenceCard: { minWidth: 0, overflowWrap: 'anywhere', border: '1px solid #e5e7eb', borderRadius: 8, padding: '12px 14px', fontSize: 13, background: 'var(--color-surface, #f9fafb)' },
   evidenceCardHeader: { display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 6 },
   sourceBadge: { display: 'inline-block', padding: '1px 8px', borderRadius: 10, fontSize: 11, fontWeight: 600 },
   freshnessBadge: { fontSize: 11, fontWeight: 600 },
@@ -492,20 +490,20 @@ const styles = {
   evidenceCardFact: { fontWeight: 600, color: 'var(--color-text, #111827)', marginBottom: 4 },
   evidenceCardValue: { color: '#374151', lineHeight: 1.4 },
   officialAttribution: { marginTop: 6, fontSize: 12, color: '#0284c7', fontStyle: 'italic' },
-  sourceLabel: { marginTop: 4, fontSize: 11, color: '#9ca3af' },
-  verifiedAt: { marginTop: 2, fontSize: 11, color: '#9ca3af' },
+  sourceLabel: { marginTop: 4, fontSize: 11, color: '#64748b' },
+  verifiedAt: { marginTop: 2, fontSize: 11, color: '#64748b' },
   publicUrl: { marginTop: 6 },
   publicUrlLink: { fontSize: 12, color: '#4f46e5', textDecoration: 'none' },
   followUpsSection: { marginTop: 20, paddingTop: 16, borderTop: '1px solid #e5e7eb' },
   followUpsLabel: { fontSize: 12, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.05em', color: '#6b7280', marginBottom: 8 },
   followUpsList: { display: 'flex', flexWrap: 'wrap', gap: 8 },
-  followUpBtn: { padding: '6px 12px', borderRadius: 16, border: '1px solid #c7d2fe', background: '#eef2ff', color: '#4f46e5', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' },
-  generatedAt: { marginTop: 16, fontSize: 11, color: '#9ca3af', textAlign: 'right' },
+  followUpBtn: { minHeight: 44, padding: '6px 12px', borderRadius: 16, border: '1px solid #c7d2fe', background: '#eef2ff', color: '#4f46e5', fontSize: 13, cursor: 'pointer', fontFamily: 'inherit' },
+  generatedAt: { marginTop: 16, fontSize: 11, color: '#64748b', textAlign: 'right', overflowWrap: 'anywhere' },
   providerLabel: { color: '#d1d5db' },
   startersBox: { background: 'var(--color-surface, #fff)', borderRadius: 12, padding: 20, boxShadow: '0 1px 3px rgba(0,0,0,0.1)', marginBottom: 24 },
   startersLabel: { fontSize: 13, fontWeight: 600, color: '#6b7280', marginBottom: 10 },
   startersList: { display: 'flex', flexDirection: 'column', gap: 6 },
-  starterBtn: { textAlign: 'left', padding: '8px 12px', borderRadius: 8, border: '1px solid #e5e7eb', background: 'var(--color-surface, #f9fafb)', color: 'var(--color-text, #111827)', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' },
-  backLinks: { display: 'flex', gap: 16, marginTop: 8 },
+  starterBtn: { minHeight: 44, textAlign: 'left', padding: '8px 12px', borderRadius: 8, border: '1px solid #e5e7eb', background: 'var(--color-surface, #f9fafb)', color: 'var(--color-text, #111827)', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' },
+  backLinks: { display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 8 },
   backLink: { fontSize: 13, color: '#6b7280', textDecoration: 'none' },
 };

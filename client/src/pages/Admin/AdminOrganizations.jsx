@@ -24,7 +24,7 @@ const COLUMNS = [
   { key: 'organizationType', label: 'Type' },
   { key: 'countryCode', label: 'Country' },
   { key: 'status', label: 'Status' },
-  { key: 'createdAt', label: 'Created', render: v => v ? new Date(v).toLocaleDateString() : '—' },
+  { key: 'createdAt', label: 'Created', render: row => row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '—' },
 ];
 
 export default function AdminOrganizations() {

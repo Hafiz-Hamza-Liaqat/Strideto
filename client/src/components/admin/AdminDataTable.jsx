@@ -25,6 +25,9 @@ export function AdminDataTable({
   exportResource,
   onExport,
   stickyHeader = true,
+  tableLabel,
+  actions = [],
+  onRowClick,
 }) {
   const { t } = useTranslation(['admin', 'common']);
   const [hiddenCols, setHiddenCols] = useState({});
@@ -36,6 +39,7 @@ export function AdminDataTable({
 
   const allSelected = data.length > 0 && data.every((row) => selectedIds.includes(row[rowKey]));
   const someSelected = selectedIds.length > 0;
+  const hasRowActions = !!onRowClick || actions.length > 0;
 
   const toggleAll = () => {
     if (!onSelectionChange) return;
@@ -130,7 +134,12 @@ export function AdminDataTable({
       ) : data.length === 0 ? (
         <p className="text-gray-500 dark:text-gray-400 py-8 text-center">{emptyMessage || t('admin:noData')}</p>
       ) : (
-        <div className="table-scroll rounded-xl border border-gray-200 dark:border-gray-700">
+        <div
+          className="table-scroll rounded-xl border border-gray-200 dark:border-gray-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
+          role="region"
+          aria-label={tableLabel || t('admin:dataTable')}
+          tabIndex={0}
+        >
           <table className="min-w-full text-sm">
             <thead className={stickyHeader ? 'sticky top-0 z-10 bg-gray-50 dark:bg-gray-800' : ''}>
               <tr>
@@ -155,6 +164,7 @@ export function AdminDataTable({
                     {sort?.key === col.key && (sort.order === 'asc' ? ' ↑' : ' ↓')}
                   </th>
                 ))}
+                {hasRowActions && <th scope="col" className="px-3 py-2 text-left font-medium text-gray-700 dark:text-gray-300">{t('admin:actions')}</th>}
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200 dark:divide-gray-700 bg-white dark:bg-gray-900">
@@ -181,6 +191,28 @@ export function AdminDataTable({
                             : row[col.key] ?? '—'}
                     </td>
                   ))}
+                  {hasRowActions && (
+                    <td className="px-3 py-2">
+                      <div className="flex flex-wrap gap-2">
+                        {onRowClick && (
+                          <button type="button" onClick={() => onRowClick(row)} className="min-h-[44px] px-2 text-sm text-primary dark:text-mint underline">
+                            {t('admin:view')}
+                          </button>
+                        )}
+                        {actions.map((action) => (
+                          <button
+                            key={action.label}
+                            type="button"
+                            disabled={action.disabled?.(row)}
+                            onClick={() => action.onClick?.(row)}
+                            className="min-h-[44px] px-2 text-sm text-primary dark:text-mint underline disabled:opacity-50 disabled:no-underline"
+                          >
+                            {action.label}
+                          </button>
+                        ))}
+                      </div>
+                    </td>
+                  )}
                 </tr>
               ))}
             </tbody>

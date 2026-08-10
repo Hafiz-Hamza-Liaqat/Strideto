@@ -2,9 +2,10 @@ import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOverlayA11y } from '../../a11y/useOverlayA11y';
 
-export function AdminConfirmDialog({ open, title, message, confirmLabel, danger, onConfirm, onCancel, loading }) {
+export function AdminConfirmDialog({ open = true, title, message, confirmLabel, danger, onConfirm, onCancel, loading, busy, children }) {
   const { t } = useTranslation('common');
   const panelRef = useRef(null);
+  const isLoading = loading || busy;
   useOverlayA11y({ open, onClose: onCancel, containerRef: panelRef, trapFocus: true });
 
   if (!open) return null;
@@ -14,7 +15,7 @@ export function AdminConfirmDialog({ open, title, message, confirmLabel, danger,
       className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50"
       role="presentation"
       onClick={(e) => {
-        if (e.target === e.currentTarget && !loading) onCancel?.();
+        if (e.target === e.currentTarget && !isLoading) onCancel?.();
       }}
     >
       <div
@@ -27,11 +28,12 @@ export function AdminConfirmDialog({ open, title, message, confirmLabel, danger,
       >
         <h3 id="admin-confirm-title" className="text-lg font-bold text-gray-900 dark:text-white mb-2 break-words">{title}</h3>
         {message ? <p className="text-gray-600 dark:text-gray-400 mb-6 break-words">{message}</p> : null}
+        {children}
         <div className="flex flex-wrap justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
-            disabled={loading}
+            disabled={isLoading}
             className="px-4 py-2 min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 text-sm"
           >
             {t('cancel')}
@@ -39,7 +41,7 @@ export function AdminConfirmDialog({ open, title, message, confirmLabel, danger,
           <button
             type="button"
             onClick={onConfirm}
-            disabled={loading}
+            disabled={isLoading}
             className={`px-4 py-2 min-h-[44px] rounded-lg text-sm text-white ${danger ? 'bg-red-600' : 'bg-primary'}`}
           >
             {confirmLabel || t('confirm')}

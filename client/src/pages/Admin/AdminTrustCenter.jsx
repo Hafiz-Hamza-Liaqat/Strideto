@@ -68,7 +68,7 @@ function ReportsList() {
     { key: 'category', label: 'Category' },
     { key: 'severity', label: 'Severity' },
     { key: 'status', label: 'Status' },
-    { key: 'createdAt', label: 'Created', render: v => v ? new Date(v).toLocaleDateString() : '—' },
+    { key: 'createdAt', label: 'Created', render: row => row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '—' },
   ];
 
   return (
@@ -165,7 +165,7 @@ function DisputesList() {
     { key: 'contextType', label: 'Context' },
     { key: 'category', label: 'Category' },
     { key: 'status', label: 'Status' },
-    { key: 'createdAt', label: 'Created', render: v => v ? new Date(v).toLocaleDateString() : '—' },
+    { key: 'createdAt', label: 'Created', render: row => row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '—' },
   ];
 
   const actions = can(PERMISSIONS.TRUST_RESOLVE)
@@ -253,9 +253,9 @@ function ReviewsList() {
     { key: 'organizationId', label: 'Org ID' },
     { key: 'interactionType', label: 'Interaction' },
     { key: 'rating', label: 'Rating' },
-    { key: 'verifiedInteraction', label: 'Verified', render: v => v ? 'Yes' : 'No' },
+    { key: 'verifiedInteraction', label: 'Verified', render: row => row.verifiedInteraction ? 'Yes' : 'No' },
     { key: 'status', label: 'Status' },
-    { key: 'createdAt', label: 'Created', render: v => v ? new Date(v).toLocaleDateString() : '—' },
+    { key: 'createdAt', label: 'Created', render: row => row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '—' },
   ];
 
   return (

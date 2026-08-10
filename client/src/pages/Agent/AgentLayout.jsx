@@ -1,6 +1,7 @@
 import { Link, NavLink, useNavigate, Outlet } from 'react-router-dom';
 import { useAgentAuth } from '../../context/AgentAuthContext';
 import { ROUTES } from '../../constants';
+import { SkipLink } from '../../components/a11y/SkipLink';
 
 const navItems = [
   { to: ROUTES.AGENT_DASHBOARD, label: 'Dashboard', end: true },
@@ -30,13 +31,14 @@ export default function AgentLayout() {
 
   return (
     <div className="min-h-screen bg-[#F8FAFC] md:flex">
+      <SkipLink />
       <header className="border-b bg-white p-3 md:hidden">
         <div className="flex items-center justify-between gap-3">
           <Link to={ROUTES.AGENT_DASHBOARD} className="font-semibold">Strideto Agent</Link>
-          <button onClick={handleLogout} className="text-xs text-red-600">Log out</button>
+          <button onClick={handleLogout} className="min-h-[44px] rounded px-3 text-sm text-red-700">Log out</button>
         </div>
-        <nav className="mt-3 flex gap-2 overflow-x-auto pb-1">
-          {navItems.map((item) => <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `whitespace-nowrap rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-600'}`}>{item.label}</NavLink>)}
+        <nav className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label="Agent navigation">
+          {navItems.map((item) => <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `flex min-h-[44px] items-center whitespace-nowrap rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-600'}`}>{item.label}</NavLink>)}
         </nav>
       </header>
       {/* Sidebar */}
@@ -47,7 +49,7 @@ export default function AgentLayout() {
           </Link>
           <p className="text-xs text-slate-500 mt-0.5">Agent Portal</p>
         </div>
-        <nav className="flex-1 py-4 space-y-0.5 px-3">
+        <nav className="flex-1 py-4 space-y-0.5 px-3" aria-label="Agent navigation">
           {navItems.map((item) => (
             <NavLink
               key={item.to}
@@ -69,7 +71,7 @@ export default function AgentLayout() {
           <p className="text-xs text-slate-500 truncate mb-2">{agent?.email || ''}</p>
           <button
             onClick={handleLogout}
-            className="w-full text-left text-xs text-red-600 hover:text-red-700 px-3 py-1.5 rounded hover:bg-red-50"
+            className="w-full min-h-[44px] text-left text-sm text-red-700 px-3 py-2 rounded hover:bg-red-50"
           >
             Log out
           </button>
@@ -78,7 +80,7 @@ export default function AgentLayout() {
 
       {/* Main content */}
       <div className="min-w-0 flex-1 overflow-auto">
-        <main className="max-w-5xl mx-auto px-4 py-6 sm:px-6 sm:py-8">
+        <main id="main-content" tabIndex={-1} className="max-w-5xl mx-auto px-4 py-6 sm:px-6 sm:py-8 outline-none">
           <Outlet />
         </main>
       </div>

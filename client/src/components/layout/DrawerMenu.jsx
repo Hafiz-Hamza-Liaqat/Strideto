@@ -92,6 +92,7 @@ export function DrawerMenu({ open, onClose }) {
           <span className="font-bold text-gray-900 dark:text-white text-lg">{t('navbar:menu')}</span>
           <button
             type="button"
+            autoFocus
             onClick={handleClose}
             className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700 -m-2"
             aria-label={t('common:closeMenu')}

@@ -72,7 +72,7 @@ export default function EmployerLayout() {
   }, [mobileOpen]);
 
   return (
-    <div className="min-h-screen bg-bg-main dark:bg-secondary flex flex-col lg:flex-row overflow-x-hidden">
+    <div className="min-h-screen max-w-full bg-bg-main dark:bg-secondary flex flex-col lg:flex-row">
       <SkipLink />
       <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 safe-area-inset-top">
         <Link to={ROUTES.EMPLOYER_DASHBOARD} className="font-semibold text-gray-900 dark:text-white truncate min-w-0">

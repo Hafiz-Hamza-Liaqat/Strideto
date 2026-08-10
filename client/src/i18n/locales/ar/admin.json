@@ -126,5 +126,8 @@
   "adminNavigation": "[AR] Admin navigation",
   "adminPortal": "[AR] Staff admin portal",
   "backToSite": "[AR] Back to site",
-  "menu": "[AR] Menu"
+  "menu": "[AR] Menu",
+  "filterFromDate": "[AR] From date",
+  "filterToDate": "[AR] To date",
+  "dataTable": "[AR] Data table"
 }

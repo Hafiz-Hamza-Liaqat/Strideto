@@ -102,9 +102,9 @@ export default function BudgetPlannerPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">Budget Planner</h1>
-        <div className="flex gap-2">
+        <div className="flex flex-wrap gap-2">
           {plans.length >= 2 && (
             <Link
               to={ROUTES.BUDGET_COMPARE}
@@ -115,7 +115,7 @@ export default function BudgetPlannerPage() {
           )}
           <Link
             to={ROUTES.BUDGET_NEW}
-            className="px-4 py-2 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
+            className="inline-flex min-h-[44px] items-center px-4 py-2 text-sm rounded-md bg-indigo-600 text-white hover:bg-indigo-700"
           >
             New Plan
           </Link>

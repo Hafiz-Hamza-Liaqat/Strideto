@@ -1,8 +1,10 @@
 import { useEffect, useState, useCallback, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { vaultApi } from '../../services/vaultApi';
 import { ROUTES } from '../../constants';
+import { useOverlayA11y } from '../../a11y/useOverlayA11y';
+import { Modal } from '../../components/ui/Modals';
 
 const VAULT_DOCUMENT_TYPES = [
   'passport', 'national_identity', 'transcript', 'degree_certificate', 'marksheet',
@@ -29,16 +31,9 @@ function ExpiryBadge({ state }) {
 
 function DocumentCard({ doc, onArchive }) {
   const { t } = useTranslation('common');
-  const navigate = useNavigate();
-
   return (
-    <div
-      className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex flex-col gap-2 hover:shadow-md transition-shadow cursor-pointer"
-      onClick={() => navigate(`${ROUTES.VAULT}/${doc._id}`)}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === 'Enter' && navigate(`${ROUTES.VAULT}/${doc._id}`)}
-    >
+    <article className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 flex flex-col gap-2 hover:shadow-md transition-shadow min-w-0">
+      <Link to={`${ROUTES.VAULT}/${doc._id}`} className="block min-w-0 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-600">
       <div className="flex items-start justify-between gap-2">
         <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-100 break-words flex-1">{doc.displayName}</h3>
         {doc.expiryState && doc.expiryState !== 'unknown' && <ExpiryBadge state={doc.expiryState} />}
@@ -62,15 +57,17 @@ function DocumentCard({ doc, onArchive }) {
           <span className="text-xs text-yellow-600 dark:text-yellow-400">{t('vault.noFile', 'No file uploaded')}</span>
         )}
       </div>
+      </Link>
       {doc.status === 'active' && (
         <button
-          className="text-xs text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 mt-1 self-start"
-          onClick={(e) => { e.stopPropagation(); onArchive(doc._id, doc.displayName); }}
+          type="button"
+          className="min-h-[44px] px-2 text-sm text-gray-600 hover:text-gray-800 dark:text-gray-300 mt-1 self-start"
+          onClick={() => onArchive(doc._id, doc.displayName)}
         >
           {t('vault.archive', 'Archive')}
         </button>
       )}
-    </div>
+    </article>
   );
 }
 
@@ -81,6 +78,12 @@ function UploadModal({ onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const fileRef = useRef();
+  const panelRef = useRef(null);
+  useOverlayA11y({ open: true, onClose, containerRef: panelRef, trapFocus: true });
+  useEffect(() => {
+    document.body.style.overflow = 'hidden';
+    return () => { document.body.style.overflow = ''; };
+  }, []);
 
   async function handleSubmit(e) {
     e.preventDefault();
@@ -106,36 +109,36 @@ function UploadModal({ onClose, onSuccess }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg p-6 relative">
-        <button className="absolute top-4 right-4 text-gray-400 hover:text-gray-600" onClick={onClose}>✕</button>
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4">{t('vault.addDocument', 'Add Document')}</h2>
-        {error && <div className="mb-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm px-3 py-2">{error}</div>}
+      <div ref={panelRef} role="dialog" aria-modal="true" aria-labelledby="vault-upload-title" tabIndex={-1} className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-lg max-h-[90vh] overflow-y-auto p-4 sm:p-6 relative outline-none">
+        <button type="button" aria-label={t('close', 'Close')} className="absolute top-2 end-2 min-h-[44px] min-w-[44px] text-gray-500 hover:text-gray-700" onClick={onClose}>✕</button>
+        <h2 id="vault-upload-title" className="text-lg font-semibold text-gray-900 dark:text-gray-100 mb-4 pe-10">{t('vault.addDocument', 'Add Document')}</h2>
+        {error && <div className="mb-3 rounded-lg bg-red-50 dark:bg-red-900/20 text-red-600 dark:text-red-400 text-sm px-3 py-2" role="alert">{error}</div>}
         <form onSubmit={handleSubmit} className="flex flex-col gap-3">
           <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('vault.name', 'Document Name')} *</label>
-            <input className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500" value={form.displayName} onChange={(e) => setForm((f) => ({ ...f, displayName: e.target.value }))} maxLength={200} />
+            <label htmlFor="vault-document-name" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('vault.name', 'Document Name')} *</label>
+            <input id="vault-document-name" required className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500" value={form.displayName} onChange={(e) => setForm((f) => ({ ...f, displayName: e.target.value }))} maxLength={200} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('vault.type', 'Document Type')}</label>
-            <select className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500" value={form.documentType} onChange={(e) => setForm((f) => ({ ...f, documentType: e.target.value }))}>
+            <label htmlFor="vault-document-type" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('vault.type', 'Document Type')}</label>
+            <select id="vault-document-type" className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500" value={form.documentType} onChange={(e) => setForm((f) => ({ ...f, documentType: e.target.value }))}>
               {VAULT_DOCUMENT_TYPES.map((t) => <option key={t} value={t}>{t.replace(/_/g, ' ')}</option>)}
             </select>
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('vault.issuingOrg', 'Issuing Organization')}</label>
-            <input className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500" value={form.issuingOrganization} onChange={(e) => setForm((f) => ({ ...f, issuingOrganization: e.target.value }))} maxLength={300} />
+            <label htmlFor="vault-issuing-organization" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('vault.issuingOrg', 'Issuing Organization')}</label>
+            <input id="vault-issuing-organization" className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500" value={form.issuingOrganization} onChange={(e) => setForm((f) => ({ ...f, issuingOrganization: e.target.value }))} maxLength={300} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('vault.expiresAt', 'Expiry Date (optional)')}</label>
-            <input type="date" className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500" value={form.expiresAt} onChange={(e) => setForm((f) => ({ ...f, expiresAt: e.target.value }))} />
+            <label htmlFor="vault-expiry-date" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('vault.expiresAt', 'Expiry Date (optional)')}</label>
+            <input id="vault-expiry-date" type="date" className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-700 px-3 py-2 text-sm text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-blue-500" value={form.expiresAt} onChange={(e) => setForm((f) => ({ ...f, expiresAt: e.target.value }))} />
           </div>
           <div>
-            <label className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('vault.file', 'File (PDF, DOCX, JPG, PNG — max 20 MB)')}</label>
-            <input ref={fileRef} type="file" accept=".pdf,.docx,.jpg,.jpeg,.png,.webp" className="text-sm text-gray-600 dark:text-gray-400" onChange={(e) => setFile(e.target.files[0] || null)} />
+            <label htmlFor="vault-document-file" className="block text-xs font-medium text-gray-700 dark:text-gray-300 mb-1">{t('vault.file', 'File (PDF, DOCX, JPG, PNG — max 20 MB)')}</label>
+            <input id="vault-document-file" ref={fileRef} type="file" accept=".pdf,.docx,.jpg,.jpeg,.png,.webp" className="min-h-[44px] max-w-full text-sm text-gray-600 dark:text-gray-400" onChange={(e) => setFile(e.target.files[0] || null)} />
           </div>
           <div className="flex gap-2 mt-2">
-            <button type="button" className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700" onClick={onClose}>{t('cancel', 'Cancel')}</button>
-            <button type="submit" disabled={loading} className="flex-1 rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-60 py-2 text-sm font-medium text-white">
+            <button type="button" className="flex-1 min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 py-2 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700" onClick={onClose}>{t('cancel', 'Cancel')}</button>
+            <button type="submit" disabled={loading} className="flex-1 min-h-[44px] rounded-lg bg-blue-600 hover:bg-blue-700 disabled:opacity-60 py-2 text-sm font-medium text-white">
               {loading ? t('vault.uploading', 'Uploading…') : t('vault.save', 'Save')}
             </button>
           </div>
@@ -199,14 +202,14 @@ export default function VaultPage() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-3 mb-6">
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('vault.title', 'My Document Vault')}</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-0.5">{t('vault.subtitle', 'Private. Owned by you. Shared only when you choose.')}</p>
         </div>
         <button
           onClick={() => setShowModal(true)}
-          className="rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2"
+          className="min-h-[44px] shrink-0 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium px-4 py-2"
         >
           + {t('vault.add', 'Add Document')}
         </button>
@@ -261,18 +264,19 @@ export default function VaultPage() {
 
       {showModal && <UploadModal onClose={() => setShowModal(false)} onSuccess={handleCreated} />}
 
-      {archiveConfirm && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4">
-          <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-xl w-full max-w-sm p-6">
-            <h3 className="font-semibold text-gray-900 dark:text-gray-100 mb-2">{t('vault.archiveConfirmTitle', 'Archive document?')}</h3>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">{t('vault.archiveConfirmBody', 'This will move "{name}" to your archive.').replace('{name}', archiveConfirm.name)}</p>
-            <div className="flex gap-2">
-              <button className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 py-2 text-sm" onClick={() => setArchiveConfirm(null)}>{t('cancel', 'Cancel')}</button>
-              <button className="flex-1 rounded-lg bg-yellow-500 hover:bg-yellow-600 py-2 text-sm font-medium text-white" onClick={confirmArchive}>{t('vault.archiveConfirm', 'Archive')}</button>
-            </div>
-          </div>
+      <Modal
+        open={!!archiveConfirm}
+        onClose={() => setArchiveConfirm(null)}
+        title={t('vault.archiveConfirmTitle', 'Archive document?')}
+      >
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4 break-words">
+          {t('vault.archiveConfirmBody', 'This will move "{name}" to your archive.').replace('{name}', archiveConfirm?.name || '')}
+        </p>
+        <div className="flex flex-wrap gap-2">
+          <button type="button" className="flex-1 min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 py-2 text-sm" onClick={() => setArchiveConfirm(null)}>{t('cancel', 'Cancel')}</button>
+          <button type="button" className="flex-1 min-h-[44px] rounded-lg bg-yellow-500 hover:bg-yellow-600 py-2 text-sm font-medium text-white" onClick={confirmArchive}>{t('vault.archiveConfirm', 'Archive')}</button>
         </div>
-      )}
+      </Modal>
     </div>
   );
 }

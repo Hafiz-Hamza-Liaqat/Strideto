@@ -34,8 +34,8 @@ function FreshnessQueue() {
     { key: 'claimKey', label: 'Claim' },
     { key: 'freshnessState', label: 'Freshness' },
     { key: 'verificationStatus', label: 'Status' },
-    { key: 'lastVerifiedAt', label: 'Last Verified', render: v => v ? new Date(v).toLocaleDateString() : '—' },
-    { key: 'reviewDueAt', label: 'Review Due', render: v => v ? new Date(v).toLocaleDateString() : '—' },
+    { key: 'lastVerifiedAt', label: 'Last Verified', render: row => row.lastVerifiedAt ? new Date(row.lastVerifiedAt).toLocaleDateString() : '—' },
+    { key: 'reviewDueAt', label: 'Review Due', render: row => row.reviewDueAt ? new Date(row.reviewDueAt).toLocaleDateString() : '—' },
   ];
 
   return (

@@ -80,7 +80,7 @@ export function PageBuilderPageView({
           Page Builder draft preview — not published
         </div>
       ) : null}
-      <main className="page-builder-runtime" id="page-builder-main">
+      <div className="page-builder-runtime" id="page-builder-main">
         <div className="max-w-6xl mx-auto px-4 sm:px-6 py-8">
           <nav aria-label="Breadcrumb" className="text-sm text-gray-500 dark:text-gray-400 mb-6">
             <ol className="flex flex-wrap items-center gap-1 list-none p-0 m-0">
@@ -101,7 +101,7 @@ export function PageBuilderPageView({
           ) : null}
         </div>
         <ResolvedBlockListRenderer blocks={layout?.blocks || []} preview={preview} adminContext={preview} />
-      </main>
+      </div>
     </>
   );
 }

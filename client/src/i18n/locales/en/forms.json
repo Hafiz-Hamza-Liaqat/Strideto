@@ -84,7 +84,8 @@
     "enterEmail": "Please enter your email.",
     "description": "Get daily or weekly alerts: new jobs, scholarships, and admission deadlines.",
     "daily": "Daily",
-    "weekly": "Weekly"
+    "weekly": "Weekly",
+    "frequency": "Alert frequency"
   },
   "contact": {
     "title": "Contact Us",

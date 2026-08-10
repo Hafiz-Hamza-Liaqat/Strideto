@@ -307,7 +307,13 @@ export function Navbar() {
         </div>
       </div>
 
-      <DrawerMenu open={drawerOpen} onClose={() => setDrawerOpen(false)} />
+      <DrawerMenu
+        open={drawerOpen}
+        onClose={() => {
+          setDrawerOpen(false);
+          requestAnimationFrame(() => menuButtonRef.current?.focus({ preventScroll: true }));
+        }}
+      />
     </header>
   );
 }

@@ -130,5 +130,8 @@
   "menu": "مینو",
   "executiveDashboard": "ایگزیکٹو ڈیش بورڈ",
   "auditLog": "سرگرمی لاگ",
-  "staffInvitations": "دعوت نامے"
+  "staffInvitations": "دعوت نامے",
+  "filterFromDate": "شروع کی تاریخ",
+  "filterToDate": "اختتامی تاریخ",
+  "dataTable": "ڈیٹا جدول"
 }

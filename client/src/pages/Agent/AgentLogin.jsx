@@ -30,19 +30,21 @@ export default function AgentLogin() {
   return (
     <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-8">
+        <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-4 sm:p-8">
           <h1 className="text-2xl font-semibold text-[#0F172A]">Agent Portal Login</h1>
           <p className="text-slate-500 mt-1 mb-6 text-sm">
             Sign in to your Strideto agent account.
           </p>
           {ctxError && (
-            <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">{ctxError}</div>
+            <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm" role="alert">{ctxError}</div>
           )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label className="block text-sm font-medium text-[#0F172A] mb-1">Email</label>
+              <label htmlFor="agent-login-email" className="block text-sm font-medium text-[#0F172A] mb-1">Email</label>
               <input
+                id="agent-login-email"
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -50,9 +52,11 @@ export default function AgentLogin() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-[#0F172A] mb-1">Password</label>
+              <label htmlFor="agent-login-password" className="block text-sm font-medium text-[#0F172A] mb-1">Password</label>
               <input
+                id="agent-login-password"
                 type="password"
+                autoComplete="current-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
@@ -62,7 +66,7 @@ export default function AgentLogin() {
             <button
               type="submit"
               disabled={submitting}
-              className="w-full py-2 px-4 bg-[#1D4ED8] text-white rounded-lg font-medium hover:bg-[#1e40af] disabled:opacity-60 transition-colors"
+              className="w-full min-h-[44px] py-2 px-4 bg-[#1D4ED8] text-white rounded-lg font-medium hover:bg-[#1e40af] disabled:opacity-60 transition-colors"
             >
               {submitting ? 'Signing in…' : 'Sign in'}
             </button>

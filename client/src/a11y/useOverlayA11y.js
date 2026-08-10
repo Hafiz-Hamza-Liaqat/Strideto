@@ -26,7 +26,11 @@ export function useOverlayA11y({ open, onClose, containerRef, trapFocus = true }
     if (!open || typeof onClose !== 'function') return undefined;
     previousFocusRef.current = document.activeElement;
     return registerOverlayEscape(() => onCloseRef.current?.());
-  }, [open, onClose]);
+    // onClose is intentionally read from onCloseRef. Depending on an inline
+    // callback here would re-capture focus on every parent render and restore
+    // focus to an element inside the closing overlay.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   useEffect(() => {
     if (!open || !trapFocus) return undefined;

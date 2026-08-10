@@ -17,8 +17,9 @@
  * Language principle: "Based on currently known costs" — never "affordable".
  */
 import { useState, useEffect, useCallback } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
+import { useParams, Link } from 'react-router-dom';
 import { ROUTES } from '../../constants';
+import { formatMoney } from '@shared/international/dateDisplay.js';
 
 const API_BASE = '/api';
 
@@ -58,8 +59,11 @@ const CATEGORY_GROUPS = {
 };
 
 function formatMinorUnits(amountMinor, currency) {
-  // Simple display — no locale assumptions beyond currency
-  return `${currency} ${amountMinor}`;
+  try {
+    return formatMoney({ amountMinor, currency });
+  } catch {
+    return `${currency} ${amountMinor}`;
+  }
 }
 
 function groupItems(items) {
@@ -75,7 +79,6 @@ function groupItems(items) {
 
 export default function BudgetPlanDetailPage() {
   const { planId } = useParams();
-  const navigate = useNavigate();
   const [plan, setPlan] = useState(null);
   const [summary, setSummary] = useState(null);
   const [items, setItems] = useState([]);
@@ -240,7 +243,7 @@ export default function BudgetPlanDetailPage() {
                 {Object.entries(summary.totalsByCurrency).map(([currency, amt]) => (
                   <div key={currency} className="flex justify-between text-sm">
                     <span className="text-gray-600 dark:text-gray-300">{currency}</span>
-                    <span className="font-mono font-semibold text-gray-900 dark:text-gray-100">{amt.toLocaleString()} minor units</span>
+                    <span className="font-mono font-semibold text-gray-900 dark:text-gray-100 break-words">{formatMinorUnits(amt, currency)}</span>
                   </div>
                 ))}
               </div>
@@ -348,7 +351,7 @@ export default function BudgetPlanDetailPage() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1">
-                    Amount (minor units) <span className="text-gray-400">e.g. 150000 = 1500.00</span>
+                    Amount (minor units)
                   </label>
                   <input
                     type="number"
@@ -395,7 +398,7 @@ export default function BudgetPlanDetailPage() {
               />
             </div>
             <div className="text-xs text-yellow-700 dark:text-yellow-300 bg-yellow-50 dark:bg-yellow-900/20 rounded px-3 py-2">
-              This will be saved as "Your Estimate" — it does not represent official or verified data.
+              This will be saved as &quot;Your Estimate&quot; — it does not represent official or verified data.
             </div>
             <button
               type="submit"
@@ -441,7 +444,7 @@ export default function BudgetPlanDetailPage() {
                             <span className="text-red-600 dark:text-red-400 font-semibold">Amount unknown</span>
                           ) : item.money ? (
                             <span className="text-gray-800 dark:text-gray-200">
-                              {item.money.currency} {item.money.amountMinor.toLocaleString()} minor units
+                              {formatMinorUnits(item.money.amountMinor, item.money.currency)}
                               {item.cadence && item.cadence !== 'one_time' && <span className="text-gray-400"> /{item.cadence}</span>}
                             </span>
                           ) : null}

@@ -49,11 +49,11 @@ function ReconciliationPanel() {
   const columns = [
     { key: 'correlationId', label: 'Correlation ID' },
     { key: 'expectedAmountMinor', label: 'Expected (minor)' },
-    { key: 'actualAmountMinor', label: 'Actual (minor)', render: v => v ?? '—' },
+    { key: 'actualAmountMinor', label: 'Actual (minor)', render: row => row.actualAmountMinor ?? '—' },
     { key: 'expectedCurrency', label: 'Currency' },
     { key: 'status', label: 'Status' },
-    { key: 'discrepancyReason', label: 'Reason', render: v => v || '—' },
-    { key: 'createdAt', label: 'Created', render: v => v ? new Date(v).toLocaleDateString() : '—' },
+    { key: 'discrepancyReason', label: 'Reason', render: row => row.discrepancyReason || '—' },
+    { key: 'createdAt', label: 'Created', render: row => row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '—' },
   ];
 
   return (
@@ -62,12 +62,12 @@ function ReconciliationPanel() {
         Ledger history is immutable. Admin may only mark for manual review. No direct ledger edits.
         Admin cannot mark payment paid, refund completed, or payout paid.
       </div>
-      <div className="flex gap-2 mb-3">
+      <div className="flex flex-wrap gap-2 mb-3">
         {RECON_STATUS_OPTIONS.map(s => (
           <button
             key={s || 'all'}
             onClick={() => setQuery(p => ({ ...p, status: s, page: 1 }))}
-            className={`text-xs px-2 py-1 rounded border ${query.status === s ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300'}`}
+            className={`min-h-[44px] text-xs px-2 py-1 rounded border ${query.status === s ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300'}`}
           >
             {s || 'All'}
           </button>
@@ -92,8 +92,10 @@ function ReconciliationPanel() {
           busy={busy}
         >
           <div className="mt-3">
-            <label className="block text-sm font-medium">Reason (required)</label>
+            <label htmlFor="reconciliation-review-reason" className="block text-sm font-medium">Reason (required)</label>
             <textarea
+              id="reconciliation-review-reason"
+              required
               className="w-full border rounded px-2 py-1 text-sm mt-1"
               rows={3}
               maxLength={1000}
@@ -128,7 +130,7 @@ function ConnectAccountsPanel() {
     { key: 'chargesCapability', label: 'Charges' },
     { key: 'transfersCapability', label: 'Transfers' },
     { key: 'requirementsState', label: 'Requirements' },
-    { key: 'lastSynchronizedAt', label: 'Last Sync', render: v => v ? new Date(v).toLocaleDateString() : '—' },
+    { key: 'lastSynchronizedAt', label: 'Last Sync', render: row => row.lastSynchronizedAt ? new Date(row.lastSynchronizedAt).toLocaleDateString() : '—' },
   ];
 
   return (
@@ -170,7 +172,7 @@ function RefundsPanel() {
     { key: 'currency', label: 'Currency' },
     { key: 'status', label: 'Status' },
     { key: 'reason', label: 'Reason' },
-    { key: 'createdAt', label: 'Created', render: v => v ? new Date(v).toLocaleDateString() : '—' },
+    { key: 'createdAt', label: 'Created', render: row => row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '—' },
   ];
 
   return (
@@ -178,12 +180,12 @@ function RefundsPanel() {
       <div className="mb-3 p-3 bg-amber-50 dark:bg-amber-900/20 rounded border border-amber-200 dark:border-amber-800 text-xs text-amber-800 dark:text-amber-200">
         Admin cannot mark refund as completed. Provider confirmation is authoritative. Refund initiation uses existing authorized workflow only.
       </div>
-      <div className="flex gap-2 mb-3">
+      <div className="flex flex-wrap gap-2 mb-3">
         {['', 'requested', 'approved', 'rejected', 'completed'].map(s => (
           <button
             key={s || 'all'}
             onClick={() => setQuery(p => ({ ...p, status: s, page: 1 }))}
-            className={`text-xs px-2 py-1 rounded border ${query.status === s ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300'}`}
+            className={`min-h-[44px] text-xs px-2 py-1 rounded border ${query.status === s ? 'bg-indigo-600 text-white border-indigo-600' : 'border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-300'}`}
           >
             {s || 'All'}
           </button>
@@ -212,12 +214,12 @@ export default function AdminCommerceCenter() {
         Operational commerce visibility. Ledger is immutable. Financial truth from canonical Commerce.
       </p>
 
-      <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-700">
+      <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-200 dark:border-gray-700">
         {TABS.map((t, i) => (
           <button
             key={t}
             onClick={() => setTab(i)}
-            className={`pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${tab === i ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
+            className={`min-h-[44px] pb-2 px-1 text-sm font-medium border-b-2 transition-colors ${tab === i ? 'border-indigo-600 text-indigo-600 dark:border-indigo-400 dark:text-indigo-400' : 'border-transparent text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'}`}
             aria-selected={tab === i}
           >
             {t}

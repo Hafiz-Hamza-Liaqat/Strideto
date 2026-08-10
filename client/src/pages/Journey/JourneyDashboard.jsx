@@ -77,19 +77,19 @@ export default function JourneyDashboard() {
 
   return (
     <div className="max-w-4xl mx-auto px-4 py-8 space-y-8">
-      <div className="flex items-center justify-between">
-        <div>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0 flex-1">
           <h1 className="text-2xl font-bold text-gray-900 dark:text-gray-100">{t('journey.dashboard', 'My Journey')}</h1>
           <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{t('journey.dashboardSubtitle', 'Your personalized action plan and progress tracker.')}</p>
         </div>
-        <div className="flex gap-2">
-          <Link to={ROUTES.JOURNEY_TASKS} className="text-sm px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">
+        <div className="flex flex-wrap gap-2">
+          <Link to={ROUTES.JOURNEY_TASKS} className="inline-flex min-h-[44px] items-center text-sm px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">
             {t('journey.tasks', 'Tasks')}
           </Link>
-          <Link to={ROUTES.JOURNEY_DEADLINES} className="text-sm px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">
+          <Link to={ROUTES.JOURNEY_DEADLINES} className="inline-flex min-h-[44px] items-center text-sm px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">
             {t('journey.deadlines', 'Deadlines')}
           </Link>
-          <Link to={ROUTES.JOURNEY_APPLICATIONS} className="text-sm px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">
+          <Link to={ROUTES.JOURNEY_APPLICATIONS} className="inline-flex min-h-[44px] items-center text-sm px-3 py-1.5 rounded-lg bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600">
             {t('journey.applications', 'Applications')}
           </Link>
         </div>

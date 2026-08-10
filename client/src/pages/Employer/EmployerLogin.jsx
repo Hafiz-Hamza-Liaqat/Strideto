@@ -50,9 +50,11 @@ export default function EmployerLogin() {
             )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-[#0F172A] mb-1">{t('common:email')}</label>
+                <label htmlFor="employer-login-email" className="block text-sm font-medium text-[#0F172A] mb-1">{t('common:email')}</label>
                 <input
+                  id="employer-login-email"
                   type="email"
+                  autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
                   required
@@ -60,9 +62,11 @@ export default function EmployerLogin() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#0F172A] mb-1">{t('common:password')}</label>
+                <label htmlFor="employer-login-password" className="block text-sm font-medium text-[#0F172A] mb-1">{t('common:password')}</label>
                 <input
+                  id="employer-login-password"
                   type="password"
+                  autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required

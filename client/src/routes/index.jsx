@@ -1,7 +1,8 @@
 import { lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
-import { MainLayoutWrapper } from '../layouts/MainLayout';
+import { MainLayout, MainLayoutWrapper } from '../layouts/MainLayout';
 import { LocaleMainLayout } from '../layouts/LocaleMainLayout';
+import { DEFAULT_LOCALE, ENABLED_CONTENT_LOCALES } from '@shared/localization/localeConfig.js';
 import { ProtectedRoute } from '../components/auth/ProtectedRoute';
 import { ProtectedEmployerRoute } from '../components/employer/ProtectedEmployerRoute';
 import { ProtectedAgentRoute } from '../components/agent/ProtectedAgentRoute';
@@ -621,8 +622,8 @@ export const routes = [
       },
     ],
   },
-  {
-    path: '/:locale',
+  ...ENABLED_CONTENT_LOCALES.filter((locale) => locale !== DEFAULT_LOCALE).map((locale) => ({
+    path: `/${locale}`,
     element: <LocaleMainLayout />,
     children: [
       { index: true, element: <Home /> },
@@ -642,6 +643,6 @@ export const routes = [
       { path: 'career-guidance', element: <CareerGuidance /> },
       { path: 'career-guidance/:slug', element: <CareerArticleDetail /> },
     ],
-  },
-  { path: '*', element: <NotFound /> },
+  })),
+  { path: '*', element: <MainLayout><NotFound /></MainLayout> },
 ];

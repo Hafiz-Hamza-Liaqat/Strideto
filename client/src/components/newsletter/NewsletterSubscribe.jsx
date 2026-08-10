@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { newsletterApi } from '../../services/listingsService';
 import { useToast } from '../../context/ToastContext';
@@ -9,6 +9,7 @@ export function NewsletterSubscribe({ compact = false }) {
   const [frequency, setFrequency] = useState('weekly');
   const [loading, setLoading] = useState(false);
   const { toast } = useToast();
+  const fieldId = useId();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -33,18 +34,21 @@ export function NewsletterSubscribe({ compact = false }) {
   if (compact) {
     return (
       <form onSubmit={handleSubmit} className="flex flex-col gap-2 w-full min-w-0 max-w-md">
+        <label htmlFor={`${fieldId}-email`} className="sr-only">{t('newsletter.placeholderCompact')}</label>
         <input
+          id={`${fieldId}-email`}
           type="email"
+          autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder={t('newsletter.placeholderCompact')}
-          className="w-full min-w-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
+          className="w-full min-h-[44px] min-w-0 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
           disabled={loading}
         />
         <button
           type="submit"
           disabled={loading}
-          className="w-full shrink-0 rounded-lg bg-primary hover:bg-primary-hover text-white btn-theme px-4 py-2 text-sm font-medium disabled:opacity-50"
+          className="w-full min-h-[44px] shrink-0 rounded-lg bg-primary hover:bg-primary-hover text-white btn-theme px-4 py-2 text-sm font-medium disabled:opacity-50"
         >
           {loading ? '…' : t('newsletter.subscribe')}
         </button>
@@ -58,18 +62,23 @@ export function NewsletterSubscribe({ compact = false }) {
         {t('newsletter.description')}
       </p>
       <div className="flex flex-col sm:flex-row gap-2">
+        <label htmlFor={`${fieldId}-email`} className="sr-only">{t('newsletter.placeholderFull')}</label>
         <input
+          id={`${fieldId}-email`}
           type="email"
+          autoComplete="email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           placeholder={t('newsletter.placeholderFull')}
-          className="flex-1 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
+          className="flex-1 min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
           disabled={loading}
         />
+        <label htmlFor={`${fieldId}-frequency`} className="sr-only">{t('newsletter.frequency')}</label>
         <select
+          id={`${fieldId}-frequency`}
           value={frequency}
           onChange={(e) => setFrequency(e.target.value)}
-          className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm w-full sm:w-32"
+          className="min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm w-full sm:w-32"
         >
           <option value="daily">{t('newsletter.daily')}</option>
           <option value="weekly">{t('newsletter.weekly')}</option>
@@ -77,7 +86,7 @@ export function NewsletterSubscribe({ compact = false }) {
         <button
           type="submit"
           disabled={loading}
-          className="rounded-lg bg-primary hover:bg-primary-hover text-white btn-theme px-4 py-2 text-sm font-medium disabled:opacity-50 shrink-0"
+          className="min-h-[44px] rounded-lg bg-primary hover:bg-primary-hover text-white btn-theme px-4 py-2 text-sm font-medium disabled:opacity-50 shrink-0"
         >
           {loading ? t('newsletter.subscribing') : t('newsletter.subscribe')}
         </button>
