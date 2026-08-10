@@ -3,6 +3,7 @@
  * Pure path logic — safe to unit-test without React.
  */
 import { isAgentPortalPath, isAgentPublicAuthPath } from './agentAuthRealm';
+import { isInstitutionPortalPath, isInstitutionPublicAuthPath } from './institutionAuthRealm';
 
 export const EMPLOYER_PUBLIC_AUTH_PATHS = ['/employer/login', '/employer/register'];
 
@@ -36,7 +37,8 @@ export function isEmployerPortalPath(pathname = '') {
  */
 export function shouldSkipUserAuthBootstrap(pathname = '') {
   return isEmployerPortalPath(pathname) || isEmployerPublicAuthPath(pathname) ||
-    isAgentPortalPath(pathname) || isAgentPublicAuthPath(pathname);
+    isAgentPortalPath(pathname) || isAgentPublicAuthPath(pathname) ||
+    isInstitutionPortalPath(pathname) || isInstitutionPublicAuthPath(pathname);
 }
 
 /**
@@ -44,7 +46,8 @@ export function shouldSkipUserAuthBootstrap(pathname = '') {
  */
 export function shouldEnableUserNavbarSession(pathname = '', { isUserAuthenticated = false } = {}) {
   if (isEmployerPortalPath(pathname) || isEmployerPublicAuthPath(pathname) ||
-      isAgentPortalPath(pathname) || isAgentPublicAuthPath(pathname)) return false;
+      isAgentPortalPath(pathname) || isAgentPublicAuthPath(pathname) ||
+      isInstitutionPortalPath(pathname) || isInstitutionPublicAuthPath(pathname)) return false;
   return isUserAuthenticated;
 }
 

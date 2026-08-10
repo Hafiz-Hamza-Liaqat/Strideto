@@ -6,6 +6,7 @@ import { DEFAULT_LOCALE, ENABLED_CONTENT_LOCALES } from '@shared/localization/lo
 import { ProtectedRoute } from '../components/auth/ProtectedRoute';
 import { ProtectedEmployerRoute } from '../components/employer/ProtectedEmployerRoute';
 import { ProtectedAgentRoute } from '../components/agent/ProtectedAgentRoute';
+import { ProtectedInstitutionRoute } from '../components/institution/ProtectedInstitutionRoute';
 import { ROUTES } from '../constants';
 
 const Home = lazyLoad(() => import('../pages/Home/Home'));
@@ -180,6 +181,15 @@ const AdminAgentMarketplace = lazyLoad(() => import('../pages/Admin/AdminAgentMa
 const AgentConsultations = lazyLoad(() => import('../pages/Agent/AgentConsultations'));
 const AgentConsultationDetail = lazyLoad(() => import('../pages/Agent/AgentConsultationDetail'));
 const AgentAvailability = lazyLoad(() => import('../pages/Agent/AgentAvailability'));
+const InstitutionLogin = lazyLoad(() => import('../pages/Institution/InstitutionLogin'));
+const InstitutionLayout = lazyLoad(() => import('../pages/Institution/InstitutionLayout'));
+const InstitutionDashboard = lazyLoad(() => import('../pages/Institution/InstitutionDashboard'));
+const InstitutionOnboarding = lazyLoad(() => import('../pages/Institution/InstitutionOnboarding'));
+const InstitutionProfile = lazyLoad(() => import('../pages/Institution/InstitutionProfile'));
+const InstitutionPrograms = lazyLoad(() => import('../pages/Institution/InstitutionPrograms'));
+const InstitutionProgramEditor = lazyLoad(() => import('../pages/Institution/InstitutionProgramEditor'));
+const InstitutionDataQuality = lazyLoad(() => import('../pages/Institution/InstitutionDataQuality'));
+const InstitutionTeam = lazyLoad(() => import('../pages/Institution/InstitutionTeam'));
 const Consultations = lazyLoad(() => import('../pages/Consultations/Consultations'));
 const ConsultationRequest = lazyLoad(() => import('../pages/Consultations/ConsultationRequest'));
 const ConsultationDetail = lazyLoad(() => import('../pages/Consultations/ConsultationDetail'));
@@ -215,6 +225,21 @@ function PageFallback() {
 }
 
 export const routes = [
+  { path: ROUTES.INSTITUTION_LOGIN, element: <InstitutionLogin /> },
+  {
+    path: ROUTES.INSTITUTION_DASHBOARD,
+    element: <ProtectedInstitutionRoute><InstitutionLayout /></ProtectedInstitutionRoute>,
+    children: [
+      { index: true, element: <InstitutionDashboard /> },
+      { path: 'onboarding', element: <InstitutionOnboarding /> },
+      { path: 'profile', element: <InstitutionProfile /> },
+      { path: 'programs', element: <InstitutionPrograms /> },
+      { path: 'programs/new', element: <InstitutionProgramEditor /> },
+      { path: 'programs/:programId/edit', element: <InstitutionProgramEditor /> },
+      { path: 'data-quality', element: <InstitutionDataQuality /> },
+      { path: 'team', element: <InstitutionTeam /> },
+    ],
+  },
   {
     path: ROUTES.AGENT_DASHBOARD,
     element: (

@@ -10,6 +10,7 @@ import { BrandProvider } from './design-system/BrandProvider';
 import { AuthProvider } from './context/AuthContext';
 import { EmployerAuthProvider } from './context/EmployerAuthContext';
 import { AgentAuthProvider } from './context/AgentAuthContext';
+import { InstitutionAuthProvider } from './context/InstitutionAuthContext';
 import { ToastProvider } from './context/ToastContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { LanguageProvider } from './context/LanguageContext';
@@ -64,7 +65,8 @@ function Bootstrap() {
             <AuthProvider>
               <EmployerAuthProvider>
                 <AgentAuthProvider>
-                <LanguageProvider>
+                  <InstitutionAuthProvider>
+                  <LanguageProvider>
                   <ToastProvider>
                     <NotificationProvider>
                       <OnboardingProvider>
@@ -74,7 +76,8 @@ function Bootstrap() {
                       </OnboardingProvider>
                     </NotificationProvider>
                   </ToastProvider>
-                </LanguageProvider>
+                  </LanguageProvider>
+                  </InstitutionAuthProvider>
                 </AgentAuthProvider>
               </EmployerAuthProvider>
             </AuthProvider>
