@@ -2,10 +2,12 @@ import { Children, cloneElement, isValidElement } from 'react';
 
 export function FormField({ label, id, error, children, className = '' }) {
   const errorId = error && id ? `${id}-error` : undefined;
-  const control = isValidElement(Children.only(children))
-    ? cloneElement(children, {
-        'aria-invalid': error ? true : children.props['aria-invalid'],
-        'aria-describedby': [children.props['aria-describedby'], errorId].filter(Boolean).join(' ') || undefined,
+  const childItems = Children.toArray(children);
+  const onlyChild = childItems.length === 1 ? childItems[0] : null;
+  const control = isValidElement(onlyChild)
+    ? cloneElement(onlyChild, {
+        'aria-invalid': error ? true : onlyChild.props['aria-invalid'],
+        'aria-describedby': [onlyChild.props['aria-describedby'], errorId].filter(Boolean).join(' ') || undefined,
       })
     : children;
 

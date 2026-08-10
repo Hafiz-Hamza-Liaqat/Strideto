@@ -2,6 +2,8 @@
  * Map TalentProfile API ↔ editor form state (C.8.0.2B.1 / Mission 3).
  */
 
+import { normalizeGradingSystem } from '../../../../shared/career/studentProfile.js';
+
 export const PROFILE_TABS = [
   'personal',
   'contact',
@@ -176,96 +178,203 @@ function joinDisplayName(firstName, lastName) {
   return [firstName, lastName].map((s) => String(s || '').trim()).filter(Boolean).join(' ');
 }
 
+function asRecord(value) {
+  return value && typeof value === 'object' && !Array.isArray(value) ? value : {};
+}
+
+function asText(value, fallback = '') {
+  return typeof value === 'string' || typeof value === 'number' ? String(value) : fallback;
+}
+
+function asDateInput(value) {
+  if (typeof value === 'string') return value.slice(0, 10);
+  if (value instanceof Date && !Number.isNaN(value.getTime())) return value.toISOString().slice(0, 10);
+  return '';
+}
+
+function asArray(value) {
+  if (Array.isArray(value)) return value;
+  if (value && typeof value === 'object') return [value];
+  return [];
+}
+
+function asStringArray(value) {
+  const values = Array.isArray(value) ? value : typeof value === 'string' ? [value] : [];
+  return values
+    .filter((item) => typeof item === 'string' || typeof item === 'number')
+    .map((item) => String(item));
+}
+
+function normalizeEducationEntry(value) {
+  const entry = asRecord(value);
+  const rawGradingSystem = asText(entry.gradingSystem).trim();
+  const gradingSystem = normalizeGradingSystem(rawGradingSystem) || '';
+  return {
+    ...emptyEducation(),
+    ...entry,
+    institution: asText(entry.institution),
+    degree: asText(entry.degree),
+    fieldOfStudy: asText(entry.fieldOfStudy),
+    qualificationLevel: asText(entry.qualificationLevel),
+    country: asText(entry.country),
+    startYear: asText(entry.startYear),
+    endYear: asText(entry.endYear),
+    completionStatus: asText(entry.completionStatus),
+    graduationYear: asText(entry.graduationYear),
+    gradingSystem,
+    gradeValue: asText(entry.gradeValue, asText(entry.gpa)),
+    gradeScale: asText(entry.gradeScale),
+    gpa: asText(entry.gpa),
+    honors: asText(entry.honors),
+    description: asText(entry.description),
+    notes: asText(entry.notes),
+    ...(rawGradingSystem && !gradingSystem ? { _legacyGradingSystem: rawGradingSystem } : {}),
+  };
+}
+
 export function profileToForm(profile, authEmail = '') {
   if (!profile) return defaultFormState(authEmail);
-  const fromName = splitDisplayName(profile.displayName);
-  const personal = profile.personal || {};
+  const safeProfile = asRecord(profile);
+  const fromName = splitDisplayName(asText(safeProfile.displayName));
+  const personal = asRecord(safeProfile.personal);
+  const socialProfile = asRecord(safeProfile.socialProfile);
+  const preferences = asRecord(safeProfile.preferences);
+  const salaryExpectation = asRecord(preferences.salaryExpectation);
+  const studentPreferences = asRecord(safeProfile.studentPreferences);
+  const budgetProfile = asRecord(safeProfile.budgetProfile);
+  const tuition = asRecord(budgetProfile.tuition);
+  const living = asRecord(budgetProfile.living);
+  const general = asRecord(budgetProfile.general);
 
   return {
-    displayName: profile.displayName || '',
-    headline: profile.headline || '',
-    summary: profile.summary || '',
-    avatarUrl: profile.avatarUrl || '',
-    visibility: profile.visibility || 'private',
-    locale: profile.locale || 'en',
+    displayName: asText(safeProfile.displayName),
+    headline: asText(safeProfile.headline),
+    summary: asText(safeProfile.summary),
+    avatarUrl: asText(safeProfile.avatarUrl),
+    visibility: asText(safeProfile.visibility, 'private') || 'private',
+    locale: asText(safeProfile.locale, 'en') || 'en',
     personal: {
-      firstName: personal.firstName || fromName.firstName,
-      lastName: personal.lastName || fromName.lastName,
-      dateOfBirth: personal.dateOfBirth ? personal.dateOfBirth.slice(0, 10) : '',
-      gender: personal.gender || '',
-      nationality: personal.nationality || '',
-      country: personal.country || '',
-      region: personal.region || profile.market || '',
-      city: personal.city || '',
-      phone: personal.phone || '',
-      timeZone: personal.timeZone || profile.preferences?.timeZone || '',
+      firstName: asText(personal.firstName, fromName.firstName),
+      lastName: asText(personal.lastName, fromName.lastName),
+      dateOfBirth: asDateInput(personal.dateOfBirth),
+      gender: asText(personal.gender),
+      nationality: asText(personal.nationality),
+      country: asText(personal.country),
+      region: asText(personal.region, asText(safeProfile.market)),
+      city: asText(personal.city),
+      phone: asText(personal.phone),
+      timeZone: asText(personal.timeZone, asText(preferences.timeZone)),
     },
-    contactEmail: authEmail,
+    contactEmail: asText(authEmail),
     socialProfile: {
-      linkedInUrl: profile.socialProfile?.linkedInUrl || '',
-      githubUrl: profile.socialProfile?.githubUrl || '',
-      portfolioUrl: profile.socialProfile?.portfolioUrl || '',
-      twitterUrl: profile.socialProfile?.twitterUrl || '',
-      websiteUrl: profile.socialProfile?.websiteUrl || '',
+      linkedInUrl: asText(socialProfile.linkedInUrl),
+      githubUrl: asText(socialProfile.githubUrl),
+      portfolioUrl: asText(socialProfile.portfolioUrl),
+      twitterUrl: asText(socialProfile.twitterUrl),
+      websiteUrl: asText(socialProfile.websiteUrl),
     },
     preferences: {
-      workMode: profile.preferences?.workMode || 'hybrid',
-      employmentStatus: profile.preferences?.employmentStatus || 'open_to_work',
-      preferredCountries: profile.preferences?.preferredCountries || [],
-      preferredIndustries: profile.preferences?.preferredIndustries || [],
-      willingToRelocate: Boolean(profile.preferences?.willingToRelocate),
-      timeZone: profile.preferences?.timeZone || personal.timeZone || '',
+      workMode: asText(preferences.workMode, 'hybrid') || 'hybrid',
+      employmentStatus: asText(preferences.employmentStatus, 'open_to_work') || 'open_to_work',
+      preferredCountries: asStringArray(preferences.preferredCountries),
+      preferredIndustries: asStringArray(preferences.preferredIndustries),
+      willingToRelocate: Boolean(preferences.willingToRelocate),
+      timeZone: asText(preferences.timeZone, asText(personal.timeZone)),
       salaryExpectation: {
-        min: profile.preferences?.salaryExpectation?.min ?? '',
-        max: profile.preferences?.salaryExpectation?.max ?? '',
-        currency: profile.preferences?.salaryExpectation?.currency || 'USD',
-        period: profile.preferences?.salaryExpectation?.period || 'yearly',
+        min: asText(salaryExpectation.min),
+        max: asText(salaryExpectation.max),
+        currency: asText(salaryExpectation.currency, 'USD') || 'USD',
+        period: asText(salaryExpectation.period, 'yearly') || 'yearly',
       },
     },
-    education: (profile.education || []).map((e) => ({ ...emptyEducation(), ...e })),
-    experience: (profile.experience || []).map((e) => ({
-      ...emptyExperience(),
-      ...e,
-      achievements: e.achievements || [],
-    })),
-    skills: (profile.skills || []).map((s) => ({ ...emptySkill(s.category), ...s })),
-    languages: (profile.languages || []).map((l) => ({ ...emptyLanguage(), ...l })),
-    certificationReferences: (profile.certificationReferences || []).map((c) => ({ ...emptyCertification(), ...c })),
-    portfolioReferences: (profile.portfolioReferences || []).map((p) => ({
-      ...emptyPortfolio(),
-      ...p,
-      technologies: p.technologies || [],
-    })),
-    examScores: (profile.examScores || []).map((e) => ({ ...emptyExamScore(), ...e })),
-    studyGoals: (profile.studyGoals || []).map((g) => ({ ...emptyStudyGoal(), ...g })),
+    education: asArray(safeProfile.education).map(normalizeEducationEntry),
+    experience: asArray(safeProfile.experience).map((value) => {
+      const entry = asRecord(value);
+      return {
+        ...emptyExperience(), ...entry,
+        company: asText(entry.company), role: asText(entry.role),
+        employmentType: asText(entry.employmentType), country: asText(entry.country),
+        location: asText(entry.location), startDate: asText(entry.startDate),
+        endDate: asText(entry.endDate), description: asText(entry.description),
+        achievements: asStringArray(entry.achievements),
+      };
+    }),
+    skills: asArray(safeProfile.skills).map((value) => {
+      const entry = typeof value === 'string' ? { name: value } : asRecord(value);
+      return {
+        ...emptySkill(asText(entry.category, 'technical')), ...entry,
+        name: asText(entry.name), level: asText(entry.level, 'intermediate'),
+        category: asText(entry.category, 'technical'), source: asText(entry.source, 'self_reported'),
+      };
+    }),
+    languages: asArray(safeProfile.languages).map((value) => {
+      const entry = typeof value === 'string' ? { language: value } : asRecord(value);
+      return {
+        ...emptyLanguage(), ...entry, language: asText(entry.language),
+        proficiency: asText(entry.proficiency, 'conversational'),
+      };
+    }),
+    certificationReferences: asArray(safeProfile.certificationReferences).map((value) => {
+      const entry = typeof value === 'string' ? { name: value } : asRecord(value);
+      return {
+        ...emptyCertification(), ...entry, name: asText(entry.name), issuer: asText(entry.issuer),
+        issuedAt: asDateInput(entry.issuedAt), expiresAt: asDateInput(entry.expiresAt),
+        externalUrl: asText(entry.externalUrl),
+      };
+    }),
+    portfolioReferences: asArray(safeProfile.portfolioReferences).map((value) => {
+      const entry = asRecord(value);
+      return {
+        ...emptyPortfolio(), ...entry,
+        title: asText(entry.title), description: asText(entry.description), url: asText(entry.url),
+        technologies: asStringArray(entry.technologies), featured: Boolean(entry.featured),
+      };
+    }),
+    examScores: asArray(safeProfile.examScores).map((value) => {
+      const entry = asRecord(value);
+      return {
+        ...emptyExamScore(), ...entry, testType: asText(entry.testType),
+        provider: asText(entry.provider), overallScore: asText(entry.overallScore),
+        testDate: asDateInput(entry.testDate), expiryDate: asDateInput(entry.expiryDate),
+        status: asText(entry.status, 'completed'), referenceNumber: asText(entry.referenceNumber),
+      };
+    }),
+    studyGoals: asArray(safeProfile.studyGoals).map((value) => {
+      const entry = asRecord(value);
+      return {
+        ...emptyStudyGoal(), ...entry, goalType: asText(entry.goalType, 'study'),
+        degreeLevel: asText(entry.degreeLevel), fieldOfStudy: asText(entry.fieldOfStudy),
+        destinationCountries: asStringArray(entry.destinationCountries),
+        targetIntake: asText(entry.targetIntake), targetYear: asText(entry.targetYear),
+        studyMode: asText(entry.studyMode), scholarshipPreference: asText(entry.scholarshipPreference),
+        notes: asText(entry.notes), status: asText(entry.status, 'active'),
+      };
+    }),
     studentPreferences: {
-      destinationCountries: profile.studentPreferences?.destinationCountries || [],
-      preferredCities: profile.studentPreferences?.preferredCities || [],
-      fieldsOfStudy: profile.studentPreferences?.fieldsOfStudy || [],
-      degreeLevels: profile.studentPreferences?.degreeLevels || [],
-      targetIntake: profile.studentPreferences?.targetIntake || '',
-      targetYear: profile.studentPreferences?.targetYear ?? '',
-      studyMode: profile.studentPreferences?.studyMode || '',
-      scholarshipRequired: Boolean(profile.studentPreferences?.scholarshipRequired),
-      fundingPreference: profile.studentPreferences?.fundingPreference || '',
-      preferredCurrency: profile.studentPreferences?.preferredCurrency || '',
+      destinationCountries: asStringArray(studentPreferences.destinationCountries),
+      preferredCities: asStringArray(studentPreferences.preferredCities),
+      fieldsOfStudy: asStringArray(studentPreferences.fieldsOfStudy),
+      degreeLevels: asStringArray(studentPreferences.degreeLevels),
+      targetIntake: asText(studentPreferences.targetIntake),
+      targetYear: asText(studentPreferences.targetYear),
+      studyMode: asText(studentPreferences.studyMode),
+      scholarshipRequired: Boolean(studentPreferences.scholarshipRequired),
+      fundingPreference: asText(studentPreferences.fundingPreference),
+      preferredCurrency: asText(studentPreferences.preferredCurrency),
     },
     budgetProfile: {
       tuition: {
-        amountMinor: profile.budgetProfile?.tuition?.amountMinor ?? '',
-        currency: profile.budgetProfile?.tuition?.currency || '',
+        amountMinor: asText(tuition.amountMinor), currency: asText(tuition.currency),
       },
       living: {
-        amountMinor: profile.budgetProfile?.living?.amountMinor ?? '',
-        currency: profile.budgetProfile?.living?.currency || '',
+        amountMinor: asText(living.amountMinor), currency: asText(living.currency),
       },
       general: {
-        amountMinor: profile.budgetProfile?.general?.amountMinor ?? '',
-        currency: profile.budgetProfile?.general?.currency || '',
+        amountMinor: asText(general.amountMinor), currency: asText(general.currency),
       },
-      period: profile.budgetProfile?.period || '',
-      fundingSource: profile.budgetProfile?.fundingSource || '',
-      notes: profile.budgetProfile?.notes || '',
+      period: asText(budgetProfile.period),
+      fundingSource: asText(budgetProfile.fundingSource),
+      notes: asText(budgetProfile.notes),
     },
   };
 }
@@ -298,15 +407,19 @@ export function formToProfilePayload(form) {
         period: form.preferences?.salaryExpectation?.period,
       },
     },
-    education: form.education,
-    experience: form.experience.map((e) => ({
+    education: (form.education || []).map((entry) => {
+      const payloadEntry = { ...entry };
+      delete payloadEntry._legacyGradingSystem;
+      return payloadEntry;
+    }),
+    experience: (form.experience || []).map((e) => ({
       ...e,
       achievements: (e.achievements || []).filter(Boolean),
     })),
     skills: form.skills,
     languages: form.languages,
     certificationReferences: form.certificationReferences,
-    portfolioReferences: form.portfolioReferences.map((p) => ({
+    portfolioReferences: (form.portfolioReferences || []).map((p) => ({
       ...p,
       technologies: (p.technologies || []).filter(Boolean),
     })),
@@ -342,5 +455,5 @@ export function parseListInput(value) {
 }
 
 export function formatListInput(arr) {
-  return (arr || []).join(', ');
+  return asStringArray(arr).join(', ');
 }

@@ -58,8 +58,21 @@ export default function TalentProfileEditor() {
       setActiveTab('personal');
       return;
     }
+    const gradingIndex = (form.education || []).findIndex((entry) => !entry?.gradingSystem);
+    if (gradingIndex >= 0) {
+      setFieldError(`Education entry ${gradingIndex + 1} — Grading system needs selection.`);
+      setActiveTab('education');
+      return;
+    }
     if (errors.length) {
-      setFieldError(errors[0]);
+      const educationError = errors[0].match(/^education\[(\d+)\]:\s*(.*)$/);
+      setFieldError(educationError
+        ? `Education entry ${Number(educationError[1]) + 1} — ${educationError[2]
+          .replace(/^gradingSystem/, 'Grading system')
+          .replace(/^gradeValue/, 'Grade value')
+          .replace(/^gradeScale/, 'Grade scale')}`
+        : errors[0]);
+      if (educationError) setActiveTab('education');
       return;
     }
     setFieldError('');

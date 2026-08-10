@@ -2,6 +2,10 @@ import { useTranslation } from 'react-i18next';
 import { FormField } from '../../components/common/FormField';
 import { Button } from '../../components/common/Button';
 import {
+  GRADING_SYSTEMS,
+  GRADING_SYSTEM_LABELS,
+} from '../../../../shared/career/studentProfile.js';
+import {
   emptyEducation,
   emptyExperience,
   emptySkill,
@@ -271,19 +275,58 @@ export function TalentProfileForm({ form, setForm, activeTab }) {
         <div className="space-y-4">
           {(form.education || []).map((row, i) => (
             <div key={i} className="rounded-lg border border-dashed border-gray-300 dark:border-gray-600 p-4 space-y-3">
+              <h3 className="font-medium text-gray-900 dark:text-white">Education entry {i + 1}</h3>
               <div className="grid sm:grid-cols-2 gap-3">
-                <input className={inputClass} placeholder={t('talent:education.institution')} value={row.institution} onChange={(e) => updateArrayItem(setForm, 'education', i, { institution: e.target.value })} />
-                <input className={inputClass} placeholder={t('talent:education.degree')} value={row.degree} onChange={(e) => updateArrayItem(setForm, 'education', i, { degree: e.target.value })} />
-                <input className={inputClass} placeholder={t('talent:education.field')} value={row.fieldOfStudy} onChange={(e) => updateArrayItem(setForm, 'education', i, { fieldOfStudy: e.target.value })} />
-                <input className={inputClass} placeholder={t('talent:education.country')} value={row.country || ''} maxLength={2} onChange={(e) => updateArrayItem(setForm, 'education', i, { country: e.target.value.toUpperCase() })} />
-                <input className={inputClass} placeholder={t('talent:education.startYear')} value={row.startYear} onChange={(e) => updateArrayItem(setForm, 'education', i, { startYear: e.target.value })} />
-                <input className={inputClass} placeholder={t('talent:education.endYear')} value={row.endYear} onChange={(e) => updateArrayItem(setForm, 'education', i, { endYear: e.target.value })} />
-                <input className={inputClass} placeholder={t('talent:education.gradingSystem') + ' (e.g. percentage, gpa_4)'} value={row.gradingSystem || ''} onChange={(e) => updateArrayItem(setForm, 'education', i, { gradingSystem: e.target.value })} />
-                <input className={inputClass} placeholder={t('talent:education.gradeValue')} value={row.gradeValue || ''} onChange={(e) => updateArrayItem(setForm, 'education', i, { gradeValue: e.target.value })} />
-                <input className={inputClass} placeholder={t('talent:education.gradeScale')} value={row.gradeScale || ''} onChange={(e) => updateArrayItem(setForm, 'education', i, { gradeScale: e.target.value })} />
-                <input className={inputClass} placeholder={t('talent:education.honors')} value={row.honors || ''} onChange={(e) => updateArrayItem(setForm, 'education', i, { honors: e.target.value })} />
+                <FormField id={`education-${i}-institution`} label={t('talent:education.institution')}>
+                  <input id={`education-${i}-institution`} className={inputClass} value={row.institution} onChange={(e) => updateArrayItem(setForm, 'education', i, { institution: e.target.value })} />
+                </FormField>
+                <FormField id={`education-${i}-degree`} label={t('talent:education.degree')}>
+                  <input id={`education-${i}-degree`} className={inputClass} value={row.degree} onChange={(e) => updateArrayItem(setForm, 'education', i, { degree: e.target.value })} />
+                </FormField>
+                <FormField id={`education-${i}-field`} label={t('talent:education.field')}>
+                  <input id={`education-${i}-field`} className={inputClass} value={row.fieldOfStudy} onChange={(e) => updateArrayItem(setForm, 'education', i, { fieldOfStudy: e.target.value })} />
+                </FormField>
+                <FormField id={`education-${i}-country`} label={t('talent:education.country')}>
+                  <input id={`education-${i}-country`} className={inputClass} value={row.country || ''} maxLength={2} onChange={(e) => updateArrayItem(setForm, 'education', i, { country: e.target.value.toUpperCase() })} />
+                </FormField>
+                <FormField id={`education-${i}-start-year`} label={t('talent:education.startYear')}>
+                  <input id={`education-${i}-start-year`} className={inputClass} value={row.startYear} onChange={(e) => updateArrayItem(setForm, 'education', i, { startYear: e.target.value })} />
+                </FormField>
+                <FormField id={`education-${i}-end-year`} label={t('talent:education.endYear')}>
+                  <input id={`education-${i}-end-year`} className={inputClass} value={row.endYear} onChange={(e) => updateArrayItem(setForm, 'education', i, { endYear: e.target.value })} />
+                </FormField>
+                <FormField id={`education-${i}-grading-system`} label={t('talent:education.gradingSystem')}>
+                  <select
+                    id={`education-${i}-grading-system`}
+                    className={inputClass}
+                    value={row.gradingSystem || ''}
+                    required
+                    onChange={(e) => updateArrayItem(setForm, 'education', i, { gradingSystem: e.target.value, _legacyGradingSystem: '' })}
+                  >
+                    <option value="">Grading system needs selection</option>
+                    {GRADING_SYSTEMS.map((value) => (
+                      <option key={value} value={value}>{GRADING_SYSTEM_LABELS[value]}</option>
+                    ))}
+                  </select>
+                  {row._legacyGradingSystem ? (
+                    <p className="mt-1 text-sm text-amber-700 dark:text-amber-300" role="status">
+                      The previous value “{row._legacyGradingSystem}” is not supported. Select the correct grading system; no conversion has been applied.
+                    </p>
+                  ) : null}
+                </FormField>
+                <FormField id={`education-${i}-grade-value`} label={t('talent:education.gradeValue')}>
+                  <input id={`education-${i}-grade-value`} className={inputClass} placeholder="For example: 78%, 4.2, 3.33, A" value={row.gradeValue || ''} onChange={(e) => updateArrayItem(setForm, 'education', i, { gradeValue: e.target.value })} />
+                </FormField>
+                <FormField id={`education-${i}-grade-scale`} label={t('talent:education.gradeScale')}>
+                  <input id={`education-${i}-grade-scale`} className={inputClass} placeholder="For example: 100, 4, 5, 10" value={row.gradeScale || ''} onChange={(e) => updateArrayItem(setForm, 'education', i, { gradeScale: e.target.value })} />
+                </FormField>
+                <FormField id={`education-${i}-honors`} label={t('talent:education.honors')}>
+                  <input id={`education-${i}-honors`} className={inputClass} value={row.honors || ''} onChange={(e) => updateArrayItem(setForm, 'education', i, { honors: e.target.value })} />
+                </FormField>
               </div>
-              <textarea className={inputClass} rows={2} placeholder={t('talent:education.description')} value={row.description} onChange={(e) => updateArrayItem(setForm, 'education', i, { description: e.target.value })} />
+              <FormField id={`education-${i}-description`} label={t('talent:education.description')}>
+                <textarea id={`education-${i}-description`} className={inputClass} rows={2} value={row.description} onChange={(e) => updateArrayItem(setForm, 'education', i, { description: e.target.value })} />
+              </FormField>
               <Button type="button" variant="outline" onClick={() => removeArrayItem(setForm, 'education', i)}>{t('talent:education.remove')}</Button>
             </div>
           ))}

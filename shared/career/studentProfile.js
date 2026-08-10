@@ -64,6 +64,57 @@ export const GRADING_SYSTEMS = [
   'other',
 ];
 
+/** User-facing labels keyed by the canonical stored values above. */
+export const GRADING_SYSTEM_LABELS = Object.freeze({
+  percentage: 'Percentage',
+  gpa_4: 'GPA — 4 point scale',
+  gpa_5: 'GPA — 5 point scale',
+  gpa_10: 'GPA — 10 point scale',
+  cgpa: 'CGPA',
+  grade_letters: 'Letter grades',
+  igcse: 'IGCSE',
+  ib: 'IB',
+  a_levels: 'A Levels',
+  o_levels: 'O Levels',
+  waec: 'WAEC',
+  cbse: 'CBSE',
+  icse: 'ICSE',
+  other: 'Other',
+});
+
+const GRADING_SYSTEM_SET = new Set(GRADING_SYSTEMS);
+const LEGACY_GRADING_SYSTEM_ALIASES = Object.freeze({
+  percent: 'percentage',
+  percentile: 'percentage',
+  gpa4: 'gpa_4',
+  gpa_4_point: 'gpa_4',
+  gpa5: 'gpa_5',
+  gpa_5_point: 'gpa_5',
+  gpa10: 'gpa_10',
+  gpa_10_point: 'gpa_10',
+  letter_grade: 'grade_letters',
+  letter_grades: 'grade_letters',
+  grades: 'grade_letters',
+  a_level: 'a_levels',
+  alevel: 'a_levels',
+  alevels: 'a_levels',
+  o_level: 'o_levels',
+  olevel: 'o_levels',
+  olevels: 'o_levels',
+});
+
+/**
+ * Convert only deterministic legacy identifiers to a canonical grading system.
+ * Numeric grades and ambiguous values such as "gpa" deliberately return null.
+ */
+export function normalizeGradingSystem(value) {
+  if (typeof value !== 'string') return null;
+  const normalized = value.trim().toLowerCase().replace(/[\s-]+/g, '_');
+  if (!normalized) return null;
+  if (GRADING_SYSTEM_SET.has(normalized)) return normalized;
+  return LEGACY_GRADING_SYSTEM_ALIASES[normalized] || null;
+}
+
 /** Education record completion statuses. */
 export const EDUCATION_COMPLETION_STATUSES = ['in_progress', 'completed', 'incomplete', 'deferred'];
 
