@@ -16,6 +16,8 @@ import { requireStaff, requirePermission } from '../middleware/rbac.js';
 import { PERMISSIONS } from '../config/rbac.js';
 import { secureTrustedOrigin } from '../middleware/secureTrustedOrigin.js';
 import { employerAuthLimiter, refreshLimiter, searchLimiter } from '../middleware/rateLimit.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { INSTITUTION_TYPES } from '../../../shared/education/taxonomy.js';
 import * as authCtrl from '../controllers/institutionAuthController.js';
 import * as portalCtrl from '../controllers/institutionPortalController.js';
 
@@ -203,7 +205,7 @@ institutionPortalRouter.post(
 const adminInstitution = Router();
 adminInstitution.use(requireAuth, requireStaff);
 
-adminInstitution.get('/claims', requirePermission(PERMISSIONS.VERIFICATION_READ), async (req, res) => {
+adminInstitution.get('/claims', requirePermission(PERMISSIONS.VERIFICATION_READ), asyncHandler(async (req, res) => {
   const { InstitutionClaim } = await import('../models/institution/InstitutionClaim.js');
   const { OrganizationVerification } = await import('../models/OrganizationVerification.js');
   const { state, q, countryCode, page = 1, limit = 20 } = req.query;
@@ -265,9 +267,9 @@ adminInstitution.get('/claims', requirePermission(PERMISSIONS.VERIFICATION_READ)
     claims: enriched,
     pagination: { page: pageNum, limit: safeLimit, total, pages: Math.ceil(total / safeLimit) },
   });
-});
+}));
 
-adminInstitution.patch('/claims/:claimId', requirePermission(PERMISSIONS.VERIFICATION_APPROVE), async (req, res) => {
+adminInstitution.patch('/claims/:claimId', requirePermission(PERMISSIONS.VERIFICATION_APPROVE), asyncHandler(async (req, res) => {
   const { InstitutionClaim } = await import('../models/institution/InstitutionClaim.js');
   const { CanonicalInstitution } = await import('../models/education/CanonicalInstitution.js');
   const { Organization } = await import('../models/Organization.js');
@@ -337,12 +339,31 @@ adminInstitution.patch('/claims/:claimId', requirePermission(PERMISSIONS.VERIFIC
     claim.approvedAt = new Date();
     if (!claim.canonicalInstitutionId && claim.proposedCanonical?.officialName) {
       const { educationSlug } = await import('../../../shared/education/taxonomy.js');
-      let slug = educationSlug(claim.proposedCanonical.officialName);
+      const proposed = typeof claim.proposedCanonical.toObject === 'function'
+        ? claim.proposedCanonical.toObject()
+        : { ...claim.proposedCanonical };
+      const officialName = String(proposed.officialName || '').trim();
+      if (!officialName) {
+        return res.status(422).json({ error: 'proposedCanonical.officialName is required to create a canonical institution' });
+      }
+      const allowedTypes = Object.values(INSTITUTION_TYPES);
+      const org = await Organization.findById(claim.organizationId).select('organizationType').lean();
+      const institutionType = allowedTypes.includes(proposed.institutionType)
+        ? proposed.institutionType
+        : (allowedTypes.includes(org?.organizationType) ? org.organizationType : INSTITUTION_TYPES.UNIVERSITY);
+      let slug = educationSlug(officialName);
       const base = slug;
       let attempt = 0;
       while (await CanonicalInstitution.exists({ slug })) { attempt++; slug = `${base}-${attempt + 1}`; }
       const ci = await CanonicalInstitution.create({
-        ...claim.proposedCanonical,
+        officialName,
+        countryCode: proposed.countryCode || '',
+        city: proposed.city || '',
+        region: proposed.region || '',
+        officialWebsite: proposed.officialWebsite || '',
+        officialDomain: proposed.officialDomain || '',
+        institutionType,
+        isPublic: proposed.isPublic ?? null,
         slug,
         organizationId: claim.organizationId,
         status: 'draft',
@@ -387,9 +408,9 @@ adminInstitution.patch('/claims/:claimId', requirePermission(PERMISSIONS.VERIFIC
   }
 
   return res.status(200).json({ claim });
-});
+}));
 
-adminInstitution.get('/conflicts', requirePermission(PERMISSIONS.DATA_QUALITY_MANAGE), async (req, res) => {
+adminInstitution.get('/conflicts', requirePermission(PERMISSIONS.DATA_QUALITY_MANAGE), asyncHandler(async (req, res) => {
   const { InstitutionDataConflict } = await import('../models/institution/InstitutionDataConflict.js');
   const { state = 'open', page = 1, limit = 20 } = req.query;
   const safeLimit = Math.min(parseInt(limit), 50);
@@ -399,9 +420,9 @@ adminInstitution.get('/conflicts', requirePermission(PERMISSIONS.DATA_QUALITY_MA
     .limit(safeLimit)
     .lean();
   return res.status(200).json({ conflicts });
-});
+}));
 
-adminInstitution.patch('/conflicts/:conflictId/resolve', requirePermission(PERMISSIONS.DATA_QUALITY_MANAGE), async (req, res) => {
+adminInstitution.patch('/conflicts/:conflictId/resolve', requirePermission(PERMISSIONS.DATA_QUALITY_MANAGE), asyncHandler(async (req, res) => {
   const { InstitutionDataConflict } = await import('../models/institution/InstitutionDataConflict.js');
   const { logAudit } = await import('../services/auditService.js');
   const { conflictId } = req.params;
@@ -428,6 +449,6 @@ adminInstitution.patch('/conflicts/:conflictId/resolve', requirePermission(PERMI
   });
 
   return res.status(200).json({ conflict });
-});
+}));
 
 institutionPortalRouter.use('/admin/institution', adminInstitution);
