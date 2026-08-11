@@ -187,6 +187,12 @@ const AgentTeam = lazyLoad(() => import('../pages/Agent/AgentTeam'));
 const AgentLeads = lazyLoad(() => import('../pages/Agent/AgentLeads'));
 const AgentClients = lazyLoad(() => import('../pages/Agent/AgentClients'));
 const AgentSettings = lazyLoad(() => import('../pages/Agent/AgentSettings'));
+const AgentNotifications = lazyLoad(() => import('../pages/Agent/AgentNotifications'));
+const AgentMessages = lazyLoad(() => import('../pages/Agent/AgentMessages'));
+const AgentUsageBilling = lazyLoad(() => import('../pages/Agent/AgentUsageBilling'));
+const AgentGuidelines = lazyLoad(() => import('../pages/Agent/AgentGuidelines'));
+const AgentHelp = lazyLoad(() => import('../pages/Agent/AgentHelp'));
+const AgentAcceptInvitation = lazyLoad(() => import('../pages/Agent/AgentAcceptInvitation'));
 const AgentDirectory = lazyLoad(() => import('../pages/Public/AgentDirectory'));
 const AgentPublicProfile = lazyLoad(() => import('../pages/Public/AgentPublicProfile'));
 const AgentMarketplace = lazyLoad(() => import('../pages/Agent/AgentMarketplace'));
@@ -284,6 +290,11 @@ export const routes = [
       { path: 'team', element: <AgentTeam /> },
       { path: 'leads', element: <AgentLeads /> },
       { path: 'clients', element: <AgentClients /> },
+      { path: 'messages', element: <AgentMessages /> },
+      { path: 'notifications', element: <AgentNotifications /> },
+      { path: 'usage-billing', element: <AgentUsageBilling /> },
+      { path: 'guidelines', element: <AgentGuidelines /> },
+      { path: 'help', element: <AgentHelp /> },
       { path: 'settings', element: <AgentSettings /> },
     ],
   },
@@ -374,6 +385,7 @@ export const routes = [
       { path: ROUTES.EMPLOYER_ACCEPT_INVITATION, element: <EmployerAcceptInvitation /> },
       { path: ROUTES.AGENT_LOGIN, element: <AgentLogin /> },
       { path: ROUTES.AGENT_REGISTER, element: <AgentRegister /> },
+      { path: ROUTES.AGENT_ACCEPT_INVITATION, element: <AgentAcceptInvitation /> },
       { path: ROUTES.AGENT_PUBLIC_DIRECTORY, element: <AgentDirectory /> },
       { path: ROUTES.AGENT_PUBLIC_MARKETPLACE, element: <AgentMarketplacePublic /> },
       { path: ROUTES.AGENT_PUBLIC_MARKETPLACE_DETAIL, element: <AgentMarketplaceDetail /> },

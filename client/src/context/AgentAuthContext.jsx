@@ -112,7 +112,12 @@ export function AgentAuthProvider({ children }) {
         return agentAuthApi.me();
       })
       .then((res) => {
-        if (!cancelled && res) persistAgent(res.data.account);
+        if (!cancelled && res) {
+          persistAgent({
+            ...res.data.account,
+            agentType: res.data.profile?.agentType || res.data.account?.agentType,
+          });
+        }
       })
       .catch(() => {
         if (!cancelled) {

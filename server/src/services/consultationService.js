@@ -19,7 +19,7 @@ import { AGENT_LEAD_STATUSES, AGENT_SERVICE_PRICING_MODES, AGENT_SERVICE_STATUSE
 import { MARKETPLACE_MODERATION_STATUSES, MARKETPLACE_PUBLICATION_STATUSES } from '../../../shared/agent/marketplace.js';
 import { normalizeTimeZone } from '../../../shared/international/timezone.js';
 import {
-  CONSULTATION_PAYMENT_STATES, CONSULTATION_STATUSES, MESSAGE_TYPES, THREAD_STATUSES,
+  CONSULTATION_PAYMENT_STATES, CONSULTATION_STATUSES, MEETING_MODES, MESSAGE_TYPES, THREAD_STATUSES,
   canTransitionConsultation, isSlotInsideAvailability, messagingAllowed,
   sanitizeMessageText, validateAvailabilityWindows,
 } from '../../../shared/services/consultations.js';
@@ -89,7 +89,20 @@ async function appendEvent(record, actorType, actorId, fromStatus, toStatus, rea
 }
 
 async function prepareNotification(record, recipientActorType, recipientId, eventType, category = 'appointments', scheduledAt = null) {
-  return ConsultationNotificationEvent.create({ consultationId: record._id, recipientActorType, recipientId: String(recipientId), eventType, category, scheduledAt, timezone: record.timezone, status: 'pending', deliveryAttempted: false });
+  const event = await ConsultationNotificationEvent.create({ consultationId: record._id, recipientActorType, recipientId: String(recipientId), eventType, category, scheduledAt, timezone: record.timezone, status: 'pending', deliveryAttempted: false });
+  if (recipientActorType === 'agent') {
+    const { notifyAgentMembership } = await import('./agentInboxNotificationBridge.js');
+    await notifyAgentMembership({
+      membershipId: recipientId,
+      category: eventType === 'new_contextual_message' ? 'message' : 'consultation',
+      type: eventType,
+      title: eventType === 'new_contextual_message' ? 'New consultation message' : 'Consultation update',
+      body: 'A consultation event requires your attention. Open the consultation for details.',
+      link: `/agent/consultations/${record._id}`,
+      dedupeKey: `agent:consultation:${record._id}:${eventType}:${event._id}`,
+    }).catch(() => {});
+  }
+  return event;
 }
 
 async function assertSlotAvailable({ availability, start, durationMinutes, excludeConsultationId }) {
@@ -168,6 +181,8 @@ export async function requestConsultation(userId, input = {}) {
   const zone = normalizeTimeZone(input.timezone);
   if (!zone || zone !== availability.timezone) fail('Booking timezone must match the selected availability timezone', 422);
   const durationMinutes = Math.min(480, Math.max(15, Number(input.durationMinutes) || 30));
+  if (!Object.values(MEETING_MODES).includes(input.meetingMode)) fail('A valid meetingMode is required', 422);
+  if (!clean(input.purpose, 300)) fail('Purpose is required', 422);
   const requestedWindow = await assertSlotAvailable({ availability, start: input.requestedStart, durationMinutes });
   let marketplacePostId = null;
   if (input.marketplacePostId) {
@@ -216,6 +231,8 @@ export async function listAgentConsultations(agentAccountId, query = {}) {
   const scope = await agentScope(agentAccountId); const { page, limit, skip } = pageOptions(query);
   const filter = { organizationId: scope.organizationId, assignedMembershipId: scope.membership._id };
   if (query.status && Object.values(CONSULTATION_STATUSES).includes(query.status)) filter.status = query.status;
+  const term = String(query.q || '').trim().slice(0, 80);
+  if (term) filter.purpose = { $regex: term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
   const [rows, total, verificationStatus] = await Promise.all([Consultation.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(), Consultation.countDocuments(filter), getVerificationStatus(scope.organizationId)]);
   return { consultations: rows.map((row) => agentProjection(row, verificationStatus)), page, limit, total };
 }

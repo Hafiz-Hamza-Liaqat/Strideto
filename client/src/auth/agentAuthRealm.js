@@ -3,7 +3,7 @@
  * Pure path logic — safe to unit-test without React.
  */
 
-export const AGENT_PUBLIC_AUTH_PATHS = ['/agent/login', '/agent/register'];
+export const AGENT_PUBLIC_AUTH_PATHS = ['/agent/login', '/agent/register', '/agent/accept-invitation'];
 
 const AGENT_PORTAL_ROOT_SEGMENTS = new Set([
   'onboarding',
@@ -20,6 +20,11 @@ const AGENT_PORTAL_ROOT_SEGMENTS = new Set([
   'cases',
   'trust',
   'commerce',
+  'messages',
+  'notifications',
+  'usage-billing',
+  'guidelines',
+  'help',
 ]);
 
 export function isAgentPublicAuthPath(pathname = '') {

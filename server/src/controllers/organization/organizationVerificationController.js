@@ -16,7 +16,6 @@ import { resolveCredentialPolicy } from '../../services/credentialPolicyService.
 import { Organization } from '../../models/Organization.js';
 import { AgentProfile } from '../../models/agent/AgentProfile.js';
 import { AgentMembership } from '../../models/agent/AgentMembership.js';
-import { AgentAccount } from '../../models/agent/AgentAccount.js';
 import { EmployerMembership } from '../../models/employer/EmployerMembership.js';
 import { employerRoleHasCapability, EMPLOYER_CAPABILITIES } from '../../../../shared/employer/team.js';
 
@@ -24,12 +23,8 @@ async function prepareAgentSubmission(req, organizationId) {
   if (!req.agent?.agentAccountId) return;
   const record = await verificationService.getVerification(organizationId);
   if (record.status !== 'draft') return;
-  const account = await AgentAccount.findById(req.agent.agentAccountId).select('emailVerified');
-  if (!account?.emailVerified) {
-    throw Object.assign(new Error('Verify the Agent account email before submitting verification'), {
-      code: 'EMAIL_VERIFICATION_REQUIRED', status: 409,
-    });
-  }
+  // Authenticated Agent session is sufficient to leave draft → email_verified,
+  // matching Employer Phase 4. This is account-session proof, not professional verification.
   await verificationService.markEmailVerified(organizationId, actor(req, organizationId));
 }
 
@@ -139,9 +134,12 @@ export async function getVerificationStatus(req, res) {
       _id: e._id,
       evidenceType: e.evidenceType,
       status: e.status,
+      sourceUrl: e.sourceUrl || '',
+      claimedAuthority: e.claimedAuthority || '',
       submittedAt: e.submittedAt,
       rejectionReason: e.status === 'rejected' ? e.rejectionReason : undefined,
       expiresAt: e.expiresAt,
+      reviewedAt: e.reviewedAt,
     }));
 
     return res.json({

@@ -1,28 +1,58 @@
-import { Link, NavLink, useNavigate, Outlet } from 'react-router-dom';
+import { useState, useEffect, useRef } from 'react';
+import { Link, useLocation, Outlet, useNavigate } from 'react-router-dom';
 import { useAgentAuth } from '../../context/AgentAuthContext';
 import { ROUTES } from '../../constants';
 import { SkipLink } from '../../components/a11y/SkipLink';
+import { Logo } from '../../components/brand/Logo';
+import { AgentNotificationBell } from '../../components/notifications/AgentNotificationBell';
+import { useOverlayA11y } from '../../a11y/useOverlayA11y';
+import { agentNavItems } from '../../config/agentNavConfig';
+import { agentApi } from '../../services/agentService';
 
-const navItems = [
-  { to: ROUTES.AGENT_DASHBOARD, label: 'Dashboard', end: true },
-  { to: ROUTES.AGENT_PROFILE, label: 'Profile' },
-  { to: ROUTES.AGENT_SERVICES, label: 'Services' },
-  { to: ROUTES.AGENT_MARKETPLACE, label: 'Marketplace' },
-  { to: ROUTES.AGENT_CONSULTATIONS, label: 'Consultations' },
-  { to: ROUTES.AGENT_CASES, label: 'Cases' },
-  { to: ROUTES.AGENT_TRUST, label: 'Trust' },
-  { to: ROUTES.AGENT_COMMERCE, label: 'Commerce' },
-  { to: ROUTES.AGENT_AVAILABILITY, label: 'Availability' },
-  { to: ROUTES.AGENT_VERIFICATION, label: 'Verification' },
-  { to: ROUTES.AGENT_TEAM, label: 'Team' },
-  { to: ROUTES.AGENT_LEADS, label: 'Leads' },
-  { to: ROUTES.AGENT_CLIENTS, label: 'Clients' },
-  { to: ROUTES.AGENT_SETTINGS, label: 'Settings' },
-];
+function NavLinks({ location, onNavigate, agentType }) {
+  const menu = agentNavItems({ agentType });
+  const activePath = menu.reduce((best, { path, end }) => {
+    const isMatch = end
+      ? location.pathname === path || location.pathname === `${path}/`
+      : location.pathname === path || location.pathname.startsWith(`${path}/`);
+    if (!isMatch) return best;
+    return !best || path.length > best.length ? path : best;
+  }, null);
+
+  return menu.map(({ path, label }) => (
+    <Link
+      key={path}
+      to={path}
+      onClick={onNavigate}
+      aria-current={path === activePath ? 'page' : undefined}
+      className={`block px-3 py-2.5 rounded-lg text-sm font-medium min-h-[44px] flex items-center ${
+        path === activePath
+          ? 'bg-primary/10 text-primary dark:text-mint'
+          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+      }`}
+    >
+      {label}
+    </Link>
+  ));
+}
 
 export default function AgentLayout() {
+  const location = useLocation();
   const { agent, logout } = useAgentAuth();
   const navigate = useNavigate();
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [agentType, setAgentType] = useState(agent?.agentType || '');
+  const panelRef = useRef(null);
+  useOverlayA11y({ open: mobileOpen, onClose: () => setMobileOpen(false), containerRef: panelRef, trapFocus: true });
+
+  useEffect(() => {
+    agentApi.getProfile().then(({ data }) => setAgentType(data.profile?.agentType || '')).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    document.body.style.overflow = mobileOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileOpen]);
 
   const handleLogout = async () => {
     await logout();
@@ -30,60 +60,84 @@ export default function AgentLayout() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] md:flex">
+    <div className="min-h-screen max-w-full bg-bg-main dark:bg-secondary flex flex-col lg:flex-row">
       <SkipLink />
-      <header className="border-b bg-white p-3 md:hidden">
-        <div className="flex items-center justify-between gap-3">
-          <Link to={ROUTES.AGENT_DASHBOARD} className="font-semibold">Strideto Agent</Link>
-          <button onClick={handleLogout} className="min-h-[44px] rounded px-3 text-sm text-red-700">Log out</button>
+      <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 safe-area-inset-top">
+        <Link to={ROUTES.AGENT_DASHBOARD} className="font-semibold text-gray-900 dark:text-white truncate min-w-0 flex items-center gap-2">
+          <Logo variant="symbol" height={28} />
+          <span>Strideto</span>
+        </Link>
+        <div className="flex items-center gap-1 shrink-0">
+          <AgentNotificationBell />
+          <button
+            type="button"
+            aria-label="Open agent menu"
+            aria-expanded={mobileOpen}
+            aria-controls="agent-mobile-nav"
+            onClick={() => setMobileOpen(true)}
+            className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 min-h-[44px] min-w-[44px]"
+          >
+            ☰
+          </button>
         </div>
-        <nav className="mt-3 flex gap-2 overflow-x-auto pb-1" aria-label="Agent navigation">
-          {navItems.map((item) => <NavLink key={item.to} to={item.to} end={item.end} className={({ isActive }) => `flex min-h-[44px] items-center whitespace-nowrap rounded-lg px-3 py-2 text-sm ${isActive ? 'bg-blue-50 text-blue-700' : 'text-slate-600'}`}>{item.label}</NavLink>)}
-        </nav>
       </header>
-      {/* Sidebar */}
-      <aside className="hidden w-60 bg-white border-r border-[#E5E7EB] md:flex md:min-h-screen md:flex-col">
-        <div className="px-6 py-5 border-b border-[#E5E7EB]">
-          <Link to={ROUTES.AGENT_DASHBOARD} className="text-[#0F172A] font-semibold text-lg">
+
+      {mobileOpen && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <button type="button" aria-label="Close menu" className="absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} />
+          <aside
+            id="agent-mobile-nav"
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Agent navigation"
+            tabIndex={-1}
+            className="absolute left-0 top-0 bottom-0 w-72 max-w-[85vw] bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 p-4 flex flex-col overflow-y-auto overscroll-contain outline-none"
+          >
+            <div className="flex items-center justify-between mb-4 shrink-0">
+              <span className="font-semibold text-gray-900 dark:text-white">Menu</span>
+              <button type="button" aria-label="Close" onClick={() => setMobileOpen(false)} className="min-h-[44px] min-w-[44px] rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">✕</button>
+            </div>
+            <nav className="space-y-1 flex-1">
+              <NavLinks location={location} onNavigate={() => setMobileOpen(false)} agentType={agentType} />
+            </nav>
+            <div className="pt-3 border-t border-gray-200 dark:border-gray-700 shrink-0">
+              <p className="text-xs text-gray-500 truncate px-2 break-words-safe">{agent?.email || ''}</p>
+              <button type="button" onClick={() => { handleLogout(); setMobileOpen(false); }} className="mt-2 w-full text-left px-3 py-2.5 text-sm text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg min-h-[44px]">
+                Log out
+              </button>
+            </div>
+          </aside>
+        </div>
+      )}
+
+      <aside className="hidden lg:flex w-60 shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex-col">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <Link to={ROUTES.AGENT_DASHBOARD} className="flex items-center gap-2 text-gray-900 dark:text-white font-semibold tracking-tight">
+            <Logo variant="symbol" height={28} />
             Strideto
           </Link>
-          <p className="text-xs text-slate-500 mt-0.5">Agent Portal</p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Agent Portal</p>
         </div>
-        <nav className="flex-1 py-4 space-y-0.5 px-3" aria-label="Agent navigation">
-          {navItems.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                `block px-3 py-2 rounded-lg text-sm font-medium transition-colors ${
-                  isActive
-                    ? 'bg-[#EFF6FF] text-[#1D4ED8]'
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-[#0F172A]'
-                }`
-              }
-            >
-              {item.label}
-            </NavLink>
-          ))}
+        <nav className="p-2 flex-1 space-y-1 overflow-y-auto" aria-label="Agent navigation">
+          <NavLinks location={location} agentType={agentType} />
         </nav>
-        <div className="px-4 py-4 border-t border-[#E5E7EB]">
-          <p className="text-xs text-slate-500 truncate mb-2">{agent?.email || ''}</p>
-          <button
-            onClick={handleLogout}
-            className="w-full min-h-[44px] text-left text-sm text-red-700 px-3 py-2 rounded hover:bg-red-50"
-          >
+        <div className="p-3 border-t border-gray-200 dark:border-gray-700">
+          <p className="text-xs text-gray-500 dark:text-gray-400 truncate px-2 break-words-safe">{agent?.email || ''}</p>
+          <button type="button" onClick={handleLogout} className="mt-2 w-full text-left px-3 py-1.5 text-sm text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg min-h-[44px]">
             Log out
           </button>
         </div>
       </aside>
 
-      {/* Main content */}
-      <div className="min-w-0 flex-1 overflow-auto">
-        <main id="main-content" tabIndex={-1} className="max-w-5xl mx-auto px-4 py-6 sm:px-6 sm:py-8 outline-none">
+      <main id="main-content" tabIndex={-1} className="flex-1 overflow-auto min-w-0 outline-none">
+        <div className="hidden lg:flex items-center justify-end px-4 sm:px-6 md:px-8 pt-4 max-w-6xl mx-auto w-full">
+          <AgentNotificationBell />
+        </div>
+        <div className="p-4 sm:p-6 md:p-8 max-w-6xl mx-auto w-full">
           <Outlet />
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

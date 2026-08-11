@@ -14,6 +14,7 @@ import { CanonicalScholarship } from '../models/education/CanonicalScholarship.j
 import { Test } from '../models/education/Test.js';
 import { CanonicalInstitution } from '../models/education/CanonicalInstitution.js';
 import { logAudit } from './auditService.js';
+import { notifyAgentOrganizationOwners } from './agentInboxNotificationBridge.js';
 import { assertApprovedVerification } from './agentProfileService.js';
 import { deriveBadges, VERIFICATION_STATUSES } from '../../../shared/international/verification.js';
 import { deriveFreshness, FRESHNESS_STATES, SOURCE_STATUS as _SOURCE_STATUS } from '../../../shared/trust/sourceVerification.js';
@@ -143,8 +144,13 @@ export async function archivePost(agentAccountId, postId) {
   await audit('agent_marketplace_archived', { userId: agentAccountId, role: 'agent' }, { postId: post._id, organizationId: profile.organizationId }); return post.toObject();
 }
 
-export async function listOwnPosts(agentAccountId, { status, page = 1, limit = 20 } = {}) {
+export async function listOwnPosts(agentAccountId, { status, q, page = 1, limit = 20 } = {}) {
   const { profile } = await resolveAgentScope(agentAccountId); const query = { organizationId: profile.organizationId }; if (status) query.moderationStatus = status;
+  const term = String(q || '').trim().slice(0, 80);
+  if (term) {
+    const re = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    query.$or = [{ title: re }, { summary: re }];
+  }
   const p = Math.max(1, parseInt(page, 10) || 1), l = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));
   const [posts, total] = await Promise.all([AgentMarketplacePost.find(query).sort({ updatedAt: -1 }).skip((p-1)*l).limit(l).lean(), AgentMarketplacePost.countDocuments(query)]);
   return { posts, total, page: p, limit: l, pages: Math.ceil(total/l) };
@@ -188,7 +194,18 @@ export async function createInterest(userId, slug, explicitConsent) {
   if (explicitConsent !== true) throw error('Explicit consent is required', 422); const post = await AgentMarketplacePost.findOne({ slug }).lean(); if (!post || !isMarketplaceCurrentlyActive(post) || !(await OrganizationVerification.exists({ organizationId: post.organizationId, status: VERIFICATION_STATUSES.APPROVED }))) throw error('Marketplace post not found', 404);
   const now = new Date(); const interest = await AgentMarketplaceInterest.findOneAndUpdate({ postId: post._id, userId }, { $set: { organizationId: post.organizationId, status: MARKETPLACE_INTEREST_STATUSES.ACTIVE, consentedAt: now, withdrawnAt: null } }, { upsert: true, new: true }).lean();
   await AgentLead.findOneAndUpdate({ organizationId: post.organizationId, userId }, { $setOnInsert: { source: 'marketplace_interest', context: `marketplace_post:${post._id}`, status: 'new' } }, { upsert: true, new: true });
-  await audit('agent_marketplace_interest_created', { userId, role: 'User' }, { postId: post._id, organizationId: post.organizationId }); return { interestId: interest._id, status: interest.status };
+  await audit('agent_marketplace_interest_created', { userId, role: 'User' }, { postId: post._id, organizationId: post.organizationId });
+  await notifyAgentOrganizationOwners({
+    organizationId: post.organizationId,
+    category: 'marketplace',
+    type: 'marketplace_interest',
+    title: 'New Student interest',
+    body: 'A Student expressed interest in a marketplace post. No private Student profile was shared.',
+    link: '/agent/leads',
+    dedupeKey: `agent:marketplace:interest:${interest._id}`,
+    metadata: { postId: String(post._id) },
+  }).catch(() => {});
+  return { interestId: interest._id, status: interest.status };
 }
 export async function withdrawInterest(userId, slug) { const post = await AgentMarketplacePost.findOne({ slug }).select('_id organizationId').lean(); if (!post) throw error('Marketplace post not found', 404); const interest = await AgentMarketplaceInterest.findOneAndUpdate({ postId: post._id, userId, status: MARKETPLACE_INTEREST_STATUSES.ACTIVE }, { $set: { status: MARKETPLACE_INTEREST_STATUSES.WITHDRAWN, withdrawnAt: new Date() } }, { new: true }).lean(); if (!interest) throw error('Active interest not found', 404); const remaining = await AgentMarketplaceInterest.exists({ organizationId: post.organizationId, userId, status: MARKETPLACE_INTEREST_STATUSES.ACTIVE }); if (!remaining) await AgentLead.updateOne({ organizationId: post.organizationId, userId }, { $set: { status: 'closed' } }); await audit('agent_marketplace_interest_withdrawn', { userId, role: 'User' }, { postId: post._id, organizationId: post.organizationId }); return { status: interest.status }; }
 

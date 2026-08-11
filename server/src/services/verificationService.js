@@ -20,7 +20,7 @@ import { Employer } from '../models/Employer.js';
 import { logAudit } from './auditService.js';
 import {
   VERIFICATION_STATUSES,
-  EVIDENCE_TYPES as _EVIDENCE_TYPES,
+  EVIDENCE_TYPES,
   EVIDENCE_STATUSES,
   RISK_LEVELS,
   isValidTransition,
@@ -256,7 +256,41 @@ export async function submitVerification(organizationId, profile, actor) {
     transitionId: transition._id,
     organizationType: record.organizationType,
   });
+  await recordSupportingEvidenceFromProfile(organizationId, profile, actor).catch(() => {});
   return updated;
+}
+
+/**
+ * Persist reviewer-openable source URLs as pending evidence. Never auto-accept.
+ * Google Maps / Business is recorded as supporting-only google_maps evidence.
+ */
+async function recordSupportingEvidenceFromProfile(organizationId, profile, actor) {
+  const items = [
+    { url: profile?.officialRegistryUrl, evidenceType: EVIDENCE_TYPES.BUSINESS_REGISTRATION, claimedAuthority: profile?.registrationAuthority || 'Official registry' },
+    { url: profile?.governmentRegistryUrl, evidenceType: EVIDENCE_TYPES.BUSINESS_REGISTRATION, claimedAuthority: 'Government / company registry' },
+    { url: profile?.professionalRegulatorUrl, evidenceType: EVIDENCE_TYPES.PROFESSIONAL_LICENSE, claimedAuthority: profile?.licenseIssuer || 'Professional regulator' },
+    { url: profile?.accreditationPageUrl, evidenceType: EVIDENCE_TYPES.ACCREDITATION, claimedAuthority: profile?.accreditationBody || 'Accreditation page' },
+    { url: profile?.googleBusinessUrl, evidenceType: EVIDENCE_TYPES.GOOGLE_MAPS, claimedAuthority: 'Google Business (supporting only)' },
+    { url: profile?.registeredAddress?.googleMapsUrl, evidenceType: EVIDENCE_TYPES.GOOGLE_MAPS, claimedAuthority: 'Google Maps (supporting only)' },
+  ].filter((item) => typeof item.url === 'string' && /^https:\/\//i.test(item.url.trim()));
+
+  for (const item of items) {
+    const existing = await VerificationEvidence.findOne({
+      organizationId,
+      evidenceType: item.evidenceType,
+      sourceUrl: item.url.trim(),
+    }).select('_id').lean();
+    if (existing) continue;
+    await VerificationEvidence.create({
+      organizationId,
+      evidenceType: item.evidenceType,
+      status: EVIDENCE_STATUSES.PENDING,
+      sourceUrl: item.url.trim(),
+      claimedAuthority: item.claimedAuthority,
+      submittedAt: new Date(),
+      correlationId: actor?.correlationId || '',
+    });
+  }
 }
 
 /**
@@ -510,6 +544,7 @@ export async function addEvidence(organizationId, evidenceData, actor) {
     evidenceType: evidenceData.evidenceType,
     status: EVIDENCE_STATUSES.PENDING,
     sourceUrl: evidenceData.sourceUrl || '',
+    claimedAuthority: evidenceData.claimedAuthority || '',
     evidenceRef: evidenceData.evidenceRef || '',
     safeMetadata: evidenceData.safeMetadata || {},
     expiresAt: evidenceData.expiresAt,

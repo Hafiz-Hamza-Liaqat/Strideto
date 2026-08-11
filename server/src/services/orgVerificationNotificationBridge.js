@@ -8,6 +8,7 @@
 import { User } from '../models/User.js';
 import { Organization } from '../models/Organization.js';
 import { createUserNotificationOnce } from './notificationService.js';
+import { notifyAgentOrganizationOwners } from './agentInboxNotificationBridge.js';
 import { STAFF_ROLES, PERMISSIONS, hasPermission } from '../config/rbac.js';
 import { VERIFICATION_STATUSES } from '../../../shared/international/verification.js';
 import {
@@ -175,7 +176,7 @@ export async function emitOrgVerificationNotifications({
   if (applicantMsg) {
     try {
       const org = await OrganizationModel.findById(organizationId)
-        .select('legacyEmployerId')
+        .select('legacyEmployerId organizationType')
         .lean();
       if (org?.legacyEmployerId) {
         planned += 1;
@@ -195,6 +196,25 @@ export async function emitOrgVerificationNotifications({
           })}:employer:${org.legacyEmployerId}`,
         });
         outcome.created ? (result.created += 1) : (result.skipped += 1);
+      }
+      if (org?.organizationType === 'agent' || org?.organizationType === 'agency') {
+        planned += 1;
+        const agentOutcome = await notifyAgentOrganizationOwners({
+          organizationId,
+          category: 'verification',
+          type: applicantMsg.type,
+          title: applicantMsg.title.replace('Organization', 'Professional'),
+          body: applicantMsg.body.replace('organization verification', 'professional verification'),
+          link: '/agent/verification',
+          metadata,
+          dedupeKey: `${orgVerificationDedupeKey({
+            organizationId: String(organizationId),
+            notificationType: applicantMsg.type,
+            transitionId: String(transitionId),
+          })}`,
+        });
+        if (agentOutcome.created > 0) result.created += agentOutcome.created;
+        else result.skipped += 1;
       }
     } catch {
       result.failed += 1;

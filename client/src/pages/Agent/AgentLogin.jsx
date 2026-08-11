@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAgentAuth } from '../../context/AgentAuthContext';
 import { ROUTES } from '../../constants';
+import { Logo } from '../../components/brand/Logo';
 
 export default function AgentLogin() {
   const navigate = useNavigate();
@@ -28,11 +29,12 @@ export default function AgentLogin() {
   };
 
   return (
-    <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4">
+    <div className="min-h-screen bg-bg-main dark:bg-secondary flex items-center justify-center px-4">
       <div className="w-full max-w-md">
-        <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-4 sm:p-8">
-          <h1 className="text-2xl font-semibold text-[#0F172A]">Agent Portal Login</h1>
-          <p className="text-slate-500 mt-1 mb-6 text-sm">
+        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-4 sm:p-8">
+          <Logo height={32} className="mb-4" />
+          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Agent Portal Login</h1>
+          <p className="text-slate-500 dark:text-gray-400 mt-1 mb-6 text-sm">
             Sign in to your Strideto agent account.
           </p>
           {ctxError && (
@@ -40,7 +42,7 @@ export default function AgentLogin() {
           )}
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <label htmlFor="agent-login-email" className="block text-sm font-medium text-[#0F172A] mb-1">Email</label>
+              <label htmlFor="agent-login-email" className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Email</label>
               <input
                 id="agent-login-email"
                 type="email"
@@ -48,11 +50,11 @@ export default function AgentLogin() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
-                className="w-full px-4 py-2 rounded-lg border border-[#E5E7EB] bg-white text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
             <div>
-              <label htmlFor="agent-login-password" className="block text-sm font-medium text-[#0F172A] mb-1">Password</label>
+              <label htmlFor="agent-login-password" className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Password</label>
               <input
                 id="agent-login-password"
                 type="password"
@@ -60,20 +62,20 @@ export default function AgentLogin() {
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
                 required
-                className="w-full px-4 py-2 rounded-lg border border-[#E5E7EB] bg-white text-[#0F172A] focus:outline-none focus:ring-2 focus:ring-blue-500"
+                className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary"
               />
             </div>
             <button
               type="submit"
               disabled={submitting}
-              className="w-full min-h-[44px] py-2 px-4 bg-[#1D4ED8] text-white rounded-lg font-medium hover:bg-[#1e40af] disabled:opacity-60 transition-colors"
+              className="w-full min-h-[44px] py-2 px-4 bg-primary text-white rounded-lg font-medium disabled:opacity-60 transition-colors"
             >
               {submitting ? 'Signing in…' : 'Sign in'}
             </button>
           </form>
-          <p className="mt-6 text-sm text-slate-600">
+          <p className="mt-6 text-sm text-slate-600 dark:text-gray-400">
             New agent?{' '}
-            <Link to={ROUTES.AGENT_REGISTER} className="text-[#1D4ED8] font-medium hover:underline">
+            <Link to={ROUTES.AGENT_REGISTER} className="text-primary font-medium hover:underline">
               Register your agency
             </Link>
           </p>

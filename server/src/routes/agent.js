@@ -176,6 +176,34 @@ agentRouter.patch(
   requireAgentAuth,
   agent.changeMemberStatus
 );
+agentRouter.get(
+  '/agent/team/invites',
+  requireAuth,
+  requireAgentAuth,
+  agent.listInvites
+);
+agentRouter.post(
+  '/agent/team/invites',
+  requireAuth,
+  requireAgentAuth,
+  agent.createInvite
+);
+agentRouter.post(
+  '/agent/team/invites/:invitationId/revoke',
+  requireAuth,
+  requireAgentAuth,
+  agent.revokeInvite
+);
+agentRouter.get(
+  '/auth/agent/invitations/preview',
+  agent.previewInvite
+);
+agentRouter.post(
+  '/auth/agent/invitations/accept',
+  requireAuth,
+  requireAgentAuth,
+  agent.acceptInvite
+);
 
 // ---------------------------------------------------------------------------
 // Leads / Clients (foundation)
@@ -198,6 +226,36 @@ agentRouter.get(
   requireAuth,
   requireAgentAuth,
   agent.listClients
+);
+agentRouter.get(
+  '/agent/verification/sources',
+  requireAuth,
+  requireAgentAuth,
+  agent.getVerificationSources
+);
+agentRouter.get(
+  '/agent/usage-billing',
+  requireAuth,
+  requireAgentAuth,
+  agent.getUsageBilling
+);
+agentRouter.get(
+  '/agent/commerce/readiness',
+  requireAuth,
+  requireAgentAuth,
+  agent.getCommerceReadiness
+);
+agentRouter.get(
+  '/agent/messages',
+  requireAuth,
+  requireAgentAuth,
+  agent.listMessageHub
+);
+agentRouter.get(
+  '/agent/vault/grants',
+  requireAuth,
+  requireAgentAuth,
+  agent.listVaultGrants
 );
 
 // Structured Agent marketplace authoring

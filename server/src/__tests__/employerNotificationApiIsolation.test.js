@@ -47,10 +47,14 @@ const model = read('models/UserNotification.js');
 // --- 6/7/8/13. Filters scope strictly by the resolved context; ownership required for mutations ---
 {
   check(
-    /function buildFilter\(ctx, query\) \{\s*const filter = \{ recipientType: ctx\.recipientType \};\s*if \(ctx\.recipientType === 'employer'\) filter\.employerId = ctx\.employerId;\s*else filter\.userId = ctx\.userId;/.test(controller),
-    'buildFilter: employer context scopes strictly to employerId; user/staff context scopes strictly to userId — never both, never unscoped'
+    /function buildFilter\(ctx, query\) \{\s*const filter = \{ recipientType: ctx\.recipientType \};\s*applyRecipientOwner\(filter, ctx\);/.test(controller),
+    'buildFilter: recipient owner is applied via applyRecipientOwner — never unscoped'
   );
-  const markReadFilterMatches = controller.match(/const filter = \{ _id: id, recipientType: ctx\.recipientType \};\s*\n\s*if \(ctx\.recipientType === 'employer'\) filter\.employerId = ctx\.employerId;\s*\n\s*else filter\.userId = ctx\.userId;/g) || [];
+  check(
+    /if \(ctx\.recipientType === 'employer'\) filter\.employerId = ctx\.employerId;\s*else if \(ctx\.recipientType === 'agent'\) filter\.agentAccountId = ctx\.agentAccountId;\s*else filter\.userId = ctx\.userId;/.test(controller),
+    'applyRecipientOwner: employer→employerId, agent→agentAccountId, else userId — never both, never unscoped'
+  );
+  const markReadFilterMatches = controller.match(/const filter = \{ _id: id, recipientType: ctx\.recipientType \};\s*\n\s*applyRecipientOwner\(filter, ctx\);/g) || [];
   check(
     markReadFilterMatches.length === 2,
     'markRead and removeNotification both require _id + recipientType + owner id together (2 call sites) — a matching _id alone is never sufficient to mutate a record'
@@ -104,12 +108,16 @@ const model = read('models/UserNotification.js');
 // --- Model already supports Employer recipient scoping (no migration needed) ---
 {
   check(
-    /recipientType: \{ type: String, enum: \['user', 'employer', 'staff'\], required: true \},/.test(model),
-    'UserNotification.recipientType already includes employer'
+    /recipientType: \{ type: String, enum: \['user', 'employer', 'staff', 'agent'\], required: true \},/.test(model),
+    'UserNotification.recipientType includes employer and agent'
   );
   check(
     /employerId: \{ type: mongoose\.Schema\.Types\.ObjectId, ref: 'Employer' \},/.test(model),
     'UserNotification.employerId field already exists'
+  );
+  check(
+    /agentAccountId: \{ type: mongoose\.Schema\.Types\.ObjectId, ref: 'AgentAccount' \},/.test(model),
+    'UserNotification.agentAccountId field exists for Agent inbox'
   );
   check(
     /userNotificationSchema\.index\(\{ employerId: 1, read: 1, createdAt: -1 \}\);/.test(model),

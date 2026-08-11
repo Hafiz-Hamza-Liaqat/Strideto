@@ -44,6 +44,7 @@ const evidenceSchema = new mongoose.Schema(
 
     // Source reference: a URL and/or an opaque storage reference (never raw content)
     sourceUrl: { type: String, trim: true, default: '' },
+    claimedAuthority: { type: String, trim: true, maxlength: 300, default: '' },
     evidenceRef: { type: String, trim: true, default: '' },
 
     // Safe, non-sensitive metadata (e.g. document type label, page count)

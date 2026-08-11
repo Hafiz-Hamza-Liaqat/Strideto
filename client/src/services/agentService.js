@@ -117,19 +117,19 @@ export const agentApi = {
     agentAxios.post(`/api/organizations/${organizationId}/verification/respond`, { profile }),
   addVerificationEvidence: (organizationId, evidence) =>
     agentAxios.post(`/api/organizations/${organizationId}/verification/evidence`, evidence),
-  getServices: () => agentAxios.get('/api/agent/services'),
+  getServices: (opts) => agentAxios.get('/api/agent/services', opts),
   createService: (data) => agentAxios.post('/api/agent/services', data),
   updateService: (serviceId, data) =>
     agentAxios.patch(`/api/agent/services/${serviceId}`, data),
-  getTeam: () => agentAxios.get('/api/agent/team'),
+  getTeam: (opts) => agentAxios.get('/api/agent/team', opts),
   changeMemberRole: (targetAgentAccountId, role) =>
     agentAxios.patch('/api/agent/team/member', { targetAgentAccountId, role }),
   changeMemberStatus: (targetAgentAccountId, active) =>
     agentAxios.patch('/api/agent/team/member/status', { targetAgentAccountId, active }),
-  getLeads: () => agentAxios.get('/api/agent/leads'),
+  getLeads: (opts) => agentAxios.get('/api/agent/leads', opts),
   updateLeadStatus: (leadId, status) =>
     agentAxios.patch(`/api/agent/leads/${leadId}`, { status }),
-  getClients: () => agentAxios.get('/api/agent/clients'),
+  getClients: (opts) => agentAxios.get('/api/agent/clients', opts),
   getMarketplaceCounts: () => agentAxios.get('/api/agent/marketplace/counts'),
   getMarketplacePosts: (params) => agentAxios.get('/api/agent/marketplace', { params }),
   getMarketplacePost: (postId) => agentAxios.get(`/api/agent/marketplace/${postId}`),
@@ -159,8 +159,28 @@ export const agentApi = {
   getReports: () => agentAxios.get('/api/agent/reports'), getDisputes: () => agentAxios.get('/api/agent/disputes'),
   addDisputeEvent: (disputeId, data) => agentAxios.post(`/api/agent/disputes/${disputeId}/events`, data),
   getCommerceHistory: (params) => agentAxios.get('/api/agent/commerce/history', { params }),
+  getCommerceReadiness: () => agentAxios.get('/api/agent/commerce/readiness'),
+  getUsageBilling: (params) => agentAxios.get('/api/agent/usage-billing', { params }),
+  getMessages: (params) => agentAxios.get('/api/agent/messages', { params }),
+  getVaultGrants: () => agentAxios.get('/api/agent/vault/grants'),
+  getVerificationSources: (params) => agentAxios.get('/api/agent/verification/sources', { params }),
+  getCredentialPolicy: (organizationId) =>
+    agentAxios.get(`/api/organizations/${organizationId}/verification/credential-policy`),
+  getTeamInvites: () => agentAxios.get('/api/agent/team/invites'),
+  createTeamInvite: (data) => agentAxios.post('/api/agent/team/invites', data),
+  revokeTeamInvite: (invitationId) => agentAxios.post(`/api/agent/team/invites/${invitationId}/revoke`),
+  previewInvite: (token) => agentAxios.get('/api/auth/agent/invitations/preview', { params: { token } }),
+  acceptInvite: (token) => agentAxios.post('/api/auth/agent/invitations/accept', { token }),
   getPaymentStatus: () => agentAxios.post('/api/agent/marketplace-payments/connect/sync'),
   startPaymentOnboarding: (country, idempotencyKey) => agentAxios.post('/api/agent/marketplace-payments/connect/onboarding', { country }, { headers: { 'Idempotency-Key': idempotencyKey } }),
+};
+
+export const agentInboxApi = {
+  list: (params) => agentAxios.get('/api/inbox/notifications', { params }),
+  unreadCount: () => agentAxios.get('/api/inbox/notifications/unread-count'),
+  markRead: (id) => agentAxios.patch(`/api/inbox/notifications/${id}/read`),
+  markAllRead: () => agentAxios.post('/api/inbox/notifications/mark-all-read'),
+  remove: (id) => agentAxios.delete(`/api/inbox/notifications/${id}`),
 };
 
 export const agentPublicApi = {

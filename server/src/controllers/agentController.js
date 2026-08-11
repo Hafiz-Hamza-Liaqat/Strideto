@@ -27,10 +27,36 @@ import {
   updateLeadStatus,
   getPublicProfileBySlug,
   getPublicDirectory,
+  listOrganizationInvites,
+  createOrganizationInvite,
+  previewOrganizationInvite,
+  acceptOrganizationInvite,
+  revokeOrganizationInvite,
+  listClientsForAgent,
 } from '../services/agentProfileService.js';
 import { canExercisePrivilegedCapability } from '../../../shared/international/verification.js';
+import { resolveCredentialPolicy } from '../services/credentialPolicyService.js';
+import { resolveVerificationSources } from '../../../shared/agent/verificationSources.js';
 import { marketplaceCounts } from '../services/agentMarketplaceService.js';
+import { providerReadiness } from '../services/marketplacePaymentService.js';
+import { marketplaceStripeConfiguration } from '../services/payments/StripeConnectProvider.js';
 import { Consultation } from '../models/consultation/Consultation.js';
+import { ConsultationThread } from '../models/consultation/ConsultationThread.js';
+import { ConsultationMessage } from '../models/consultation/ConsultationMessage.js';
+import { ProfessionalCase } from '../models/case/ProfessionalCase.js';
+import { CaseThread, CaseMessage, CaseApprovalRequest } from '../models/case/CaseRecords.js';
+import { AgentLead } from '../models/agent/AgentLead.js';
+import { AgentService } from '../models/agent/AgentService.js';
+import { AgentMembership } from '../models/agent/AgentMembership.js';
+import { Organization } from '../models/Organization.js';
+import { MarketplaceProviderAccount } from '../models/commerce/MarketplaceProviderAccount.js';
+import { CommerceOrder } from '../models/commerce/CommerceOrder.js';
+import { CommerceTransaction } from '../models/commerce/CommerceTransaction.js';
+import { CommerceRefund } from '../models/commerce/CommerceRefund.js';
+import { CommercePayoutReadiness } from '../models/commerce/CommerceOperations.js';
+import { UserNotification } from '../models/UserNotification.js';
+import { DocumentAccessGrant } from '../models/vault/DocumentAccessGrant.js';
+import { AgentAccount } from '../models/agent/AgentAccount.js';
 
 // ---------------------------------------------------------------------------
 // Dashboard
@@ -47,28 +73,111 @@ export const getDashboard = asyncHandler(async (req, res) => {
     });
   }
 
+  const membership = await AgentMembership.findOne({
+    agentAccountId,
+    organizationId: profile.organizationId,
+    active: true,
+  }).lean();
+
   const verificationStatus = await getVerificationStatus(profile.organizationId);
   const isApproved = canExercisePrivilegedCapability(verificationStatus);
-  const marketplace = await marketplaceCounts(agentAccountId);
-  const consultationCounts = await Consultation.aggregate([
-    { $match: { organizationId: profile.organizationId } },
-    { $group: { _id: '$status', count: { $sum: 1 } } },
+  const orgFilter = { organizationId: profile.organizationId };
+
+  const [
+    marketplace,
+    consultationCounts,
+    leadsCount,
+    clientsSnapshot,
+    servicesActive,
+    casesActive,
+    pendingApprovals,
+    unreadMessages,
+    unreadNotifications,
+    providerAccount,
+    payoutReadiness,
+  ] = await Promise.all([
+    marketplaceCounts(agentAccountId),
+    Consultation.aggregate([
+      { $match: orgFilter },
+      { $group: { _id: '$status', count: { $sum: 1 } } },
+    ]),
+    AgentLead.countDocuments(orgFilter),
+    listClientsForAgent(agentAccountId, { page: 1, limit: 1 }).catch(() => ({ total: 0 })),
+    AgentService.countDocuments({ ...orgFilter, status: 'active' }),
+    ProfessionalCase.countDocuments({
+      ...orgFilter,
+      lifecycle: { $in: ['awaiting_student_acceptance', 'active'] },
+      ...(membership ? { authorizedMembershipIds: membership._id } : {}),
+    }),
+    membership
+      ? CaseApprovalRequest.countDocuments({
+        status: 'pending',
+        caseId: { $in: await ProfessionalCase.find({ ...orgFilter, authorizedMembershipIds: membership._id }).distinct('_id') },
+      }).catch(() => 0)
+      : 0,
+    (async () => {
+      if (!membership) return 0;
+      const threads = await ConsultationThread.find({
+        organizationId: profile.organizationId,
+        authorizedMembershipIds: membership._id,
+      }).select('_id').lean();
+      if (!threads.length) return 0;
+      const actorKey = `agent:${membership._id}`;
+      return ConsultationMessage.countDocuments({
+        threadId: { $in: threads.map((t) => t._id) },
+        senderActorType: { $ne: 'agent' },
+        'readBy.actorKey': { $ne: actorKey },
+      });
+    })(),
+    UserNotification.countDocuments({
+      recipientType: 'agent',
+      agentAccountId,
+      read: false,
+    }),
+    MarketplaceProviderAccount.findOne(orgFilter).lean(),
+    CommercePayoutReadiness.findOne(orgFilter).lean(),
   ]);
+
   const consultations = Object.fromEntries(consultationCounts.map((item) => [item._id, item.count]));
+  const providerState = marketplaceStripeConfiguration();
+  const readiness = providerReadiness(providerAccount, isApproved);
 
   return res.status(200).json({
     onboarding: !profile.onboardingCompletedAt,
     onboardingStep: profile.onboardingStep,
+    agentType: profile.agentType,
     profileCompleteness: profile.completenessScore,
     verificationStatus,
     isApproved,
-    // Deferred — Mission 12–17
-    leadsCount: null,
-    clientsCount: null,
+    cards: {
+      verification: { value: verificationStatus, source: 'GET /api/agent/verification → OrganizationVerification.status', href: '/agent/verification' },
+      profileCompleteness: { value: profile.completenessScore || 0, source: 'AgentProfile.completenessScore', href: '/agent/profile' },
+      activeServices: { value: servicesActive, source: 'AgentService count status=active', href: '/agent/services' },
+      marketplacePosts: { value: marketplace.approved || 0, source: 'agentMarketplaceService.marketplaceCounts', href: '/agent/marketplace' },
+      newLeads: { value: leadsCount, source: 'AgentLead count by organizationId', href: '/agent/leads' },
+      upcomingConsultations: { value: consultations.confirmed || 0, source: 'Consultation aggregate status=confirmed', href: '/agent/consultations' },
+      activeCases: { value: casesActive, source: 'ProfessionalCase lifecycle in awaiting_student_acceptance|active', href: '/agent/cases' },
+      pendingStudentApprovals: { value: pendingApprovals || 0, source: 'CaseApprovalRequest status=pending', href: '/agent/cases' },
+      unreadMessages: { value: unreadMessages || 0, source: 'ConsultationMessage unread for membership', href: '/agent/messages' },
+      unreadNotifications: { value: unreadNotifications || 0, source: 'UserNotification recipientType=agent read=false', href: '/agent/notifications' },
+      commerceReadiness: {
+        value: readiness.ready ? 'ready' : (providerState === 'not_configured' ? 'not_configured' : readiness.providerKycStatus || 'not started'),
+        source: 'MarketplaceProviderAccount + marketplaceStripeConfiguration (no live Stripe)',
+        href: '/agent/commerce',
+      },
+      usageBilling: {
+        value: providerState === 'not_configured' ? 'not_configured' : 'configured',
+        source: 'GET /api/agent/usage-billing',
+        href: '/agent/usage-billing',
+      },
+    },
+    leadsCount,
+    clientsCount: clientsSnapshot.total || 0,
     consultationsCount: Object.values(consultations).reduce((sum, value) => sum + value, 0),
-    casesCount: null,
-    earningsTotal: null,
-    comingSoon: ['leads', 'cases', 'payments'],
+    casesCount: casesActive,
+    earningsTotal: 0,
+    earningsNote: 'No wallet. Payout balances are provider-authoritative only when configured.',
+    comingSoon: [],
     consultations: {
       incoming: (consultations.requested || 0) + (consultations.pending_confirmation || 0),
       upcoming: consultations.confirmed || 0,
@@ -80,6 +189,13 @@ export const getDashboard = asyncHandler(async (req, res) => {
       published: marketplace.approved || 0,
       needsChanges: marketplace.needs_changes || 0,
     },
+    commerce: {
+      providerState,
+      kycState: readiness.providerKycStatus || 'not_started',
+      chargesCapability: readiness.chargesCapability,
+      transfersCapability: readiness.transfersCapability,
+      payoutState: payoutReadiness?.payoutState || (readiness.payoutsEnabled ? 'eligible_future' : 'pending_kyc'),
+    },
   });
 });
 
@@ -89,7 +205,17 @@ export const getDashboard = asyncHandler(async (req, res) => {
 
 export const getProfile = asyncHandler(async (req, res) => {
   const profile = await getProfileByAccountId(req.agent.agentAccountId);
-  return res.status(200).json({ profile });
+  const organization = await Organization.findById(profile.organizationId)
+    .select('legalName displayName organizationType countryCode website phone')
+    .lean();
+  return res.status(200).json({
+    profile,
+    organization: organization || null,
+    accountType: profile.agentType === 'agency' ? 'agency' : 'professional',
+    identityNote: profile.agentType === 'agency'
+      ? 'Agency / organization identity. Legal entity fields apply.'
+      : 'Individual professional identity. A company registration number is not forced where it is not applicable.',
+  });
 });
 
 export const patchProfile = asyncHandler(async (req, res) => {
@@ -121,12 +247,31 @@ export const getVerification = asyncHandler(async (req, res) => {
   const status = await getVerificationStatus(profile.organizationId);
   const badges = await getTrustBadges(profile.organizationId);
 
+  const org = await Organization.findById(profile.organizationId)
+    .select('organizationType countryCode legalName displayName')
+    .lean();
+  const credentialPolicy = resolveCredentialPolicy({
+    organizationType: org?.organizationType || profile.agentType,
+    countryCode: org?.countryCode || profile.countryCode,
+  });
+  const sources = resolveVerificationSources({
+    countryCode: org?.countryCode || profile.countryCode,
+    organizationType: org?.organizationType || profile.agentType,
+  });
+
   return res.status(200).json({
     organizationId: profile.organizationId,
+    agentType: profile.agentType,
+    accountType: profile.agentType === 'agency' ? 'agency' : 'professional',
     verificationStatus: status,
     isApproved: canExercisePrivilegedCapability(status),
     trustBadges: badges,
-    note: 'Verification is managed through the organization verification system.',
+    credentialPolicy,
+    verificationSources: sources,
+    mapsSupportingOnly: true,
+    mapsCannotAloneResultInVerified: true,
+    selfApprovalDenied: true,
+    note: 'Verification is managed through the organization verification system. Registration or license numbers alone are not proof. Maps/Business is supporting evidence only.',
   });
 });
 
@@ -154,7 +299,7 @@ export const editService = asyncHandler(async (req, res) => {
 // ---------------------------------------------------------------------------
 
 export const listTeamMembers = asyncHandler(async (req, res) => {
-  const members = await getOrgMembers(req.agent.agentAccountId);
+  const members = await getOrgMembers(req.agent.agentAccountId, req.query);
   return res.status(200).json({ members });
 });
 
@@ -197,11 +342,250 @@ export const patchLeadStatus = asyncHandler(async (req, res) => {
 
 // Clients — relationship foundation only; no Student profile exposure
 export const listClients = asyncHandler(async (req, res) => {
+  const result = await listClientsForAgent(req.agent.agentAccountId, req.query);
+  return res.status(200).json(result);
+});
+
+export const getVerificationSources = asyncHandler(async (req, res) => {
+  const profile = await getProfileByAccountId(req.agent.agentAccountId);
+  const org = await Organization.findById(profile.organizationId).select('organizationType countryCode').lean();
+  const countryCode = req.query.countryCode || org?.countryCode || profile.countryCode;
+  const organizationType = req.query.organizationType || org?.organizationType || profile.agentType;
+  const sources = resolveVerificationSources({ countryCode, organizationType });
+  const credentialPolicy = resolveCredentialPolicy({ organizationType, countryCode });
+  return res.status(200).json({ ...sources, credentialPolicy });
+});
+
+export const getUsageBilling = asyncHandler(async (req, res) => {
+  const profile = await getProfileByAccountId(req.agent.agentAccountId);
+  const orgFilter = { organizationId: profile.organizationId };
+  const page = Math.max(1, parseInt(req.query.page, 10) || 1);
+  const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
+  const providerState = marketplaceStripeConfiguration();
+  const [services, marketplace, account, orders, transactions, refunds, payout] = await Promise.all([
+    AgentService.countDocuments(orgFilter),
+    marketplaceCounts(req.agent.agentAccountId),
+    MarketplaceProviderAccount.findOne(orgFilter).lean(),
+    CommerceOrder.find({ sellerOrganizationId: profile.organizationId })
+      .sort({ createdAt: -1 }).skip((page - 1) * limit).limit(limit)
+      .select('orderNumber status amountMinor currency createdAt paymentAvailability')
+      .lean(),
+    CommerceTransaction.find({ 'payee.ownerType': 'organization', 'payee.ownerId': profile.organizationId })
+      .sort({ createdAt: -1 }).limit(limit)
+      .select('type status amountMinor currency createdAt providerReference')
+      .lean(),
+    CommerceRefund.find({ orderId: { $in: await CommerceOrder.find({ sellerOrganizationId: profile.organizationId }).distinct('_id') } })
+      .sort({ createdAt: -1 }).limit(limit).select('status amountMinor currency createdAt orderId').lean(),
+    CommercePayoutReadiness.findOne(orgFilter).lean(),
+  ]);
+  const verificationStatus = await getVerificationStatus(profile.organizationId);
+  const readiness = providerReadiness(account, canExercisePrivilegedCapability(verificationStatus));
   return res.status(200).json({
-    clients: [],
-    note: 'Client relationships are established in Mission 13 (Consultations). No Student profile is accessible without explicit consent.',
-    comingSoon: true,
+    policy: {
+      code: 'configured_only',
+      note: 'No invented commercial pricing. Only actual configured policy is shown.',
+    },
+    commission: {
+      configured: false,
+      note: 'Commission not configured',
+    },
+    provider: {
+      configured: providerState !== 'not_configured',
+      state: providerState,
+    },
+    kyc: {
+      state: readiness.providerKycStatus || 'not_started',
+      chargesCapability: readiness.chargesCapability,
+      transfersCapability: readiness.transfersCapability,
+      payoutsEnabled: readiness.payoutsEnabled,
+      ready: readiness.ready,
+    },
+    payout: {
+      state: payout?.payoutState || (readiness.payoutsEnabled ? 'eligible_future' : 'not_configured'),
+      note: 'Payout paid is provider-authoritative only. Agents cannot mark payout paid.',
+    },
+    usage: {
+      activeServices: services,
+      marketplaceDrafts: marketplace.not_submitted || 0,
+      marketplacePublished: marketplace.approved || 0,
+      marketplacePendingReview: (marketplace.pending || 0) + (marketplace.under_review || 0),
+    },
+    orders,
+    transactions: transactions.map((tx) => ({
+      _id: tx._id,
+      type: tx.type,
+      status: tx.status,
+      amountMinor: tx.amountMinor,
+      currency: tx.currency,
+      createdAt: tx.createdAt,
+    })),
+    refunds: refunds.map((r) => ({
+      _id: r._id,
+      status: r.status,
+      amountMinor: r.amountMinor,
+      currency: r.currency,
+      createdAt: r.createdAt,
+    })),
+    wallet: { present: false, note: 'No fake wallet. No homemade escrow.' },
+    pagination: { page, limit },
   });
+});
+
+export const getCommerceReadiness = asyncHandler(async (req, res) => {
+  const profile = await getProfileByAccountId(req.agent.agentAccountId);
+  const providerState = marketplaceStripeConfiguration();
+  const account = await MarketplaceProviderAccount.findOne({ organizationId: profile.organizationId }).lean();
+  const verificationStatus = await getVerificationStatus(profile.organizationId);
+  const readiness = providerReadiness(account, canExercisePrivilegedCapability(verificationStatus));
+  const payout = await CommercePayoutReadiness.findOne({ organizationId: profile.organizationId }).lean();
+  return res.status(200).json({
+    providerState,
+    ...readiness,
+    payoutState: payout?.payoutState || (readiness.payoutsEnabled ? 'eligible_future' : 'pending_kyc'),
+    liveStripeCalled: false,
+    secretsExposed: false,
+  });
+});
+
+export const listMessageHub = asyncHandler(async (req, res) => {
+  const profile = await getProfileByAccountId(req.agent.agentAccountId);
+  const membership = await AgentMembership.findOne({
+    agentAccountId: req.agent.agentAccountId,
+    organizationId: profile.organizationId,
+    active: true,
+  }).lean();
+  if (!membership) return res.status(403).json({ error: 'Organization membership is inactive' });
+  const actorKey = `agent:${membership._id}`;
+  const [consultThreads, caseThreads] = await Promise.all([
+    ConsultationThread.find({ organizationId: profile.organizationId, authorizedMembershipIds: membership._id })
+      .sort({ updatedAt: -1 }).limit(50).lean(),
+    CaseThread.find({ organizationId: profile.organizationId, authorizedMembershipIds: membership._id })
+      .sort({ updatedAt: -1 }).limit(50).lean(),
+  ]);
+  const consultItems = await Promise.all(consultThreads.map(async (thread) => {
+    const unread = await ConsultationMessage.countDocuments({
+      threadId: thread._id,
+      senderActorType: { $ne: 'agent' },
+      'readBy.actorKey': { $ne: actorKey },
+    });
+    return {
+      context: 'consultation',
+      threadId: String(thread._id),
+      consultationId: String(thread.consultationId),
+      href: `/agent/consultations/${thread.consultationId}`,
+      status: thread.status,
+      unread,
+      updatedAt: thread.updatedAt,
+    };
+  }));
+  const caseItems = await Promise.all(caseThreads.map(async (thread) => {
+    const last = await CaseMessage.findOne({ threadId: thread._id }).sort({ createdAt: -1 }).lean();
+    return {
+      context: 'case',
+      threadId: String(thread._id),
+      caseId: String(thread.caseId),
+      href: `/agent/cases/${thread.caseId}`,
+      status: thread.status,
+      unread: last && last.senderActorType === 'student' ? 1 : 0,
+      updatedAt: thread.updatedAt,
+    };
+  }));
+  const threads = [...consultItems, ...caseItems].sort((a, b) => new Date(b.updatedAt) - new Date(a.updatedAt));
+  const unreadTotal = threads.reduce((sum, row) => sum + (row.unread || 0), 0);
+  return res.status(200).json({
+    threads,
+    unreadTotal,
+    note: 'Contextual messaging only. No universal DM. Participants are server-derived.',
+  });
+});
+
+export const listVaultGrants = asyncHandler(async (req, res) => {
+  const profile = await getProfileByAccountId(req.agent.agentAccountId);
+  const membership = await AgentMembership.findOne({
+    agentAccountId: req.agent.agentAccountId,
+    organizationId: profile.organizationId,
+    active: true,
+  }).lean();
+  if (!membership) return res.status(403).json({ error: 'Organization membership is inactive' });
+  const grants = await DocumentAccessGrant.find({
+    granteeType: 'agent',
+    granteeId: String(membership._id),
+  }).select('documentId purpose caseRef consultationRef permissions status expiresAt revokedAt createdAt').lean();
+  return res.status(200).json({
+    grants: grants.map((g) => ({
+      grantId: g._id,
+      documentId: g.documentId,
+      purpose: g.purpose,
+      caseRef: g.caseRef,
+      consultationRef: g.consultationRef,
+      permissions: g.permissions,
+      status: g.status,
+      expiresAt: g.expiresAt,
+      revoked: Boolean(g.revokedAt) || g.status === 'revoked',
+      expired: Boolean(g.expiresAt && new Date(g.expiresAt) < new Date()),
+    })),
+    note: 'Client, consultation, and case relationships grant zero Vault access without an exact active grant. Storage keys and public URLs are never returned.',
+  });
+});
+
+function inviteError(res, err) {
+  return res.status(err.status || 500).json({ error: err.message, code: err.code });
+}
+
+export const listInvites = asyncHandler(async (req, res) => {
+  try {
+    const invites = await listOrganizationInvites(req.agent.agentAccountId);
+    return res.status(200).json({ data: invites });
+  } catch (err) {
+    return inviteError(res, err);
+  }
+});
+
+export const createInvite = asyncHandler(async (req, res) => {
+  try {
+    const result = await createOrganizationInvite({
+      agentAccountId: req.agent.agentAccountId,
+      email: req.body?.email,
+      role: req.body?.role,
+    });
+    return res.status(201).json(result);
+  } catch (err) {
+    return inviteError(res, err);
+  }
+});
+
+export const revokeInvite = asyncHandler(async (req, res) => {
+  try {
+    const result = await revokeOrganizationInvite({
+      agentAccountId: req.agent.agentAccountId,
+      invitationId: req.params.invitationId,
+    });
+    return res.status(200).json(result);
+  } catch (err) {
+    return inviteError(res, err);
+  }
+});
+
+export const previewInvite = asyncHandler(async (req, res) => {
+  try {
+    const result = await previewOrganizationInvite(req.query.token);
+    return res.status(200).json(result);
+  } catch (err) {
+    return inviteError(res, err);
+  }
+});
+
+export const acceptInvite = asyncHandler(async (req, res) => {
+  try {
+    const account = await AgentAccount.findById(req.agent.agentAccountId).select('email');
+    const result = await acceptOrganizationInvite({
+      token: req.body?.token,
+      agentAccount: account,
+    });
+    return res.status(200).json(result);
+  } catch (err) {
+    return inviteError(res, err);
+  }
 });
 
 // ---------------------------------------------------------------------------

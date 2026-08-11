@@ -13,10 +13,12 @@ function recipientContext(req) {
   if (req.employer) {
     return { recipientType: 'employer', employerId: req.employer.employerId || req.employer._id };
   }
-  // The canonical inbox currently has user/staff/employer recipient types.
-  // Agent and Institution tokens are valid platform principals, but they do
-  // not map to one of those stores. Deny them explicitly instead of falling
-  // through and dereferencing a missing req.user.
+  if (req.agent?.agentAccountId) {
+    return { recipientType: 'agent', agentAccountId: req.agent.agentAccountId };
+  }
+  // Institution tokens are valid platform principals, but they do not map
+  // to the canonical inbox. Deny them explicitly instead of falling through
+  // and dereferencing a missing req.user.
   if (!req.user?.userId) return null;
   const isStaff = req.user?.role && STAFF_ROLES.includes(req.user.role);
   return {
@@ -25,14 +27,19 @@ function recipientContext(req) {
   };
 }
 
+function applyRecipientOwner(filter, ctx) {
+  if (ctx.recipientType === 'employer') filter.employerId = ctx.employerId;
+  else if (ctx.recipientType === 'agent') filter.agentAccountId = ctx.agentAccountId;
+  else filter.userId = ctx.userId;
+}
+
 function denyUnsupportedInboxRealm(res) {
   return res.status(403).json({ error: 'Notification inbox is not available for this account type' });
 }
 
 function buildFilter(ctx, query) {
   const filter = { recipientType: ctx.recipientType };
-  if (ctx.recipientType === 'employer') filter.employerId = ctx.employerId;
-  else filter.userId = ctx.userId;
+  applyRecipientOwner(filter, ctx);
 
   if (query.read === 'true') filter.read = true;
   if (query.read === 'false') filter.read = false;
@@ -72,8 +79,7 @@ export const markRead = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
 
   const filter = { _id: id, recipientType: ctx.recipientType };
-  if (ctx.recipientType === 'employer') filter.employerId = ctx.employerId;
-  else filter.userId = ctx.userId;
+  applyRecipientOwner(filter, ctx);
 
   const doc = await UserNotification.findOneAndUpdate(filter, { read: true, readAt: new Date() }, { new: true });
   if (!doc) return res.status(404).json({ error: 'Notification not found' });
@@ -95,8 +101,7 @@ export const removeNotification = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
 
   const filter = { _id: id, recipientType: ctx.recipientType };
-  if (ctx.recipientType === 'employer') filter.employerId = ctx.employerId;
-  else filter.userId = ctx.userId;
+  applyRecipientOwner(filter, ctx);
 
   const doc = await UserNotification.findOneAndDelete(filter);
   if (!doc) return res.status(404).json({ error: 'Notification not found' });

@@ -172,7 +172,8 @@ const BADGE_EVIDENCE_MAP = {
   [BADGE_TYPES.BUSINESS_VERIFIED]: [EVIDENCE_TYPES.BUSINESS_REGISTRATION],
   [BADGE_TYPES.OFFICIAL_DOMAIN_VERIFIED]: [EVIDENCE_TYPES.OFFICIAL_DOMAIN],
   [BADGE_TYPES.PHYSICAL_LOCATION_VERIFIED]: [EVIDENCE_TYPES.PHYSICAL_LOCATION],
-  // Google Maps alone is NOT sufficient; it supports physical location alongside primary evidence.
+  // Google Maps / Business is supporting-only and MUST NOT appear here.
+  // Maps alone can never produce PHYSICAL_LOCATION_VERIFIED or any VERIFIED badge.
   [BADGE_TYPES.PROFESSIONAL_CREDENTIAL_VERIFIED]: [EVIDENCE_TYPES.PROFESSIONAL_LICENSE],
   [BADGE_TYPES.INSTITUTION_REPRESENTATIVE_VERIFIED]: [EVIDENCE_TYPES.REPRESENTATIVE_AUTHORITY],
   [BADGE_TYPES.ACCREDITATION_VERIFIED]: [EVIDENCE_TYPES.ACCREDITATION],
@@ -198,6 +199,13 @@ export function deriveBadges(evidenceRecords) {
     }
   }
   return earned;
+}
+
+/** Maps/Business evidence can never alone result in VERIFIED / badge promotion. */
+export const MAPS_EVIDENCE_IS_SUPPORTING_ONLY = true;
+
+export function mapsCannotAloneVerify() {
+  return MAPS_EVIDENCE_IS_SUPPORTING_ONLY;
 }
 
 // ---------------------------------------------------------------------------
