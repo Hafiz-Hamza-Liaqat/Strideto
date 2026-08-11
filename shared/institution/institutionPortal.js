@@ -394,3 +394,26 @@ export const portalIdentityLabel = (verificationStatus) =>
 
 export const isVerifiedWordingAllowed = (verificationStatus) =>
   verificationStatus === 'approved';
+
+const OBJECT_ID_RE = /^[a-fA-F0-9]{24}$/;
+const HTTP_URL_RE = /^https?:\/\//i;
+
+/**
+ * Claim UI collects representative authority as a URL. ObjectIds remain valid
+ * VerificationEvidence refs. Never pass raw mixed strings into ObjectId fields.
+ */
+export function splitAuthorityEvidence(refs = []) {
+  const objectIds = [];
+  const urls = [];
+  for (const ref of Array.isArray(refs) ? refs : []) {
+    if (ref && typeof ref === 'object') {
+      const url = String(ref.url || ref.sourceUrl || '').trim();
+      if (HTTP_URL_RE.test(url)) urls.push(url.slice(0, 500));
+      continue;
+    }
+    const value = String(ref || '').trim();
+    if (OBJECT_ID_RE.test(value)) objectIds.push(value);
+    else if (HTTP_URL_RE.test(value)) urls.push(value.slice(0, 500));
+  }
+  return { objectIds, urls };
+}

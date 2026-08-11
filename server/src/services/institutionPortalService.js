@@ -38,6 +38,7 @@ import {
   claimGrantsAuthority,
   isInstitutionOrgType as _isInstitutionOrgType,
   computeInstitutionCompleteness,
+  splitAuthorityEvidence,
   isDateOnly,
   isValidApplicationMode,
   isValidIntakeStatus,
@@ -314,13 +315,16 @@ export async function startClaim({
     throw Object.assign(new Error('Either canonicalInstitutionId or proposedCanonical is required'), { code: 'VALIDATION', status: 400 });
   }
 
+  const evidence = splitAuthorityEvidence(authorityEvidenceRefs);
+
   const claim = await InstitutionClaim.create({
     organizationId,
     canonicalInstitutionId: canonicalInstitutionId || null,
     proposedCanonical: proposedCanonical || undefined,
     state: CLAIM_STATES.DRAFT,
     representativeAccountId,
-    authorityEvidenceRefs,
+    authorityEvidenceRefs: evidence.objectIds,
+    authorityEvidenceUrls: evidence.urls,
     normalizedName,
     countryCode,
     officialDomain,

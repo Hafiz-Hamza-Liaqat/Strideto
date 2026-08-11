@@ -70,8 +70,8 @@ export default function InstitutionDataQuality() {
           {filteredConflicts.length ? filteredConflicts.map((conflict) => (
             <div key={conflict._id} className="rounded-lg border border-amber-300 bg-amber-50 dark:bg-amber-950/40 p-3 text-sm mb-2">
               <strong className="text-amber-900 dark:text-amber-200">{humanize(conflict.fieldScope || conflict.field || 'data conflict')}</strong>
-              <p className="mt-1">Existing: {JSON.stringify(conflict.existingValue)?.slice(0, 180)}</p>
-              <p>Proposed: {JSON.stringify(conflict.proposedValue)?.slice(0, 180)}</p>
+              <p className="mt-1 break-all">Existing: {JSON.stringify(conflict.existingValue)?.slice(0, 180)}</p>
+              <p className="break-all">Proposed: {JSON.stringify(conflict.proposedValue)?.slice(0, 180)}</p>
               <p>Sources: {conflict.existingSourceType || '—'} vs {conflict.proposedSourceType || '—'}</p>
               <p>Status: {humanize(conflict.state)}</p>
             </div>
@@ -80,10 +80,10 @@ export default function InstitutionDataQuality() {
       </div>
       <Panel title="Explicit freshness reconfirmation">
         <form className="grid gap-4 sm:grid-cols-2" onSubmit={reconfirm}>
-          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Program
-            <select className={`${fieldClass} mt-1`} value={form.programId} onChange={(e) => setForm({ ...form, programId: e.target.value })}>
+          <label className="min-w-0 text-sm font-medium text-gray-800 dark:text-gray-200">Program
+            <select className={`${fieldClass} mt-1 max-w-full`} value={form.programId} onChange={(e) => setForm({ ...form, programId: e.target.value })}>
               <option value="">Institution profile</option>
-              {state.programs.map((program) => <option key={program._id} value={program._id}>{program.name}</option>)}
+              {state.programs.map((program) => <option key={program._id} value={program._id}>{program.name.length > 60 ? `${program.name.slice(0, 57)}…` : program.name}</option>)}
             </select>
           </label>
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Official source URL<input type="url" required className={`${fieldClass} mt-1`} value={form.sourceUrl} onChange={(e) => setForm({ ...form, sourceUrl: e.target.value })} /></label>

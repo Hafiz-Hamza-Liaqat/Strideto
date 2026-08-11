@@ -157,6 +157,10 @@ check(portalRoutes.includes('A competing approved claim already exists'), 'compe
 check(portal.isValidClaimTransition('draft', 'approved') === false, 'claim cannot self-approve draft to approved');
 check(portal.claimGrantsAuthority('submitted') === false, 'submitted claim grants no authority');
 check(portal.claimGrantsAuthority('approved') === true, 'approved claim grants authority');
+check(portal.splitAuthorityEvidence(['https://p6-disp.example.edu/authority']).urls.length === 1, 'claim evidence URL is stored as URL');
+check(portal.splitAuthorityEvidence(['https://p6-disp.example.edu/authority']).objectIds.length === 0, 'claim evidence URL is not cast to ObjectId');
+check(portalSvc.includes('splitAuthorityEvidence') && portalSvc.includes('authorityEvidenceUrls'), 'startClaim sanitizes mixed evidence refs');
+check(dqPage.includes('break-all') && dqPage.includes('Existing:'), 'data-quality conflict values wrap');
 
 // TEAM
 check(portal.INSTITUTION_ROLE_LABELS.editor === 'Admissions / Program Manager', 'editor mapped not duplicated');

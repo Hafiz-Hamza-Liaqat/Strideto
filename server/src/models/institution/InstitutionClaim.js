@@ -70,6 +70,8 @@ const institutionClaimSchema = new mongoose.Schema(
 
     // References to VerificationEvidence records that support authority
     authorityEvidenceRefs: [{ type: mongoose.Schema.Types.ObjectId, ref: 'VerificationEvidence' }],
+    // Representative authority evidence URLs collected from the Institution claim form
+    authorityEvidenceUrls: [{ type: String, trim: true }],
 
     // Duplicate detection signals (normalized for search)
     normalizedName: { type: String, trim: true, lowercase: true, default: '' },

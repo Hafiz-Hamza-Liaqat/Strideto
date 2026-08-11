@@ -55,7 +55,7 @@ export default function InstitutionTeam() {
       {error ? <PageState tone="error" role="alert">{error}</PageState> : null}
       {notice ? <PageState tone="success">{notice} {tokenOnce}</PageState> : null}
       <Panel title="Institution account">
-        <p className="text-sm text-gray-800 dark:text-gray-200">{account?.email}</p>
+        <p className="break-all text-sm text-gray-800 dark:text-gray-200">{account?.email}</p>
         <StatusBadge value={managerRole} label={INSTITUTION_ROLE_LABELS[managerRole] || managerRole} />
       </Panel>
       <input className={`${fieldClass} max-w-md`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter members" aria-label="Filter members" />
