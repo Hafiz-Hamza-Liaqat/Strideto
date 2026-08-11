@@ -1,16 +1,22 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { createCheckoutSession, handleStripeWebhook, isStripeConfigured } from '../services/paymentService.js';
+import { FREE_BETA_PUBLISHING_POLICY } from '../config/freeBetaPublishingPolicy.js';
 
 const SITE = (process.env.SITE_URL || process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/$/, '');
 
 /** POST /employer/jobs/:id/checkout — create Stripe checkout session */
 export const createJobCheckout = asyncHandler(async (req, res) => {
   const employerId = req.employer.hiringOwnerId || req.employer.employerId;
+  if (!isStripeConfigured() || FREE_BETA_PUBLISHING_POLICY.paidPublishingEnabled !== true) {
+    return res.status(503).json({
+      error: 'Payment gateway not configured. Contact support.',
+      code: 'not_configured',
+      state: 'not_configured',
+      paid: false,
+    });
+  }
   const { planId } = req.body;
   if (!planId) return res.status(400).json({ error: 'planId is required' });
-  if (!isStripeConfigured()) {
-    return res.status(503).json({ error: 'Payment gateway not configured. Contact support.' });
-  }
 
   const result = await createCheckoutSession({
     employerId,

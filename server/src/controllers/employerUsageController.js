@@ -5,6 +5,7 @@ import { isStripeConfigured } from '../services/paymentService.js';
 import { CommerceOrder } from '../models/commerce/CommerceOrder.js';
 import { CommerceTransaction } from '../models/commerce/CommerceTransaction.js';
 import { CommerceRefund } from '../models/commerce/CommerceRefund.js';
+import { CommerceProduct } from '../models/commerce/CommerceProduct.js';
 
 export const getPlansUsage = asyncHandler(async (req, res) => {
   const ownerId = hiringOwnerIdFrom(req);
@@ -43,10 +44,20 @@ export const getBillingOverview = asyncHandler(async (req, res) => {
   ]);
 
   const providerConfigured = isStripeConfigured();
+  const paidProductCount = await CommerceProduct.countDocuments({
+    audience: 'employer',
+    active: true,
+    publicVisible: true,
+    billingMode: { $ne: 'free' },
+  });
   res.json({
     provider: {
       configured: providerConfigured,
       state: providerConfigured ? 'configured' : 'not_configured',
+    },
+    paidProducts: {
+      state: paidProductCount > 0 ? 'configured' : 'not_configured',
+      count: paidProductCount,
     },
     orders: orders.map((order) => ({
       _id: order._id,

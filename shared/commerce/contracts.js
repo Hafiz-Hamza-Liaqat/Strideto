@@ -15,6 +15,102 @@ export function assertSameCurrency(...moneyValues) {
   return parsed;
 }
 
+/** Zero is a valid Money value. Unknown is never represented as zero. */
+export const UNKNOWN_MONEY = Object.freeze({ unknown: true, amountMinor: null, currency: null });
+
+export function moneyOrUnknown(value) {
+  if (value == null) return UNKNOWN_MONEY;
+  return parseMoney(value) || UNKNOWN_MONEY;
+}
+
+export function isUnknownMoney(value) {
+  return Boolean(value && value.unknown === true && value.amountMinor == null && value.currency == null);
+}
+
+export function isZeroMoney(value) {
+  const parsed = parseMoney(value);
+  return Boolean(parsed && parsed.amountMinor === 0);
+}
+
+/**
+ * Exact Strideto commission remains unconfigured until an explicit approved
+ * policy exists. Callers must not invent 10/15/20%.
+ */
+export function getCommissionPolicy(config = null) {
+  if (!config || config.configured !== true) {
+    return Object.freeze({ configured: false, note: 'Commission not configured', type: 'none' });
+  }
+  return Object.freeze({
+    configured: true,
+    type: config.type,
+    basisPoints: config.basisPoints,
+    amount: config.amount || null,
+  });
+}
+
+export function mapReconciliationOperationalState(status) {
+  if (status === 'matched' || status === 'resolved') return 'reconciled';
+  if (status === 'manual_review') return 'manual_review_required';
+  if (status === 'mismatch' || status === 'pending_provider') return 'attention_required';
+  return 'attention_required';
+}
+
+export function truncateProviderReference(ref) {
+  if (!ref || typeof ref !== 'string') return null;
+  if (ref.length <= 12) return ref;
+  return `${ref.slice(0, 6)}…${ref.slice(-4)}`;
+}
+
+export function deriveOrderPurpose(order = {}) {
+  if (order.consultationId) return 'agent_consultation';
+  if (order.serviceId) return 'agent_professional_service';
+  if (order.productId) return 'catalog_product';
+  return 'unspecified';
+}
+
+export function projectReceipt(order, transaction) {
+  if (!order || !['paid', 'partially_refunded', 'refunded'].includes(order.status)) return null;
+  return Object.freeze({
+    orderNumber: order.orderNumber,
+    paidAmountMinor: order.amountMinor,
+    currency: order.currency,
+    providerReference: truncateProviderReference(transaction?.providerReference || order.providerReference),
+    paidAt: order.paidAt || transaction?.confirmedAt || null,
+    purpose: deriveOrderPurpose(order),
+    status: order.status,
+    refundState: ['refunded', 'partially_refunded'].includes(order.status) ? order.status : 'none',
+  });
+}
+
+export const CLIENT_PAYMENT_AUTHORITY_FIELDS = Object.freeze([
+  'paid',
+  'refunded',
+  'payoutPaid',
+  'chargeSucceeded',
+  'transferSucceeded',
+  'providerEventVerified',
+  'verifiedWebhook',
+  'status',
+  'paymentAvailability',
+  'providerReference',
+  'commissionRate',
+  'platformFee',
+  'paidAt',
+  'chargesEnabled',
+  'transfersEnabled',
+  'payoutsEnabled',
+]);
+
+export function clientPaymentAuthorityFields(body = {}) {
+  if (!body || typeof body !== 'object') return [];
+  return CLIENT_PAYMENT_AUTHORITY_FIELDS.filter((key) => Object.prototype.hasOwnProperty.call(body, key));
+}
+
+export function isLocalMarketplaceHost(req = {}) {
+  const host = String(req.hostname || req.headers?.host || '');
+  return /localhost|127\.0\.0\.1/i.test(host);
+}
+
 export function calculateFee(amount, policy = { type: 'none' }) {
   const money = parseMoney(amount); if (!money || money.amountMinor < 0) throw new Error('Non-negative Money is required');
   if (policy.type === 'none') return makeMoney(0, money.currency);

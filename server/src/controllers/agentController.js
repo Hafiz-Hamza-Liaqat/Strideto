@@ -40,6 +40,7 @@ import { resolveVerificationSources } from '../../../shared/agent/verificationSo
 import { marketplaceCounts } from '../services/agentMarketplaceService.js';
 import { providerReadiness } from '../services/marketplacePaymentService.js';
 import { marketplaceStripeConfiguration } from '../services/payments/StripeConnectProvider.js';
+import { getCommissionPolicy } from '../../../shared/commerce/contracts.js';
 import { Consultation } from '../models/consultation/Consultation.js';
 import { ConsultationThread } from '../models/consultation/ConsultationThread.js';
 import { ConsultationMessage } from '../models/consultation/ConsultationMessage.js';
@@ -385,10 +386,7 @@ export const getUsageBilling = asyncHandler(async (req, res) => {
       code: 'configured_only',
       note: 'No invented commercial pricing. Only actual configured policy is shown.',
     },
-    commission: {
-      configured: false,
-      note: 'Commission not configured',
-    },
+    commission: getCommissionPolicy(), // Commission not configured unless an approved policy exists
     provider: {
       configured: providerState !== 'not_configured',
       state: providerState,

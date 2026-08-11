@@ -39,6 +39,7 @@ import { CommerceRefund } from '../../models/commerce/CommerceRefund.js';
 import { getCopilotProviderStatus } from '../../services/ai/copilotService.js';
 import { hasPermission, PERMISSIONS } from '../../config/rbac.js';
 import { COUNTRY_READINESS_STATES } from '../../../../shared/international/countryReadiness.js';
+import { mapReconciliationOperationalState } from '../../../../shared/commerce/contracts.js';
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -476,8 +477,14 @@ export const listReconciliation = asyncHandler(async (req, res) => {
   ]);
 
   res.json({
-    ...listResponse(items, paginate(page, limit, total)),
-    note: 'Ledger history is immutable. Admin may only mark for manual review.',
+    ...listResponse(
+      items.map((row) => ({
+        ...row,
+        operationalState: mapReconciliationOperationalState(row.status),
+      })),
+      paginate(page, limit, total)
+    ),
+    note: 'Ledger history is immutable. Admin may only mark for manual review. Mismatches are never silently repaired.',
   });
 });
 

@@ -53,7 +53,7 @@ function ReconciliationPanel() {
     { key: 'expectedAmountMinor', label: 'Expected (minor)' },
     { key: 'actualAmountMinor', label: 'Actual (minor)', render: row => row.actualAmountMinor ?? '—' },
     { key: 'expectedCurrency', label: 'Currency' },
-    { key: 'status', label: 'Status' },
+    { key: 'status', label: 'Status', render: row => `${row.status}${row.operationalState ? ` · ${row.operationalState}` : ''}` },
     { key: 'discrepancyReason', label: 'Reason', render: row => row.discrepancyReason || '—' },
     { key: 'createdAt', label: 'Created', render: row => row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '—' },
   ];

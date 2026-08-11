@@ -29,6 +29,8 @@ export default function EmployerBilling() {
       {error ? <p className="mb-4 text-sm text-red-700" role="alert">{error}</p> : null}
       <p className="mb-4 text-sm">
         {t('employer:paymentProvider')}: <strong>{data?.provider?.state || 'not_configured'}</strong>
+        {' · '}
+        Paid products: <strong>{data?.paidProducts?.state || 'not_configured'}</strong>
       </p>
       <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
         <table className="min-w-full text-left text-sm">
