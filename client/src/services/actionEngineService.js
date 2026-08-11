@@ -1,25 +1,27 @@
 /**
  * Action Engine API client — Mission 9.
  *
- * Thin wrapper over fetch. All requests require auth token.
- * No sensitive data logged on error.
+ * Uses the SEC-3 User-realm axios client (in-memory access token +
+ * HttpOnly refresh). Never reads tokens from localStorage.
  */
-import { API_BASE_URL } from '../constants';
+import axiosInstance from './axiosBase';
 
 async function apiFetch(path, options = {}) {
-  const token = localStorage.getItem('token');
-  const res = await fetch(`${API_BASE_URL}${path}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    },
-    ...options,
-  });
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({ error: 'request_failed' }));
-    throw Object.assign(new Error(err.error || 'request_failed'), { status: res.status, body: err });
+  const method = String(options.method || 'GET').toLowerCase();
+  let data;
+  if (options.body) {
+    data = typeof options.body === 'string' ? JSON.parse(options.body) : options.body;
   }
-  return res.json();
+  try {
+    const res = await axiosInstance.request({ url: path, method, data });
+    return res.data;
+  } catch (err) {
+    const body = err.response?.data || { error: 'request_failed' };
+    throw Object.assign(new Error(body.error || body.message || 'request_failed'), {
+      status: err.response?.status,
+      body,
+    });
+  }
 }
 
 // ── Dashboard ─────────────────────────────────────────────────────────────────

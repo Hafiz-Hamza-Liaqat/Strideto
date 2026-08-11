@@ -25,6 +25,9 @@ export function ApplicationMetricsStrip({ metrics, className = '' }) {
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{tile.label}</p>
         </div>
       ))}
+      <p className="col-span-full text-xs text-gray-500 dark:text-gray-400 mt-1">
+        {t('applications:metrics.disclaimer')}
+      </p>
       <div className="col-span-full flex flex-wrap gap-3 mt-1">
         <Link to={ROUTES.APPLICATIONS_NEW} className="text-sm text-primary dark:text-mint hover:underline font-medium">
           {t('applications:createApplication')}

@@ -22,8 +22,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../constants';
-
-const API_BASE = '/api';
+import { budgetApi } from '../../services/budgetApi';
 
 const STATUS_LABELS = {
   draft: { label: 'Draft', cls: 'bg-gray-100 text-gray-700' },
@@ -52,9 +51,7 @@ export default function BudgetPlannerPage() {
     setLoading(true);
     setError('');
     try {
-      const res = await fetch(`${API_BASE}/budget/plans?page=${p}&limit=20`, { credentials: 'include' });
-      if (!res.ok) throw new Error('Failed to load plans');
-      const data = await res.json();
+      const { data } = await budgetApi.listPlans({ page: p, limit: 20 });
       setPlans(data.plans || []);
       setTotal(data.total || 0);
       setPage(p);
@@ -71,11 +68,7 @@ export default function BudgetPlannerPage() {
     if (!window.confirm('Archive this plan? You can still view it.')) return;
     setBusy(true);
     try {
-      const res = await fetch(`${API_BASE}/budget/plans/${planId}/archive`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Failed to archive');
+      await budgetApi.archivePlan(planId);
       await load(page);
     } catch (e) {
       setError(e.message);
@@ -87,12 +80,7 @@ export default function BudgetPlannerPage() {
   const handleClone = useCallback(async (planId) => {
     setBusy(true);
     try {
-      const res = await fetch(`${API_BASE}/budget/plans/${planId}/clone`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Failed to clone plan');
-      const data = await res.json();
+      const { data } = await budgetApi.clonePlan(planId);
       navigate(ROUTES.BUDGET_DETAIL.replace(':planId', data.plan._id));
     } catch (e) {
       setError(e.message);

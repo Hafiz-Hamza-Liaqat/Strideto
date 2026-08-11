@@ -10,9 +10,14 @@ export function QuickLinksWidget() {
 
   const links = [
     { to: ROUTES.APPLICATIONS, label: t('dashboard:myApplications'), primary: true },
-    { to: ROUTES.RESUME_BUILDER, label: t('dashboard:resumeBuilder'), outline: true },
     { to: ROUTES.TALENT_PROFILE, label: t('dashboard:editProfile'), outline: true },
-    { to: ROUTES.CAREER_GUIDANCE, label: t('dashboard:careerGuidance') },
+    { to: ROUTES.JOURNEY, label: t('dashboard:journey', { defaultValue: 'Journey' }), outline: true },
+    { to: ROUTES.VAULT, label: t('dashboard:vault', { defaultValue: 'Vault' }) },
+    { to: ROUTES.JOURNEY_SAVED, label: t('dashboard:saved', { defaultValue: 'Saved' }) },
+    { to: ROUTES.NOTIFICATIONS, label: t('dashboard:alertsNotifications') },
+    { to: ROUTES.BUDGET, label: t('dashboard:budget', { defaultValue: 'Budget' }) },
+    { to: ROUTES.COPILOT, label: t('dashboard:copilot', { defaultValue: 'Copilot' }) },
+    { to: ROUTES.PRIVACY, label: t('dashboard:privacy', { defaultValue: 'Privacy' }) },
   ];
 
   return (

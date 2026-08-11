@@ -77,6 +77,9 @@ const JourneySavedPage = lazyLoad(() => import('../pages/Journey/SavedOpportunit
 const MyApplications = lazyLoad(() => import('../pages/Applications/MyApplications'));
 const CreateApplication = lazyLoad(() => import('../pages/Applications/CreateApplication'));
 const ApplicationDetail = lazyLoad(() => import('../pages/Applications/ApplicationDetail'));
+const StudentPrivacy = lazyLoad(() => import('../pages/Student/StudentPrivacy'));
+const StudentHelp = lazyLoad(() => import('../pages/Student/StudentHelp'));
+const StudentMessages = lazyLoad(() => import('../pages/Student/StudentMessages'));
 const AssessmentsCatalog = lazyLoad(() => import('../pages/Assessments/AssessmentsCatalog'));
 const AssessmentDetail = lazyLoad(() => import('../pages/Assessments/AssessmentDetail'));
 const AssessmentTake = lazyLoad(() => import('../pages/Assessments/AssessmentTake'));
@@ -451,6 +454,30 @@ export const routes = [
         element: (
           <ProtectedRoute>
             <NotificationsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: ROUTES.PRIVACY,
+        element: (
+          <ProtectedRoute>
+            <StudentPrivacy />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: ROUTES.STUDENT_HELP,
+        element: (
+          <ProtectedRoute>
+            <StudentHelp />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: ROUTES.STUDENT_MESSAGES,
+        element: (
+          <ProtectedRoute>
+            <StudentMessages />
           </ProtectedRoute>
         ),
       },

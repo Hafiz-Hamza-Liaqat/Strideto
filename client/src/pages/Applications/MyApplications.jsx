@@ -14,6 +14,7 @@ import { isOpportunityApplicationEnabled } from '../../config/careerFeatureFlags
 import { PIPELINE_STAGES } from '@shared/career/constants.js';
 import {
   OPPORTUNITY_TYPE_FILTERS,
+  CHANNEL_FILTERS,
   SORT_OPTIONS,
   filterApplications,
   sortApplications,
@@ -29,6 +30,7 @@ export default function MyApplications() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [typeFilter, setTypeFilter] = useState('all');
+  const [channelFilter, setChannelFilter] = useState('all');
   const [stageFilter, setStageFilter] = useState('all');
   const [search, setSearch] = useState('');
   const [sortId, setSortId] = useState('updated_desc');
@@ -52,12 +54,12 @@ export default function MyApplications() {
   }, [t, reload]);
 
   const visible = useMemo(() => {
-    let list = filterApplications(applications, { type: typeFilter, query: search });
+    let list = filterApplications(applications, { type: typeFilter, query: search, channel: channelFilter });
     if (stageFilter !== 'all') {
       list = list.filter((a) => a.pipelineStage === stageFilter);
     }
     return sortApplications(list, sortId);
-  }, [applications, typeFilter, stageFilter, search, sortId]);
+  }, [applications, typeFilter, channelFilter, stageFilter, search, sortId]);
 
   async function handleMoveStage(app, toStage) {
     try {
@@ -116,6 +118,18 @@ export default function MyApplications() {
           >
             {SORT_OPTIONS.map((opt) => (
               <option key={opt.id} value={opt.id}>{t(`applications:sort.${opt.id}`)}</option>
+            ))}
+          </select>
+          <select
+            value={channelFilter}
+            onChange={(e) => setChannelFilter(e.target.value)}
+            className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm min-h-[44px]"
+            aria-label={t('applications:filters.channelLabel')}
+          >
+            {CHANNEL_FILTERS.map((ch) => (
+              <option key={ch} value={ch}>
+                {ch === 'all' ? t('applications:filters.all') : t(`applications:filters.${ch}`)}
+              </option>
             ))}
           </select>
           <select

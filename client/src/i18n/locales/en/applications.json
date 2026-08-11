@@ -25,7 +25,19 @@
     "job": "Jobs",
     "scholarship": "Scholarships",
     "admission": "Admissions",
-    "internship": "Internships"
+    "internship": "Internships",
+    "channelLabel": "Application channel",
+    "internal_employer": "Internal employer",
+    "external_personal": "External tracker",
+    "institution": "Institution"
+  },
+  "authority": {
+    "employerStatus": "Employer status",
+    "institutionStatus": "Institution status",
+    "myTrackingStatus": "My tracking status",
+    "outsideStrideto": "Application happens outside Strideto",
+    "employerReadOnly": "This is an internal Strideto employer application. Employer workflow states are read-only.",
+    "personalEditable": "This is your personal tracker. It is not Employer-confirmed."
   },
   "sort": {
     "updated_desc": "Recently updated",
@@ -51,8 +63,9 @@
   "metrics": {
     "title": "Tracker metrics",
     "active": "Active applications",
-    "interviews": "Interviews scheduled",
-    "offers": "Offers received",
+    "interviews": "Employer interviews",
+    "offers": "Employer offers",
+    "disclaimer": "Interview and offer counts use Employer-authoritative states on internal applications. Personal tracker stages are not counted as Employer-confirmed.",
     "responseRate": "Response rate",
     "completionRate": "Completion rate",
     "openTracker": "Open full tracker"
@@ -193,6 +206,7 @@
       "platform": "From platform listing (advanced)",
       "external": "External / off-platform opportunity"
     },
+    "outsideNote": "Application happens outside Strideto. The stage you set here is My tracking status, not Employer confirmation.",
     "opportunityType": "Opportunity type",
     "opportunityId": "Listing ID (advanced)",
     "opportunityIdPlaceholder": "Usually filled automatically from Track / Apply links",

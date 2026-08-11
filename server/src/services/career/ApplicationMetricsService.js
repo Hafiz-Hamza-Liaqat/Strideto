@@ -1,5 +1,6 @@
 import { TERMINAL_PIPELINE_STAGES, PIPELINE_STAGES } from '../../../../shared/career/constants.js';
 import { OpportunityApplicationRepository } from '../../repositories/career/OpportunityApplicationRepository.js';
+import { isInternalEmployerApplication } from '../../../../shared/career/applicationAuthority.js';
 
 /**
  * Lightweight tracker metrics for the signed-in user (C.8.1).
@@ -22,8 +23,13 @@ export const ApplicationMetricsService = {
       const stage = app.pipelineStage;
       if (byStage[stage] != null) byStage[stage] += 1;
 
-      if (stage === 'interview' || app.interview?.scheduledAt) interviewsScheduled += 1;
-      if (stage === 'offer' || stage === 'negotiation' || stage === 'accepted' || stage === 'joined') {
+      const internal = isInternalEmployerApplication(app);
+      if (internal && (stage === 'interview' || app.interview?.scheduledAt)) interviewsScheduled += 1;
+      else if (!internal && app.interview?.scheduledAt) interviewsScheduled += 1;
+      if (
+        internal &&
+        (stage === 'offer' || stage === 'negotiation' || stage === 'accepted' || stage === 'joined')
+      ) {
         offersReceived += 1;
       }
 

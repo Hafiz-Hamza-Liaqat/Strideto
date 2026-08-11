@@ -19,6 +19,7 @@ export function ApplicationTable({ applications }) {
             <th scope="col" className="px-4 py-3 font-medium">{t('applications:table.company')}</th>
             <th scope="col" className="px-4 py-3 font-medium">{t('applications:table.type')}</th>
             <th scope="col" className="px-4 py-3 font-medium">{t('applications:table.stage')}</th>
+            <th scope="col" className="px-4 py-3 font-medium">{t('applications:filters.channelLabel')}</th>
             <th scope="col" className="px-4 py-3 font-medium">{t('applications:table.updated')}</th>
           </tr>
         </thead>
@@ -40,6 +41,13 @@ export function ApplicationTable({ applications }) {
                   : '—'}
               </td>
               <td className="px-4 py-3"><StageBadge stage={app.pipelineStage} /></td>
+              <td className="px-4 py-3 text-gray-700 dark:text-gray-300">
+                {app.stageAuthority === 'personal'
+                  ? t('applications:authority.myTrackingStatus')
+                  : app.applicationChannel === 'institution'
+                    ? t('applications:authority.institutionStatus')
+                    : t('applications:authority.employerStatus')}
+              </td>
               <td className="px-4 py-3 text-gray-500 dark:text-gray-400 whitespace-nowrap">
                 {formatApplicationDate(app.updatedAt, i18n.language)}
               </td>

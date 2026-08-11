@@ -11,8 +11,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../constants';
 import { arePlansComparable } from '../../../../shared/budget/calculationEngine.js';
-
-const API_BASE = '/api';
+import { budgetApi } from '../../services/budgetApi';
 
 export default function BudgetComparePage() {
   const navigate = useNavigate();
@@ -28,9 +27,7 @@ export default function BudgetComparePage() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await fetch(`${API_BASE}/budget/plans?limit=50`, { credentials: 'include' });
-        if (!res.ok) throw new Error('Failed to load plans');
-        const data = await res.json();
+        const { data } = await budgetApi.listPlans({ limit: 50 });
         setPlans((data.plans || []).filter((p) => p.status !== 'archived'));
       } catch (e) {
         setError(e.message);
@@ -49,12 +46,11 @@ export default function BudgetComparePage() {
     setError('');
     try {
       const [resA, resB] = await Promise.all([
-        fetch(`${API_BASE}/budget/plans/${selectedA}/summary`, { credentials: 'include' }),
-        fetch(`${API_BASE}/budget/plans/${selectedB}/summary`, { credentials: 'include' }),
+        budgetApi.getSummary(selectedA),
+        budgetApi.getSummary(selectedB),
       ]);
-      const [dataA, dataB] = await Promise.all([resA.json(), resB.json()]);
-      setSummaryA(dataA.summary);
-      setSummaryB(dataB.summary);
+      setSummaryA(resA.data.summary);
+      setSummaryB(resB.data.summary);
     } catch (e) {
       setError(e.message);
     } finally {

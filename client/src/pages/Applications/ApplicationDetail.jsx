@@ -131,6 +131,14 @@ export default function ApplicationDetail() {
             </div>
             <StageBadge stage={application.pipelineStage} />
           </div>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+            {application.stageAuthority === 'personal'
+              ? t('applications:authority.personalEditable')
+              : t('applications:authority.employerReadOnly')}
+            {application.applicationChannel === 'external_personal'
+              ? ` ${t('applications:authority.outsideStrideto')}`
+              : ''}
+          </p>
           <div className="mt-3">
             <ApplicationEditPanel
               application={application}
@@ -182,7 +190,14 @@ export default function ApplicationDetail() {
           )}
         </header>
 
-        <Section title={t('applications:tracker.stageManagement')} id="stage-mgmt">
+        <Section
+          title={
+            application.stageAuthority === 'personal'
+              ? t('applications:authority.myTrackingStatus')
+              : t('applications:tracker.stageManagement')
+          }
+          id="stage-mgmt"
+        >
           <StageTransitionControl
             currentStage={application.pipelineStage}
             allowedTransitions={application.allowedTransitions || []}
@@ -202,7 +217,7 @@ export default function ApplicationDetail() {
             // PF-EMP-INT-B4: an employer-linked application (legacyApplicationId set) has
             // an Employer-owned appointment — render it read-only. The server also
             // rejects candidate writes to it, so this is presentation, not the boundary.
-            employerOwned={Boolean(application.legacyApplicationId)}
+            employerOwned={Boolean(application.legacyApplicationId) || application.stageAuthority === 'employer'}
             onSave={async (body) => {
               await afterMutation(applicationsApi.upsertInterview(id, body));
             }}

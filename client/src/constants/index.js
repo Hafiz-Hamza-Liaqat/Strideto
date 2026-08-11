@@ -134,6 +134,9 @@ export const ROUTES = {
   BUDGET_NEW: '/budget/new',
   BUDGET_DETAIL: '/budget/:planId',
   BUDGET_COMPARE: '/budget/compare',
+  PRIVACY: '/account/privacy',
+  STUDENT_HELP: '/help/student',
+  STUDENT_MESSAGES: '/messages',
 };
 
 export const ROLES = {

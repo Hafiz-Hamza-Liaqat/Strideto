@@ -3,10 +3,6 @@ import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../constants';
 import { StageBadge } from './StageBadge';
 import { PIPELINE_STAGES } from '@shared/career/constants.js';
-import {
-  getAllowedTransitions,
-  resolveStageTemplateId,
-} from '@shared/career/applicationStageMachine.js';
 import { applicationDisplayTitle } from '../../utils/applicationUi';
 
 /**
@@ -42,10 +38,8 @@ export function ApplicationKanbanBoard({ applications, onMoveStage }) {
             </div>
             <ul className="space-y-2 min-h-[4rem]" role="list">
               {(byStage[stage] || []).map((app) => {
-                const templateId = app.stageTemplateId
-                  || resolveStageTemplateId(app.opportunityRef?.opportunityType || 'job');
-                const transitions = app.allowedTransitions
-                  || getAllowedTransitions(templateId, app.pipelineStage);
+                const transitions = Array.isArray(app.allowedTransitions) ? app.allowedTransitions : [];
+                const personal = app.stageAuthority === 'personal';
                 return (
                   <li key={app._id}>
                     <div className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-3 shadow-sm">
@@ -59,7 +53,14 @@ export function ApplicationKanbanBoard({ applications, onMoveStage }) {
                         <p className="text-xs text-gray-500 dark:text-gray-400 mt-1 truncate">{app.companyName}</p>
                       ) : null}
                       <div className="mt-2"><StageBadge stage={app.pipelineStage} /></div>
-                      {onMoveStage && transitions.length > 0 ? (
+                      <p className="mt-1 text-[11px] text-gray-500 dark:text-gray-400">
+                        {personal
+                          ? t('applications:authority.myTrackingStatus')
+                          : app.applicationChannel === 'institution'
+                            ? t('applications:authority.institutionStatus')
+                            : t('applications:authority.employerStatus')}
+                      </p>
+                      {personal && onMoveStage && transitions.length > 0 ? (
                         <label className="mt-2 block text-xs text-gray-500 dark:text-gray-400">
                           <span className="sr-only">{t('applications:tracker.moveStage')}</span>
                           <select

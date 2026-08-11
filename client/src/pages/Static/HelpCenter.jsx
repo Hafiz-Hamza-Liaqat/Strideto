@@ -37,6 +37,13 @@ export default function HelpCenter() {
           <p className="text-gray-600 dark:text-gray-300">{t('static:helpApplyBody')}</p>
         </section>
         <section className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">Student guidance</h2>
+          <p className="text-gray-600 dark:text-gray-300 mb-4">
+            Signed-in Students can open contextual guidance for profile, applications, Vault, and privacy without reading legal pages.
+          </p>
+          <Link to={ROUTES.STUDENT_HELP} className="text-primary dark:text-mint hover:underline">Student guidance</Link>
+        </section>
+        <section className="mb-8">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">{t('static:helpNeedMoreTitle')}</h2>
           <p className="text-gray-600 dark:text-gray-300 mb-4">
             {t('static:helpNeedMorePrefix')}{' '}

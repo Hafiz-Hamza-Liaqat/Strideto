@@ -24,8 +24,8 @@
 import { useState, useCallback, useRef } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import { ROUTES } from '../../constants';
+import axiosInstance from '../../services/axiosBase';
 
-const API_BASE = '/api';
 const MAX_QUESTION = 1000;
 
 const CONTEXT_TYPE_LABELS = {
@@ -97,25 +97,15 @@ export default function CopilotPage() {
     setExpandedEvidence(false);
 
     try {
-      const res = await fetch(`${API_BASE}/copilot/ask`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify({
-          question: q.slice(0, MAX_QUESTION),
-          contextType: ctx || undefined,
-          entityRefs: Object.keys(entityRefs).length > 0 ? entityRefs : undefined,
-          locale: navigator.language || 'en',
-        }),
+      const { data } = await axiosInstance.post('/copilot/ask', {
+        question: q.slice(0, MAX_QUESTION),
+        contextType: ctx || undefined,
+        entityRefs: Object.keys(entityRefs).length > 0 ? entityRefs : undefined,
+        locale: navigator.language || 'en',
       });
-      const data = await res.json();
-      if (!res.ok) {
-        setError(data.error || 'Request failed');
-        return;
-      }
       setResponse(data);
-    } catch {
-      setError('Unable to reach Strideto Copilot. Please try again.');
+    } catch (err) {
+      setError(err.response?.data?.error || 'Unable to reach Strideto Copilot. Please try again.');
     } finally {
       setLoading(false);
     }

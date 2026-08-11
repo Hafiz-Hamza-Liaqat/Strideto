@@ -7,6 +7,7 @@ import { SiteContentProvider } from '../context/SiteContentContext';
 import { AdSlotsProvider } from '../context/AdSlotsContext';
 import { SkipLink } from '../components/a11y/SkipLink';
 import { FeedbackWidget } from '../components/feedback/FeedbackWidget';
+import { StudentPortalNav } from '../components/student/StudentPortalNav';
 
 export function MainLayout({ children }) {
   return (
@@ -16,6 +17,7 @@ export function MainLayout({ children }) {
           <SkipLink />
           <GlobalSeo />
           <Navbar />
+          <StudentPortalNav />
           <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 w-full max-w-full outline-none">
             {children || <Outlet />}
           </main>

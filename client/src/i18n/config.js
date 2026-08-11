@@ -26,6 +26,7 @@ export const NAMESPACES = [
   'profiles',
   'talent',
   'applications',
+  'student',
   'assessments',
   'timeline',
   'documents-platform',

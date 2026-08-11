@@ -18,7 +18,7 @@ import { openProfilingWizard } from '../../onboarding/ProfilingWizard.jsx';
 
 export default function Profile() {
   const { t } = useTranslation(['profile', 'common']);
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, logout, logoutAll } = useAuth();
   const { setLang } = useLanguage();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -387,6 +387,24 @@ export default function Profile() {
               {changingPassword ? t('common:saving') : t('profile:updatePassword', { defaultValue: 'Update password' })}
             </Button>
           </form>
+          <div className="mt-6 space-y-3">
+            <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+              {t('profile:sessionsTitle', { defaultValue: 'Sessions' })}
+            </h3>
+            <p className="text-sm text-gray-600 dark:text-gray-400">
+              {t('profile:sessionsHelp', {
+                defaultValue: 'Refresh cookies stay HttpOnly. Session identifiers are not displayed.',
+              })}
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <Button type="button" onClick={() => logout()}>
+                {t('common:logout')}
+              </Button>
+              <Button type="button" variant="outline" onClick={() => logoutAll()}>
+                {t('profile:logoutAll', { defaultValue: 'Log out of all sessions' })}
+              </Button>
+            </div>
+          </div>
         </section>
 
         <section className="mt-10 pt-8 border-t border-gray-200 dark:border-gray-700">

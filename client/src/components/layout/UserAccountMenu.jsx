@@ -179,9 +179,14 @@ export function UserAccountMenu() {
               <MenuLink to={ROUTES.DASHBOARD} onClose={close}>{t('navbar:dashboard')}</MenuLink>
               <MenuLink to={ROUTES.TALENT_PROFILE} onClose={close}>{t('navbar:talentProfile')}</MenuLink>
               <MenuLink to={ROUTES.APPLICATIONS} onClose={close}>{t('navbar:myApplications')}</MenuLink>
+              <MenuLink to={ROUTES.JOURNEY} onClose={close}>{t('navbar:journey', { defaultValue: 'Journey' })}</MenuLink>
+              <MenuLink to={ROUTES.VAULT} onClose={close}>{t('navbar:vault', { defaultValue: 'Vault' })}</MenuLink>
+              <MenuLink to={ROUTES.NOTIFICATIONS} onClose={close}>{t('navbar:notifications', { defaultValue: 'Notifications' })}</MenuLink>
+              <MenuLink to={ROUTES.PRIVACY} onClose={close}>{t('navbar:privacy', { defaultValue: 'Privacy' })}</MenuLink>
               <MenuLink to={ROUTES.PROFILE} onClose={close}>{t('navbar:profile')}</MenuLink>
               <MenuLink to={ROUTES.RESUME_BUILDER} onClose={close}>{t('navbar:resume')}</MenuLink>
               <MenuLink to={`${ROUTES.PROFILE}#account-settings`} onClose={close}>{t('navbar:accountSettings')}</MenuLink>
+              <MenuLink to={ROUTES.STUDENT_HELP} onClose={close}>{t('navbar:studentHelp', { defaultValue: 'Student help' })}</MenuLink>
               {STAFF_ROLES.includes(user?.role) && (
                 <MenuLink to={ROUTES.ADMIN} onClose={close}>{t('common:admin')}</MenuLink>
               )}

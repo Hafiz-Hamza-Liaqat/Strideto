@@ -39,6 +39,7 @@ import * as adminSupport from '../controllers/admin/adminSupportController.js';
 import * as newsletterAdmin from '../controllers/admin/newsletterAdminController.js';
 import * as monitoring from '../controllers/admin/monitoringController.js';
 import * as queueCtrl from '../controllers/admin/queueController.js';
+import * as accountPrivacyCtrl from '../controllers/accountPrivacyController.js';
 import * as slugCtrl from '../controllers/admin/slugController.js';
 import * as mediaCtrl from '../controllers/admin/mediaController.js';
 import * as formAdmin from '../controllers/admin/formAdminController.js';
@@ -114,6 +115,8 @@ adminRouter.patch('/moderation/reports/:id', requirePermission(PERMISSIONS.MODER
 adminRouter.post('/moderation/:type/:id/suspend', requirePermission(PERMISSIONS.MODERATE_SUSPEND), moderation.suspendListing);
 
 adminRouter.get('/audit-logs', requirePermission(PERMISSIONS.AUDIT_READ), auditLogs.listAuditLogs);
+adminRouter.get('/privacy-requests', requirePermission(PERMISSIONS.USERS_READ), accountPrivacyCtrl.adminListPrivacyRequests);
+adminRouter.patch('/privacy-requests/:id', requirePermission(PERMISSIONS.USERS_READ), accountPrivacyCtrl.adminUpdatePrivacyRequest);
 
 // Verification queue (Mission 2) — sub-router handles its own permission guards
 adminRouter.use('/verification', adminVerificationRouter);

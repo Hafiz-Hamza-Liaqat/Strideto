@@ -1,5 +1,6 @@
 import { User } from '../models/User.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { validateNotificationPreferences } from '../../../shared/international/notificationPreferences.js';
 
 function toSafeUser(user) {
   if (!user) return null;
@@ -32,6 +33,13 @@ export const updateProfile = asyncHandler(async (req, res) => {
       user.notifications.whatsapp = notifications.whatsapp;
     if (typeof notifications.telegram === 'boolean')
       user.notifications.telegram = notifications.telegram;
+  }
+  if (req.body.notificationPreferences !== undefined) {
+    const prefResult = validateNotificationPreferences(req.body.notificationPreferences);
+    if (!prefResult.ok) {
+      return res.status(422).json({ error: prefResult.errors.join('; ') });
+    }
+    user.notificationPreferences = prefResult.value;
   }
   if (req.body.name !== undefined) user.name = String(req.body.name).trim();
   if (

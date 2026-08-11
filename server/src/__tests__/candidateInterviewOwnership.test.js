@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { isInternalEmployerApplication } from '../../../shared/career/applicationAuthority.js';
 
 // PF-EMP-INT-B4 — Candidate interview ownership boundary + notification correlation.
 //
@@ -69,6 +70,7 @@ function buildHarness({ legacyApplicationId, currentInterview = {} }) {
       return { eventId: 'evt-1' };
     },
     actorFromUserId: (userId) => ({ type: 'talent', id: String(userId) }),
+    isInternalEmployerApplication,
   };
 
   const argNames = Object.keys(scope);
@@ -177,7 +179,7 @@ function buildHarness({ legacyApplicationId, currentInterview = {} }) {
 // ---------------------------------------------------------------------------
 {
   check(
-    /if \(existing\.legacyApplicationId\)/.test(methodText),
+    /if \(existing\.legacyApplicationId \|\| isInternalEmployerApplication\(existing\)\)/.test(methodText),
     'Server enforcement: upsertInterview gates on legacyApplicationId — the authoritative employer-link signal.',
   );
   check(

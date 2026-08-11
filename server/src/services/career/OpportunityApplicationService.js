@@ -8,6 +8,13 @@ import { resolveOpportunityReference } from './OpportunityResolverService.js';
 import { emitCareerEvent } from './CareerEventBus.js';
 import { trackApplicationAnalyticsFromEvent, scheduleApplicationReminderJob } from './careerApplicationBridge.js';
 import { normalizeLocale } from '../../../../shared/localization/localeResolver.js';
+import {
+  assertStudentMayTransition,
+  getStudentAllowedTransitions,
+  isInternalEmployerApplication,
+  resolveApplicationChannel,
+  resolveStageAuthority,
+} from '../../../../shared/career/applicationAuthority.js';
 
 function actorFromUserId(userId) {
   return { type: 'talent', id: String(userId) };
@@ -15,6 +22,20 @@ function actorFromUserId(userId) {
 
 function toPlain(doc) {
   return doc?.toObject ? doc.toObject() : doc;
+}
+
+function projectStudentApplication(application) {
+  const plain = toPlain(application);
+  const machineTransitions = ApplicationStageMachineService.getAllowedTransitions(
+    plain.stageTemplateId,
+    plain.pipelineStage
+  );
+  return {
+    ...plain,
+    applicationChannel: resolveApplicationChannel(plain),
+    stageAuthority: resolveStageAuthority(plain),
+    allowedTransitions: getStudentAllowedTransitions(plain, machineTransitions),
+  };
 }
 
 function stageEventType(toStage) {
@@ -76,15 +97,16 @@ export const OpportunityApplicationService = {
   async listForUser(userId, query = {}) {
     const limit = Math.min(100, Math.max(1, parseInt(query.limit, 10) || 50));
     const skip = Math.max(0, parseInt(query.skip, 10) || 0);
-    return OpportunityApplicationRepository.findActiveByUser(userId, {
+    const rows = await OpportunityApplicationRepository.findActiveByUser(userId, {
       limit,
       skip,
       stage: query.stage,
     });
+    return rows.map((row) => projectStudentApplication(row));
   },
 
   async getById(userId, applicationId) {
-    return getOwnedApplication(userId, applicationId);
+    return projectStudentApplication(await getOwnedApplication(userId, applicationId));
   },
 
   async create(userId, body, actor) {
@@ -157,11 +179,17 @@ export const OpportunityApplicationService = {
 
     const plain = toPlain(application);
     emitApplicationEvent('ApplicationCreated', plain, { initialStage }, actor || actorFromUserId(userId));
-    return plain;
+    return projectStudentApplication(plain);
   },
 
   async update(userId, applicationId, body, actor) {
     const existing = await getOwnedApplication(userId, applicationId);
+    if (body?.pipelineStage !== undefined || body?.status !== undefined) {
+      const err = new Error('Pipeline stage cannot be set via update');
+      err.status = 403;
+      err.code = 'STUDENT_CANNOT_SET_EMPLOYER_STATE';
+      throw err;
+    }
     const parsed = ApplicationValidationService.assertUpdate(body);
 
     const updated = await OpportunityApplicationRepository.updateById(existing._id, {
@@ -180,7 +208,7 @@ export const OpportunityApplicationService = {
       { changedFields: Object.keys(parsed) },
       actor || actorFromUserId(userId)
     );
-    return plain;
+    return projectStudentApplication(plain);
   },
 
   async transitionStage(userId, applicationId, body, actor) {
@@ -190,12 +218,15 @@ export const OpportunityApplicationService = {
       existing.pipelineStage,
       existing.opportunityRef.opportunityType
     );
+    transition.byActorType = 'talent';
+    transition.byActorId = userId;
 
     ApplicationStageMachineService.assertTransition(
       existing.stageTemplateId,
       existing.pipelineStage,
       transition.toStage
     );
+    assertStudentMayTransition(existing, transition.toStage);
 
     const historyEntry = {
       fromStage: existing.pipelineStage,
@@ -227,7 +258,7 @@ export const OpportunityApplicationService = {
       },
       actor || actorFromUserId(userId)
     );
-    return plain;
+    return projectStudentApplication(plain);
   },
 
   async addNote(userId, applicationId, body, actor) {
@@ -388,7 +419,7 @@ export const OpportunityApplicationService = {
     // `updatedAt` churn, and emits no event or invitation. Purely self-tracked
     // applications (no employer, legacyApplicationId null) keep a candidate-owned
     // appointment the candidate may still manage themselves.
-    if (existing.legacyApplicationId) {
+    if (existing.legacyApplicationId || isInternalEmployerApplication(existing)) {
       const err = new Error('This interview is scheduled by the employer and cannot be edited here.');
       err.status = 403;
       throw err;
@@ -417,9 +448,6 @@ export const OpportunityApplicationService = {
   },
 
   getAllowedTransitions(application) {
-    return ApplicationStageMachineService.getAllowedTransitions(
-      application.stageTemplateId,
-      application.pipelineStage
-    );
+    return getStudentAllowedTransitions(application);
   },
 };

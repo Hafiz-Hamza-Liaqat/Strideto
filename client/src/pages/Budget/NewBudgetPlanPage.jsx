@@ -7,8 +7,7 @@
 import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { ROUTES } from '../../constants';
-
-const API_BASE = '/api';
+import { budgetApi } from '../../services/budgetApi';
 
 const JOURNEY_TYPES = [
   { value: 'study', label: 'Study Abroad' },
@@ -49,14 +48,7 @@ export default function NewBudgetPlanPage() {
       if (form.planningHorizonMonths) body.planningHorizonMonths = parseInt(form.planningHorizonMonths, 10);
       if (form.displayCurrency.trim()) body.displayCurrency = form.displayCurrency.trim().toUpperCase();
 
-      const res = await fetch(`${API_BASE}/budget/plans`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to create plan');
+      const { data } = await budgetApi.createPlan(body);
       navigate(ROUTES.BUDGET_DETAIL.replace(':planId', data.plan._id));
     } catch (e) {
       setError(e.message || 'Failed to create plan.');

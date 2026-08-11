@@ -80,6 +80,11 @@ export default function CreateApplication() {
         </Link>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{t('applications:create.title')}</h1>
         <p className="text-gray-600 dark:text-gray-400 mb-6">{t('applications:create.subtitle')}</p>
+        {mode === 'external' ? (
+          <p className="mb-4 text-sm text-amber-800 dark:text-amber-200" role="note">
+            {t('applications:create.outsideNote')}
+          </p>
+        ) : null}
 
         <div className="flex flex-wrap gap-2 mb-6" role="tablist" aria-label={t('applications:create.modeLabel')}>
           {['platform', 'external'].map((m) => (

@@ -3,6 +3,8 @@ import { PIPELINE_STAGES } from '@shared/career/constants.js';
 
 export const OPPORTUNITY_TYPE_FILTERS = ['all', 'job', 'scholarship', 'admission', 'internship'];
 
+export const CHANNEL_FILTERS = ['all', 'internal_employer', 'external_personal', 'institution'];
+
 export const SORT_OPTIONS = [
   { id: 'updated_desc', field: 'updatedAt', dir: -1 },
   { id: 'updated_asc', field: 'updatedAt', dir: 1 },
@@ -51,10 +53,13 @@ export function stageBadgeClass(stage) {
   return 'bg-amber-100 text-amber-800 dark:bg-amber-900/40 dark:text-amber-300';
 }
 
-export function filterApplications(applications, { type = 'all', query = '' } = {}) {
+export function filterApplications(applications, { type = 'all', query = '', channel = 'all' } = {}) {
   let list = [...applications];
   if (type !== 'all') {
     list = list.filter((a) => a.opportunityRef?.opportunityType === type);
+  }
+  if (channel !== 'all') {
+    list = list.filter((a) => a.applicationChannel === channel);
   }
   const q = String(query || '').trim().toLowerCase();
   if (q) {

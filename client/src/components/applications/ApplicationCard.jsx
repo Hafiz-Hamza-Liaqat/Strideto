@@ -25,6 +25,16 @@ export function ApplicationCard({ application }) {
             {type ? t(`applications:opportunityTypes.${type}`, { defaultValue: type }) : ''}
             {application.companyName ? ` · ${application.companyName}` : ''}
           </p>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+            {application.stageAuthority === 'personal'
+              ? t('applications:authority.myTrackingStatus')
+              : application.applicationChannel === 'institution'
+                ? t('applications:authority.institutionStatus')
+                : t('applications:authority.employerStatus')}
+            {application.applicationChannel === 'external_personal'
+              ? ` · ${t('applications:authority.outsideStrideto')}`
+              : ''}
+          </p>
           <p className="text-xs text-gray-400 dark:text-gray-500 mt-2">
             {t('applications:list.updated', {
               date: formatApplicationDate(application.updatedAt, i18n.language, { time: true }),

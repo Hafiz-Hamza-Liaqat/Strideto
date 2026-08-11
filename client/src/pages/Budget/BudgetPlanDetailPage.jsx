@@ -20,8 +20,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { ROUTES } from '../../constants';
 import { formatMoney } from '@shared/international/dateDisplay.js';
-
-const API_BASE = '/api';
+import { budgetApi } from '../../services/budgetApi';
 
 const TRUTH_LABELS = {
   verified: { label: 'Source-backed', cls: 'bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-300' },
@@ -102,17 +101,13 @@ export default function BudgetPlanDetailPage() {
     setError('');
     try {
       const [planRes, summaryRes, itemsRes] = await Promise.all([
-        fetch(`${API_BASE}/budget/plans/${planId}`, { credentials: 'include' }),
-        fetch(`${API_BASE}/budget/plans/${planId}/summary`, { credentials: 'include' }),
-        fetch(`${API_BASE}/budget/plans/${planId}/items`, { credentials: 'include' }),
+        budgetApi.getPlan(planId),
+        budgetApi.getSummary(planId),
+        budgetApi.listItems(planId),
       ]);
-      if (!planRes.ok) throw new Error('Plan not found or access denied');
-      const [planData, summaryData, itemsData] = await Promise.all([
-        planRes.json(), summaryRes.json(), itemsRes.json(),
-      ]);
-      setPlan(planData.plan);
-      setSummary(summaryData.summary);
-      setItems(itemsData.items || []);
+      setPlan(planRes.data.plan);
+      setSummary(summaryRes.data.summary);
+      setItems(itemsRes.data.items || []);
     } catch (e) {
       setError(e.message || 'Failed to load plan.');
     } finally {
@@ -126,11 +121,7 @@ export default function BudgetPlanDetailPage() {
     if (!window.confirm('Remove this cost item?')) return;
     setBusy(true);
     try {
-      const res = await fetch(`${API_BASE}/budget/plans/${planId}/items/${itemId}`, {
-        method: 'DELETE',
-        credentials: 'include',
-      });
-      if (!res.ok) throw new Error('Failed to remove item');
+      await budgetApi.removeItem(planId, itemId);
       await load();
     } catch (e) {
       setError(e.message);
@@ -142,11 +133,7 @@ export default function BudgetPlanDetailPage() {
   const handleRefreshItem = async (itemId) => {
     setBusy(true);
     try {
-      const res = await fetch(`${API_BASE}/budget/plans/${planId}/items/${itemId}/refresh`, {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (!res.ok) { const d = await res.json(); throw new Error(d.message || 'Refresh failed'); }
+      await budgetApi.refreshItem(planId, itemId);
       await load();
     } catch (e) {
       setError(e.message);
@@ -179,14 +166,7 @@ export default function BudgetPlanDetailPage() {
 
     setBusy(true);
     try {
-      const res = await fetch(`${API_BASE}/budget/plans/${planId}/items`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(body),
-      });
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || 'Failed to add item');
+      await budgetApi.addItem(planId, body);
       setShowAddItem(false);
       setAddItemForm({ category: 'other', label: '', amountState: 'estimated', amountMinor: '', currency: '', cadence: 'one_time', notes: '' });
       await load();

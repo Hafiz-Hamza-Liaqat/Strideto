@@ -26,8 +26,7 @@ export const createApplication = asyncHandler(async (req, res) => {
 
 export const getApplication = asyncHandler(async (req, res) => {
   const application = await OpportunityApplicationService.getById(req.user.userId, req.params.id);
-  const allowedTransitions = OpportunityApplicationService.getAllowedTransitions(application);
-  res.json({ ...application, allowedTransitions });
+  res.json(application);
 });
 
 export const updateApplication = asyncHandler(async (req, res) => {
