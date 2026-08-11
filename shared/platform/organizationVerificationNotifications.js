@@ -75,3 +75,8 @@ export function sanitizeOrgVerificationNotificationMetadata(metadata = {}) {
 export function orgVerificationDedupeKey({ organizationId, notificationType, transitionId }) {
   return `org-verification:${organizationId}:${notificationType}:${transitionId}`;
 }
+
+/** Dedupe key for canonical Institution claim notifications. */
+export function canonicalClaimDedupeKey({ organizationId, notificationType, transitionId }) {
+  return `canonical-claim:${organizationId}:${notificationType}:${transitionId}`;
+}

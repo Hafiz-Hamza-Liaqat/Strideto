@@ -4,9 +4,9 @@
  * All requests go through the authenticated admin API.
  * No client-side secrets. No bearer token construction here — handled by axios interceptors.
  */
-import axios from 'axios';
+import axios from './axiosBase';
 
-const BASE = '/api/admin';
+const BASE = '/admin';
 
 function params(obj) {
   return { params: Object.fromEntries(Object.entries(obj || {}).filter(([, v]) => v !== undefined && v !== '')) };
@@ -108,5 +108,20 @@ export async function getAdminSystemReadiness() {
 
 export async function getAdminRiskSignals(organizationId) {
   const r = await axios.get(`${BASE}/risk-signals`, { params: { organizationId } });
+  return r.data;
+}
+
+export async function listAdminInstitutionClaims(query = {}) {
+  const r = await axios.get('/admin/institution/claims', params(query));
+  return r.data;
+}
+
+export async function updateAdminInstitutionClaim(claimId, body) {
+  const r = await axios.patch(`/admin/institution/claims/${claimId}`, body);
+  return r.data;
+}
+
+export async function listAdminInstitutionConflicts(query = {}) {
+  const r = await axios.get('/admin/institution/conflicts', params(query));
   return r.data;
 }

@@ -353,14 +353,15 @@ await check('45 Institution commerce capability is not_configured (Mission 17 un
 
 // ── 18. Admin review authorization ───────────────────────────────────────────
 
-await check('46 Admin claim review requires requireAdmin guard', () => {
+await check('46 Admin claim review requires staff auth and permission', () => {
   const routes = source('server/src/routes/institutionPortal.js');
-  assert.match(routes, /adminInstitution\.use\(requireAuth, requireAdmin\)/);
+  assert.match(routes, /adminInstitution\.use\(requireAuth, requireStaff\)/);
+  assert.match(routes, /requirePermission\(PERMISSIONS\.VERIFICATION_READ\)/);
 });
-await check('47 Claim approval only available to Admin realm', () => {
+await check('47 Claim approval only available with verification:approve', () => {
   const routes = source('server/src/routes/institutionPortal.js');
   assert.match(routes, /\/admin\/institution/);
-  assert.match(routes, /requireAdmin/);
+  assert.match(routes, /requirePermission\(PERMISSIONS\.VERIFICATION_APPROVE\)/);
 });
 
 // ── 19. Audit trail ──────────────────────────────────────────────────────────

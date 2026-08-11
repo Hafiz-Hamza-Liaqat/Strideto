@@ -156,6 +156,10 @@ const AdminCommerceCenter = lazyLoad(() => import('../pages/Admin/AdminCommerceC
 const AdminDataQualityCenter = lazyLoad(() => import('../pages/Admin/AdminDataQualityCenter'));
 const AdminAiOps = lazyLoad(() => import('../pages/Admin/AdminAiOps'));
 const AdminSystemReadiness = lazyLoad(() => import('../pages/Admin/AdminSystemReadiness'));
+const AdminCanonicalClaims = lazyLoad(() => import('../pages/Admin/AdminCanonicalClaims'));
+const AdminOrganizationDetail = lazyLoad(() => import('../pages/Admin/AdminOrganizationDetail'));
+const AdminInbox = lazyLoad(() => import('../pages/Admin/AdminInbox'));
+const AdminPrivacyRequests = lazyLoad(() => import('../pages/Admin/AdminPrivacyRequests'));
 const EmployerSettings = lazyLoad(() => import('../pages/Employer/EmployerSettings'));
 const EmployerPublicGate = lazyLoad(() => import('../pages/Public/EmployerPublicProfile'));
 const CompanyProfile = lazyLoad(() => import('../pages/Public/CompanyProfile'));
@@ -508,11 +512,15 @@ export const routes = [
           // Mission 21 — Super Control Center
           { path: 'sc/overview', element: <AdminSuperControlOverview /> },
           { path: 'sc/organizations', element: <AdminOrganizations /> },
+          { path: 'sc/organizations/:id', element: <AdminOrganizationDetail /> },
+          { path: 'sc/claims', element: <AdminCanonicalClaims /> },
           { path: 'sc/trust', element: <AdminTrustCenter /> },
           { path: 'sc/commerce', element: <AdminCommerceCenter /> },
           { path: 'sc/data-quality', element: <AdminDataQualityCenter /> },
           { path: 'sc/ai-ops', element: <AdminAiOps /> },
           { path: 'sc/system', element: <AdminSystemReadiness /> },
+          { path: 'inbox', element: <AdminInbox /> },
+          { path: 'privacy-requests', element: <AdminPrivacyRequests /> },
         ],
       },
       {

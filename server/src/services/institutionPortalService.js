@@ -336,6 +336,30 @@ export async function submitClaim({ claimId, organizationId, actor }) {
 
   await prepareNotification({ organizationId, eventType: INSTITUTION_NOTIFICATION_TYPES.CLAIM_REVIEW_RESULT, payload: { claimId: claim._id, state: CLAIM_STATES.SUBMITTED } });
   await logAudit({ action: 'institution_claim_submitted', actor, metadata: { organizationId, claimId } });
+
+  try {
+    const { emitCanonicalClaimNotifications } = await import('./orgVerificationNotificationBridge.js');
+    const { CANONICAL_CLAIM_NOTIFICATION_TYPES } = await import('../../../shared/platform/organizationVerificationNotifications.js');
+    const competing = claim.canonicalInstitutionId
+      ? await InstitutionClaim.findOne({
+        canonicalInstitutionId: claim.canonicalInstitutionId,
+        state: { $in: [CLAIM_STATES.SUBMITTED, CLAIM_STATES.UNDER_REVIEW, CLAIM_STATES.APPROVED] },
+        _id: { $ne: claim._id },
+      }).select('_id').lean()
+      : null;
+    await emitCanonicalClaimNotifications({
+      organizationId,
+      claimId: claim._id,
+      notificationType: competing
+        ? CANONICAL_CLAIM_NOTIFICATION_TYPES.CONFLICT
+        : CANONICAL_CLAIM_NOTIFICATION_TYPES.SUBMITTED,
+      transitionId: `${claim._id}:${CLAIM_STATES.SUBMITTED}:${claim.submittedAt?.getTime?.() || Date.now()}`,
+      conflict: Boolean(competing),
+    });
+  } catch {
+    // Notification failure must not roll back the committed claim.
+  }
+
   return claim;
 }
 

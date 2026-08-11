@@ -17,7 +17,7 @@ export const adminSuperControlRouter = Router();
 // ── Overview ───────────────────────────────────────────────────────────────────
 adminSuperControlRouter.get(
   '/overview',
-  requirePermission(PERMISSIONS.ANALYTICS_READ),
+  requirePermission(PERMISSIONS.SYSTEM_READ, PERMISSIONS.ORGANIZATIONS_READ, PERMISSIONS.ANALYTICS_READ),
   ctrl.getOverview
 );
 

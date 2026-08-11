@@ -7,11 +7,50 @@ import { PERMISSIONS } from './rbac';
 /** Single source of truth for admin sidebar navigation. Keep in sync with routes/index.jsx paths. */
 export const ADMIN_NAV_GROUPS = /** @type {AdminNavGroup[]} */ ([
   {
+    id: 'operations',
+    labelKey: 'navGroupOperations',
+    icon: 'shield',
+    items: [
+      { path: `${ROUTES.ADMIN}/sc/overview`, labelKey: 'navOverview', perm: [PERMISSIONS.SYSTEM_READ, PERMISSIONS.ORGANIZATIONS_READ, PERMISSIONS.ANALYTICS_READ], icon: 'home' },
+      { path: `${ROUTES.ADMIN}/sc/organizations`, labelKey: 'navOrganizations', perm: PERMISSIONS.ORGANIZATIONS_READ, icon: 'building' },
+      { path: `${ROUTES.ADMIN}/verification-queue`, labelKey: 'navVerificationQueue', perm: PERMISSIONS.VERIFICATION_READ, icon: 'shield' },
+      { path: `${ROUTES.ADMIN}/sc/claims`, labelKey: 'navCanonicalClaims', perm: PERMISSIONS.VERIFICATION_READ, icon: 'school' },
+      { path: `${ROUTES.ADMIN}/sc/trust`, labelKey: 'navTrustCenter', perm: PERMISSIONS.TRUST_TRIAGE, icon: 'shield' },
+      { path: `${ROUTES.ADMIN}/sc/data-quality`, labelKey: 'navDataQuality', perm: PERMISSIONS.DATA_QUALITY_MANAGE, icon: 'list' },
+      { path: `${ROUTES.ADMIN}/sc/commerce`, labelKey: 'navCommerce', perm: PERMISSIONS.COMMERCE_ADMIN_READ, icon: 'credit' },
+      { path: `${ROUTES.ADMIN}/sc/ai-ops`, labelKey: 'navAiOps', perm: PERMISSIONS.AI_OPS_READ, icon: 'sparkles' },
+      { path: `${ROUTES.ADMIN}/sc/system`, labelKey: 'navSystemReadiness', perm: PERMISSIONS.SYSTEM_READ, icon: 'health' },
+    ],
+  },
+  {
+    id: 'moderation-support',
+    labelKey: 'navGroupModerationSupport',
+    icon: 'lifebuoy',
+    items: [
+      { path: `${ROUTES.ADMIN}/sc/trust`, labelKey: 'navReportsDisputes', perm: PERMISSIONS.TRUST_TRIAGE, icon: 'shield' },
+      { path: `${ROUTES.ADMIN}/support`, labelKey: 'navSupportRequests', perm: PERMISSIONS.USERS_READ, icon: 'lifebuoy' },
+      { path: `${ROUTES.ADMIN}/privacy-requests`, labelKey: 'navPrivacyLegal', perm: PERMISSIONS.USERS_READ, icon: 'shield' },
+      { path: `${ROUTES.ADMIN}/moderation`, labelKey: 'moderation', perm: [PERMISSIONS.MODERATE_JOBS, PERMISSIONS.MODERATE_EMPLOYERS], icon: 'shield' },
+      { path: `${ROUTES.ADMIN}/review`, labelKey: 'editorialReview', perm: [PERMISSIONS.WORKFLOW_VIEW, PERMISSIONS.WORKFLOW_REVIEW, PERMISSIONS.WORKFLOW_APPROVE], icon: 'shield' },
+      { path: `${ROUTES.ADMIN}/agent-marketplace`, labelKey: 'agentMarketplace', perm: PERMISSIONS.WORKFLOW_REVIEW, icon: 'megaphone' },
+    ],
+  },
+  {
+    id: 'system',
+    labelKey: 'navGroupSystem',
+    icon: 'settings',
+    items: [
+      { path: `${ROUTES.ADMIN}/audit`, labelKey: 'navActivityAudit', perm: PERMISSIONS.AUDIT_READ, icon: 'list' },
+      { path: `${ROUTES.ADMIN}/inbox`, labelKey: 'navStaffNotifications', icon: 'bell' },
+      { path: ROUTES.PROFILE, labelKey: 'navProfileSecurity', icon: 'profile' },
+    ],
+  },
+  {
     id: 'dashboard',
     labelKey: 'navGroupDashboard',
     icon: 'dashboard',
     items: [
-      { path: ROUTES.ADMIN, labelKey: 'executiveDashboard', perm: PERMISSIONS.ANALYTICS_READ, icon: 'home', end: true },
+      { path: ROUTES.ADMIN, labelKey: 'executiveDashboard', perm: PERMISSIONS.ANALYTICS_READ, icon: 'chart', end: true },
       { path: `${ROUTES.ADMIN}/analytics`, labelKey: 'analytics', perm: PERMISSIONS.ANALYTICS_READ, icon: 'chart' },
       { path: `${ROUTES.ADMIN}/monitoring`, labelKey: 'monitoring', perm: PERMISSIONS.ANALYTICS_READ, icon: 'pulse' },
       { path: `${ROUTES.ADMIN}/platform-ops`, labelKey: 'platformHealth', perm: PERMISSIONS.ANALYTICS_READ, icon: 'health' },
@@ -54,15 +93,8 @@ export const ADMIN_NAV_GROUPS = /** @type {AdminNavGroup[]} */ ([
     items: [
       { path: `${ROUTES.ADMIN}/users`, labelKey: 'users', perm: PERMISSIONS.USERS_READ, icon: 'user' },
       { path: `${ROUTES.ADMIN}/employers`, labelKey: 'employers', perm: PERMISSIONS.USERS_READ, icon: 'building' },
-      { path: `${ROUTES.ADMIN}/contact-messages`, labelKey: 'contactMessages', perm: PERMISSIONS.USERS_READ, icon: 'mail' },
-      { path: `${ROUTES.ADMIN}/support`, labelKey: 'supportTickets', perm: PERMISSIONS.USERS_READ, icon: 'lifebuoy' },
-      { path: `${ROUTES.ADMIN}/notifications`, labelKey: 'notifications', perm: PERMISSIONS.NOTIFICATIONS_SEND, icon: 'bell' },
-      { path: `${ROUTES.ADMIN}/alerts`, labelKey: 'alerts', perm: PERMISSIONS.NOTIFICATIONS_SEND, icon: 'alert' },
       { path: `${ROUTES.ADMIN}/invitations`, labelKey: 'staffInvitations', perm: PERMISSIONS.USERS_MANAGE, icon: 'invite' },
-      { path: `${ROUTES.ADMIN}/moderation`, labelKey: 'moderation', perm: [PERMISSIONS.MODERATE_JOBS, PERMISSIONS.MODERATE_EMPLOYERS], icon: 'shield' },
-      { path: `${ROUTES.ADMIN}/review`, labelKey: 'editorialReview', perm: [PERMISSIONS.WORKFLOW_VIEW, PERMISSIONS.WORKFLOW_REVIEW, PERMISSIONS.WORKFLOW_APPROVE], icon: 'shield' },
-      { path: `${ROUTES.ADMIN}/verification-queue`, labelKey: 'verificationQueue', perm: PERMISSIONS.VERIFICATION_READ, icon: 'shield' },
-      { path: `${ROUTES.ADMIN}/agent-marketplace`, labelKey: 'agentMarketplace', perm: PERMISSIONS.WORKFLOW_REVIEW, icon: 'megaphone' },
+      { path: `${ROUTES.ADMIN}/contact-messages`, labelKey: 'contactMessages', perm: PERMISSIONS.USERS_READ, icon: 'mail' },
     ],
   },
   {
@@ -82,21 +114,8 @@ export const ADMIN_NAV_GROUPS = /** @type {AdminNavGroup[]} */ ([
     items: [
       { path: `${ROUTES.ADMIN}/ai-job-generator`, labelKey: 'aiJobGenerator', perm: PERMISSIONS.CONTENT_JOBS, icon: 'sparkles' },
       { path: `${ROUTES.ADMIN}/import`, labelKey: 'import', perm: PERMISSIONS.CONTENT_IMPORT, icon: 'upload' },
-      { path: `${ROUTES.ADMIN}/audit`, labelKey: 'auditLog', perm: PERMISSIONS.AUDIT_READ, icon: 'list' },
-    ],
-  },
-  {
-    id: 'super-control',
-    labelKey: 'navGroupSuperControl',
-    icon: 'shield',
-    items: [
-      { path: `${ROUTES.ADMIN}/sc/overview`, labelKey: 'scOverview', perm: PERMISSIONS.ANALYTICS_READ, icon: 'home' },
-      { path: `${ROUTES.ADMIN}/sc/organizations`, labelKey: 'scOrganizations', perm: PERMISSIONS.ORGANIZATIONS_READ, icon: 'building' },
-      { path: `${ROUTES.ADMIN}/sc/trust`, labelKey: 'scTrustCenter', perm: PERMISSIONS.TRUST_TRIAGE, icon: 'shield' },
-      { path: `${ROUTES.ADMIN}/sc/commerce`, labelKey: 'scCommerceCenter', perm: PERMISSIONS.COMMERCE_ADMIN_READ, icon: 'credit' },
-      { path: `${ROUTES.ADMIN}/sc/data-quality`, labelKey: 'scDataQuality', perm: PERMISSIONS.DATA_QUALITY_MANAGE, icon: 'list' },
-      { path: `${ROUTES.ADMIN}/sc/ai-ops`, labelKey: 'scAiOps', perm: PERMISSIONS.AI_OPS_READ, icon: 'sparkles' },
-      { path: `${ROUTES.ADMIN}/sc/system`, labelKey: 'scSystemReadiness', perm: PERMISSIONS.SYSTEM_READ, icon: 'health' },
+      { path: `${ROUTES.ADMIN}/notifications`, labelKey: 'navBroadcastNotifications', perm: PERMISSIONS.NOTIFICATIONS_SEND, icon: 'bell' },
+      { path: `${ROUTES.ADMIN}/alerts`, labelKey: 'alerts', perm: PERMISSIONS.NOTIFICATIONS_SEND, icon: 'alert' },
     ],
   },
 ]);
@@ -117,7 +136,7 @@ export function isAdminNavItemActive(item, pathname) {
   if (item.end || item.path === ROUTES.ADMIN) {
     return resolved === item.path || resolved === `${item.path}/`;
   }
-  return resolved === item.path;
+  return resolved === item.path || resolved.startsWith(`${item.path}/`);
 }
 
 export function itemAllowed(item, can) {

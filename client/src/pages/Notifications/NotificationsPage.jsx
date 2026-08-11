@@ -9,7 +9,7 @@ import { ProtectedRoute } from '../../components/auth/ProtectedRoute';
 import { EmptyState } from '../../components/common/EmptyState';
 import { isSafeInternalLink } from '../../utils/notificationLink';
 
-const CATEGORIES = ['', 'application', 'scholarship', 'admission', 'interview', 'job', 'payment', 'support', 'system', 'general'];
+const CATEGORIES = ['', 'application', 'scholarship', 'admission', 'interview', 'job', 'payment', 'verification', 'support', 'system', 'general'];
 
 /**
  * Shared notifications-page core, parameterized by recipient realm. `api`

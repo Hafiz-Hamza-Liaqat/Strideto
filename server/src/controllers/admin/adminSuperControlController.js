@@ -25,6 +25,7 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import { listResponse, paginate } from '../../utils/apiResponse.js';
 import { logAudit } from '../../services/auditService.js';
 import { getAdminOverviewMetrics } from '../../services/admin/adminOverviewService.js';
+import mongoose from 'mongoose';
 import { Organization } from '../../models/Organization.js';
 import { OrganizationVerification } from '../../models/OrganizationVerification.js';
 import { ProfessionalReport } from '../../models/trust/ProfessionalReport.js';
@@ -65,8 +66,8 @@ function escapeRegex(val) {
 
 // ── Overview ───────────────────────────────────────────────────────────────────
 
-export const getOverview = asyncHandler(async (_req, res) => {
-  const metrics = await getAdminOverviewMetrics();
+export const getOverview = asyncHandler(async (req, res) => {
+  const metrics = await getAdminOverviewMetrics({ staffUserId: req.user?.userId });
   res.json(metrics);
 });
 
@@ -88,6 +89,14 @@ export const listOrganizations = asyncHandler(async (req, res) => {
   const sortField = SAFE_SORT.has(req.query.sortBy) ? req.query.sortBy : 'createdAt';
   const sortDir = req.query.sortDir === 'asc' ? 1 : -1;
 
+  if (req.query.verificationStatus) {
+    const verMatches = await OrganizationVerification.find({
+      status: req.query.verificationStatus,
+    }).select('organizationId').lean();
+    const ids = verMatches.map((v) => v.organizationId);
+    filter._id = { $in: ids };
+  }
+
   const [items, total] = await Promise.all([
     Organization.find(filter)
       .select('_id organizationType displayName legalName slug countryCode status website createdAt updatedAt')
@@ -98,25 +107,65 @@ export const listOrganizations = asyncHandler(async (req, res) => {
     Organization.countDocuments(filter),
   ]);
 
-  res.json(listResponse(items, paginate(page, limit, total)));
+  const orgIds = items.map((o) => o._id);
+  const [verifications, claims] = await Promise.all([
+    orgIds.length
+      ? OrganizationVerification.find({ organizationId: { $in: orgIds } })
+        .select('organizationId status submittedAt nextReviewAt riskLevel')
+        .lean()
+      : [],
+    orgIds.length
+      ? (await import('../../models/institution/InstitutionClaim.js')).InstitutionClaim.find({
+        organizationId: { $in: orgIds },
+      }).select('organizationId state submittedAt').sort({ submittedAt: -1 }).lean()
+      : [],
+  ]);
+  const verByOrg = new Map(verifications.map((v) => [String(v.organizationId), v]));
+  const claimByOrg = new Map();
+  for (const claim of claims) {
+    const key = String(claim.organizationId);
+    if (!claimByOrg.has(key)) claimByOrg.set(key, claim);
+  }
+
+  const enriched = items.map((org) => {
+    const ver = verByOrg.get(String(org._id));
+    const claim = claimByOrg.get(String(org._id));
+    return {
+      ...org,
+      verificationStatus: ver?.status || null,
+      verificationSubmittedAt: ver?.submittedAt || null,
+      canonicalClaimState: claim?.state || null,
+    };
+  });
+
+  res.json(listResponse(enriched, paginate(page, limit, total)));
 });
 
 export const getOrganizationDetail = asyncHandler(async (req, res) => {
   const id = safeMongoId(req.params.id);
   if (!id) return res.status(400).json({ error: 'Invalid organization id' });
 
-  const [org, verification] = await Promise.all([
+  const { InstitutionClaim } = await import('../../models/institution/InstitutionClaim.js');
+  const [org, verification, claim] = await Promise.all([
     Organization.findById(id)
       .select('_id organizationType displayName legalName slug countryCode website officialDomain phone address status legacyEmployerId createdAt updatedAt')
       .lean(),
     OrganizationVerification.findOne({ organizationId: id })
-      .select('status riskLevel riskSignals submittedAt slaDeadlineAt verifiedAt nextReviewAt')
+      .select('status riskLevel riskSignals submittedAt slaDeadlineAt verifiedAt nextReviewAt profile')
+      .lean(),
+    InstitutionClaim.findOne({ organizationId: id })
+      .select('state submittedAt canonicalInstitutionId officialDomain countryCode')
+      .sort({ submittedAt: -1 })
       .lean(),
   ]);
 
   if (!org) return res.status(404).json({ error: 'Organization not found' });
 
-  res.json({ organization: org, verificationSummary: verification || null });
+  res.json({
+    organization: org,
+    verificationSummary: verification || null,
+    canonicalClaimSummary: claim || null,
+  });
 });
 
 // ── Trust — Reports ────────────────────────────────────────────────────────────
@@ -566,9 +615,29 @@ export const getSystemReadiness = asyncHandler(async (req, res) => {
     try { return getCopilotProviderStatus(); } catch { return { state: 'unknown' }; }
   })();
 
+  const dbState = mongoose.connection.readyState === 1
+    ? 'ready_for_internal_testing'
+    : mongoose.connection.readyState === 2
+      ? 'attention_required'
+      : 'unavailable';
+
   res.json({
     generatedAt: new Date().toISOString(),
     source: 'Persisted domain data + in-process config — no external provider calls',
+    certification: false,
+    components: {
+      api: { status: 'ready_for_internal_testing', note: 'This handler executed.' },
+      db: { status: dbState, note: 'Derived from mongoose connection readyState. No credentials exposed.' },
+      redis: { status: 'attention_required', note: 'Not probed from this surface to avoid secret exposure.' },
+      worker: { status: 'unavailable', note: 'Worker remains stopped in this modification program.' },
+      email: { status: 'not_configured', note: 'Live email/SMS/push are not sent. In-app notifications only.' },
+      notifications: { status: 'ready_for_internal_testing', note: 'In-app UserNotification reconciliation. Worker not required for in-app write.' },
+      indexes: { status: 'attention_required', note: 'Controlled index provisioning is operational, not certified here.' },
+      payments: { status: 'not_configured', note: 'No live Stripe calls from Admin in this phase.' },
+      storage: { status: 'attention_required', note: 'Storage credentials are never exposed on this surface.' },
+      verifiedData: { status: 'attention_required', note: 'Verified-data launch dry-run is not production certification.' },
+      monitoring: { status: 'attention_required', note: 'See Platform Health for infrastructure signals.' },
+    },
     queues: {
       verificationBacklog,
       reconciliationMismatches,

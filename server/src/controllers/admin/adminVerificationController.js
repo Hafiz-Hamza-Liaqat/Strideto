@@ -10,6 +10,7 @@
 import * as verificationService from '../../services/verificationService.js';
 import { listResponse, paginate } from '../../utils/apiResponse.js';
 import { hasPermission, PERMISSIONS } from '../../config/rbac.js';
+import { resolveCredentialPolicy } from '../../services/credentialPolicyService.js';
 
 /** Attach request actor for audit. */
 function actor(req) {
@@ -29,6 +30,10 @@ export async function getQueue(req, res) {
       organizationType,
       countryCode,
       riskLevel,
+      q,
+      submittedFrom,
+      submittedTo,
+      claimState,
       page = '1',
       limit = '20',
     } = req.query;
@@ -38,6 +43,10 @@ export async function getQueue(req, res) {
       organizationType,
       countryCode,
       riskLevel,
+      q,
+      submittedFrom,
+      submittedTo,
+      claimState,
       page: Math.max(1, parseInt(page, 10) || 1),
       limit: Math.min(100, Math.max(1, parseInt(limit, 10) || 20)),
     });
@@ -59,7 +68,24 @@ export async function getOrgVerification(req, res) {
     const record = await verificationService.getVerification(organizationId);
     const evidence = await verificationService.getEvidence(organizationId);
     const history = await verificationService.getTransitionHistory(organizationId);
-    return res.json({ verification: record, evidence, history });
+    const credentialPolicy = resolveCredentialPolicy({
+      organizationType: record.organizationType,
+      countryCode: record.countryCode || record.profile?.countryCode,
+    });
+    return res.json({
+      verification: record,
+      evidence,
+      history,
+      credentialPolicy,
+      jurisdiction: {
+        countryCode: record.countryCode || record.profile?.countryCode || '',
+        organizationType: record.organizationType,
+        credentialPolicy,
+        registryIntegration: 'none',
+        reviewMode: 'Manual verification required',
+        mapsAreSupportingEvidenceOnly: true,
+      },
+    });
   } catch (err) {
     return res.status(err.status || 500).json({ error: err.message });
   }

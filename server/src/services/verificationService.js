@@ -34,6 +34,9 @@ import {
   computeSlaDeadline,
 } from '../../../shared/international/verification.js';
 import { findForbiddenMetadataKeys } from '../../../shared/international/audit.js';
+import { INSTITUTION_ORGANIZATION_TYPES } from '../../../shared/institution/institutionPortal.js';
+import { InstitutionClaim } from '../models/institution/InstitutionClaim.js';
+import { emitOrgVerificationNotifications } from './orgVerificationNotificationBridge.js';
 
 const VS = VERIFICATION_STATUSES;
 
@@ -71,7 +74,7 @@ async function recordTransition(organizationId, fromStatus, toStatus, actor, rea
     throw new Error(`Audit metadata contains forbidden key(s): ${forbidden.join(', ')}`);
   }
 
-  await VerificationTransition.create({
+  const transition = await VerificationTransition.create({
     organizationId,
     fromStatus,
     toStatus,
@@ -93,6 +96,18 @@ async function recordTransition(organizationId, fromStatus, toStatus, actor, rea
     metadata: { fromStatus, toStatus, reason: reason || '' },
     reason: reason || '',
   });
+
+  return transition;
+}
+
+function scheduleVerificationNotifications({ organizationId, fromStatus, toStatus, transitionId, organizationType }) {
+  void emitOrgVerificationNotifications({
+    organizationId,
+    fromStatus,
+    toStatus,
+    transitionId,
+    organizationType,
+  }).catch(() => {});
 }
 
 /** Apply a status transition with all guards. Returns updated record. */
@@ -107,17 +122,30 @@ async function applyTransition(organizationId, toStatus, actor, reason, extraUpd
     );
   }
 
-  await recordTransition(organizationId, fromStatus, toStatus, actor, reason, {
+  const transition = await recordTransition(organizationId, fromStatus, toStatus, actor, reason, {
     organizationType: record.organizationType,
     countryCode: record.countryCode,
   });
 
   const update = { status: toStatus, ...extraUpdate };
   const updated = await OrganizationVerification.findOneAndUpdate(
-    { organizationId },
+    { organizationId, status: fromStatus },
     { $set: update },
     { new: true }
   );
+  if (!updated) {
+    throw Object.assign(
+      new Error('Verification state changed concurrently'),
+      { code: 'CONFLICT', status: 409 }
+    );
+  }
+  scheduleVerificationNotifications({
+    organizationId,
+    fromStatus,
+    toStatus,
+    transitionId: transition._id,
+    organizationType: record.organizationType,
+  });
   return updated;
 }
 
@@ -169,7 +197,7 @@ export async function submitVerification(organizationId, profile, actor) {
   const now = new Date();
   const slaDeadlineAt = computeSlaDeadline(now);
 
-  await recordTransition(organizationId, fromStatus, VS.VERIFICATION_PENDING, actor, 'Profile submitted for verification', {
+  const transition = await recordTransition(organizationId, fromStatus, VS.VERIFICATION_PENDING, actor, 'Profile submitted for verification', {
     organizationType: record.organizationType,
     profileSummary: {
       legalName: profile.legalName,
@@ -179,8 +207,8 @@ export async function submitVerification(organizationId, profile, actor) {
     },
   });
 
-  return OrganizationVerification.findOneAndUpdate(
-    { organizationId },
+  const updated = await OrganizationVerification.findOneAndUpdate(
+    { organizationId, status: fromStatus },
     {
       $set: {
         status: VS.VERIFICATION_PENDING,
@@ -192,6 +220,20 @@ export async function submitVerification(organizationId, profile, actor) {
     },
     { new: true }
   );
+  if (!updated) {
+    throw Object.assign(
+      new Error('Verification state changed concurrently'),
+      { code: 'CONFLICT', status: 409 }
+    );
+  }
+  scheduleVerificationNotifications({
+    organizationId,
+    fromStatus,
+    toStatus: VS.VERIFICATION_PENDING,
+    transitionId: transition._id,
+    organizationType: record.organizationType,
+  });
+  return updated;
 }
 
 /**
@@ -244,13 +286,13 @@ export async function approve(organizationId, actor, reason) {
   const evidenceRecords = await VerificationEvidence.find({ organizationId }).select('evidenceType status').lean();
   const earnedBadges = deriveBadges(evidenceRecords);
 
-  await recordTransition(organizationId, fromStatus, VS.APPROVED, actor, reason || 'Approved', {
+  const transition = await recordTransition(organizationId, fromStatus, VS.APPROVED, actor, reason || 'Approved', {
     organizationType: record.organizationType,
     badgesEarned: earnedBadges,
   });
 
-  return OrganizationVerification.findOneAndUpdate(
-    { organizationId },
+  const updated = await OrganizationVerification.findOneAndUpdate(
+    { organizationId, status: fromStatus },
     {
       $set: {
         status: VS.APPROVED,
@@ -265,6 +307,20 @@ export async function approve(organizationId, actor, reason) {
     },
     { new: true }
   );
+  if (!updated) {
+    throw Object.assign(
+      new Error('Verification state changed concurrently'),
+      { code: 'CONFLICT', status: 409 }
+    );
+  }
+  scheduleVerificationNotifications({
+    organizationId,
+    fromStatus,
+    toStatus: VS.APPROVED,
+    transitionId: transition._id,
+    organizationType: record.organizationType,
+  });
+  return updated;
 }
 
 /**
@@ -291,12 +347,12 @@ export async function reject(organizationId, actor, reason) {
     );
   }
 
-  await recordTransition(organizationId, fromStatus, VS.REJECTED, actor, reason, {
+  const transition = await recordTransition(organizationId, fromStatus, VS.REJECTED, actor, reason, {
     organizationType: record.organizationType,
   });
 
-  return OrganizationVerification.findOneAndUpdate(
-    { organizationId },
+  const updated = await OrganizationVerification.findOneAndUpdate(
+    { organizationId, status: fromStatus },
     {
       $set: {
         status: VS.REJECTED,
@@ -307,6 +363,20 @@ export async function reject(organizationId, actor, reason) {
     },
     { new: true }
   );
+  if (!updated) {
+    throw Object.assign(
+      new Error('Verification state changed concurrently'),
+      { code: 'CONFLICT', status: 409 }
+    );
+  }
+  scheduleVerificationNotifications({
+    organizationId,
+    fromStatus,
+    toStatus: VS.REJECTED,
+    transitionId: transition._id,
+    organizationType: record.organizationType,
+  });
+  return updated;
 }
 
 /**
@@ -610,28 +680,72 @@ const QUEUE_STATUSES = [
   VS.ENHANCED_REVIEW,
 ];
 
+function escapeRegex(val) {
+  return String(val).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
 /**
- * Admin verification queue — supports status/type/country filtering.
+ * Admin verification queue — supports status/type/country/search filtering.
+ * Does not search confidential evidence contents.
  */
 export async function getVerificationQueue({
   status,
   organizationType,
   countryCode,
   riskLevel,
+  q,
+  submittedFrom,
+  submittedTo,
+  claimState,
   page = 1,
   limit = 20,
 } = {}) {
   const query = {};
 
-  if (status) {
-    query.status = Array.isArray(status) ? { $in: status } : status;
+  const statusList = (Array.isArray(status) ? status : status ? [status] : [])
+    .map((value) => String(value || '').trim())
+    .filter(Boolean);
+  if (statusList.includes('all')) {
+    // Reviewer explicitly requested every lifecycle state, including draft.
+  } else if (statusList.length) {
+    query.status = { $in: statusList };
   } else {
     query.status = { $in: QUEUE_STATUSES };
   }
 
-  if (organizationType) query.organizationType = organizationType;
+  if (organizationType === 'institution') {
+    query.organizationType = { $in: INSTITUTION_ORGANIZATION_TYPES };
+  } else if (organizationType) {
+    query.organizationType = organizationType;
+  }
   if (countryCode) query.countryCode = countryCode.toUpperCase();
   if (riskLevel) query.riskLevel = riskLevel;
+
+  if (submittedFrom || submittedTo) {
+    query.submittedAt = {};
+    if (submittedFrom) query.submittedAt.$gte = new Date(submittedFrom);
+    if (submittedTo) query.submittedAt.$lte = new Date(submittedTo);
+  }
+
+  if (q && String(q).trim()) {
+    const re = new RegExp(escapeRegex(String(q).trim().slice(0, 100)), 'i');
+    const matchingOrgs = await Organization.find({
+      $or: [{ displayName: re }, { legalName: re }],
+    }).select('_id').limit(50).lean();
+    query.$or = [
+      { 'profile.legalName': re },
+      { 'profile.displayName': re },
+      { 'profile.registrationNumber': re },
+      { organizationId: { $in: matchingOrgs.map((o) => o._id) } },
+    ];
+  }
+
+  if (claimState) {
+    const claimsForState = await InstitutionClaim.find({ state: claimState })
+      .select('organizationId')
+      .lean();
+    query.organizationId = { $in: claimsForState.map((c) => c.organizationId) };
+  }
 
   const skip = (page - 1) * limit;
   const [items, total] = await Promise.all([
@@ -639,11 +753,34 @@ export async function getVerificationQueue({
       .sort({ riskLevel: -1, slaDeadlineAt: 1, submittedAt: 1 })
       .skip(skip)
       .limit(limit)
-      .populate('organizationId', 'displayName organizationType countryCode slug')
+      .populate('organizationId', 'displayName legalName organizationType countryCode slug')
       .populate('currentReviewerId', 'email role')
       .lean(),
     OrganizationVerification.countDocuments(query),
   ]);
 
-  return { items, total, page, limit, totalPages: Math.ceil(total / limit) };
+  const orgIds = items.map((row) => row.organizationId?._id || row.organizationId).filter(Boolean);
+  const claims = orgIds.length
+    ? await InstitutionClaim.find({ organizationId: { $in: orgIds } })
+      .select('organizationId state submittedAt canonicalInstitutionId')
+      .sort({ submittedAt: -1 })
+      .lean()
+    : [];
+  const claimByOrg = new Map();
+  for (const claim of claims) {
+    const key = String(claim.organizationId);
+    if (!claimByOrg.has(key)) claimByOrg.set(key, claim);
+  }
+
+  const enriched = items.map((row) => {
+    const key = String(row.organizationId?._id || row.organizationId || '');
+    const claim = claimByOrg.get(key) || null;
+    return {
+      ...row,
+      canonicalClaimState: claim?.state || null,
+      canonicalClaimId: claim?._id || null,
+    };
+  });
+
+  return { items: enriched, total, page, limit, totalPages: Math.ceil(total / limit) };
 }

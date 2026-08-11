@@ -28,6 +28,7 @@ import { InstitutionDataConflict } from '../../models/institution/InstitutionDat
 import { FactProvenance } from '../../models/trust/FactProvenance.js';
 import { CanonicalSource } from '../../models/trust/CanonicalSource.js';
 import { getCopilotProviderStatus } from '../ai/copilotService.js';
+import { UserNotification } from '../../models/UserNotification.js';
 
 async function safeCount(fn) {
   try {
@@ -37,7 +38,7 @@ async function safeCount(fn) {
   }
 }
 
-export async function getAdminOverviewMetrics() {
+export async function getAdminOverviewMetrics({ staffUserId } = {}) {
   const generatedAt = new Date().toISOString();
 
   const [
@@ -48,6 +49,7 @@ export async function getAdminOverviewMetrics() {
     verificationPending,
     verificationNeedsInfo,
     verificationEnhancedReview,
+    verificationUnderReview,
     openReports,
     openDisputes,
     activeConsultations,
@@ -60,6 +62,7 @@ export async function getAdminOverviewMetrics() {
     reviewDueFacts,
     brokenSources,
     openConflicts,
+    unreadStaffNotifications,
     recentAudit,
   ] = await Promise.all([
     safeCount(() => User.countDocuments({ role: 'User' })),
@@ -69,6 +72,7 @@ export async function getAdminOverviewMetrics() {
     safeCount(() => OrganizationVerification.countDocuments({ status: 'verification_pending' })),
     safeCount(() => OrganizationVerification.countDocuments({ status: 'needs_information' })),
     safeCount(() => OrganizationVerification.countDocuments({ status: 'enhanced_review' })),
+    safeCount(() => OrganizationVerification.countDocuments({ status: 'under_review' })),
     safeCount(() => ProfessionalReport.countDocuments({
       status: { $in: ['submitted', 'triaged', 'under_review'] },
     })),
@@ -95,6 +99,13 @@ export async function getAdminOverviewMetrics() {
       status: { $in: ['broken', 'unavailable'] },
     })),
     safeCount(() => InstitutionDataConflict.countDocuments({ state: 'open' })),
+    staffUserId
+      ? safeCount(() => UserNotification.countDocuments({
+        recipientType: 'staff',
+        userId: staffUserId,
+        read: false,
+      }))
+      : Promise.resolve(null),
     AuditLog.find()
       .select('actorEmail actorRole action targetType targetLabel status createdAt')
       .sort({ createdAt: -1 })
@@ -129,6 +140,11 @@ export async function getAdminOverviewMetrics() {
       pending: verificationPending,
       needsInformation: verificationNeedsInfo,
       enhancedReview: verificationEnhancedReview,
+      underReview: verificationUnderReview,
+    },
+    notifications: {
+      source: 'UserNotification collection',
+      unreadStaff: unreadStaffNotifications,
     },
     trustOperations: {
       source: 'ProfessionalReport / ProfessionalDispute collections',

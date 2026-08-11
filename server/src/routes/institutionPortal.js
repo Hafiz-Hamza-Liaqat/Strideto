@@ -11,7 +11,9 @@
  * - Admin review: separate /admin/institution routes
  */
 import { Router } from 'express';
-import { requireAuth, requireInstitutionAuth, requireAdmin } from '../middleware/auth.js';
+import { requireAuth, requireInstitutionAuth } from '../middleware/auth.js';
+import { requireStaff, requirePermission } from '../middleware/rbac.js';
+import { PERMISSIONS } from '../config/rbac.js';
 import { secureTrustedOrigin } from '../middleware/secureTrustedOrigin.js';
 import { employerAuthLimiter, refreshLimiter, searchLimiter } from '../middleware/rateLimit.js';
 import * as authCtrl from '../controllers/institutionAuthController.js';
@@ -137,28 +139,81 @@ institutionPortalRouter.use('/institution', portal);
 // ---------------------------------------------------------------------------
 
 const adminInstitution = Router();
-adminInstitution.use(requireAuth, requireAdmin);
+adminInstitution.use(requireAuth, requireStaff);
 
-adminInstitution.get('/claims', async (req, res) => {
+adminInstitution.get('/claims', requirePermission(PERMISSIONS.VERIFICATION_READ), async (req, res) => {
   const { InstitutionClaim } = await import('../models/institution/InstitutionClaim.js');
-  const { state, page = 1, limit = 20 } = req.query;
+  const { OrganizationVerification } = await import('../models/OrganizationVerification.js');
+  const { state, q, countryCode, page = 1, limit = 20 } = req.query;
   const query = {};
   if (state) query.state = state;
-  const safeLimit = Math.min(parseInt(limit), 50);
-  const claims = await InstitutionClaim.find(query)
-    .sort({ submittedAt: 1 })
-    .skip((parseInt(page) - 1) * safeLimit)
-    .limit(safeLimit)
-    .lean();
-  return res.status(200).json({ claims });
+  if (countryCode) query.countryCode = String(countryCode).toUpperCase();
+  if (q && String(q).trim()) {
+    const re = new RegExp(String(q).trim().slice(0, 100).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    query.$or = [{ officialDomain: re }, { normalizedName: re }];
+  }
+  const safeLimit = Math.min(parseInt(limit, 10) || 20, 50);
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const [claims, total] = await Promise.all([
+    InstitutionClaim.find(query)
+      .sort({ submittedAt: 1 })
+      .skip((pageNum - 1) * safeLimit)
+      .limit(safeLimit)
+      .populate('organizationId', 'displayName legalName organizationType countryCode')
+      .populate('canonicalInstitutionId', 'officialName countryCode officialDomain slug')
+      .lean(),
+    InstitutionClaim.countDocuments(query),
+  ]);
+
+  const orgIds = claims.map((c) => c.organizationId?._id || c.organizationId).filter(Boolean);
+  const verifications = orgIds.length
+    ? await OrganizationVerification.find({ organizationId: { $in: orgIds } })
+      .select('organizationId status')
+      .lean()
+    : [];
+  const verByOrg = new Map(verifications.map((v) => [String(v.organizationId), v.status]));
+
+  const competingIds = claims
+    .map((c) => c.canonicalInstitutionId?._id || c.canonicalInstitutionId)
+    .filter(Boolean);
+  const competing = competingIds.length
+    ? await InstitutionClaim.find({
+      canonicalInstitutionId: { $in: competingIds },
+      state: { $in: ['submitted', 'under_review', 'approved'] },
+    }).select('_id canonicalInstitutionId organizationId state').lean()
+    : [];
+
+  const enriched = claims.map((claim) => {
+    const canonicalId = String(claim.canonicalInstitutionId?._id || claim.canonicalInstitutionId || '');
+    const rivals = competing.filter(
+      (c) => String(c.canonicalInstitutionId) === canonicalId && String(c._id) !== String(claim._id)
+    );
+    return {
+      ...claim,
+      organizationVerificationState: verByOrg.get(String(claim.organizationId?._id || claim.organizationId)) || null,
+      competingClaims: rivals.map((r) => ({
+        claimId: r._id,
+        organizationId: r.organizationId,
+        state: r.state,
+      })),
+    };
+  });
+
+  return res.status(200).json({
+    claims: enriched,
+    pagination: { page: pageNum, limit: safeLimit, total, pages: Math.ceil(total / safeLimit) },
+  });
 });
 
-adminInstitution.patch('/claims/:claimId', async (req, res) => {
+adminInstitution.patch('/claims/:claimId', requirePermission(PERMISSIONS.VERIFICATION_APPROVE), async (req, res) => {
   const { InstitutionClaim } = await import('../models/institution/InstitutionClaim.js');
   const { CanonicalInstitution } = await import('../models/education/CanonicalInstitution.js');
   const { Organization } = await import('../models/Organization.js');
+  const { OrganizationVerification } = await import('../models/OrganizationVerification.js');
   const { logAudit } = await import('../services/auditService.js');
-  const { CLAIM_STATES, CLAIM_TRANSITIONS: _CLAIM_TRANSITIONS, isValidClaimTransition } = await import('../../../shared/institution/institutionPortal.js');
+  const { CLAIM_STATES, isValidClaimTransition } = await import('../../../shared/institution/institutionPortal.js');
+  const { CANONICAL_CLAIM_NOTIFICATION_TYPES } = await import('../../../shared/platform/organizationVerificationNotifications.js');
+  const { emitCanonicalClaimNotifications } = await import('../services/orgVerificationNotificationBridge.js');
   const { claimId } = req.params;
   const { action, reason } = req.body;
 
@@ -178,8 +233,38 @@ adminInstitution.patch('/claims/:claimId', async (req, res) => {
     return res.status(409).json({ error: `Cannot transition from ${claim.state} to ${targetState}` });
   }
 
+  const reasonRequired = ['reject', 'request_information', 'revoke'].includes(action);
+  if (reasonRequired && !String(reason || '').trim()) {
+    return res.status(422).json({ error: 'A reason is required for this action' });
+  }
+
+  if (targetState === CLAIM_STATES.APPROVED) {
+    const verification = await OrganizationVerification.findOne({ organizationId: claim.organizationId })
+      .select('status')
+      .lean();
+    if (!verification || verification.status !== 'approved') {
+      return res.status(409).json({
+        error: 'Organization verification must be approved before canonical claim approval',
+      });
+    }
+    if (claim.canonicalInstitutionId) {
+      const competingApproved = await InstitutionClaim.findOne({
+        canonicalInstitutionId: claim.canonicalInstitutionId,
+        state: CLAIM_STATES.APPROVED,
+        _id: { $ne: claim._id },
+      }).select('_id organizationId').lean();
+      if (competingApproved) {
+        return res.status(409).json({
+          error: 'A competing approved claim already exists for this canonical institution',
+          competingClaimId: competingApproved._id,
+        });
+      }
+    }
+  }
+
+  const fromState = claim.state;
   claim.history.push({
-    fromState: claim.state, toState: targetState,
+    fromState, toState: targetState,
     changedBy: req.user.userId, changedByRealm: 'admin', reason: reason || '', at: new Date(),
   });
   claim.state = targetState;
@@ -188,8 +273,6 @@ adminInstitution.patch('/claims/:claimId', async (req, res) => {
 
   if (targetState === CLAIM_STATES.APPROVED) {
     claim.approvedAt = new Date();
-    // If approved and claim has a proposedCanonical but no canonicalInstitutionId,
-    // create the canonical institution record now (controlled, not automatic).
     if (!claim.canonicalInstitutionId && claim.proposedCanonical?.officialName) {
       const { educationSlug } = await import('../../../shared/education/taxonomy.js');
       let slug = educationSlug(claim.proposedCanonical.officialName);
@@ -203,7 +286,6 @@ adminInstitution.patch('/claims/:claimId', async (req, res) => {
         status: 'draft',
       });
       claim.canonicalInstitutionId = ci._id;
-      // Link organization → canonical institution
       await Organization.findByIdAndUpdate(claim.organizationId, {});
     }
     if (claim.canonicalInstitutionId) {
@@ -224,10 +306,26 @@ adminInstitution.patch('/claims/:claimId', async (req, res) => {
     metadata: { claimId, organizationId: claim.organizationId, targetState },
   });
 
+  const notifType = targetState === CLAIM_STATES.NEEDS_INFORMATION
+    ? CANONICAL_CLAIM_NOTIFICATION_TYPES.NEEDS_INFORMATION
+    : targetState === CLAIM_STATES.APPROVED
+      ? CANONICAL_CLAIM_NOTIFICATION_TYPES.APPROVED
+      : targetState === CLAIM_STATES.REJECTED
+        ? CANONICAL_CLAIM_NOTIFICATION_TYPES.REJECTED
+        : null;
+  if (notifType === CANONICAL_CLAIM_NOTIFICATION_TYPES.NEEDS_INFORMATION) {
+    void emitCanonicalClaimNotifications({
+      organizationId: claim.organizationId,
+      claimId: claim._id,
+      notificationType: notifType,
+      transitionId: `${claim._id}:${fromState}:${targetState}:${claim.history.length}`,
+    }).catch(() => {});
+  }
+
   return res.status(200).json({ claim });
 });
 
-adminInstitution.get('/conflicts', async (req, res) => {
+adminInstitution.get('/conflicts', requirePermission(PERMISSIONS.DATA_QUALITY_MANAGE), async (req, res) => {
   const { InstitutionDataConflict } = await import('../models/institution/InstitutionDataConflict.js');
   const { state = 'open', page = 1, limit = 20 } = req.query;
   const safeLimit = Math.min(parseInt(limit), 50);
@@ -239,7 +337,7 @@ adminInstitution.get('/conflicts', async (req, res) => {
   return res.status(200).json({ conflicts });
 });
 
-adminInstitution.patch('/conflicts/:conflictId/resolve', async (req, res) => {
+adminInstitution.patch('/conflicts/:conflictId/resolve', requirePermission(PERMISSIONS.DATA_QUALITY_MANAGE), async (req, res) => {
   const { InstitutionDataConflict } = await import('../models/institution/InstitutionDataConflict.js');
   const { logAudit } = await import('../services/auditService.js');
   const { conflictId } = req.params;

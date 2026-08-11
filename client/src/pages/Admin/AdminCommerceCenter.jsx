@@ -7,6 +7,8 @@ import {
 } from '../../services/adminSuperControlApi';
 import { AdminDataTable } from '../../components/admin/AdminDataTable';
 import { AdminConfirmDialog } from '../../components/admin/AdminConfirmDialog';
+import { AdminRouteGuard } from '../../components/admin/AdminRouteGuard';
+import { PERMISSIONS } from '../../config/rbac';
 
 const TABS = ['Reconciliation', 'Connect Accounts', 'Refunds'];
 
@@ -208,10 +210,11 @@ export default function AdminCommerceCenter() {
   const [tab, setTab] = useState(0);
 
   return (
-    <div>
+    <AdminRouteGuard permission={PERMISSIONS.COMMERCE_ADMIN_READ}>
+    <div className="min-w-0">
       <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Commerce Center</h1>
       <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-        Operational commerce visibility. Ledger is immutable. Financial truth from canonical Commerce.
+        Operational oversight, not a wallet. Amounts are server-authoritative. No raw card data, no provider secrets, no live Stripe calls from this surface. Financial actions require specific permission and audit.
       </p>
 
       <div className="flex flex-wrap gap-2 mb-6 border-b border-gray-200 dark:border-gray-700">
@@ -231,5 +234,6 @@ export default function AdminCommerceCenter() {
       {tab === 1 && <ConnectAccountsPanel />}
       {tab === 2 && <RefundsPanel />}
     </div>
+    </AdminRouteGuard>
   );
 }

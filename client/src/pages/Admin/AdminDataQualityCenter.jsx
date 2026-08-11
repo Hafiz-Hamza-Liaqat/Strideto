@@ -1,7 +1,10 @@
 import { useEffect, useState } from 'react';
-import axios from 'axios';
+import axios from '../../services/axiosBase';
 import { AdminDataTable } from '../../components/admin/AdminDataTable';
 import { AdminTableFilters } from '../../components/admin/AdminTableFilters';
+import { AdminRouteGuard } from '../../components/admin/AdminRouteGuard';
+import { PERMISSIONS } from '../../config/rbac';
+import { listAdminInstitutionConflicts } from '../../services/adminSuperControlApi';
 
 const FRESHNESS_OPTIONS = [
   { value: '', label: 'All' },
@@ -20,7 +23,7 @@ function FreshnessQueue() {
 
   useEffect(() => {
     setLoading(true);
-    axios.get('/api/admin/trust/freshness-queue', {
+    axios.get('/admin/trust/freshness-queue', {
       params: Object.fromEntries(Object.entries(query).filter(([, v]) => v !== '')),
     })
       .then(r => setData(r.data))
@@ -65,7 +68,7 @@ function MetricsPanel() {
 
   useEffect(() => {
     setLoading(true);
-    axios.get('/api/admin/trust/metrics')
+    axios.get('/admin/trust/metrics')
       .then(r => setData(r.data))
       .catch(e => setError(e?.response?.data?.error || e.message))
       .finally(() => setLoading(false));
@@ -80,7 +83,7 @@ function MetricsPanel() {
       {Object.entries(data).map(([key, val]) => (
         typeof val === 'number' && (
           <div key={key} className="rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">{key.replace(/_/g, ' ')}</p>
+            <p className="text-xs text-gray-500 uppercase tracking-wide mb-1">{key.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2')}</p>
             <p className="text-2xl font-bold text-gray-900 dark:text-white">{val}</p>
           </div>
         )
@@ -89,16 +92,54 @@ function MetricsPanel() {
   );
 }
 
-const TABS = ['Metrics', 'Freshness Queue'];
+function ConflictsPanel() {
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+  const [query, setQuery] = useState({ page: 1, limit: 20, state: 'open' });
+
+  useEffect(() => {
+    setLoading(true);
+    listAdminInstitutionConflicts(query)
+      .then(setData)
+      .catch((e) => setError(e?.response?.data?.error || e.message))
+      .finally(() => setLoading(false));
+  }, [query]);
+
+  return (
+    <div>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mb-3">
+        Opening this page does not mark data fresh. Conflicts are stored, not silently overwritten.
+      </p>
+      {error && <p className="text-red-600 text-sm my-2" role="alert">{error}</p>}
+      <AdminDataTable
+        columns={[
+          { key: 'conflictType', label: 'Type', render: (row) => row.conflictType || row.type || '—' },
+          { key: 'state', label: 'State' },
+          { key: 'organizationId', label: 'Organization', render: (row) => String(row.organizationId || '—') },
+          { key: 'createdAt', label: 'Created', render: (row) => row.createdAt ? new Date(row.createdAt).toLocaleDateString() : '—' },
+        ]}
+        data={data?.conflicts ?? data?.data ?? []}
+        loading={loading}
+        onPageChange={(page) => setQuery((p) => ({ ...p, page }))}
+        emptyMessage="No data-quality conflicts for this filter"
+        tableLabel="Data quality conflicts"
+      />
+    </div>
+  );
+}
+
+const TABS = ['Metrics', 'Freshness Queue', 'Conflicts'];
 
 export default function AdminDataQualityCenter() {
   const [tab, setTab] = useState(0);
 
   return (
-    <div>
+    <AdminRouteGuard permission={PERMISSIONS.DATA_QUALITY_MANAGE}>
+    <div className="min-w-0">
       <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Data Quality Center</h1>
       <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-        Freshness, provenance, and source authority operational view. No automated silent overwrite.
+        Freshness, provenance, and source authority operational view. No automated silent overwrite. Viewing this page does not mutate freshness.
       </p>
 
       <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-700">
@@ -116,6 +157,8 @@ export default function AdminDataQualityCenter() {
 
       {tab === 0 && <MetricsPanel />}
       {tab === 1 && <FreshnessQueue />}
+      {tab === 2 && <ConflictsPanel />}
     </div>
+    </AdminRouteGuard>
   );
 }

@@ -1,5 +1,9 @@
 import { useEffect, useState } from 'react';
 import { getAdminAiStatus } from '../../services/adminSuperControlApi';
+import { AdminRouteGuard } from '../../components/admin/AdminRouteGuard';
+import { PERMISSIONS } from '../../config/rbac';
+
+const SECRETISH = /secret|token|key|password|cookie|authorization/i;
 
 export default function AdminAiOps() {
   const [data, setData] = useState(null);
@@ -17,8 +21,13 @@ export default function AdminAiOps() {
   if (loading) return <p className="text-sm text-gray-500 p-4">Loading AI status…</p>;
   if (error) return <p className="text-red-600 text-sm p-4" role="alert">Error: {error}</p>;
 
+  const safeStatus = Object.fromEntries(
+    Object.entries(data?.copilot?.providerStatus ?? {}).filter(([k]) => !SECRETISH.test(k))
+  );
+
   return (
-    <div>
+    <AdminRouteGuard permission={PERMISSIONS.AI_OPS_READ}>
+    <div className="min-w-0">
       <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-2">AI Operational Status</h1>
       <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
         Safe in-process config status only. No external provider calls made here.
@@ -35,9 +44,9 @@ export default function AdminAiOps() {
         <dl className="grid grid-cols-2 gap-2 text-sm">
           <dt className="text-gray-500">State</dt>
           <dd className="text-gray-900 dark:text-white font-medium">{data?.copilot?.providerStatus?.state ?? '—'}</dd>
-          {Object.entries(data?.copilot?.providerStatus ?? {}).filter(([k]) => k !== 'state').map(([k, v]) => (
+          {Object.entries(safeStatus).filter(([k]) => k !== 'state').map(([k, v]) => (
             <>
-              <dt key={`dt-${k}`} className="text-gray-500 capitalize">{k.replace(/_/g, ' ')}</dt>
+              <dt key={`dt-${k}`} className="text-gray-500 capitalize">{k.replace(/_/g, ' ').replace(/([a-z])([A-Z])/g, '$1 $2')}</dt>
               <dd key={`dd-${k}`} className="text-gray-900 dark:text-white">{String(v)}</dd>
             </>
           ))}
@@ -56,5 +65,6 @@ export default function AdminAiOps() {
         </div>
       )}
     </div>
+    </AdminRouteGuard>
   );
 }

@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { ROUTES } from '../../constants';
 import { getAdminOverview } from '../../services/adminSuperControlApi';
+import { AdminRouteGuard } from '../../components/admin/AdminRouteGuard';
+import { PERMISSIONS } from '../../config/rbac';
 
 function MetricCard({ label, value, sub, to, warn }) {
   const card = (
@@ -42,13 +44,16 @@ export default function AdminSuperControlOverview() {
 
   const { users, verification, trustOperations, services, commerce, institutions, marketplace, dataQuality, ai, recentAuditActivity } = data;
 
+  const { notifications } = data;
+
   return (
-    <div>
+    <AdminRouteGuard anyPermission={[PERMISSIONS.SYSTEM_READ, PERMISSIONS.ORGANIZATIONS_READ, PERMISSIONS.ANALYTICS_READ]}>
+    <div className="min-w-0">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Admin Super Control Center</h1>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">Admin overview</h1>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-            Current operational counts — generated {data.generatedAt ? new Date(data.generatedAt).toLocaleString() : '—'}
+            Server-derived operational counts — generated {data.generatedAt ? new Date(data.generatedAt).toLocaleString() : '—'}
           </p>
         </div>
       </div>
@@ -60,15 +65,17 @@ export default function AdminSuperControlOverview() {
       </Section>
 
       <Section title="Verification Queue">
-        <MetricCard label="Pending Verification" value={verification?.pending} warn to={`${ROUTES.ADMIN}/verification-queue`} />
-        <MetricCard label="Needs Information" value={verification?.needsInformation} warn to={`${ROUTES.ADMIN}/verification-queue`} />
-        <MetricCard label="Enhanced Review" value={verification?.enhancedReview} warn to={`${ROUTES.ADMIN}/verification-queue`} />
+        <MetricCard label="Pending verification" value={verification?.pending} warn to={`${ROUTES.ADMIN}/verification-queue`} />
+        <MetricCard label="Needs information" value={verification?.needsInformation} warn to={`${ROUTES.ADMIN}/verification-queue?status=needs_information`} />
+        <MetricCard label="Enhanced review" value={verification?.enhancedReview} warn to={`${ROUTES.ADMIN}/verification-queue?status=enhanced_review`} />
+        <MetricCard label="Under review" value={verification?.underReview} warn to={`${ROUTES.ADMIN}/verification-queue?status=under_review`} />
+        <MetricCard label="Canonical claims pending" value={institutions?.claimsPending} warn to={`${ROUTES.ADMIN}/sc/claims`} />
+        <MetricCard label="Unread notifications" value={notifications?.unreadStaff} warn to={`${ROUTES.ADMIN}/inbox`} />
       </Section>
 
       <Section title="Trust Operations">
         <MetricCard label="Open Reports" value={trustOperations?.openReports} warn to={`${ROUTES.ADMIN}/sc/trust`} />
         <MetricCard label="Open Disputes" value={trustOperations?.openDisputes} warn to={`${ROUTES.ADMIN}/sc/trust`} />
-        <MetricCard label="Institution Claims" value={institutions?.claimsPending} warn to={`${ROUTES.ADMIN}/institutions`} />
         <MetricCard label="Marketplace Pending" value={marketplace?.pendingModeration} warn to={`${ROUTES.ADMIN}/agent-marketplace`} />
       </Section>
 
@@ -86,6 +93,7 @@ export default function AdminSuperControlOverview() {
         <MetricCard label="Stale Facts" value={dataQuality?.staleFacts} warn to={`${ROUTES.ADMIN}/sc/data-quality`} />
         <MetricCard label="Review Due Facts" value={dataQuality?.reviewDueFacts} warn to={`${ROUTES.ADMIN}/sc/data-quality`} />
         <MetricCard label="Broken Sources" value={dataQuality?.brokenSources} warn to={`${ROUTES.ADMIN}/sc/data-quality`} />
+        <MetricCard label="Open conflicts" value={dataQuality?.openConflicts} warn to={`${ROUTES.ADMIN}/sc/data-quality`} />
       </Section>
 
       <Section title="AI Provider">
@@ -131,5 +139,6 @@ export default function AdminSuperControlOverview() {
         </div>
       )}
     </div>
+    </AdminRouteGuard>
   );
 }

@@ -6,6 +6,7 @@ import { AdminConfirmDialog } from '../../components/admin/AdminConfirmDialog';
 import { usePermissions } from '../../hooks/usePermissions';
 import { PERMISSIONS } from '../../config/rbac';
 import { SkillVerificationReviewPanel } from '../../components/skills/SkillVerificationReviewPanel';
+import { AdminRouteGuard } from '../../components/admin/AdminRouteGuard';
 
 // Skill claims join the Trust Center rather than getting an admin area of their
 // own — it is the same question ("what do we actually stand behind?") asked
@@ -284,10 +285,11 @@ export default function AdminTrustCenter() {
   const [tab, setTab] = useState(0);
 
   return (
-    <div>
+    <AdminRouteGuard permission={PERMISSIONS.TRUST_TRIAGE}>
+    <div className="min-w-0">
       <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-2">Trust Center</h1>
       <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
-        Reviews, reports, and disputes. Privacy boundaries enforced server-side.
+        Skill Verification is unchanged. Professional-service disputes and financial disputes stay separate. Trust disputes never trigger an automatic refund. Reporter identity is withheld.
       </p>
 
       <div className="flex gap-2 mb-6 border-b border-gray-200 dark:border-gray-700">
@@ -308,5 +310,6 @@ export default function AdminTrustCenter() {
       {tab === 2 && <ReviewsList />}
       {tab === 3 && <SkillVerificationReviewPanel />}
     </div>
+    </AdminRouteGuard>
   );
 }
