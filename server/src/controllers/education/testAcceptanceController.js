@@ -16,6 +16,7 @@ import {
   fallbackScopeLabel,
   ACCEPTANCE_SCOPES,
 } from '../../../../shared/education/acceptanceExplorer.js';
+import { currentAcceptanceMongoFilter } from '../../../../shared/publicDiscovery/publicTruth.js';
 
 const PAGE_SIZE = 20;
 
@@ -47,7 +48,7 @@ export const getTestAcceptance = asyncHandler(async (req, res) => {
   if (!test) return res.status(404).json({ error: 'Test not found' });
 
   const q = req.query || {};
-  const filter = { testId: test._id, status: 'published' };
+  const filter = { testId: test._id, ...currentAcceptanceMongoFilter() };
 
   if (q.country) filter.countryCode = sanitizeString(q.country).toUpperCase();
   if (q.institutionId) filter.institutionId = sanitizeString(q.institutionId);
@@ -100,7 +101,7 @@ export const getInstitutionAcceptance = asyncHandler(async (req, res) => {
   const q = req.query || {};
   const filter = {
     institutionId: institution._id,
-    status: 'published',
+    ...currentAcceptanceMongoFilter(),
   };
   if (q.acceptanceStatus) filter.acceptanceStatus = sanitizeString(q.acceptanceStatus);
   if (q.degreeLevel) filter.degreeLevels = sanitizeString(q.degreeLevel);
@@ -154,7 +155,7 @@ export const getProgramAcceptance = asyncHandler(async (req, res) => {
   const q = req.query || {};
   const filter = {
     programId: program._id,
-    status: 'published',
+    ...currentAcceptanceMongoFilter(),
   };
   if (q.acceptanceStatus) filter.acceptanceStatus = sanitizeString(q.acceptanceStatus);
 
@@ -172,7 +173,7 @@ export const getProgramAcceptance = asyncHandler(async (req, res) => {
   if (programData.length === 0 && program.institutionId) {
     const institutionClaims = await TestAcceptance.find({
       institutionId: program.institutionId,
-      status: 'published',
+      ...currentAcceptanceMongoFilter(),
       ...(q.acceptanceStatus ? { acceptanceStatus: sanitizeString(q.acceptanceStatus) } : {}),
     })
       .populate('testId', 'name shortName slug category scoreScale')

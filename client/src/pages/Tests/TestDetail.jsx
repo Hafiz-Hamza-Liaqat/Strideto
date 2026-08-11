@@ -3,6 +3,8 @@ import { Link, useParams } from 'react-router-dom';
 import { SeoHead } from '../../components/seo';
 import { testsApi } from '../../services/listingsService';
 import { ROUTES } from '../../constants';
+import { fallbackScopeLabel, ACCEPTANCE_SCOPES } from '@shared/education/acceptanceExplorer.js';
+import { ProvenanceStrip } from '../../components/public/ProvenanceStrip';
 
 const FRESHNESS_LABELS = {
   fresh: { label: 'Current', className: 'text-green-600 dark:text-green-400' },
@@ -435,11 +437,16 @@ function AcceptanceCard({ claim }) {
   const badge = ACCEPTANCE_BADGES[claim.acceptanceStatus] || ACCEPTANCE_BADGES.unknown;
   const freshness = FRESHNESS_LABELS[claim.freshnessState] || FRESHNESS_LABELS.unknown;
   const scopeLabel = {
-    country: 'Country',
+    country: 'Country — not institution-wide unless specified',
     institution: 'Institution',
     program: 'Program',
     program_intake: 'Program intake',
   }[claim.acceptanceScope] || claim.acceptanceScope;
+  const scopeCaution = claim.acceptanceScope === 'country'
+    ? fallbackScopeLabel(ACCEPTANCE_SCOPES.COUNTRY)
+    : claim.acceptanceScope === 'institution'
+      ? fallbackScopeLabel(ACCEPTANCE_SCOPES.INSTITUTION)
+      : null;
 
   const institutionName = claim.institutionId?.officialName;
   const programName = claim.programId?.name;
@@ -465,6 +472,9 @@ function AcceptanceCard({ claim }) {
           {programName || institutionName || claim.countryCode}
         </p>
       )}
+      {scopeCaution ? (
+        <p className="text-xs text-amber-800 dark:text-amber-200 mb-1">{scopeCaution}</p>
+      ) : null}
 
       {claim.minimumOverallScore != null && (
         <p className="text-xs text-gray-600 dark:text-gray-300 mb-1">
@@ -492,6 +502,7 @@ function AcceptanceCard({ claim }) {
           </span>
         )}
         <span className={freshness.className}>{freshness.label}</span>
+        <ProvenanceStrip freshnessState={claim.freshnessState} lastReviewedAt={claim.lastVerifiedAt} />
         {(claim.sources || []).length > 0 && claim.sources[0].sourceUrl && (
           <a
             href={claim.sources[0].sourceUrl}

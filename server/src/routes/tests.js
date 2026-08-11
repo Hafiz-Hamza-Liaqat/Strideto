@@ -32,9 +32,9 @@ testsRouter.get('/education/institutions/:slug/acceptance', acceptance.getInstit
 
 // ── Programs (public, Mission 6 + 7) ─────────────────────────────────────────
 testsRouter.get('/education/programs', programs.listPrograms);
+testsRouter.get('/education/programs/compare', programs.comparePrograms);
 testsRouter.get('/education/programs/:slug', programs.getProgramDetail);
 testsRouter.get('/education/programs/:slug/acceptance', acceptance.getProgramAcceptance);
-testsRouter.get('/education/programs/compare', programs.comparePrograms);
 
 // ── Scholarships (public, Mission 7) ─────────────────────────────────────────
 testsRouter.get('/education/scholarships', scholarships.listScholarships);

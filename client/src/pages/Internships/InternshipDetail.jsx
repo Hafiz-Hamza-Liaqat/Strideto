@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
 import { jobPostingSchema, breadcrumbSchema, combineSchemas } from '../../seo/schemas';
@@ -12,11 +12,17 @@ import { useAuth } from '../../context/AuthContext';
 import { useToast } from '../../context/ToastContext';
 import { isOpportunityApplicationEnabled } from '../../config/careerFeatureFlags';
 import { formatDate } from '../../utils/formatDate';
+import { loginLocationState } from '../../utils/loginReturn.js';
+import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
+import { EXTERNAL_APPLY_DISCLOSURE, NO_GUARANTEE_DISCLAIMER } from '@shared/publicDiscovery/publicTruth.js';
+import { PublicTrustBadge } from '../../components/public/PublicTrustBadge';
+import { Alert } from '../../components/ui/Alerts';
 
 export default function InternshipDetail() {
   const { t } = useTranslation(['internships', 'common', 'navbar']);
   const { idOrSlug } = useParams();
   const navigate = useNavigate();
+  const location = useLocation();
   const { isAuthenticated } = useAuth();
   const { toast } = useToast();
   const [internship, setInternship] = useState(null);
@@ -47,6 +53,10 @@ export default function InternshipDetail() {
   };
 
   const handleApply = async () => {
+    if (!isAuthenticated) {
+      navigate(ROUTES.LOGIN, { state: loginLocationState(location) });
+      return;
+    }
     if (!internship || applied) return;
     setApplying(true);
     try {
@@ -101,7 +111,7 @@ export default function InternshipDetail() {
   if (error || !internship) {
     return (
       <div className="max-w-3xl mx-auto px-4 py-8">
-        <p className="text-red-600 dark:text-red-400">{error || t('internshipNotFound', { ns: 'internships' })}</p>
+        <Alert variant="error">{error || t('internshipNotFound', { ns: 'internships' })}</Alert>
         <Link to={ROUTES.INTERNSHIPS} className="text-primary dark:text-mint hover:underline mt-2 inline-block">{t('backToInternships', { ns: 'internships' })}</Link>
       </div>
     );
@@ -142,8 +152,11 @@ export default function InternshipDetail() {
 
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">{internship.title}</h1>
-            <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">{internship.organization}</p>
+            <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white break-words-safe">{internship.title}</h1>
+            <p className="text-lg text-gray-600 dark:text-gray-400 mt-1 break-words-safe">{internship.organization}</p>
+            <div className="mt-2"><PublicTrustBadge kind={internship.authorityKind} label={internship.authorityLabel} /></div>
+            {internship.internshipType ? <p className="text-sm text-gray-500 mt-1">{internship.internshipType}</p> : null}
+            {internship.isPaid === true ? <p className="text-sm text-gray-500">Paid</p> : internship.isPaid === false ? <p className="text-sm text-gray-500">Compensation: Not specified as paid</p> : null}
             <div className="flex flex-wrap gap-2 mt-2 text-sm text-gray-500 dark:text-gray-400">
               {internship.location && <span>{internship.location}</span>}
               {internship.province && <span> · {internship.province}</span>}
@@ -151,7 +164,7 @@ export default function InternshipDetail() {
               {internship.deadline && <span> · {t('deadlinePrefix', { ns: 'internships' })} {formatDate(internship.deadline)}</span>}
             </div>
           </div>
-          {isAuthenticated && <SaveButton id={internship._id} saved={saved} onToggle={(id, save) => handleSaveToggle(id, save)} />}
+          <SaveButton id={internship._id} saved={saved} onToggle={handleSaveToggle} />
         </div>
 
         {internship.skillset?.length > 0 && (
@@ -169,6 +182,9 @@ export default function InternshipDetail() {
           </div>
         )}
 
+        {!internship.applyInPlatform && publicHttpUrlOrNull(internship.applicationLink) && (
+          <p className="mt-4 text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">{EXTERNAL_APPLY_DISCLOSURE}</p>
+        )}
         <div className="mt-6 flex flex-wrap gap-3">
           {internship.applyInPlatform && (
             <button
@@ -180,12 +196,12 @@ export default function InternshipDetail() {
               {applied ? t('applied', { ns: 'internships' }) : applying ? t('applying', { ns: 'internships' }) : t('applyOnPlatform', { ns: 'internships' })}
             </button>
           )}
-          {internship.applicationLink && (
+          {publicHttpUrlOrNull(internship.applicationLink) && (
             <a
-              href={internship.applicationLink}
+              href={publicHttpUrlOrNull(internship.applicationLink)}
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center px-4 py-2 rounded-lg border-2 border-primary text-primary dark:text-mint hover:bg-mint/20 dark:hover:bg-mint/10 btn-theme"
+              className="inline-flex items-center min-h-[44px] px-4 py-2 rounded-lg border-2 border-primary text-primary dark:text-mint hover:bg-mint/20 dark:hover:bg-mint/10 btn-theme"
             >
               {t('applyCompanyPortal', { ns: 'internships' })}
             </a>
@@ -203,6 +219,7 @@ export default function InternshipDetail() {
             </button>
           )}
         </div>
+        <p className="mt-8 text-xs text-gray-500 dark:text-gray-400">{NO_GUARANTEE_DISCLAIMER}</p>
       </div>
     </>
   );

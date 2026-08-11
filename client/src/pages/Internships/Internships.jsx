@@ -12,6 +12,9 @@ import { SaveButton } from '../../components/listings/SaveButton';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { useAuth } from '../../context/AuthContext';
 import { formatDate } from '../../utils/formatDate';
+import { EmptyState } from '../../components/common/EmptyState';
+import { Alert } from '../../components/ui/Alerts';
+import { NO_GUARANTEE_DISCLAIMER } from '@shared/publicDiscovery/publicTruth.js';
 
 const PER_PAGE = 10;
 const DURATIONS = ['2 months', '3 months', '4 months', '6 months'];
@@ -130,7 +133,7 @@ export default function Internships() {
           </div>
         </div>
 
-        {error && <p className="text-red-600 dark:text-red-400 mb-4">{error}</p>}
+        {error && <Alert variant="error" className="mb-4">{error}</Alert>}
 
         {loading ? (
           <div className="grid gap-4 sm:grid-cols-2">
@@ -145,10 +148,12 @@ export default function Internships() {
                 <article className="p-4 md:p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md transition">
                   <div className="flex flex-wrap items-start justify-between gap-2">
                     <div className="min-w-0 flex-1">
-                      <Link to={`${ROUTES.INTERNSHIPS}/${item.slug || item._id}`} className="font-semibold text-lg text-gray-900 dark:text-white hover:text-primary dark:hover:text-mint">
+                      <Link to={`${ROUTES.INTERNSHIPS}/${item.slug || item._id}`} className="font-semibold text-lg text-gray-900 dark:text-white hover:text-primary dark:hover:text-mint break-words-safe">
                         {item.title}
                       </Link>
-                      <p className="text-gray-600 dark:text-gray-400 mt-1">{item.organization}</p>
+                      <p className="text-gray-600 dark:text-gray-400 mt-1 break-words-safe">{item.organization}</p>
+                      {item.internshipType ? <p className="text-xs text-gray-500 mt-1">{item.internshipType}</p> : null}
+                      <p className="text-xs text-gray-500 mt-1">{item.applyInPlatform ? 'Apply on Strideto' : 'Apply on official website'}</p>
                       <div className="flex flex-wrap gap-2 mt-2 text-sm text-gray-500 dark:text-gray-400">
                         {item.location && <span>{item.location}</span>}
                         {item.province && <span> · {item.province}</span>}
@@ -163,9 +168,7 @@ export default function Internships() {
                         </div>
                       )}
                     </div>
-                    {isAuthenticated && (
-                      <SaveButton saved={savedIds.has(item._id)} onToggle={() => handleSaveToggle(item._id, !savedIds.has(item._id))} />
-                    )}
+                    <SaveButton id={item._id} saved={savedIds.has(item._id)} onToggle={handleSaveToggle} />
                   </div>
                   <div className="mt-3 flex flex-wrap gap-2">
                     <Link
@@ -181,11 +184,14 @@ export default function Internships() {
           </ul>
         )}
 
-        {!loading && data.length === 0 && <p className="text-gray-500 dark:text-gray-400 py-8 text-center">{t('noInternships', { ns: 'internships' })}</p>}
+        {!loading && data.length === 0 && (
+          <EmptyState title={t('noInternships', { ns: 'internships' })} description="No internships match these filters." />
+        )}
 
         {totalPages > 1 && (
           <Pagination currentPage={params.page} totalPages={totalPages} onPageChange={setPage} className="mt-6" />
         )}
+        <p className="mt-8 text-xs text-gray-500 dark:text-gray-400">{NO_GUARANTEE_DISCLAIMER}</p>
       </div>
     </>
   );

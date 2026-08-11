@@ -6,7 +6,8 @@ import { SearchQueryLog } from '../../models/SearchQueryLog.js';
 import { rankSearchResults } from '../../../../shared/search/scoring.js';
 import { isPublicSearchable } from '../../../../shared/search/searchDocument.js';
 import { PUBLIC_SEARCH_ENTITY_TYPES, SUGGESTION_ENTITY_TYPES } from '../../../../shared/search/entityTypes.js';
-import { isSearchDomainAllowed } from '../../../../shared/platform/searchPrivacyPolicy.js';
+import { isSearchDomainAllowed, clampPublicSearchTypes } from '../../../../shared/platform/searchPrivacyPolicy.js';
+import { publicSearchMetadata } from '../../../../shared/publicDiscovery/projectPublicDiscovery.js';
 import { SEARCH_SUGGESTION_LIMIT } from '../../../../shared/search/rankingWeights.js';
 import {
   buildSearchCacheKey,
@@ -48,7 +49,7 @@ function buildTextFilter(q) {
   };
 }
 
-function toResultDto(doc) {
+function toResultDto(doc, { publicProjection = true } = {}) {
   return {
     id: doc.entityId,
     entityType: doc.entityType,
@@ -64,7 +65,7 @@ function toResultDto(doc) {
     publishedAt: doc.publishedAt,
     updatedAt: doc.updatedAt,
     status: doc.status,
-    metadata: doc.metadata,
+    metadata: publicProjection ? publicSearchMetadata(doc.metadata) : doc.metadata,
     score: doc._score,
   };
 }
@@ -100,17 +101,27 @@ export async function searchIndex(params, options = {}) {
     ...buildTextFilter(params.q),
   };
 
-  const types = params.types?.length
+  let types = params.types?.length
     ? params.types
     : (options.admin ? null : PUBLIC_SEARCH_ENTITY_TYPES);
+  if (!options.admin && types?.length) {
+    types = clampPublicSearchTypes(types).allowed;
+    if (!types.length) types = PUBLIC_SEARCH_ENTITY_TYPES;
+  }
   if (types) filter.entityType = { $in: types };
+  if (!options.admin) {
+    params.includeDraft = false;
+    filter.searchable = true;
+    filter.status = { $in: ['active', 'published'] };
+  }
 
   const candidates = await SearchDocument.find(filter).limit(500).lean();
   const ranked = params.q
     ? rankSearchResults(candidates, params.q, params.sort)
     : rankSearchResults(candidates, '', params.sort === 'relevance' ? 'newest' : params.sort);
   const total = ranked.length;
-  const pageResults = ranked.slice(params.skip, params.skip + params.limit).map(toResultDto);
+  const pageResults = ranked.slice(params.skip, params.skip + params.limit)
+    .map((doc) => toResultDto(doc, { publicProjection: !options.admin }));
   const facets = buildFacets(ranked);
 
   const payload = {

@@ -8,6 +8,7 @@ import {
   findLocalizedById,
   isObjectIdParam,
 } from '../utils/localeQuery.js';
+import { projectPublicCmsScholarship } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
@@ -42,7 +43,7 @@ export const getScholarships = asyncHandler(async (req, res) => {
     Scholarship.find(query).sort(buildScholarshipSort(sort)).skip(skip).limit(limit).lean(),
     Scholarship.countDocuments(query),
   ]);
-  res.json(listResponse(data, paginate(page, limit, total), req.query));
+  res.json(listResponse(data.map((d) => projectPublicCmsScholarship(d)), paginate(page, limit, total), req.query));
 });
 
 export const getScholarshipByIdOrSlug = asyncHandler(async (req, res) => {
@@ -59,5 +60,5 @@ export const getScholarshipByIdOrSlug = asyncHandler(async (req, res) => {
   if (scholarship.level) relatedFilter.level = scholarship.level;
   else if (scholarship.country) relatedFilter.country = scholarship.country;
   const related = await Scholarship.find(relatedFilter).sort({ deadline: 1 }).limit(4).lean();
-  res.json({ ...scholarship, views: (scholarship.views || 0) + 1, related });
+  res.json(projectPublicCmsScholarship(scholarship, { related }));
 });

@@ -15,6 +15,10 @@ import { useContentView } from '../../hooks/usePageView';
 import { talentApi } from '../../services/talentApi';
 import { shouldUseTalentProfileApi, isOpportunityApplicationEnabled } from '../../config/careerFeatureFlags';
 import { ApplyKitBanner } from '../../components/career/ApplyKitBanner';
+import { PublicTrustBadge } from '../../components/public/PublicTrustBadge';
+import { ProvenanceStrip } from '../../components/public/ProvenanceStrip';
+import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
+import { APPLICATION_MODE_LABELS, EXTERNAL_APPLY_DISCLOSURE, NO_GUARANTEE_DISCLAIMER, NOT_SPECIFIED } from '@shared/publicDiscovery/publicTruth.js';
 
 export default function AdmissionDetail() {
   const { t } = useTranslation(['admissions', 'common', 'navbar', 'applications']);
@@ -58,7 +62,7 @@ export default function AdmissionDetail() {
       const { data: app } = await applicationsApi.create({
         opportunityType: 'admission',
         opportunityId: item._id,
-        source: 'platform',
+        source: (item.link || item.applyLink) ? 'external' : 'platform',
         title: item.program,
         companyName: item.institution || '',
       });
@@ -111,8 +115,10 @@ export default function AdmissionDetail() {
         <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 md:p-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">{item.program}</h1>
-              <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">{item.institution}</p>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white break-words-safe">{item.program}</h1>
+              <p className="text-lg text-gray-600 dark:text-gray-400 mt-1 break-words-safe">{item.institution}</p>
+              <div className="mt-2"><PublicTrustBadge kind={item.authorityKind} label={item.authorityLabel} /></div>
+              <p className="text-sm text-gray-500 mt-1">{APPLICATION_MODE_LABELS[item.applicationMode] || NOT_SPECIFIED}</p>
               {item.department && <p className="text-sm text-gray-500">{item.department}</p>}
               {item.session && <p className="text-sm text-gray-500">{item.session}</p>}
               {item.deadline && (
@@ -127,8 +133,8 @@ export default function AdmissionDetail() {
             </div>
             <div className="flex flex-wrap gap-2">
               <SaveButton type="admission" id={item._id} saved={savedIds.has(item._id)} onToggle={handleSaveToggle} />
-              {(item.link || item.applyLink) && (
-                <a href={item.link || item.applyLink} className="inline-flex items-center px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover btn-theme" target="_blank" rel="noopener noreferrer">{t('apply', { ns: 'common' })}</a>
+              {publicHttpUrlOrNull(item.link || item.applyLink) && (
+                <a href={publicHttpUrlOrNull(item.link || item.applyLink)} className="inline-flex items-center min-h-[44px] px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover btn-theme" target="_blank" rel="noopener noreferrer">{t('applyOfficialWebsite', { ns: 'jobs', defaultValue: 'Apply on official website' })}</a>
               )}
               {isAuthenticated && isOpportunityApplicationEnabled() && (
                 <button
@@ -161,6 +167,13 @@ export default function AdmissionDetail() {
               <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{item.applicationInstructions}</p>
             </section>
           )}
+          {publicHttpUrlOrNull(item.link || item.applyLink) && (
+            <p className="mt-4 text-sm text-amber-800 dark:text-amber-200">{EXTERNAL_APPLY_DISCLOSURE}</p>
+          )}
+          <div className="mt-6">
+            <ProvenanceStrip authorityLabel={item.authorityLabel} officialUrl={item.sourceUrl || item.link} />
+          </div>
+          <p className="mt-4 text-xs text-gray-500">{NO_GUARANTEE_DISCLAIMER}</p>
         </div>
         {related.length > 0 && (
           <section className="mt-10">

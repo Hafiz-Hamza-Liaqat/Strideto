@@ -82,3 +82,19 @@ export function assertSearchIndexAllowed(domain, context = 'public') {
 export function allKnownSearchEntityTypes() {
   return [...SEARCH_ENTITY_TYPES];
 }
+
+/**
+ * Public search type clamp (Phase 7). Unknown and denied domains fail closed.
+ * @param {string[]} types
+ * @returns {{ allowed: string[], denied: string[] }}
+ */
+export function clampPublicSearchTypes(types) {
+  const requested = Array.isArray(types) ? types : [];
+  const allowed = [];
+  const denied = [];
+  for (const type of requested) {
+    if (isSearchDomainAllowed(type, 'public')) allowed.push(type);
+    else denied.push(type);
+  }
+  return { allowed, denied };
+}

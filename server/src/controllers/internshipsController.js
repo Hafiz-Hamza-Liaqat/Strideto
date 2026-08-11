@@ -6,6 +6,7 @@ import { listResponse, paginate } from '../utils/apiResponse.js';
 import { sanitizeString } from '../utils/sanitize.js';
 import { awardBadge } from './badgesController.js';
 import { ApplicationMigrationService } from '../services/career/migration/ApplicationMigrationService.js';
+import { projectPublicInternship } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
@@ -43,15 +44,15 @@ export const listInternships = asyncHandler(async (req, res) => {
     Internship.countDocuments(query),
   ]);
   const pagination = paginate(page, limit, total);
-  res.json(listResponse(data, pagination, req.query));
+  res.json(listResponse(data.map(projectPublicInternship), pagination, req.query));
 });
 
 export const getInternshipByIdOrSlug = asyncHandler(async (req, res) => {
   const { idOrSlug } = req.params;
   const isId = mongoose.Types.ObjectId.isValid(idOrSlug) && String(new mongoose.Types.ObjectId(idOrSlug)) === idOrSlug;
-  const doc = await Internship.findOne(isId ? { _id: idOrSlug } : { slug: idOrSlug, status: 'active' }).lean();
+  const doc = await Internship.findOne(isId ? { _id: idOrSlug, status: 'active' } : { slug: idOrSlug, status: 'active' }).lean();
   if (!doc) return res.status(404).json({ error: 'Internship not found' });
-  res.json(doc);
+  res.json(projectPublicInternship(doc));
 });
 
 export const applyToInternship = asyncHandler(async (req, res) => {
@@ -59,8 +60,14 @@ export const applyToInternship = asyncHandler(async (req, res) => {
   if (!userId) return res.status(401).json({ error: 'Unauthorized' });
   const { idOrSlug } = req.params;
   const isId = mongoose.Types.ObjectId.isValid(idOrSlug) && String(new mongoose.Types.ObjectId(idOrSlug)) === idOrSlug;
-  const internship = await Internship.findOne(isId ? { _id: idOrSlug } : { slug: idOrSlug, status: 'active' });
+  const internship = await Internship.findOne(isId ? { _id: idOrSlug, status: 'active' } : { slug: idOrSlug, status: 'active' });
   if (!internship) return res.status(404).json({ error: 'Internship not found' });
+  if (!internship.applyInPlatform) {
+    return res.status(400).json({ error: 'This internship requires application on the official website.' });
+  }
+  if (internship.deadline && new Date(internship.deadline) < new Date()) {
+    return res.status(400).json({ error: 'Application deadline has passed', code: 'DEADLINE_PASSED' });
+  }
   const existing = await InternshipApplication.findOne({ userId, internshipId: internship._id });
   if (existing) return res.status(400).json({ error: 'Already applied to this internship' });
   const app = await InternshipApplication.create({ userId, internshipId: internship._id, status: 'applied' });

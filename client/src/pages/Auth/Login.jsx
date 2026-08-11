@@ -11,6 +11,7 @@ import { FormField } from '../../components/common/FormField';
 import { Alert } from '../../components/ui/Alerts';
 import { SeoHead } from '../../components/seo';
 import { isOnboardingComplete, markOnboardingPending } from '../../onboarding';
+import { resolveLoginReturnPath } from '../../utils/loginReturn.js';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -23,8 +24,8 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
 
-  const from = location.state?.from?.pathname || ROUTES.HOME;
-  const isFromAdmin = from === ROUTES.ADMIN;
+  const from = resolveLoginReturnPath(location.state?.from, ROUTES.HOME);
+  const isFromAdmin = from === ROUTES.ADMIN || from.startsWith(`${ROUTES.ADMIN}/`);
 
   const handleSubmit = async (e) => {
     e.preventDefault();

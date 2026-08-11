@@ -1,5 +1,6 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { validateSearchQuery, parseSearchParams } from '../../../shared/search/validation.js';
+import { clampPublicSearchTypes } from '../../../shared/platform/searchPrivacyPolicy.js';
 import {
   searchIndex,
   searchSuggestions,
@@ -10,8 +11,19 @@ import { findRelatedContent } from '../services/search/RelatedContentService.js'
 
 export const getSearch = asyncHandler(async (req, res) => {
   const params = parseSearchParams(req.query);
+  params.includeDraft = false;
   const errors = validateSearchQuery(req.query);
   if (errors.length) return res.status(400).json({ error: 'Invalid search query', details: errors });
+  if (params.types?.length) {
+    const clamped = clampPublicSearchTypes(params.types);
+    if (clamped.denied.length) {
+      return res.status(400).json({
+        error: 'Invalid search query',
+        details: clamped.denied.map((t) => `Search domain denied: ${t}`),
+      });
+    }
+    params.types = clamped.allowed;
+  }
 
   const started = Date.now();
   const result = await searchIndex(params);

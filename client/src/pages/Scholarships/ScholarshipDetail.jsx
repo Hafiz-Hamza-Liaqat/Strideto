@@ -15,6 +15,10 @@ import { talentApi } from '../../services/talentApi';
 import { shouldUseTalentProfileApi, isOpportunityApplicationEnabled } from '../../config/careerFeatureFlags';
 import { ApplyKitBanner } from '../../components/career/ApplyKitBanner';
 import { SaveButton } from '../../components/listings/SaveButton';
+import { PublicTrustBadge } from '../../components/public/PublicTrustBadge';
+import { ProvenanceStrip } from '../../components/public/ProvenanceStrip';
+import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
+import { AGENT_NON_AUTHORITY_DISCLAIMER, EXTERNAL_APPLY_DISCLOSURE, NO_GUARANTEE_DISCLAIMER } from '@shared/publicDiscovery/publicTruth.js';
 
 export default function ScholarshipDetail() {
   const { t } = useTranslation(['scholarships', 'common', 'navbar', 'applications']);
@@ -58,7 +62,7 @@ export default function ScholarshipDetail() {
       const { data: app } = await applicationsApi.create({
         opportunityType: 'scholarship',
         opportunityId: item._id,
-        source: 'platform',
+        source: item.link ? 'external' : 'platform',
         title: item.title,
       });
       navigate(`${ROUTES.APPLICATIONS}/${app._id}`);
@@ -107,16 +111,17 @@ export default function ScholarshipDetail() {
         <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 md:p-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">{item.title}</h1>
-              <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">{item.provider}</p>
+              <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white break-words-safe">{item.title}</h1>
+              <p className="text-lg text-gray-600 dark:text-gray-400 mt-1 break-words-safe">{item.provider}</p>
+              <div className="mt-2"><PublicTrustBadge kind={item.authorityKind} label={item.authorityLabel} /></div>
               <p className="text-sm text-gray-500">{(item.level || '') + (item.country ? ` · ${item.country}` : '')}</p>
               {item.amount && <p className="text-primary dark:text-mint font-medium mt-1">{item.amount}</p>}
               {item.deadline && <p className="text-sm text-amber-600 dark:text-amber-400 mt-2">{t('deadline', { ns: 'common' })}: {formatDate(item.deadline)}</p>}
             </div>
             <div className="flex flex-wrap gap-2">
               <SaveButton type="scholarship" id={item._id} saved={savedIds.has(item._id)} onToggle={handleSaveToggle} />
-              {item.link && (
-                <a href={item.link} className="inline-flex items-center px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover btn-theme" target="_blank" rel="noopener noreferrer">{t('apply', { ns: 'common' })}</a>
+              {publicHttpUrlOrNull(item.link) && (
+                <a href={publicHttpUrlOrNull(item.link)} className="inline-flex items-center min-h-[44px] px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover btn-theme" target="_blank" rel="noopener noreferrer">{t('applyOfficialWebsite', { ns: 'jobs', defaultValue: 'Apply on official website' })}</a>
               )}
               {isAuthenticated && isOpportunityApplicationEnabled() && (
                 <button
@@ -149,6 +154,13 @@ export default function ScholarshipDetail() {
               <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{item.applicationInstructions}</p>
             </section>
           )}
+          {publicHttpUrlOrNull(item.link) && (
+            <p className="mt-4 text-sm text-amber-800 dark:text-amber-200">{EXTERNAL_APPLY_DISCLOSURE}</p>
+          )}
+          <div className="mt-6">
+            <ProvenanceStrip authorityLabel={item.authorityLabel} freshnessState={item.freshnessState} officialUrl={item.link} />
+          </div>
+          <p className="mt-4 text-xs text-gray-500">{AGENT_NON_AUTHORITY_DISCLAIMER} {NO_GUARANTEE_DISCLAIMER}</p>
         </div>
         {related.length > 0 && (
           <section className="mt-10">

@@ -17,6 +17,9 @@ import { formatDate } from '../../utils/formatDate';
 import { useAuth } from '../../context/AuthContext';
 import { AdHost } from '../../components/ads';
 import { EmptyState } from '../../components/common/EmptyState';
+import { OfficialScholarshipsRail } from '../../components/public/OfficialDiscoveryRail';
+import { PublicTrustBadge } from '../../components/public/PublicTrustBadge';
+import { NO_GUARANTEE_DISCLAIMER } from '@shared/publicDiscovery/publicTruth.js';
 
 const PER_PAGE = 10;
 
@@ -94,6 +97,7 @@ export default function Scholarships() {
         <AdHost placementId="scholarships-header" className="mb-4" />
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('title', { ns: 'scholarships' })}</h1>
         <p className="text-gray-600 dark:text-gray-400 mb-6">{t('subtitle', { ns: 'scholarships' })}</p>
+        <OfficialScholarshipsRail />
 
         {isAuthenticated && recommendedScholarships.length > 0 && (
           <section className="mb-8 p-4 rounded-xl border border-primary/30 dark:border-mint/30 bg-mint/20 dark:bg-mint/10">
@@ -165,8 +169,9 @@ export default function Scholarships() {
                   {data.map((s) => (
                     <article key={s._id} className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md transition-shadow flex flex-col">
                       <Link to={`${ROUTES.SCHOLARSHIPS}/${s.slug || s._id}`} className="flex-1 block">
-                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{s.title}</h2>
-                        <p className="text-gray-600 dark:text-gray-400">{s.provider}</p>
+                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white break-words-safe">{s.title}</h2>
+                        <p className="text-gray-600 dark:text-gray-400 break-words-safe">{s.provider}</p>
+                        <div className="mt-1"><PublicTrustBadge kind={s.authorityKind} label={s.authorityLabel} /></div>
                         <p className="text-sm text-gray-500">{[s.level, s.country].filter(Boolean).join(' · ')}</p>
                         {s.amount && <p className="text-sm text-primary dark:text-mint mt-1">{s.amount}</p>}
                         {s.deadline && <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{t('deadline', { ns: 'common' })}: {formatDate(s.deadline)}</p>}
@@ -182,6 +187,7 @@ export default function Scholarships() {
             )}
           </div>
         </div>
+        <p className="mt-8 text-xs text-gray-500 dark:text-gray-400">{NO_GUARANTEE_DISCLAIMER}</p>
       </div>
     </>
   );

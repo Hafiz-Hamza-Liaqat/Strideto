@@ -22,6 +22,8 @@ import {
 } from '../../../../shared/education/scholarshipIntelligence.js';
 import { projectPublicAcceptance } from '../../../../shared/education/acceptanceExplorer.js';
 import { FRESHNESS_STATES } from '../../../../shared/trust/sourceVerification.js';
+import { projectPublicProgram } from '../../../../shared/publicDiscovery/projectPublicDiscovery.js';
+import { currentAcceptanceMongoFilter } from '../../../../shared/publicDiscovery/publicTruth.js';
 
 const PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;
@@ -47,9 +49,7 @@ function freshnessWarning(freshnessState) {
 }
 
 function projectProgram(doc) {
-  if (!doc) return null;
-  const { __v, ...rest } = doc;
-  return rest;
+  return projectPublicProgram(doc);
 }
 
 // ── List programs ─────────────────────────────────────────────────────────────
@@ -108,7 +108,7 @@ export const getProgramDetail = asyncHandler(async (req, res) => {
   // Mission 6: accepted tests for this program (resolved via TestAcceptance)
   const acceptedTests = await TestAcceptance.find({
     programId: doc._id,
-    status: 'published',
+    ...currentAcceptanceMongoFilter(),
   })
     .populate('testId', 'name slug abbreviation')
     .select('-adminNotes -__v')

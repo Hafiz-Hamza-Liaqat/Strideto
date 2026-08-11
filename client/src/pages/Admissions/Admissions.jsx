@@ -16,6 +16,9 @@ import { formatDate, daysUntil } from '../../utils/formatDate';
 import { useAuth } from '../../context/AuthContext';
 import { AdHost } from '../../components/ads';
 import { EmptyState } from '../../components/common/EmptyState';
+import { OfficialIntakesRail } from '../../components/public/OfficialDiscoveryRail';
+import { PublicTrustBadge } from '../../components/public/PublicTrustBadge';
+import { NO_GUARANTEE_DISCLAIMER } from '@shared/publicDiscovery/publicTruth.js';
 
 const PER_PAGE = 10;
 
@@ -69,6 +72,7 @@ export default function Admissions() {
         <AdHost placementId="admissions-header" className="mb-4" />
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('title', { ns: 'admissions' })}</h1>
         <p className="text-gray-600 dark:text-gray-400 mb-6">{t('subtitle', { ns: 'admissions' })}</p>
+        <OfficialIntakesRail />
 
         <div className="flex flex-col lg:flex-row gap-4 mb-6">
           <div className="flex-1 w-full min-w-0">
@@ -125,8 +129,9 @@ export default function Admissions() {
                           {a.source === 'scraper' && a.scrapedAt && (
                             <span className="inline-block text-xs font-medium px-2 py-0.5 rounded bg-primary text-white dark:bg-primary mb-2">{t('new', { ns: 'common' })}</span>
                           )}
-                          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{a.program}</h2>
-                          <p className="text-gray-600 dark:text-gray-400">{a.institution}</p>
+                          <h2 className="text-lg font-semibold text-gray-900 dark:text-white break-words-safe">{a.program}</h2>
+                          <p className="text-gray-600 dark:text-gray-400 break-words-safe">{a.institution}</p>
+                          <div className="mt-1"><PublicTrustBadge kind={a.authorityKind} label={a.authorityLabel} /></div>
                           {a.department && <p className="text-sm text-gray-500">{a.department}</p>}
                           {a.session && <p className="text-sm text-gray-500">{a.session}</p>}
                           {a.deadline && (
@@ -151,6 +156,7 @@ export default function Admissions() {
             )}
           </div>
         </div>
+        <p className="mt-8 text-xs text-gray-500 dark:text-gray-400">{NO_GUARANTEE_DISCLAIMER}</p>
       </div>
     </>
   );

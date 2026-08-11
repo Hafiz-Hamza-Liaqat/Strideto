@@ -13,6 +13,7 @@ import { Pagination } from '../../components/ui/Pagination';
 import { SaveButton } from '../../components/listings/SaveButton';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { Alert } from '../../components/ui/Alerts';
+import { EmptyState } from '../../components/common/EmptyState';
 import { formatDate } from '../../utils/formatDate';
 import { useAuth } from '../../context/AuthContext';
 import { AdHost } from '../../components/ads';
@@ -188,6 +189,47 @@ export default function Jobs() {
                 className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
               />
             </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('typeLabel', { ns: 'jobs' })}</label>
+              <select
+                value={params.type || ''}
+                onChange={(e) => setFilters({ type: e.target.value || undefined })}
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
+              >
+                <option value="">{t('all', { ns: 'common' })}</option>
+                <option value="full-time">Full-time</option>
+                <option value="part-time">Part-time</option>
+                <option value="contract">Contract</option>
+                <option value="internship">Internship</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('applicationModeLabel', { ns: 'jobs', defaultValue: 'Application' })}</label>
+              <select
+                value={params.applyType || ''}
+                onChange={(e) => setFilters({ applyType: e.target.value || undefined })}
+                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
+              >
+                <option value="">{t('all', { ns: 'common' })}</option>
+                <option value="internal">{t('applyOnStrideto', { ns: 'jobs', defaultValue: 'On Strideto' })}</option>
+                <option value="external">{t('applyExternal', { ns: 'jobs', defaultValue: 'Official website' })}</option>
+              </select>
+            </div>
+            <button
+              type="button"
+              onClick={() => setFilters({
+                province: undefined,
+                category: undefined,
+                organization: undefined,
+                deadline: undefined,
+                type: undefined,
+                applyType: undefined,
+                search: undefined,
+              })}
+              className="text-sm text-primary dark:text-mint hover:underline min-h-[44px]"
+            >
+              {t('resetFilters', { ns: 'jobs', defaultValue: 'Reset filters' })}
+            </button>
             <AdHost placementId="jobs-sidebar" variant="sidebar" />
           </aside>
 
@@ -202,9 +244,20 @@ export default function Jobs() {
                 ))}
               </div>
             ) : data.length === 0 ? (
-              <div className="py-12 text-center text-gray-500 dark:text-gray-400">
-                {t('noJobsAdjust', { ns: 'jobs' })}
-              </div>
+              <EmptyState
+                title={t('noJobs', { ns: 'jobs' })}
+                description={t('noJobsAdjust', { ns: 'jobs' })}
+                actionLabel={t('resetFilters', { ns: 'jobs', defaultValue: 'Reset filters' })}
+                onAction={() => setFilters({
+                  province: undefined,
+                  category: undefined,
+                  organization: undefined,
+                  deadline: undefined,
+                  type: undefined,
+                  applyType: undefined,
+                  search: undefined,
+                })}
+              />
             ) : (
               <>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('jobsFound', { count: total, ns: 'jobs' })}</p>
@@ -222,9 +275,9 @@ export default function Jobs() {
                         {job.logoUrl && (
                           <div className="h-10 w-10 rounded-lg bg-gray-100 dark:bg-gray-700 mb-2 flex items-center justify-center text-xs text-gray-400">{t('logo', { ns: 'jobs' })}</div>
                         )}
-                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{job.title}</h2>
-                        <p className="text-gray-600 dark:text-gray-400">{job.organization || job.company}</p>
-                        <p className="text-sm text-gray-500 dark:text-gray-500">
+                        <h2 className="text-lg font-semibold text-gray-900 dark:text-white break-words-safe">{job.title}</h2>
+                        <p className="text-gray-600 dark:text-gray-400 break-words-safe">{job.organization || job.company}</p>
+                        <p className="text-sm text-gray-500 dark:text-gray-500 break-words-safe">
                           {[job.province || job.location, job.category, job.type].filter(Boolean).join(' · ')}
                         </p>
                         {job.deadline && (

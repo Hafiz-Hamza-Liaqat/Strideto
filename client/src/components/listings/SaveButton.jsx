@@ -1,10 +1,12 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { ROUTES } from '../../constants';
+import { loginLocationState } from '../../utils/loginReturn.js';
 
 export function SaveButton({ id, saved: initialSaved, onToggle }) {
   const { isAuthenticated } = useAuth();
+  const location = useLocation();
   const [saved, setSaved] = useState(!!initialSaved);
   const [loading, setLoading] = useState(false);
 
@@ -12,6 +14,7 @@ export function SaveButton({ id, saved: initialSaved, onToggle }) {
     return (
       <Link
         to={ROUTES.LOGIN}
+        state={loginLocationState(location)}
         className="inline-flex items-center justify-center gap-1.5 min-w-[44px] min-h-[44px] px-2 sm:px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600 text-gray-600 dark:text-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors duration-200"
         aria-label="Login to save"
         title="Login to Save"

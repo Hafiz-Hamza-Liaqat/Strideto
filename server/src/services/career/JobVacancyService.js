@@ -63,6 +63,28 @@ export async function assertJobAcceptingApplications(job) {
     err.code = 'HIRING_CLOSED';
     throw err;
   }
+  if (job.approvalStatus && job.approvalStatus !== 'approved') {
+    const err = new Error('Job not found');
+    err.status = 404;
+    err.code = 'NOT_PUBLIC';
+    throw err;
+  }
+  if (job.publicationState && ['draft', 'pending_review', 'rejected', 'closed', 'expired'].includes(job.publicationState)) {
+    const err = new Error('This job is not accepting applications');
+    err.status = 400;
+    err.code = 'HIRING_CLOSED';
+    throw err;
+  }
+  const closeAt = job.applicationsCloseAt || job.deadline;
+  if (closeAt) {
+    const d = new Date(closeAt);
+    if (!Number.isNaN(d.getTime()) && d < new Date()) {
+      const err = new Error('Application deadline has passed');
+      err.status = 400;
+      err.code = 'DEADLINE_PASSED';
+      throw err;
+    }
+  }
   const stats = await getVacancyStats(job);
   if (stats.hiringClosed) {
     const err = new Error('Hiring closed — all seats have been filled');

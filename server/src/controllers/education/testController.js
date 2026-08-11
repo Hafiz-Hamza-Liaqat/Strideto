@@ -12,6 +12,7 @@ import { CountryEducation } from '../../models/education/CountryEducation.js';
 import { CanonicalInstitution } from '../../models/education/CanonicalInstitution.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { sanitizeString } from '../../utils/sanitize.js';
+import { projectPublicCanonicalInstitution } from '../../../../shared/publicDiscovery/projectPublicDiscovery.js';
 
 const PAGE_SIZE = 20;
 
@@ -167,12 +168,18 @@ export const listInstitutions = asyncHandler(async (req, res) => {
     CanonicalInstitution.countDocuments(filter),
   ]);
 
-  res.json({ data, total, page, limit, pages: Math.ceil(total / limit) });
+  res.json({
+    data: data.map(projectPublicCanonicalInstitution),
+    total,
+    page,
+    limit,
+    pages: Math.ceil(total / limit),
+  });
 });
 
 export const getInstitution = asyncHandler(async (req, res) => {
   const slug = sanitizeString(req.params.slug);
   const doc = await CanonicalInstitution.findOne({ slug, status: 'published' }).lean();
   if (!doc) return res.status(404).json({ error: 'Institution not found' });
-  res.json(doc);
+  res.json(projectPublicCanonicalInstitution(doc));
 });

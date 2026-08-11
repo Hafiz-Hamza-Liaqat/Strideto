@@ -8,6 +8,7 @@ import {
   findLocalizedById,
   isObjectIdParam,
 } from '../utils/localeQuery.js';
+import { projectPublicCmsAdmission } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
@@ -42,7 +43,7 @@ export const getAdmissions = asyncHandler(async (req, res) => {
     Admission.find(query).sort(buildAdmissionSort(sort)).skip(skip).limit(limit).lean(),
     Admission.countDocuments(query),
   ]);
-  res.json(listResponse(data, paginate(page, limit, total), req.query));
+  res.json(listResponse(data.map((d) => projectPublicCmsAdmission(d)), paginate(page, limit, total), req.query));
 });
 
 export const getAdmissionByIdOrSlug = asyncHandler(async (req, res) => {
@@ -58,5 +59,5 @@ export const getAdmissionByIdOrSlug = asyncHandler(async (req, res) => {
   const relatedFilter = withListLocaleFilter({ status: 'active', _id: { $ne: admission._id } }, docLocale);
   if (admission.institution) relatedFilter.institution = admission.institution;
   const related = await Admission.find(relatedFilter).sort({ deadline: 1 }).limit(4).lean();
-  res.json({ ...admission, views: (admission.views || 0) + 1, related });
+  res.json(projectPublicCmsAdmission(admission, { related }));
 });

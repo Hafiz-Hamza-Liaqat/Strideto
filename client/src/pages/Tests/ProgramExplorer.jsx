@@ -12,6 +12,11 @@ import { programIntelligenceApi } from '../../services/listingsService';
 import { ROUTES } from '../../constants';
 import { Pagination } from '../../components/ui/Pagination';
 import { formatMoney } from '@shared/international/dateDisplay.js';
+import { formatPublicDateOnly, APPLICATION_MODE_LABELS, NO_GUARANTEE_DISCLAIMER, NOT_SPECIFIED } from '@shared/publicDiscovery/publicTruth.js';
+import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
+import { ProvenanceStrip } from '../../components/public/ProvenanceStrip';
+import { testsApi } from '../../services/listingsService';
+import { fallbackScopeLabel, ACCEPTANCE_SCOPES } from '@shared/education/acceptanceExplorer.js';
 
 const DEGREE_LABELS = {
   high_school: 'High School',
@@ -264,6 +269,7 @@ export function ProgramExplorerDetail() {
   const [acceptedTests, setAcceptedTests] = useState([]);
   const [relatedScholarships, setRelatedScholarships] = useState([]);
   const [freshnessWarning, setFreshnessWarning] = useState(null);
+  const [acceptanceFallback, setAcceptanceFallback] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
 
@@ -276,6 +282,12 @@ export function ProgramExplorerDetail() {
         setAcceptedTests(res.data.acceptedTests || []);
         setRelatedScholarships(res.data.relatedScholarships || []);
         setFreshnessWarning(res.data.freshnessWarning || null);
+        if (!(res.data.acceptedTests || []).length) {
+          return testsApi.getProgramAcceptance(slug).then(({ data: acc }) => {
+            if (acc?.fallback?.data?.length) setAcceptanceFallback(acc.fallback);
+          }).catch(() => {});
+        }
+        return undefined;
       })
       .catch((err) => {
         if (err?.response?.status === 404) setNotFound(true);
@@ -409,16 +421,35 @@ export function ProgramExplorerDetail() {
           {data.intakes?.length > 0 && (
             <Section title="Intakes">
               <div className="space-y-2">
-                {data.intakes.map((intake, i) => (
-                  <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 text-sm">
-                    <div className="font-medium text-gray-900 dark:text-white">{intake.cycleLabel}</div>
-                    <div className="text-gray-500 dark:text-gray-400 mt-0.5 space-x-4">
-                      {intake.applicationOpenAt && <span>Opens: {new Date(intake.applicationOpenAt).toLocaleDateString()}</span>}
-                      {intake.deadlineAt && <span>Deadline: {new Date(intake.deadlineAt).toLocaleDateString()}</span>}
+                {data.intakes.map((intake, i) => {
+                  const open = intake.applicationOpenDate || formatPublicDateOnly(intake.applicationOpenAt);
+                  const deadline = intake.deadlineDate || formatPublicDateOnly(intake.deadlineAt);
+                  const start = intake.startDate || null;
+                  const mode = intake.applicationMode || 'not_configured';
+                  const applyUrl = publicHttpUrlOrNull(intake.applicationUrl);
+                  return (
+                    <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 text-sm min-w-0">
+                      <div className="font-medium text-gray-900 dark:text-white break-words-safe">{intake.cycleLabel || 'Intake'}</div>
+                      <div className="text-gray-500 dark:text-gray-400 mt-0.5 space-y-1">
+                        <p>Opens: {open || NOT_SPECIFIED}</p>
+                        <p>Deadline: {deadline || NOT_SPECIFIED}</p>
+                        <p>Start: {start || NOT_SPECIFIED}</p>
+                        <p>Application: {APPLICATION_MODE_LABELS[mode] || NOT_SPECIFIED}</p>
+                      </div>
+                      {mode === 'external' && applyUrl && (
+                        <a href={applyUrl} target="_blank" rel="noopener noreferrer" className="inline-flex mt-2 text-primary dark:text-mint hover:underline break-words-safe">
+                          Apply on the Institution’s official website
+                        </a>
+                      )}
+                      {mode === 'internal' && (
+                        <Link to={`/apply/institution/${data._id}`} className="inline-flex mt-2 text-primary dark:text-mint hover:underline">
+                          Apply on Strideto
+                        </Link>
+                      )}
+                      {intake.notes && <div className="text-xs text-gray-400 mt-0.5">{intake.notes}</div>}
                     </div>
-                    {intake.notes && <div className="text-xs text-gray-400 mt-0.5">{intake.notes}</div>}
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             </Section>
           )}
@@ -450,6 +481,20 @@ export function ProgramExplorerDetail() {
                       <p className="text-xs text-yellow-700 dark:text-yellow-300 mt-0.5">Condition: {r.conditionNote}</p>
                     )}
                     {r.intake && <p className="text-xs text-gray-400 mt-0.5">Intake: {r.intake}</p>}
+                  </div>
+                ))}
+              </div>
+            </Section>
+          )}
+
+          {acceptanceFallback?.data?.length > 0 && acceptedTests.length === 0 && (
+            <Section title="Accepted tests (institution-level guidance)">
+              <p className="text-xs text-amber-800 dark:text-amber-200 mb-2">{acceptanceFallback.label || fallbackScopeLabel(ACCEPTANCE_SCOPES.INSTITUTION)}</p>
+              <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+                {acceptanceFallback.data.map((at) => (
+                  <div key={at._id} className="px-4 py-3 text-sm">
+                    <span className="font-medium">{at.testId?.name || 'Test'}</span>
+                    <span className="ml-2 text-xs">{at.acceptanceStatus}</span>
                   </div>
                 ))}
               </div>
@@ -513,8 +558,15 @@ export function ProgramExplorerDetail() {
               Last verified: {new Date(data.lastVerifiedAt).toLocaleDateString()}
             </p>
           )}
+          <ProvenanceStrip
+            className="mt-4"
+            authorityLabel={data.authorityLabel}
+            lastReviewedAt={data.lastVerifiedAt}
+            freshnessState={data.freshnessState}
+            officialUrl={data.officialProgramUrl}
+          />
           <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
-            Program information is sourced from official sources and verified periodically. Strideto does not guarantee admission, funding, visa approval, or employment outcomes.
+            {NO_GUARANTEE_DISCLAIMER}
           </p>
         </div>
       </div>
