@@ -15,7 +15,7 @@ export function requireEmployerIntelligenceEnabled(_req, res, next) {
 }
 
 function employerIdFrom(req) {
-  return req.employer.employerId;
+  return req.employer.hiringOwnerId || req.employer.employerId;
 }
 
 export function shouldRecordCandidateView(query = {}) {

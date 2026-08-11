@@ -83,6 +83,25 @@ const jobSchema = new mongoose.Schema(
     applicationsCount: { type: Number, default: 0 },
     /** L.2.8 — optional headcount; null = unlimited */
     totalSeats: { type: Number, default: null, min: 1 },
+    /**
+     * Phase 4 canonical openings for direct Employer jobs.
+     * null = legacy unspecified (do not auto-fill). Integer 1–10000 when set.
+     */
+    openingsCount: {
+      type: Number,
+      default: null,
+      min: 1,
+      max: 10000,
+      validate: {
+        validator(value) {
+          return value == null || Number.isInteger(value);
+        },
+        message: 'openingsCount must be an integer',
+      },
+    },
+    submittedAt: { type: Date, default: null },
+    chargedSubmissionAt: { type: [Date], default: undefined },
+    postedByEmployerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Employer', default: null },
     autoCloseWhenFilled: { type: Boolean, default: true },
     isFeatured: { type: Boolean, default: false },
     isSponsored: { type: Boolean, default: false },

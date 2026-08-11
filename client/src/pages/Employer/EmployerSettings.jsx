@@ -1,10 +1,12 @@
 import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
 import { useEmployerAuth } from '../../context/EmployerAuthContext';
 import { employerApi, employerAuthApi } from '../../services/employerService';
 import { VerificationBadge } from '../../components/common/VerificationBadge';
 import { isValidHttpUrl } from './employerPostJobValidation';
+import { ROUTES } from '../../constants';
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -148,6 +150,13 @@ export default function EmployerSettings() {
       </div>
 
       <p className="text-sm text-slate-600 dark:text-gray-400 mb-4 max-w-xl">{t('employer:verificationReadOnlyHint')}</p>
+      <nav className="flex flex-wrap gap-3 mb-6 text-sm">
+        <Link className="text-primary hover:underline min-h-[44px] inline-flex items-center" to={ROUTES.EMPLOYER_TEAM}>{t('employer:navTeam')}</Link>
+        <Link className="text-primary hover:underline min-h-[44px] inline-flex items-center" to={ROUTES.EMPLOYER_VERIFICATION}>{t('employer:navVerification')}</Link>
+        <Link className="text-primary hover:underline min-h-[44px] inline-flex items-center" to={ROUTES.EMPLOYER_PLANS_USAGE}>{t('employer:navPlansUsage')}</Link>
+        <Link className="text-primary hover:underline min-h-[44px] inline-flex items-center" to={ROUTES.EMPLOYER_BILLING}>{t('employer:navBilling')}</Link>
+        <Link className="text-primary hover:underline min-h-[44px] inline-flex items-center" to={ROUTES.EMPLOYER_GUIDELINES}>{t('employer:navGuidelines')}</Link>
+      </nav>
 
       {error ? (
         <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm" role="alert">

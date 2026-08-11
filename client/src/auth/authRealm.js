@@ -5,7 +5,11 @@
 import { isAgentPortalPath, isAgentPublicAuthPath } from './agentAuthRealm.js';
 import { isInstitutionPortalPath, isInstitutionPublicAuthPath } from './institutionAuthRealm.js';
 
-export const EMPLOYER_PUBLIC_AUTH_PATHS = ['/employer/login', '/employer/register'];
+export const EMPLOYER_PUBLIC_AUTH_PATHS = [
+  '/employer/login',
+  '/employer/register',
+  '/employer/accept-invitation',
+];
 
 const EMPLOYER_PORTAL_ROOT_SEGMENTS = new Set([
   'intelligence',
@@ -14,6 +18,13 @@ const EMPLOYER_PORTAL_ROOT_SEGMENTS = new Set([
   'analytics',
   'settings',
   'notifications',
+  'interviews',
+  'verification',
+  'plans',
+  'billing',
+  'guidelines',
+  'help',
+  'team',
 ]);
 
 export function isEmployerPublicAuthPath(pathname = '') {

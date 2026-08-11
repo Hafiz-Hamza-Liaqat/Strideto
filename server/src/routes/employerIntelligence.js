@@ -1,5 +1,7 @@
 import { Router } from 'express';
 import { requireAuth, requireEmployerAuth } from '../middleware/auth.js';
+import { requireEmployerCapability } from '../services/employer/employerOrganizationService.js';
+import { EMPLOYER_CAPABILITIES as C } from '../../../shared/employer/team.js';
 import {
   requireEmployerIntelligenceEnabled,
   getIntelligenceDashboard,
@@ -28,10 +30,10 @@ employerIntelligenceRouter.get('/employer/intelligence/dashboard', ...auth, getI
 employerIntelligenceRouter.get('/employer/intelligence/candidates', ...auth, listCandidates);
 employerIntelligenceRouter.get('/employer/intelligence/candidates/:id', ...auth, getCandidateDetail);
 employerIntelligenceRouter.get('/employer/intelligence/pipeline', ...auth, getPipeline);
-employerIntelligenceRouter.post('/employer/intelligence/candidates/:id/stage', ...auth, transitionPipeline);
-employerIntelligenceRouter.post('/employer/intelligence/candidates/:id/notes', ...auth, addNote);
-employerIntelligenceRouter.put('/employer/intelligence/candidates/:id/interview', ...auth, scheduleInterview);
-employerIntelligenceRouter.post('/employer/intelligence/candidates/:id/interview/complete', ...auth, completeInterview);
+employerIntelligenceRouter.post('/employer/intelligence/candidates/:id/stage', ...auth, requireEmployerCapability(C.PIPELINE_WRITE), transitionPipeline);
+employerIntelligenceRouter.post('/employer/intelligence/candidates/:id/notes', ...auth, requireEmployerCapability(C.PIPELINE_WRITE), addNote);
+employerIntelligenceRouter.put('/employer/intelligence/candidates/:id/interview', ...auth, requireEmployerCapability(C.INTERVIEWS_WRITE), scheduleInterview);
+employerIntelligenceRouter.post('/employer/intelligence/candidates/:id/interview/complete', ...auth, requireEmployerCapability(C.INTERVIEWS_WRITE), completeInterview);
 employerIntelligenceRouter.get('/employer/intelligence/saved-filters', ...auth, listSavedFilters);
 employerIntelligenceRouter.post('/employer/intelligence/saved-filters', ...auth, saveFilter);
 employerIntelligenceRouter.delete('/employer/intelligence/saved-filters/:id', ...auth, deleteSavedFilter);

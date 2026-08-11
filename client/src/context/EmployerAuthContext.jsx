@@ -56,8 +56,9 @@ export function EmployerAuthProvider({ children }) {
       setError(null);
       const { data } = await employerAuthApi.login(email, password);
       setEmployerAccessToken(data.accessToken);
-      persistEmployer(data.employer);
-      return data.employer;
+      const me = await employerAuthApi.me();
+      persistEmployer(me.data.employer);
+      return me.data.employer;
     },
     [persistEmployer]
   );
@@ -66,8 +67,9 @@ export function EmployerAuthProvider({ children }) {
     async (payload) => {
       const { data } = await employerAuthApi.register(payload);
       setEmployerAccessToken(data.accessToken);
-      persistEmployer(data.employer);
-      return data.employer;
+      const me = await employerAuthApi.me();
+      persistEmployer(me.data.employer);
+      return me.data.employer;
     },
     [persistEmployer]
   );

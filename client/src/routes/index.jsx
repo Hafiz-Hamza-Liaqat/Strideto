@@ -164,6 +164,14 @@ const AdminOrganizationDetail = lazyLoad(() => import('../pages/Admin/AdminOrgan
 const AdminInbox = lazyLoad(() => import('../pages/Admin/AdminInbox'));
 const AdminPrivacyRequests = lazyLoad(() => import('../pages/Admin/AdminPrivacyRequests'));
 const EmployerSettings = lazyLoad(() => import('../pages/Employer/EmployerSettings'));
+const EmployerTeam = lazyLoad(() => import('../pages/Employer/EmployerTeam'));
+const EmployerVerification = lazyLoad(() => import('../pages/Employer/EmployerVerification'));
+const EmployerPlansUsage = lazyLoad(() => import('../pages/Employer/EmployerPlansUsage'));
+const EmployerBilling = lazyLoad(() => import('../pages/Employer/EmployerBilling'));
+const EmployerGuidelines = lazyLoad(() => import('../pages/Employer/EmployerGuidelines'));
+const EmployerHelp = lazyLoad(() => import('../pages/Employer/EmployerHelp'));
+const EmployerInterviews = lazyLoad(() => import('../pages/Employer/EmployerInterviews'));
+const EmployerAcceptInvitation = lazyLoad(() => import('../pages/Employer/EmployerAcceptInvitation'));
 const EmployerPublicGate = lazyLoad(() => import('../pages/Public/EmployerPublicProfile'));
 const CompanyProfile = lazyLoad(() => import('../pages/Public/CompanyProfile'));
 const UniversityProfile = lazyLoad(() => import('../pages/Public/UniversityProfile'));
@@ -304,6 +312,13 @@ export const routes = [
       { path: 'analytics', element: <EmployerAnalytics /> },
       { path: 'settings', element: <EmployerSettings /> },
       { path: 'notifications', element: <EmployerNotifications /> },
+      { path: 'interviews', element: <EmployerInterviews /> },
+      { path: 'verification', element: <EmployerVerification /> },
+      { path: 'plans', element: <EmployerPlansUsage /> },
+      { path: 'billing', element: <EmployerBilling /> },
+      { path: 'guidelines', element: <EmployerGuidelines /> },
+      { path: 'help', element: <EmployerHelp /> },
+      { path: 'team', element: <EmployerTeam /> },
     ],
   },
   {
@@ -356,6 +371,7 @@ export const routes = [
       { path: ROUTES.REGISTER, element: <Register /> },
       { path: ROUTES.EMPLOYER_LOGIN, element: <EmployerLogin /> },
       { path: ROUTES.EMPLOYER_REGISTER, element: <EmployerRegister /> },
+      { path: ROUTES.EMPLOYER_ACCEPT_INVITATION, element: <EmployerAcceptInvitation /> },
       { path: ROUTES.AGENT_LOGIN, element: <AgentLogin /> },
       { path: ROUTES.AGENT_REGISTER, element: <AgentRegister /> },
       { path: ROUTES.AGENT_PUBLIC_DIRECTORY, element: <AgentDirectory /> },

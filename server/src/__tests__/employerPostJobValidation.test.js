@@ -41,6 +41,7 @@ const base = {
   applicationDeadline: '',
   applyLink: '',
   applyEmail: '',
+  openingsCount: '3',
 };
 
 // 1–3: field IDs exist for every control (label association contract)
@@ -285,6 +286,29 @@ assert.strictEqual(resolveApplyMethodFromJob({}), DEFAULT_APPLY_METHOD);
   const payload = buildUpdateJobPayload({ ...base, applyMethod: 'external_url', applyLink: 'https://same.com', applyEmail: '' }, []);
   assert.strictEqual(payload.applyLink, 'https://same.com');
   assert.strictEqual(payload.applyEmail, '');
+}
+
+{
+  const r = validateEmployerPostJobForm({ ...base, openingsCount: '' });
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.errors.openingsCount, 'validationOpeningsRequired');
+}
+{
+  const r = validateEmployerPostJobForm({ ...base, openingsCount: '0' });
+  assert.strictEqual(r.ok, false);
+  assert.strictEqual(r.errors.openingsCount, 'validationOpeningsInvalid');
+}
+{
+  const r = validateEmployerPostJobForm({ ...base, openingsCount: '1.5' });
+  assert.strictEqual(r.ok, false);
+}
+{
+  const payload = buildCreateJobPayload(base, []);
+  assert.strictEqual(payload.openingsCount, 3);
+}
+{
+  const form = jobToForm({ title: 'A', openingsCount: null });
+  assert.strictEqual(form.openingsCount, '');
 }
 
 console.log('employerPostJobValidation.test.js: all assertions passed');

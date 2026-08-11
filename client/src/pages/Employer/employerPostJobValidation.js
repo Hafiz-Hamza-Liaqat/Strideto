@@ -2,6 +2,7 @@
  * Pure validation + apply-mode helpers for Employer Post Job (E.1F-C).
  * Mirrors server createJob contract in employerController.js.
  */
+import { parseOpeningsCount } from '../../../../shared/employer/openingsCount.js';
 
 export const JOB_TYPE_VALUES = ['Private', 'Government', 'Internship'];
 export const EMPLOYMENT_TYPE_VALUES = ['full-time', 'part-time', 'contract', 'internship'];
@@ -19,6 +20,7 @@ export const FIELD_IDS = {
   applyLink: 'employer-post-apply-link',
   applyEmail: 'employer-post-apply-email',
   applyMethod: 'employer-post-apply-method-internal',
+  openingsCount: 'employer-post-openings-count',
 };
 
 /**
@@ -153,7 +155,7 @@ export function isDeadlineNotPast(value, today = new Date()) {
  * @returns {{ ok: boolean, errors: Record<string, string>, applyMode: ReturnType<typeof resolveApplyMode> }}
  * Error keys are field names; values are i18n message keys under employer namespace.
  */
-export function validateEmployerPostJobForm(form, { today } = {}) {
+export function validateEmployerPostJobForm(form, { today, requireOpenings = true } = {}) {
   const errors = {};
   const title = String(form.jobTitle || '').trim();
   const company = String(form.companyName || '').trim();
@@ -185,6 +187,11 @@ export function validateEmployerPostJobForm(form, { today } = {}) {
     if (!/^\d{4}-\d{2}-\d{2}$/.test(deadline)) errors.applicationDeadline = 'validationDeadlineInvalid';
     else if (!isDeadlineNotPast(deadline, today)) errors.applicationDeadline = 'validationDeadlinePast';
   }
+
+  const openings = parseOpeningsCount(form.openingsCount, { required: requireOpenings });
+  if (!openings.ok) errors.openingsCount = openings.code === 'OPENINGS_COUNT_REQUIRED'
+    ? 'validationOpeningsRequired'
+    : 'validationOpeningsInvalid';
 
   if (applyLink && !isValidHttpUrl(applyLink)) errors.applyLink = 'validationApplyUrlInvalid';
   if (applyEmail && !isValidEmail(applyEmail)) errors.applyEmail = 'validationApplyEmailInvalid';
@@ -242,6 +249,7 @@ export function jobToForm(job = {}) {
     applyLink: job.applicationLink || '',
     applyEmail: job.applyEmail || '',
     applyMethod: resolveApplyMethodFromJob(job),
+    openingsCount: job.openingsCount == null ? '' : String(job.openingsCount),
   };
 }
 
@@ -271,6 +279,7 @@ export function buildCreateJobPayload(form, skills) {
     applicationDeadline: String(form.applicationDeadline || '').trim() || undefined,
     applyLink: applyLink || undefined,
     applyEmail: applyEmail || undefined,
+    openingsCount: parseOpeningsCount(form.openingsCount, { required: false }).value ?? undefined,
   };
 }
 

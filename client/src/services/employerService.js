@@ -156,6 +156,26 @@ export const employerApi = {
    */
   applicantSkills: (applicantUserId, params) =>
     employerAxios.get(`/employer/applicants/${applicantUserId}/skills`, { params }),
+
+  plansUsage: () => employerAxios.get('/employer/plans/usage'),
+  billing: (params) => employerAxios.get('/employer/billing', { params }),
+  interviews: (params) => employerAxios.get('/employer/interviews', { params }),
+  listTeam: (params) => employerAxios.get('/employer/team', { params }),
+  listInvites: () => employerAxios.get('/employer/team/invites'),
+  createInvite: (body) => employerAxios.post('/employer/team/invites', body),
+  revokeInvite: (id) => employerAxios.post(`/employer/team/invites/${id}/revoke`),
+  updateMember: (id, body) => employerAxios.patch(`/employer/team/members/${id}`, body),
+  removeMember: (id) => employerAxios.delete(`/employer/team/members/${id}`),
+  previewInvite: (token) => employerAxios.get('/auth/employer/invitations/preview', { params: { token } }),
+  acceptInvite: (token) => employerAxios.post('/auth/employer/invitations/accept', { token }),
+  verificationStatus: (organizationId) =>
+    employerAxios.get(`/organizations/${organizationId}/verification`),
+  verificationSubmit: (organizationId, profile) =>
+    employerAxios.post(`/organizations/${organizationId}/verification/submit`, { profile }),
+  verificationRespond: (organizationId, profile) =>
+    employerAxios.post(`/organizations/${organizationId}/verification/respond`, { profile }),
+  verificationEvidence: (organizationId, evidence) =>
+    employerAxios.post(`/organizations/${organizationId}/verification/evidence`, evidence),
 };
 
 /**

@@ -17,6 +17,8 @@ import { Organization } from '../../models/Organization.js';
 import { AgentProfile } from '../../models/agent/AgentProfile.js';
 import { AgentMembership } from '../../models/agent/AgentMembership.js';
 import { AgentAccount } from '../../models/agent/AgentAccount.js';
+import { EmployerMembership } from '../../models/employer/EmployerMembership.js';
+import { employerRoleHasCapability, EMPLOYER_CAPABILITIES } from '../../../../shared/employer/team.js';
 
 async function prepareAgentSubmission(req, organizationId) {
   if (!req.agent?.agentAccountId) return;
@@ -35,6 +37,18 @@ async function prepareAgentSubmission(req, organizationId) {
  * Derive actor from request. Supports future org realm; for now also handles
  * admin actors acting on behalf of an organization (e.g. onboarding support).
  */
+function normalizeVerificationProfile(profile) {
+  const next = { ...profile };
+  if (next.authorizedRepresentative && typeof next.authorizedRepresentative === 'object') {
+    const rep = next.authorizedRepresentative;
+    next.representativeRole = next.representativeRole || rep.title || '';
+    next.representativeAuthorizationRef = next.representativeAuthorizationRef || rep.authority || '';
+    next.authorizedRepresentative = rep.fullName || '';
+  }
+  if (next.officialPhone && !next.phone) next.phone = next.officialPhone;
+  return next;
+}
+
 function actor(req, _organizationId) {
   return {
     userId: req.user?.userId || req.employer?.employerId || req.agent?.agentAccountId,
@@ -50,12 +64,29 @@ function actor(req, _organizationId) {
  *   - Admin/staff may access any.
  *   - Employer may only access the Organization linked to their employerId.
  */
-async function assertOwnership(req, organizationId) {
-  // Admin/staff bypass — they have VERIFICATION_READ permission (route guards ensure this)
-  if (req.user?.role) return;
+const STAFF_VERIFICATION_ROLES = new Set(['Admin', 'SuperAdmin', 'Editor', 'Moderator']);
 
-  // Employer: must be linked via legacyEmployerId
+async function assertOwnership(req, organizationId) {
+  // Staff support bypass only — ordinary User/Student tokens must not read
+  // another organization's verification dossier.
+  if (STAFF_VERIFICATION_ROLES.has(req.user?.role)) return;
+
+  // Employer: active membership in this organization, or legacy owner link.
   if (req.employer?.employerId) {
+    const membership = await EmployerMembership.findOne({
+      organizationId,
+      employerId: req.employer.employerId,
+      active: true,
+    }).select('role');
+    if (membership) {
+      if (!employerRoleHasCapability(membership.role, EMPLOYER_CAPABILITIES.VERIFICATION_READ)) {
+        throw Object.assign(
+          new Error('Access denied: verification is not permitted for this role'),
+          { code: 'FORBIDDEN', status: 403 }
+        );
+      }
+      return;
+    }
     const org = await Organization.findOne({
       _id: organizationId,
       legacyEmployerId: req.employer.employerId,
@@ -121,6 +152,7 @@ export async function getVerificationStatus(req, res) {
       earnedBadges: record.earnedBadges || [],
       verifiedAt: record.verifiedAt,
       nextReviewAt: record.nextReviewAt,
+      profile: record.profile || {},
       evidence: safeEvidence,
     });
   } catch (err) {
@@ -133,13 +165,31 @@ export async function submitVerification(req, res) {
   try {
     const { organizationId } = req.params;
     await assertOwnership(req, organizationId);
-
-    const { profile } = req.body;
-    if (!profile || typeof profile !== 'object') {
-      return res.status(422).json({ error: 'profile is required' });
+    if (req.employer?.employerId) {
+      const membership = await EmployerMembership.findOne({
+        organizationId,
+        employerId: req.employer.employerId,
+        active: true,
+      }).select('role');
+      const role = membership?.role;
+      if (role && !employerRoleHasCapability(role, EMPLOYER_CAPABILITIES.VERIFICATION_SUBMIT)) {
+        return res.status(403).json({ error: 'Verification submission is not permitted for this role' });
+      }
     }
 
+    const { profile: rawProfile } = req.body;
+    if (!rawProfile || typeof rawProfile !== 'object') {
+      return res.status(422).json({ error: 'profile is required' });
+    }
+    const profile = normalizeVerificationProfile(rawProfile);
+
     await prepareAgentSubmission(req, organizationId);
+    if (req.employer?.employerId) {
+      const current = await verificationService.getVerification(organizationId);
+      if (current.status === 'draft') {
+        await verificationService.markEmailVerified(organizationId, actor(req, organizationId));
+      }
+    }
 
     const updated = await verificationService.submitVerification(
       organizationId,
@@ -196,10 +246,11 @@ export async function respondToInformationRequest(req, res) {
     const { organizationId } = req.params;
     await assertOwnership(req, organizationId);
 
-    const { profile } = req.body;
-    if (!profile || typeof profile !== 'object') {
+    const { profile: rawProfile } = req.body;
+    if (!rawProfile || typeof rawProfile !== 'object') {
       return res.status(422).json({ error: 'profile is required' });
     }
+    const profile = normalizeVerificationProfile(rawProfile);
 
     await prepareAgentSubmission(req, organizationId);
 

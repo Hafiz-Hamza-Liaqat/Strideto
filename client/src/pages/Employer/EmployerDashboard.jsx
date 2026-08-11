@@ -6,13 +6,17 @@ import { employerApi } from '../../services/employerService';
 import { ROUTES } from '../../constants';
 import { VerificationBadge } from '../../components/common/VerificationBadge';
 
-const Card = ({ title, value, sub }) => (
-  <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm min-w-0">
-    <p className="text-sm text-slate-600 dark:text-gray-400 font-medium">{title}</p>
-    <p className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white mt-1 break-words">{value}</p>
-    {sub && <p className="text-xs text-slate-500 dark:text-gray-500 mt-1">{sub}</p>}
-  </div>
-);
+const Card = ({ title, value, sub, to }) => {
+  const inner = (
+    <>
+      <p className="text-sm text-slate-600 dark:text-gray-400 font-medium">{title}</p>
+      <p className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white mt-1 break-words">{value}</p>
+      {sub && <p className="text-xs text-slate-500 dark:text-gray-500 mt-1">{sub}</p>}
+    </>
+  );
+  const cls = 'bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 shadow-sm min-w-0 block';
+  return to ? <Link to={to} className={cls}>{inner}</Link> : <div className={cls}>{inner}</div>;
+};
 
 export default function EmployerDashboard() {
   const { t } = useTranslation(['employer', 'common']);
@@ -109,22 +113,34 @@ export default function EmployerDashboard() {
         </p>
       ) : null}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-        <Card title={t('employer:activeJobsCard')} value={data?.activeJobs ?? 0} sub={t('employer:activeJobsHint')} />
+        <Card title={t('employer:activeJobsCard')} value={data?.activeJobs ?? 0} sub={t('employer:activeJobsHint')} to={ROUTES.EMPLOYER_JOBS} />
         <Card
           title={t('employer:totalApplicationsCard')}
           value={data?.totalInternalApplications ?? data?.totalApplications ?? 0}
           sub={t('employer:internalApplicationsHint')}
+          to={ROUTES.EMPLOYER_APPLICATIONS}
         />
-        <Card title={t('employer:totalViewsCard')} value={data?.totalViews ?? 0} />
-        <Card title={t('employer:shortlistedCard')} value={data?.shortlistedCandidates ?? 0} />
+        <Card title={t('employer:totalViewsCard')} value={data?.totalViews ?? 0} to={ROUTES.EMPLOYER_ANALYTICS} />
+        <Card title={t('employer:shortlistedCard')} value={data?.shortlistedCandidates ?? 0} to={ROUTES.EMPLOYER_APPLICATIONS} />
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-8">
-        <Card title={t('employer:draftJobsCard')} value={data?.draftJobs ?? 0} />
-        <Card title={t('employer:pendingApprovalCard')} value={data?.pendingApprovalJobs ?? 0} />
-        <Card title={t('employer:closedJobsCard')} value={data?.closedJobs ?? 0} />
-        <Card title={t('employer:newApplicationsCard')} value={data?.newApplications ?? 0} sub={t('employer:last7Days')} />
-        <Card title={t('employer:conversionRate')} value={conversionDisplay} sub={t('employer:conversionInternalHint')} />
-        <Card title={t('employer:totalJobsCard')} value={data?.totalJobs ?? 0} />
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3 mb-4">
+        <Card title={t('employer:draftJobsCard')} value={data?.draftJobs ?? 0} to={`${ROUTES.EMPLOYER_JOBS}?status=draft`} />
+        <Card title={t('employer:pendingApprovalCard')} value={data?.pendingApprovalJobs ?? 0} to={`${ROUTES.EMPLOYER_JOBS}?status=pending`} />
+        <Card title={t('employer:closedJobsCard')} value={data?.closedJobs ?? 0} to={`${ROUTES.EMPLOYER_JOBS}?status=closed`} />
+        <Card title={t('employer:newApplicationsCard')} value={data?.newApplications ?? 0} sub={t('employer:last7Days')} to={ROUTES.EMPLOYER_APPLICATIONS} />
+        <Card title={t('employer:conversionRate')} value={conversionDisplay} sub={t('employer:conversionInternalHint')} to={ROUTES.EMPLOYER_ANALYTICS} />
+        <Card title={t('employer:totalJobsCard')} value={data?.totalJobs ?? 0} to={ROUTES.EMPLOYER_JOBS} />
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-2 lg:grid-cols-4 gap-3 mb-8">
+        <Card title={t('employer:interviewsCard')} value={data?.interviews ?? 0} to={ROUTES.EMPLOYER_INTERVIEWS} />
+        <Card title={t('employer:unreadNotificationsCard')} value={data?.unreadNotifications ?? 0} to={ROUTES.EMPLOYER_NOTIFICATIONS} />
+        <Card title={t('employer:verificationStateCard')} value={data?.verificationState || (data?.verified ? 'approved' : 'unverified')} to={ROUTES.EMPLOYER_VERIFICATION} />
+        <Card
+          title={t('employer:planQuotaCard')}
+          value={data?.planSummary ? `${data.planSummary.dailyRemaining ?? '—'}` : '—'}
+          sub={t('employer:planQuotaHint')}
+          to={ROUTES.EMPLOYER_PLANS_USAGE}
+        />
       </div>
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden min-w-0">
         <div className="px-5 py-4 border-b border-gray-200 dark:border-gray-700 flex flex-wrap items-center justify-between gap-2">

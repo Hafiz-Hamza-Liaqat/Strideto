@@ -944,10 +944,11 @@ export async function listOwnClaims({ userId, limit = 50 }) {
  * Returns 404 rather than 403 on failure so employer ids cannot be used to
  * probe which users exist.
  */
-export async function assertEmployerMayViewApplicant({ employerId, applicantUserId }) {
+export async function assertEmployerMayViewApplicant({ employerId, applicantUserId, scopeEmployerId }) {
   if (!mongoose.Types.ObjectId.isValid(applicantUserId)) {
     return fail('APPLICANT_NOT_FOUND', 404, 'Applicant not found');
   }
+  employerId = scopeEmployerId || employerId;
   const employerJobIds = await Job.find({ employerId }).distinct('_id');
   if (!employerJobIds.length) return fail('APPLICANT_NOT_FOUND', 404, 'Applicant not found');
 

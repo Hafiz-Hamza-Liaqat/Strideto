@@ -148,7 +148,17 @@ export const employerLogin = asyncHandler(async (req, res) => {
 export const employerMe = asyncHandler(async (req, res) => {
   const employer = await Employer.findById(req.employer.employerId);
   if (!employer) return res.status(404).json({ error: 'Employer not found' });
-  res.json({ employer: toSafeEmployer(employer) });
+  const safe = toSafeEmployer(employer);
+  res.json({
+    employer: {
+      ...safe,
+      organizationId: req.employer.organizationId || null,
+      teamRole: req.employer.teamRole || null,
+      hiringOwnerId: req.employer.hiringOwnerId || String(employer._id),
+      capabilities: req.employer.capabilities || [],
+      organizationName: req.employer.organizationName || safe.companyName,
+    },
+  });
 });
 
 export const employerLogout = asyncHandler(async (req, res) => {

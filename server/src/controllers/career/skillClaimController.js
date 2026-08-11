@@ -142,6 +142,7 @@ export const getApplicantSkillsForEmployer = asyncHandler(async (req, res) => {
   // Scoped to applicants who applied to this employer's own jobs.
   const allowed = await skillVerificationService.assertEmployerMayViewApplicant({
     employerId: req.employer.employerId,
+    scopeEmployerId: req.employer.hiringOwnerId || req.employer.employerId,
     applicantUserId: req.params.applicantId,
   });
   if (!allowed.ok) return sendFailure(res, allowed);

@@ -5,8 +5,10 @@ import { SeoHead } from '../../components/seo';
 import { employerApi } from '../../services/employerService';
 import { ROUTES } from '../../constants';
 import { EmptyState } from '../../components/common/EmptyState';
+import { formatOpeningsCount } from '@shared/employer/openingsCount.js';
 
 const STATUS_FILTERS = ['', 'draft', 'active', 'closed'];
+const REVIEW_FILTERS = ['pending'];
 
 /** A draft that is not on the complimentary first-job plan needs a paid plan. */
 function isPaidDraft(j) {
@@ -36,7 +38,8 @@ export default function EmployerJobs() {
   const [searchParams, setSearchParams] = useSearchParams();
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState(() => searchParams.get('status') || '');
+  const [q, setQ] = useState('');
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [actionJobId, setActionJobId] = useState('');
@@ -51,14 +54,14 @@ export default function EmployerJobs() {
     setLoading(true);
     setError('');
     return employerApi
-      .getJobs({ status: status || undefined })
+      .getJobs({ status: status || undefined, q: q || undefined })
       .then(({ data }) => setJobs(data.data || []))
       .catch(() => {
         setJobs([]);
         setError(t('employer:jobsLoadFailed'));
       })
       .finally(() => setLoading(false));
-  }, [status, t]);
+  }, [status, q, t]);
 
   useEffect(() => {
     loadJobs();
@@ -203,8 +206,18 @@ export default function EmployerJobs() {
           {t('employer:postNewJob')}
         </Link>
       </div>
+      <div className="mb-4">
+        <label htmlFor="employer-jobs-search" className="sr-only">{t('common:search')}</label>
+        <input
+          id="employer-jobs-search"
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder={t('employer:searchJobs')}
+          className="w-full max-w-md min-h-[44px] px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 mb-3"
+        />
+      </div>
       <div className="mb-4 flex flex-wrap gap-2">
-        {STATUS_FILTERS.map((s) => (
+        {[...STATUS_FILTERS, ...REVIEW_FILTERS].map((s) => (
           <button
             key={s || 'all'}
             type="button"
@@ -340,6 +353,9 @@ export default function EmployerJobs() {
                       {isExternalJob(j) ? t('employer:applyMethodExternal') : t('employer:applyMethodInternal')}
                     </span>
                     <span>
+                      {t('employer:openingsCountLabel')}: {formatOpeningsCount(j.openingsCount)}
+                    </span>
+                    <span>
                       {t('common:views')}: {j.views ?? 0}
                     </span>
                     <span>
@@ -393,6 +409,7 @@ export default function EmployerJobs() {
                     <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900 dark:text-white">{t('common:title')}</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900 dark:text-white">{t('common:status')}</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900 dark:text-white">{t('employer:applyMethod')}</th>
+                    <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900 dark:text-white">{t('employer:openingsCountLabel')}</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900 dark:text-white">{t('common:views')}</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900 dark:text-white">{t('common:applications')}</th>
                     <th className="text-left py-3 px-4 text-sm font-semibold text-gray-900 dark:text-white">{t('common:actions')}</th>
@@ -427,6 +444,7 @@ export default function EmployerJobs() {
                       <td className="py-3 px-4 text-sm text-slate-600 dark:text-gray-300">
                         {isExternalJob(j) ? t('employer:applyMethodExternal') : t('employer:applyMethodInternal')}
                       </td>
+                      <td className="py-3 px-4 text-slate-600 dark:text-gray-300">{formatOpeningsCount(j.openingsCount)}</td>
                       <td className="py-3 px-4 text-slate-600 dark:text-gray-300">{j.views ?? 0}</td>
                       <td className="py-3 px-4 text-slate-600 dark:text-gray-300">{formatApplicationCount(j, t)}</td>
                       <td className="py-3 px-4">

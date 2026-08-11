@@ -30,6 +30,7 @@ const defaultForm = {
   applyLink: '',
   applyEmail: '',
   applyMethod: DEFAULT_APPLY_METHOD,
+  openingsCount: '1',
 };
 
 const APPLY_METHOD_META = {
@@ -143,7 +144,7 @@ export default function EmployerPostJob() {
   const handleSubmitDraft = async (e) => {
     e.preventDefault();
     setError('');
-    const result = validateEmployerPostJobForm(form);
+    const result = validateEmployerPostJobForm(form, { requireOpenings: !isEdit || String(form.openingsCount || '').trim() !== '' });
     // The application-method selector (create and edit alike, PF-HIRE-B2) is
     // authoritative for applyLink/applyEmail requirements — supersede (not
     // append to) the generic validator's own optional-fields checks for
@@ -227,6 +228,8 @@ export default function EmployerPostJob() {
         </h1>
         <p className="text-gray-600 dark:text-gray-300 mb-6">
           {t('employer:draftSavedPlan', { title: createdJob.title })}
+          {' '}
+          {t('employer:draftDidNotConsumeQuota')}
         </p>
         {error && (
           <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm" role="alert">
@@ -341,6 +344,35 @@ export default function EmployerPostJob() {
             autoComplete="off"
           />
           <FieldError id={`${FIELD_IDS.jobTitle}-error`} message={translateFieldError(fieldErrors.jobTitle)} />
+        </div>
+
+        <div>
+          <label htmlFor={FIELD_IDS.openingsCount} className={labelClass}>
+            {t('employer:openingsCountLabel')}
+            <RequiredMark />
+            <span className="sr-only">{t('employer:required')}</span>
+          </label>
+          <input
+            id={FIELD_IDS.openingsCount}
+            name="openingsCount"
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={10000}
+            step={1}
+            value={form.openingsCount}
+            onChange={handleChange}
+            required={!isEdit}
+            aria-required={!isEdit ? 'true' : undefined}
+            aria-invalid={fieldErrors.openingsCount ? 'true' : undefined}
+            aria-describedby={describedBy('openingsCount', `${FIELD_IDS.openingsCount}-help`)}
+            disabled={submitting}
+            className={inputClass}
+          />
+          <p id={`${FIELD_IDS.openingsCount}-help`} className={helpClass}>
+            {t('employer:openingsCountHelp')}
+          </p>
+          <FieldError id={`${FIELD_IDS.openingsCount}-error`} message={translateFieldError(fieldErrors.openingsCount)} />
         </div>
 
         <div>

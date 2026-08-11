@@ -16,6 +16,7 @@ import { OrganizationVerification } from '../models/OrganizationVerification.js'
 import { VerificationEvidence } from '../models/VerificationEvidence.js';
 import { VerificationTransition } from '../models/VerificationTransition.js';
 import { Organization } from '../models/Organization.js';
+import { Employer } from '../models/Employer.js';
 import { logAudit } from './auditService.js';
 import {
   VERIFICATION_STATUSES,
@@ -146,7 +147,29 @@ async function applyTransition(organizationId, toStatus, actor, reason, extraUpd
     transitionId: transition._id,
     organizationType: record.organizationType,
   });
+  await syncEmployerHiringEligibilityFromOrganization(organizationId, toStatus);
   return updated;
+}
+
+/**
+ * Mirror Admin organization-verification outcomes onto the hiring Employer
+ * used by free-job eligibility. Employer cannot self-approve: this only runs
+ * after a server-side Admin transition.
+ */
+async function syncEmployerHiringEligibilityFromOrganization(organizationId, toStatus) {
+  const org = await Organization.findById(organizationId).select('legacyEmployerId organizationType').lean();
+  if (!org?.legacyEmployerId) return;
+  if (toStatus === VS.APPROVED) {
+    await Employer.findByIdAndUpdate(org.legacyEmployerId, {
+      $set: { verified: true, verificationLevel: 'verified' },
+    });
+    return;
+  }
+  if ([VS.REJECTED, VS.SUSPENDED, VS.REVOKED, VS.EXPIRED].includes(toStatus)) {
+    await Employer.findByIdAndUpdate(org.legacyEmployerId, {
+      $set: { verified: false, verificationLevel: 'basic' },
+    });
+  }
 }
 
 // ---------------------------------------------------------------------------
@@ -320,6 +343,7 @@ export async function approve(organizationId, actor, reason) {
     transitionId: transition._id,
     organizationType: record.organizationType,
   });
+  await syncEmployerHiringEligibilityFromOrganization(organizationId, VS.APPROVED);
   return updated;
 }
 
@@ -376,6 +400,7 @@ export async function reject(organizationId, actor, reason) {
     transitionId: transition._id,
     organizationType: record.organizationType,
   });
+  await syncEmployerHiringEligibilityFromOrganization(organizationId, VS.REJECTED);
   return updated;
 }
 

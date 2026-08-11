@@ -9,18 +9,10 @@ import { EmployerNotificationBell } from '../../components/notifications/Employe
 import { useOverlayA11y } from '../../a11y/useOverlayA11y';
 
 import { isEmployerIntelligenceEnabled } from '../../config/careerFeatureFlags';
+import { employerNavItems } from '../../config/employerNavConfig';
 
-function NavLinks({ location, onNavigate, t, showIntelligence }) {
-  const menu = [
-    { path: ROUTES.EMPLOYER_DASHBOARD, labelKey: 'dashboardHeading' },
-    ...(showIntelligence ? [{ path: ROUTES.EMPLOYER_INTELLIGENCE, labelKey: 'intelligenceHeading' }] : []),
-    { path: ROUTES.EMPLOYER_JOBS, labelKey: 'myJobPosts' },
-    { path: ROUTES.EMPLOYER_POST_JOB, labelKey: 'postNewJob' },
-    { path: ROUTES.EMPLOYER_APPLICATIONS, labelKey: 'applications' },
-    { path: ROUTES.EMPLOYER_ANALYTICS, labelKey: 'analytics' },
-    { path: ROUTES.EMPLOYER_NOTIFICATIONS, labelKey: 'notifications' },
-    { path: ROUTES.EMPLOYER_SETTINGS, labelKey: 'settings' },
-  ];
+function NavLinks({ location, onNavigate, t, showIntelligence, capabilities }) {
+  const menu = employerNavItems({ showIntelligence, capabilities });
 
   // Exactly one nav item is active: the most specific (longest) path that
   // matches the current location. Prefix matching alone would light up both
@@ -46,9 +38,7 @@ function NavLinks({ location, onNavigate, t, showIntelligence }) {
           : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
       }`}
     >
-      {labelKey === 'dashboardHeading'
-        ? t('employer:dashboardHeading')
-        : t(`employer:${labelKey}`, { defaultValue: labelKey === 'notifications' ? 'Notifications' : labelKey })}
+            {t(`employer:${labelKey}`, { defaultValue: labelKey })}
     </Link>
   ));
 }
@@ -122,7 +112,7 @@ export default function EmployerLayout() {
               </button>
             </div>
             <nav className="space-y-1 flex-1">
-              <NavLinks location={location} onNavigate={() => setMobileOpen(false)} t={t} showIntelligence={showIntelligence} />
+              <NavLinks location={location} onNavigate={() => setMobileOpen(false)} t={t} showIntelligence={showIntelligence} capabilities={employer?.capabilities || []} />
             </nav>
             <div className="pt-3 border-t border-gray-200 dark:border-gray-700 shrink-0">
               <p className="text-xs text-gray-500 truncate px-2 break-words-safe">{employer?.companyName}</p>
@@ -146,7 +136,7 @@ export default function EmployerLayout() {
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('employer:employerPortal')}</p>
         </div>
         <nav className="p-2 flex-1 space-y-1">
-          <NavLinks location={location} t={t} showIntelligence={showIntelligence} />
+          <NavLinks location={location} t={t} showIntelligence={showIntelligence} capabilities={employer?.capabilities || []} />
         </nav>
         <div className="p-3 border-t border-gray-200 dark:border-gray-700">
           <p className="text-xs text-gray-500 dark:text-gray-400 truncate px-2 break-words-safe">{employer?.companyName}</p>

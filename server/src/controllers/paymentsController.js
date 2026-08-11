@@ -5,7 +5,7 @@ const SITE = (process.env.SITE_URL || process.env.FRONTEND_URL || 'http://localh
 
 /** POST /employer/jobs/:id/checkout — create Stripe checkout session */
 export const createJobCheckout = asyncHandler(async (req, res) => {
-  const employerId = req.employer.employerId;
+  const employerId = req.employer.hiringOwnerId || req.employer.employerId;
   const { planId } = req.body;
   if (!planId) return res.status(400).json({ error: 'planId is required' });
   if (!isStripeConfigured()) {

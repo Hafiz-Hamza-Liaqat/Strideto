@@ -9,7 +9,11 @@ import {
 } from '../middleware/rateLimit.js';
 import * as employerAuth from '../controllers/employerAuthController.js';
 import * as employer from '../controllers/employerController.js';
+import * as employerTeam from '../controllers/employerTeamController.js';
+import * as employerUsage from '../controllers/employerUsageController.js';
 import { createJobCheckout } from '../controllers/paymentsController.js';
+import { requireEmployerCapability } from '../services/employer/employerOrganizationService.js';
+import { EMPLOYER_CAPABILITIES as C } from '../../../shared/employer/team.js';
 
 export const employerRouter = Router();
 
@@ -90,6 +94,79 @@ employerRouter.get(
   employer.getPlans
 );
 employerRouter.get(
+  '/employer/plans/usage',
+  requireAuth,
+  requireEmployerAuth,
+  requireEmployerCapability(C.USAGE_READ),
+  employerUsage.getPlansUsage
+);
+employerRouter.get(
+  '/employer/billing',
+  requireAuth,
+  requireEmployerAuth,
+  requireEmployerCapability(C.BILLING_READ),
+  employerUsage.getBillingOverview
+);
+employerRouter.get(
+  '/employer/team',
+  requireAuth,
+  requireEmployerAuth,
+  requireEmployerCapability(C.TEAM_READ),
+  employerTeam.listTeam
+);
+employerRouter.get(
+  '/employer/team/invites',
+  requireAuth,
+  requireEmployerAuth,
+  requireEmployerCapability(C.TEAM_READ),
+  employerTeam.listInvites
+);
+employerRouter.post(
+  '/employer/team/invites',
+  requireAuth,
+  requireEmployerAuth,
+  requireEmployerCapability(C.TEAM_MANAGE),
+  employerTeam.createInvite
+);
+employerRouter.post(
+  '/employer/team/invites/:invitationId/revoke',
+  requireAuth,
+  requireEmployerAuth,
+  requireEmployerCapability(C.TEAM_MANAGE),
+  employerTeam.revokeInvite
+);
+employerRouter.patch(
+  '/employer/team/members/:membershipId',
+  requireAuth,
+  requireEmployerAuth,
+  requireEmployerCapability(C.TEAM_MANAGE),
+  employerTeam.updateMember
+);
+employerRouter.delete(
+  '/employer/team/members/:membershipId',
+  requireAuth,
+  requireEmployerAuth,
+  requireEmployerCapability(C.TEAM_MANAGE),
+  employerTeam.deleteMember
+);
+employerRouter.get(
+  '/auth/employer/invitations/preview',
+  employerTeam.previewInvite
+);
+employerRouter.post(
+  '/auth/employer/invitations/accept',
+  requireAuth,
+  requireEmployerAuth,
+  employerTeam.acceptInvite
+);
+employerRouter.get(
+  '/employer/interviews',
+  requireAuth,
+  requireEmployerAuth,
+  requireEmployerCapability(C.INTERVIEWS_READ),
+  employer.getInterviews
+);
+employerRouter.get(
   '/employer/jobs',
   requireAuth,
   requireEmployerAuth,
@@ -113,30 +190,35 @@ employerRouter.post(
   '/employer/jobs',
   requireAuth,
   requireEmployerAuth,
+  requireEmployerCapability(C.JOBS_WRITE),
   employer.createJob
 );
 employerRouter.patch(
   '/employer/jobs/:id',
   requireAuth,
   requireEmployerAuth,
+  requireEmployerCapability(C.JOBS_WRITE),
   employer.updateJob
 );
 employerRouter.post(
   '/employer/jobs/:id/close',
   requireAuth,
   requireEmployerAuth,
+  requireEmployerCapability(C.JOBS_WRITE),
   employer.closeJob
 );
 employerRouter.post(
   '/employer/jobs/:id/reopen',
   requireAuth,
   requireEmployerAuth,
+  requireEmployerCapability(C.JOBS_WRITE),
   employer.reopenJob
 );
 employerRouter.post(
   '/employer/jobs/:id/activate',
   requireAuth,
   requireEmployerAuth,
+  requireEmployerCapability(C.JOBS_WRITE),
   employer.activateJob
 );
 employerRouter.post(
@@ -161,5 +243,6 @@ employerRouter.patch(
   '/employer/applications/:id',
   requireAuth,
   requireEmployerAuth,
+  requireEmployerCapability(C.APPLICATIONS_WRITE),
   employer.updateApplicationStatus
 );

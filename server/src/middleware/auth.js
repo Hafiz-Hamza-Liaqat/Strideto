@@ -100,11 +100,19 @@ export function optionalAuth(req, res, next) {
 }
 
 /** Requires an Employer token. Use for employer dashboard routes. */
-export function requireEmployerAuth(req, res, next) {
+export async function requireEmployerAuth(req, res, next) {
   if (!req.employer) {
     return res.status(401).json({ error: 'Employer authentication required' });
   }
-  next();
+  try {
+    const { attachEmployerOrganizationContext } = await import(
+      '../services/employer/employerOrganizationService.js'
+    );
+    await attachEmployerOrganizationContext(req);
+    next();
+  } catch (err) {
+    return res.status(err.status || 500).json({ error: err.message, code: err.code });
+  }
 }
 
 /** Requires an Agent token. Use for agent portal routes. */
