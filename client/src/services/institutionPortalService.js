@@ -61,6 +61,10 @@ export const institutionAuthApi = {
   me: () => client.get('/auth/institution/me'),
   refresh: () => client.post('/auth/institution/refresh-token'),
   logout: () => client.post('/auth/institution/logout'),
+  logoutAll: () => client.post('/auth/institution/logout-all'),
+  changePassword: (newPassword) => client.post('/auth/institution/change-password', { newPassword }),
+  previewInvite: (token) => client.get('/auth/institution/invitations/preview', { params: { token } }),
+  acceptInvite: (token) => client.post('/auth/institution/invitations/accept', { token }),
 };
 
 const portalPath = (organizationId, suffix = '') =>
@@ -74,7 +78,6 @@ export const institutionPortalApi = {
   claim: (organizationId) => client.get(portalPath(organizationId, '/claim')),
   startClaim: (organizationId, data) => client.post(portalPath(organizationId, '/claim'), data),
   submitClaim: (organizationId, claimId) => client.post(portalPath(organizationId, `/claim/${encodeURIComponent(claimId)}/submit`)),
-  programs: (organizationId) => client.get(portalPath(organizationId, '/programs')),
   program: (organizationId, programId) => client.get(portalPath(organizationId, `/programs/${encodeURIComponent(programId)}`)),
   createProgram: (organizationId, data) => client.post(portalPath(organizationId, '/programs'), data),
   updateProgram: (organizationId, programId, data) => client.patch(portalPath(organizationId, `/programs/${encodeURIComponent(programId)}`), data),
@@ -84,6 +87,33 @@ export const institutionPortalApi = {
   conflicts: (organizationId) => client.get(portalPath(organizationId, '/data-conflicts')),
   history: (organizationId) => client.get(portalPath(organizationId, '/change-history')),
   reconfirmFreshness: (organizationId, data) => client.post(portalPath(organizationId, '/freshness/reconfirm'), data),
-  team: (organizationId) => client.get(portalPath(organizationId, '/team')),
+  team: (organizationId, params) => client.get(portalPath(organizationId, '/team'), { params }),
   updateMemberRole: (organizationId, memberId, role) => client.patch(portalPath(organizationId, `/team/${encodeURIComponent(memberId)}/role`), { role }),
+  revokeMember: (organizationId, memberId) => client.delete(portalPath(organizationId, `/team/${encodeURIComponent(memberId)}`)),
+  listInvites: (organizationId) => client.get(portalPath(organizationId, '/team/invites')),
+  createInvite: (organizationId, data) => client.post(portalPath(organizationId, '/team/invites'), data),
+  revokeInvite: (organizationId, invitationId) => client.post(portalPath(organizationId, `/team/invites/${encodeURIComponent(invitationId)}/revoke`)),
+  programs: (organizationId, params) => client.get(portalPath(organizationId, '/programs'), { params }),
+  listTestAcceptance: (organizationId, params) => client.get(portalPath(organizationId, '/test-acceptance'), { params }),
+  scholarships: (organizationId, params) => client.get(portalPath(organizationId, '/scholarships'), { params }),
+  createScholarship: (organizationId, data) => client.post(portalPath(organizationId, '/scholarships'), data),
+  updateScholarship: (organizationId, scholarshipId, data) => client.patch(portalPath(organizationId, `/scholarships/${encodeURIComponent(scholarshipId)}`), data),
+  applications: (organizationId, params) => client.get(portalPath(organizationId, '/applications'), { params }),
+  application: (organizationId, applicationId) => client.get(portalPath(organizationId, `/applications/${encodeURIComponent(applicationId)}`)),
+  transitionApplication: (organizationId, applicationId, data) => client.patch(portalPath(organizationId, `/applications/${encodeURIComponent(applicationId)}/status`), data),
+  usageBilling: (organizationId) => client.get(portalPath(organizationId, '/usage-billing')),
+  vaultProbe: (organizationId) => client.get(portalPath(organizationId, '/vault')),
+  getVerification: (organizationId) => client.get(`/organizations/${encodeURIComponent(organizationId)}/verification`),
+  submitVerification: (organizationId, profile) => client.post(`/organizations/${encodeURIComponent(organizationId)}/verification/submit`, { profile }),
+  respondToVerification: (organizationId, profile) => client.post(`/organizations/${encodeURIComponent(organizationId)}/verification/respond`, { profile }),
+  getCredentialPolicy: (organizationId) => client.get(`/organizations/${encodeURIComponent(organizationId)}/verification/credential-policy`),
 };
+
+export const institutionInboxApi = {
+  list: (params) => client.get('/inbox/notifications', { params }),
+  unreadCount: () => client.get('/inbox/notifications/unread-count'),
+  markRead: (id) => client.patch(`/inbox/notifications/${id}/read`),
+  markAllRead: () => client.post('/inbox/notifications/mark-all-read'),
+  remove: (id) => client.delete(`/inbox/notifications/${id}`),
+};
+

@@ -17,6 +17,7 @@ import { Organization } from '../../models/Organization.js';
 import { AgentProfile } from '../../models/agent/AgentProfile.js';
 import { AgentMembership } from '../../models/agent/AgentMembership.js';
 import { EmployerMembership } from '../../models/employer/EmployerMembership.js';
+import { InstitutionMembership } from '../../models/institution/InstitutionMembership.js';
 import { employerRoleHasCapability, EMPLOYER_CAPABILITIES } from '../../../../shared/employer/team.js';
 
 async function prepareAgentSubmission(req, organizationId) {
@@ -46,9 +47,9 @@ function normalizeVerificationProfile(profile) {
 
 function actor(req, _organizationId) {
   return {
-    userId: req.user?.userId || req.employer?.employerId || req.agent?.agentAccountId,
-    role: req.user?.role || (req.agent ? 'agent' : 'employer'),
-    realm: req.user ? 'admin' : (req.agent ? 'agent' : 'employer'),
+    userId: req.user?.userId || req.employer?.employerId || req.agent?.agentAccountId || req.institution?.institutionAccountId,
+    role: req.user?.role || (req.institution ? 'institution' : req.agent ? 'agent' : 'employer'),
+    realm: req.user ? 'admin' : (req.institution ? 'institution' : req.agent ? 'agent' : 'employer'),
     correlationId: req.headers['x-request-id'] || '',
   };
 }
@@ -109,6 +110,21 @@ async function assertOwnership(req, organizationId) {
       active: true,
     }).select('_id');
     if (!profile || !membership) {
+      throw Object.assign(
+        new Error('Access denied: organization does not belong to this account'),
+        { code: 'FORBIDDEN', status: 403 }
+      );
+    }
+    return;
+  }
+
+  if (req.institution?.institutionAccountId) {
+    const membership = await InstitutionMembership.findOne({
+      organizationId,
+      institutionAccountId: req.institution.institutionAccountId,
+      active: true,
+    }).select('_id');
+    if (!membership) {
       throw Object.assign(
         new Error('Access denied: organization does not belong to this account'),
         { code: 'FORBIDDEN', status: 403 }
@@ -182,7 +198,7 @@ export async function submitVerification(req, res) {
     const profile = normalizeVerificationProfile(rawProfile);
 
     await prepareAgentSubmission(req, organizationId);
-    if (req.employer?.employerId) {
+    if (req.employer?.employerId || req.institution?.institutionAccountId) {
       const current = await verificationService.getVerification(organizationId);
       if (current.status === 'draft') {
         await verificationService.markEmailVerified(organizationId, actor(req, organizationId));

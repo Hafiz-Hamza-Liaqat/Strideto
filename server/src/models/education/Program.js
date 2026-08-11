@@ -52,6 +52,7 @@ const programSchema = new mongoose.Schema(
       index: true,
     },
     campus: { type: String, trim: true, default: '' },
+    instructionLanguage: { type: String, trim: true, default: '' },
     studyMode: {
       type: String,
       enum: Object.values(STUDY_MODES),
@@ -74,6 +75,19 @@ const programSchema = new mongoose.Schema(
             applicationOpenAt: { type: Date, default: null },
             deadlineAt: { type: Date, default: null },
             notes: { type: String, trim: true, default: '' },
+            applicationOpenDate: { type: String, trim: true, default: '' },
+            deadlineDate: { type: String, trim: true, default: '' },
+            startDate: { type: String, trim: true, default: '' },
+            applicationMode: { type: String, trim: true, default: 'not_configured' },
+            applicationUrl: { type: String, trim: true, default: '' },
+            capacity: { type: Number, default: null },
+            requirements: { type: String, trim: true, default: '' },
+            fee: {
+              amountMinor: { type: Number, default: null },
+              currency: { type: String, trim: true, uppercase: true, default: '' },
+            },
+            status: { type: String, trim: true, default: 'draft' },
+            sourceUrl: { type: String, trim: true, default: '' },
           },
           { _id: false }
         ),

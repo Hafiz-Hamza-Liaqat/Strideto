@@ -213,6 +213,21 @@ const InstitutionPrograms = lazyLoad(() => import('../pages/Institution/Institut
 const InstitutionProgramEditor = lazyLoad(() => import('../pages/Institution/InstitutionProgramEditor'));
 const InstitutionDataQuality = lazyLoad(() => import('../pages/Institution/InstitutionDataQuality'));
 const InstitutionTeam = lazyLoad(() => import('../pages/Institution/InstitutionTeam'));
+const InstitutionVerification = lazyLoad(() => import('../pages/Institution/InstitutionVerification'));
+const InstitutionClaim = lazyLoad(() => import('../pages/Institution/InstitutionClaim'));
+const InstitutionIntakes = lazyLoad(() => import('../pages/Institution/InstitutionIntakes'));
+const InstitutionApplications = lazyLoad(() => import('../pages/Institution/InstitutionApplications'));
+const InstitutionTestAcceptance = lazyLoad(() => import('../pages/Institution/InstitutionTestAcceptance'));
+const InstitutionScholarships = lazyLoad(() => import('../pages/Institution/InstitutionScholarships'));
+const InstitutionNotifications = lazyLoad(() => import('../pages/Institution/InstitutionNotifications'));
+const InstitutionUsage = lazyLoad(() => import('../pages/Institution/InstitutionUsage'));
+const InstitutionBilling = lazyLoad(() => import('../pages/Institution/InstitutionBilling'));
+const InstitutionSettings = lazyLoad(() => import('../pages/Institution/InstitutionSettings'));
+const InstitutionGuidelines = lazyLoad(() => import('../pages/Institution/InstitutionGuidelines'));
+const InstitutionHelp = lazyLoad(() => import('../pages/Institution/InstitutionHelp'));
+const InstitutionAcceptInvitation = lazyLoad(() => import('../pages/Institution/InstitutionAcceptInvitation'));
+const StudentInstitutionApply = lazyLoad(() => import('../pages/Student/StudentInstitutionApply'));
+const StudentInstitutionAdmissions = lazyLoad(() => import('../pages/Student/StudentInstitutionAdmissions'));
 const Consultations = lazyLoad(() => import('../pages/Consultations/Consultations'));
 const ConsultationRequest = lazyLoad(() => import('../pages/Consultations/ConsultationRequest'));
 const ConsultationDetail = lazyLoad(() => import('../pages/Consultations/ConsultationDetail'));
@@ -252,6 +267,7 @@ function PageFallback() {
 export const routes = [
   { path: ROUTES.INSTITUTION_LOGIN, element: <InstitutionLogin /> },
   { path: ROUTES.INSTITUTION_REGISTER, element: <InstitutionRegister /> },
+  { path: ROUTES.INSTITUTION_ACCEPT_INVITATION, element: <InstitutionAcceptInvitation /> },
   {
     path: ROUTES.INSTITUTION_DASHBOARD,
     element: <ProtectedInstitutionRoute><InstitutionLayout /></ProtectedInstitutionRoute>,
@@ -259,11 +275,24 @@ export const routes = [
       { index: true, element: <InstitutionDashboard /> },
       { path: 'onboarding', element: <InstitutionOnboarding /> },
       { path: 'profile', element: <InstitutionProfile /> },
+      { path: 'verification', element: <InstitutionVerification /> },
+      { path: 'claim', element: <InstitutionClaim /> },
       { path: 'programs', element: <InstitutionPrograms /> },
       { path: 'programs/new', element: <InstitutionProgramEditor /> },
       { path: 'programs/:programId/edit', element: <InstitutionProgramEditor /> },
+      { path: 'intakes', element: <InstitutionIntakes /> },
+      { path: 'applications', element: <InstitutionApplications /> },
+      { path: 'applications/:applicationId', element: <InstitutionApplications /> },
+      { path: 'test-acceptance', element: <InstitutionTestAcceptance /> },
+      { path: 'scholarships', element: <InstitutionScholarships /> },
       { path: 'data-quality', element: <InstitutionDataQuality /> },
       { path: 'team', element: <InstitutionTeam /> },
+      { path: 'notifications', element: <InstitutionNotifications /> },
+      { path: 'usage', element: <InstitutionUsage /> },
+      { path: 'billing', element: <InstitutionBilling /> },
+      { path: 'settings', element: <InstitutionSettings /> },
+      { path: 'guidelines', element: <InstitutionGuidelines /> },
+      { path: 'help', element: <InstitutionHelp /> },
     ],
   },
   {
@@ -410,6 +439,22 @@ export const routes = [
         element: (
           <ProtectedRoute>
             <TalentProfileEditor />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: ROUTES.STUDENT_INSTITUTION_ADMISSIONS,
+        element: (
+          <ProtectedRoute>
+            <StudentInstitutionAdmissions />
+          </ProtectedRoute>
+        ),
+      },
+      {
+        path: ROUTES.STUDENT_INSTITUTION_APPLY,
+        element: (
+          <ProtectedRoute>
+            <StudentInstitutionApply />
           </ProtectedRoute>
         ),
       },

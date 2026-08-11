@@ -11,7 +11,7 @@
  * - Admin review: separate /admin/institution routes
  */
 import { Router } from 'express';
-import { requireAuth, requireInstitutionAuth } from '../middleware/auth.js';
+import { requireAuth, requireInstitutionAuth, requireUserAuth } from '../middleware/auth.js';
 import { requireStaff, requirePermission } from '../middleware/rbac.js';
 import { PERMISSIONS } from '../config/rbac.js';
 import { secureTrustedOrigin } from '../middleware/secureTrustedOrigin.js';
@@ -69,6 +69,27 @@ institutionPortalRouter.get(
   authCtrl.institutionMe
 );
 
+institutionPortalRouter.post(
+  '/auth/institution/change-password',
+  secureTrustedOrigin,
+  requireAuth,
+  requireInstitutionAuth,
+  authCtrl.institutionChangePassword
+);
+
+institutionPortalRouter.get(
+  '/auth/institution/invitations/preview',
+  portalCtrl.previewInvite
+);
+
+institutionPortalRouter.post(
+  '/auth/institution/invitations/accept',
+  secureTrustedOrigin,
+  requireAuth,
+  requireInstitutionAuth,
+  portalCtrl.acceptInvite
+);
+
 // ---------------------------------------------------------------------------
 // Public surfaces (no auth required)
 // ---------------------------------------------------------------------------
@@ -117,7 +138,20 @@ portal.post('/:organizationId/programs/:programId/submit', portalCtrl.submitProg
 portal.post('/:organizationId/programs/:programId/requirements', portalCtrl.createRequirement);
 
 // Test acceptance (institution/program scope — country-level protected)
+portal.get('/:organizationId/test-acceptance', portalCtrl.listTestAcceptance);
 portal.post('/:organizationId/test-acceptance', portalCtrl.createTestAcceptance);
+
+portal.get('/:organizationId/scholarships', portalCtrl.listScholarships);
+portal.post('/:organizationId/scholarships', portalCtrl.createScholarship);
+portal.patch('/:organizationId/scholarships/:scholarshipId', portalCtrl.updateScholarship);
+
+portal.get('/:organizationId/applications', portalCtrl.listApplications);
+portal.get('/:organizationId/applications/:applicationId', portalCtrl.getApplication);
+portal.patch('/:organizationId/applications/:applicationId/status', portalCtrl.transitionApplication);
+
+portal.get('/:organizationId/usage-billing', portalCtrl.getUsageBilling);
+portal.get('/:organizationId/vault', portalCtrl.denyVault);
+portal.get('/:organizationId/students', portalCtrl.denyVault);
 
 // Freshness reconfirmation (auditable)
 portal.post('/:organizationId/freshness/reconfirm', portalCtrl.reconfirmFreshness);
@@ -130,8 +164,36 @@ portal.get('/:organizationId/change-history', portalCtrl.getChangeHistory);
 portal.get('/:organizationId/team', portalCtrl.getTeam);
 portal.patch('/:organizationId/team/:memberId/role', portalCtrl.updateMemberRole);
 portal.delete('/:organizationId/team/:memberId', portalCtrl.revokeMember);
+portal.get('/:organizationId/team/invites', portalCtrl.listInvites);
+portal.post('/:organizationId/team/invites', portalCtrl.createInvite);
+portal.post('/:organizationId/team/invites/:invitationId/revoke', portalCtrl.revokeInvite);
 
 institutionPortalRouter.use('/institution', portal);
+
+institutionPortalRouter.post(
+  '/student/institution-admissions',
+  requireAuth,
+  requireUserAuth,
+  portalCtrl.studentSubmitAdmission
+);
+institutionPortalRouter.get(
+  '/student/institution-admissions',
+  requireAuth,
+  requireUserAuth,
+  portalCtrl.studentListAdmissions
+);
+institutionPortalRouter.post(
+  '/student/institution-admissions/:applicationId/withdraw',
+  requireAuth,
+  requireUserAuth,
+  portalCtrl.studentWithdrawAdmission
+);
+institutionPortalRouter.post(
+  '/student/institution-admissions/:applicationId/respond',
+  requireAuth,
+  requireUserAuth,
+  portalCtrl.studentRespondAdmission
+);
 
 // ---------------------------------------------------------------------------
 // Admin review extensions (Admin realm — reuse Mission 2 verification admin)
@@ -312,8 +374,10 @@ adminInstitution.patch('/claims/:claimId', requirePermission(PERMISSIONS.VERIFIC
       ? CANONICAL_CLAIM_NOTIFICATION_TYPES.APPROVED
       : targetState === CLAIM_STATES.REJECTED
         ? CANONICAL_CLAIM_NOTIFICATION_TYPES.REJECTED
-        : null;
-  if (notifType === CANONICAL_CLAIM_NOTIFICATION_TYPES.NEEDS_INFORMATION) {
+        : targetState === CLAIM_STATES.UNDER_REVIEW
+          ? CANONICAL_CLAIM_NOTIFICATION_TYPES.SUBMITTED
+          : null;
+  if (notifType) {
     void emitCanonicalClaimNotifications({
       organizationId: claim.organizationId,
       claimId: claim._id,

@@ -311,8 +311,10 @@ await check('40 InstitutionChangeEvent is append-only (no updateOne/findByIdAndU
 
 await check('41 Institution auth grants zero Vault access', () => {
   const routes = source('server/src/routes/institutionPortal.js');
+  const ctrl = source('server/src/controllers/institutionPortalController.js');
   assert.ok(!routes.includes('vaultRouter'));
-  assert.ok(!routes.includes('vault'));
+  assert.match(routes, /denyVault/);
+  assert.match(ctrl, /VAULT_DENIED/);
   assert.match(routes, /VAULT.*Institution auth grants zero Vault access/i);
 });
 await check('42 Institution routes do not reference Student browsing or USP', () => {

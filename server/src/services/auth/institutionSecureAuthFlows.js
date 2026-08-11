@@ -172,7 +172,42 @@ export function createInstitutionSecureAuthFlows({
     return Object.freeze({ code: 'LOGGED_OUT_ALL', httpStatus: 200, clearCookie: true });
   }
 
-  return Object.freeze({ issueLoginSession, refresh, logoutCurrent, logoutAll });
+  async function changePassword({ principal, newPassword, presentedAccessTokenExp }) {
+    if (!(await sharedSecurityStateAvailable())) {
+      return Object.freeze({
+        code: 'STORAGE_FAILURE',
+        httpStatus: 503,
+        body: SAFE_BODIES.SERVICE_UNAVAILABLE,
+        clearCookie: false,
+      });
+    }
+    const result = await accountSecurityMutation.changePassword({
+      realm: REALM,
+      subjectId: principal.subjectId,
+      expectedTokenVersion: principal.tokenVersion,
+      newPassword,
+    });
+    if (result.code !== 'VERSION_INCREMENTED') {
+      return Object.freeze({
+        code: result.code,
+        httpStatus: result.code === 'STORAGE_FAILURE' ? 503 : 409,
+        body:
+          result.code === 'STORAGE_FAILURE'
+            ? SAFE_BODIES.SERVICE_UNAVAILABLE
+            : SAFE_BODIES.REFRESH_CONFLICT,
+        clearCookie: false,
+      });
+    }
+    await familyRevocation.revokeAllFamilies({
+      realm: REALM,
+      subjectId: principal.subjectId,
+      reason: 'password_change',
+    });
+    await denylist.denylistJti(principal.jti, remainingTtlSeconds(presentedAccessTokenExp));
+    return Object.freeze({ code: 'PASSWORD_CHANGED', httpStatus: 200, clearCookie: true });
+  }
+
+  return Object.freeze({ issueLoginSession, refresh, logoutCurrent, logoutAll, changePassword });
 }
 
 export const institutionSecureAuthFlows = createInstitutionSecureAuthFlows({

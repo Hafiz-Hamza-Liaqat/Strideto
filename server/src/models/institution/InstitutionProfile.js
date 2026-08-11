@@ -71,9 +71,18 @@ const institutionProfileSchema = new mongoose.Schema(
 
     // Type reference (maps to CanonicalInstitution.institutionType)
     institutionType: { type: String, trim: true, default: '' },
+    organizationType: { type: String, trim: true, default: '' },
 
     // Primary country (ISO 3166-1 alpha-2)
     countryCode: { type: String, trim: true, uppercase: true, default: '' },
+    city: { type: String, trim: true, default: '' },
+    region: { type: String, trim: true, default: '' },
+    officialDomain: { type: String, trim: true, lowercase: true, default: '' },
+    logoUrl: { type: String, trim: true, default: '' },
+
+    representativeName: { type: String, trim: true, default: '' },
+    representativeTitle: { type: String, trim: true, default: '' },
+    representativeEmail: { type: String, trim: true, lowercase: true, default: '' },
 
     // Multi-campus addresses
     addresses: { type: [addressSchema], default: [] },

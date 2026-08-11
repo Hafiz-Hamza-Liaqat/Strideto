@@ -184,6 +184,23 @@ const canonicalScholarshipSchema = new mongoose.Schema(
       index: true,
     },
 
+    institutionId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'CanonicalInstitution',
+      default: null,
+      index: true,
+    },
+    organizationId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'Organization',
+      default: null,
+      index: true,
+    },
+    applicableProgramIds: [{ type: mongoose.Schema.Types.ObjectId, ref: 'Program' }],
+    nationalityScope: { type: [String], default: [] },
+    cycleLabel: { type: String, trim: true, default: '' },
+    deadlineDate: { type: String, trim: true, default: '' },
+
     // Internal — MUST NOT be projected to public endpoints
     adminNotes: { type: String, trim: true, default: '' },
   },

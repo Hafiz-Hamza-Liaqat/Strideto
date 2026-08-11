@@ -1,8 +1,11 @@
 export const INSTITUTION_LOGIN_PATH = '/institution/login';
 export const INSTITUTION_REGISTER_PATH = '/institution/register';
+export const INSTITUTION_ACCEPT_INVITATION_PATH = '/institution/accept-invitation';
 
 export function isInstitutionPublicAuthPath(pathname = '') {
-  return pathname === INSTITUTION_LOGIN_PATH || pathname === INSTITUTION_REGISTER_PATH;
+  return pathname === INSTITUTION_LOGIN_PATH
+    || pathname === INSTITUTION_REGISTER_PATH
+    || pathname === INSTITUTION_ACCEPT_INVITATION_PATH;
 }
 
 export function isInstitutionPortalPath(pathname = '') {

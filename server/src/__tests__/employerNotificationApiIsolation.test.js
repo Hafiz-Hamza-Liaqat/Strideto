@@ -51,8 +51,8 @@ const model = read('models/UserNotification.js');
     'buildFilter: recipient owner is applied via applyRecipientOwner — never unscoped'
   );
   check(
-    /if \(ctx\.recipientType === 'employer'\) filter\.employerId = ctx\.employerId;\s*else if \(ctx\.recipientType === 'agent'\) filter\.agentAccountId = ctx\.agentAccountId;\s*else filter\.userId = ctx\.userId;/.test(controller),
-    'applyRecipientOwner: employer→employerId, agent→agentAccountId, else userId — never both, never unscoped'
+    /if \(ctx\.recipientType === 'employer'\) filter\.employerId = ctx\.employerId;\s*else if \(ctx\.recipientType === 'agent'\) filter\.agentAccountId = ctx\.agentAccountId;\s*else if \(ctx\.recipientType === 'institution'\) filter\.institutionAccountId = ctx\.institutionAccountId;\s*else filter\.userId = ctx\.userId;/.test(controller),
+    'applyRecipientOwner: employer→employerId, agent→agentAccountId, institution→institutionAccountId, else userId — never both, never unscoped'
   );
   const markReadFilterMatches = controller.match(/const filter = \{ _id: id, recipientType: ctx\.recipientType \};\s*\n\s*applyRecipientOwner\(filter, ctx\);/g) || [];
   check(
@@ -108,8 +108,8 @@ const model = read('models/UserNotification.js');
 // --- Model already supports Employer recipient scoping (no migration needed) ---
 {
   check(
-    /recipientType: \{ type: String, enum: \['user', 'employer', 'staff', 'agent'\], required: true \},/.test(model),
-    'UserNotification.recipientType includes employer and agent'
+    /recipientType: \{ type: String, enum: \['user', 'employer', 'staff', 'agent', 'institution'\], required: true \},/.test(model),
+    'UserNotification.recipientType includes employer, agent, and institution'
   );
   check(
     /employerId: \{ type: mongoose\.Schema\.Types\.ObjectId, ref: 'Employer' \},/.test(model),
@@ -118,6 +118,10 @@ const model = read('models/UserNotification.js');
   check(
     /agentAccountId: \{ type: mongoose\.Schema\.Types\.ObjectId, ref: 'AgentAccount' \},/.test(model),
     'UserNotification.agentAccountId field exists for Agent inbox'
+  );
+  check(
+    /institutionAccountId: \{ type: mongoose\.Schema\.Types\.ObjectId, ref: 'InstitutionAccount' \},/.test(model),
+    'UserNotification.institutionAccountId field exists for Institution inbox'
   );
   check(
     /userNotificationSchema\.index\(\{ employerId: 1, read: 1, createdAt: -1 \}\);/.test(model),

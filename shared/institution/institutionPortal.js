@@ -185,3 +185,212 @@ export const isInstitutionOrgType = (v) => typeof v === 'string' && INST_ORG_TYP
 // ── Official source type for institution-submitted data ───────────────────────
 
 export const INSTITUTION_SOURCE_TYPE = 'institution_official';
+
+// ── Role display (maps to existing vocabulary; do not invent duplicate roles) ─
+
+export const INSTITUTION_ROLE_LABELS = Object.freeze({
+  [INSTITUTION_ROLES.OWNER]: 'Owner',
+  [INSTITUTION_ROLES.ADMIN]: 'Admin',
+  [INSTITUTION_ROLES.EDITOR]: 'Admissions / Program Manager',
+  [INSTITUTION_ROLES.VIEWER]: 'Viewer',
+});
+
+/** Editor also covers Data Manager capability (official facts, Test Acceptance, scholarships). */
+export const INSTITUTION_ROLE_CAPABILITY_NOTES = Object.freeze({
+  [INSTITUTION_ROLES.EDITOR]: 'Admissions, programs, intakes, Test Acceptance, scholarships, and official data.',
+});
+
+// ── Team invitations ──────────────────────────────────────────────────────────
+
+export const INSTITUTION_INVITE_STATUSES = Object.freeze({
+  PENDING: 'pending',
+  ACCEPTED: 'accepted',
+  REVOKED: 'revoked',
+  EXPIRED: 'expired',
+});
+
+export const INSTITUTION_INVITE_TTL_MS = 7 * 24 * 60 * 60 * 1000;
+export const INSTITUTION_INVITE_EMAIL_MAX = 254;
+export const INSTITUTION_INVITABLE_ROLES = Object.freeze([
+  INSTITUTION_ROLES.ADMIN,
+  INSTITUTION_ROLES.EDITOR,
+  INSTITUTION_ROLES.VIEWER,
+]);
+
+export const isInvitableInstitutionRole = (role) => INSTITUTION_INVITABLE_ROLES.includes(role);
+
+// ── Application modes (internal Strideto vs official external URL) ────────────
+
+export const APPLICATION_MODES = Object.freeze({
+  INTERNAL: 'internal',
+  EXTERNAL: 'external',
+  BOTH: 'both',
+  NOT_CONFIGURED: 'not_configured',
+});
+
+const APPLICATION_MODE_SET = new Set(Object.values(APPLICATION_MODES));
+export const isValidApplicationMode = (v) => typeof v === 'string' && APPLICATION_MODE_SET.has(v);
+
+export const INTAKE_STATUSES = Object.freeze({
+  DRAFT: 'draft',
+  OPEN: 'open',
+  CLOSED: 'closed',
+  CANCELLED: 'cancelled',
+});
+
+const INTAKE_STATUS_SET = new Set(Object.values(INTAKE_STATUSES));
+export const isValidIntakeStatus = (v) => typeof v === 'string' && INTAKE_STATUS_SET.has(v);
+
+// ── Date-only (YYYY-MM-DD). No timezone invention. ────────────────────────────
+
+export const DATE_ONLY_RE = /^\d{4}-\d{2}-\d{2}$/;
+
+export function isDateOnly(value) {
+  if (typeof value !== 'string' || !DATE_ONLY_RE.test(value)) return false;
+  const [y, m, d] = value.split('-').map(Number);
+  const dt = new Date(Date.UTC(y, m - 1, d));
+  return dt.getUTCFullYear() === y && dt.getUTCMonth() === m - 1 && dt.getUTCDate() === d;
+}
+
+/** Project a Date or ISO string to YYYY-MM-DD using UTC calendar date only. */
+export function toDateOnlyUtc(value) {
+  if (!value) return '';
+  if (typeof value === 'string' && isDateOnly(value)) return value;
+  const dt = value instanceof Date ? value : new Date(value);
+  if (Number.isNaN(dt.getTime())) return '';
+  const y = dt.getUTCFullYear();
+  const m = String(dt.getUTCMonth() + 1).padStart(2, '0');
+  const d = String(dt.getUTCDate()).padStart(2, '0');
+  return `${y}-${m}-${d}`;
+}
+
+// ── Admission application states (server-authoritative) ───────────────────────
+
+export const ADMISSION_STATES = Object.freeze({
+  RECEIVED: 'received',
+  UNDER_REVIEW: 'under_review',
+  NEEDS_INFORMATION: 'needs_information',
+  SHORTLISTED: 'shortlisted',
+  INTERVIEW: 'interview',
+  OFFER: 'offer',
+  ADMITTED: 'admitted',
+  REJECTED: 'rejected',
+  WITHDRAWN: 'withdrawn',
+});
+
+const ADMISSION_STATE_SET = new Set(Object.values(ADMISSION_STATES));
+export const isValidAdmissionState = (v) => typeof v === 'string' && ADMISSION_STATE_SET.has(v);
+
+/** Institution-settable review states. Student cannot self-admit. */
+export const INSTITUTION_ADMISSION_TRANSITIONS = Object.freeze({
+  [ADMISSION_STATES.RECEIVED]: new Set([
+    ADMISSION_STATES.UNDER_REVIEW,
+    ADMISSION_STATES.NEEDS_INFORMATION,
+    ADMISSION_STATES.REJECTED,
+  ]),
+  [ADMISSION_STATES.UNDER_REVIEW]: new Set([
+    ADMISSION_STATES.NEEDS_INFORMATION,
+    ADMISSION_STATES.SHORTLISTED,
+    ADMISSION_STATES.INTERVIEW,
+    ADMISSION_STATES.OFFER,
+    ADMISSION_STATES.ADMITTED,
+    ADMISSION_STATES.REJECTED,
+  ]),
+  [ADMISSION_STATES.NEEDS_INFORMATION]: new Set([
+    ADMISSION_STATES.UNDER_REVIEW,
+    ADMISSION_STATES.REJECTED,
+  ]),
+  [ADMISSION_STATES.SHORTLISTED]: new Set([
+    ADMISSION_STATES.INTERVIEW,
+    ADMISSION_STATES.OFFER,
+    ADMISSION_STATES.ADMITTED,
+    ADMISSION_STATES.REJECTED,
+    ADMISSION_STATES.UNDER_REVIEW,
+  ]),
+  [ADMISSION_STATES.INTERVIEW]: new Set([
+    ADMISSION_STATES.OFFER,
+    ADMISSION_STATES.ADMITTED,
+    ADMISSION_STATES.REJECTED,
+    ADMISSION_STATES.SHORTLISTED,
+  ]),
+  [ADMISSION_STATES.OFFER]: new Set([
+    ADMISSION_STATES.ADMITTED,
+    ADMISSION_STATES.REJECTED,
+    ADMISSION_STATES.WITHDRAWN,
+  ]),
+  [ADMISSION_STATES.ADMITTED]: new Set([]),
+  [ADMISSION_STATES.REJECTED]: new Set([]),
+  [ADMISSION_STATES.WITHDRAWN]: new Set([]),
+});
+
+export const isValidInstitutionAdmissionTransition = (from, to) => {
+  if (!isValidAdmissionState(from) || !isValidAdmissionState(to)) return false;
+  return INSTITUTION_ADMISSION_TRANSITIONS[from]?.has(to) ?? false;
+};
+
+/** Student may withdraw from non-terminal Institution states except admitted. */
+export const STUDENT_WITHDRAWABLE = new Set([
+  ADMISSION_STATES.RECEIVED,
+  ADMISSION_STATES.UNDER_REVIEW,
+  ADMISSION_STATES.NEEDS_INFORMATION,
+  ADMISSION_STATES.SHORTLISTED,
+  ADMISSION_STATES.INTERVIEW,
+  ADMISSION_STATES.OFFER,
+]);
+
+export const CONSENT_SCOPES = Object.freeze({
+  ADMISSION_APPLICATION: 'admission_application',
+});
+
+export const APPLICATION_SNAPSHOT_FIELDS = Object.freeze([
+  'displayName',
+  'email',
+  'nationality',
+  'countryOfResidence',
+  'phone',
+  'highestQualification',
+  'intendedProgramNote',
+]);
+
+export const CLIENT_FORBIDDEN_ADMISSION_STATES = Object.freeze([
+  ADMISSION_STATES.ADMITTED,
+  ADMISSION_STATES.OFFER,
+]);
+
+// ── Search bounds ─────────────────────────────────────────────────────────────
+
+export const INSTITUTION_QUERY_MAX = 80;
+
+export function boundedInstitutionQuery(raw) {
+  return String(raw || '').trim().slice(0, INSTITUTION_QUERY_MAX);
+}
+
+export function escapeRegex(value) {
+  return String(value || '').replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+// ── Launch billing (Phase 0: free) ────────────────────────────────────────────
+
+export const INSTITUTION_LAUNCH_BILLING = Object.freeze({
+  planCode: 'free',
+  planLabel: 'Free',
+  providerState: 'not_configured',
+  included: Object.freeze([
+    'Institution profile',
+    'Verification submission',
+    'Canonical Program management',
+    'Official data maintenance',
+  ]),
+  futureProducts: Object.freeze([
+    { code: 'promotion', label: 'Promotion', state: 'not_configured' },
+    { code: 'lead_product', label: 'Lead product', state: 'not_configured' },
+    { code: 'advanced_analytics', label: 'Advanced analytics', state: 'not_configured' },
+    { code: 'paid_admission_product', label: 'Paid admission product', state: 'not_configured' },
+  ]),
+});
+
+export const portalIdentityLabel = (verificationStatus) =>
+  verificationStatus === 'approved' ? 'Verified Institution' : 'Institution Portal';
+
+export const isVerifiedWordingAllowed = (verificationStatus) =>
+  verificationStatus === 'approved';

@@ -9,6 +9,8 @@ import { User } from '../models/User.js';
 import { Organization } from '../models/Organization.js';
 import { createUserNotificationOnce } from './notificationService.js';
 import { notifyAgentOrganizationOwners } from './agentInboxNotificationBridge.js';
+import { notifyInstitutionOrganizationOwners } from './institutionInboxNotificationBridge.js';
+import { isInstitutionOrgType } from '../../../shared/institution/institutionPortal.js';
 import { STAFF_ROLES, PERMISSIONS, hasPermission } from '../config/rbac.js';
 import { VERIFICATION_STATUSES } from '../../../shared/international/verification.js';
 import {
@@ -216,6 +218,25 @@ export async function emitOrgVerificationNotifications({
         if (agentOutcome.created > 0) result.created += agentOutcome.created;
         else result.skipped += 1;
       }
+      if (isInstitutionOrgType(org?.organizationType)) {
+        planned += 1;
+        const instOutcome = await notifyInstitutionOrganizationOwners({
+          organizationId,
+          category: 'verification',
+          type: applicantMsg.type,
+          title: applicantMsg.title,
+          body: applicantMsg.body,
+          link: '/institution/verification',
+          metadata,
+          dedupeKey: `${orgVerificationDedupeKey({
+            organizationId: String(organizationId),
+            notificationType: applicantMsg.type,
+            transitionId: String(transitionId),
+          })}`,
+        });
+        if (instOutcome.created > 0) result.created += instOutcome.created;
+        else result.skipped += 1;
+      }
     } catch {
       result.failed += 1;
     }
@@ -244,14 +265,30 @@ export async function emitCanonicalClaimNotifications({
     ? CANONICAL_CLAIM_NOTIFICATION_TYPES.CONFLICT
     : notificationType;
 
-  const title = conflict
+  const staffFacing = type === CANONICAL_CLAIM_NOTIFICATION_TYPES.SUBMITTED
+    || type === CANONICAL_CLAIM_NOTIFICATION_TYPES.CONFLICT
+    || conflict;
+
+  const title = conflict || type === CANONICAL_CLAIM_NOTIFICATION_TYPES.CONFLICT
     ? 'Canonical institution claim conflict'
     : type === CANONICAL_CLAIM_NOTIFICATION_TYPES.SUBMITTED
       ? 'Canonical institution claim submitted'
-      : 'Canonical institution claim requires review';
-  const body = conflict
+      : type === CANONICAL_CLAIM_NOTIFICATION_TYPES.APPROVED
+        ? 'Canonical institution claim approved'
+        : type === CANONICAL_CLAIM_NOTIFICATION_TYPES.REJECTED
+          ? 'Canonical institution claim not approved'
+          : type === CANONICAL_CLAIM_NOTIFICATION_TYPES.NEEDS_INFORMATION
+            ? 'Canonical claim needs information'
+            : 'Canonical institution claim requires review';
+  const body = conflict || type === CANONICAL_CLAIM_NOTIFICATION_TYPES.CONFLICT
     ? 'A canonical institution claim needs staff action because of a competing claim.'
-    : 'A canonical institution claim is ready for staff review.';
+    : type === CANONICAL_CLAIM_NOTIFICATION_TYPES.APPROVED
+      ? 'Your canonical Institution claim was approved.'
+      : type === CANONICAL_CLAIM_NOTIFICATION_TYPES.REJECTED
+        ? 'Your canonical Institution claim was not approved.'
+        : type === CANONICAL_CLAIM_NOTIFICATION_TYPES.NEEDS_INFORMATION
+          ? 'Reviewers requested additional information for your canonical claim.'
+          : 'A canonical institution claim is ready for staff review.';
 
   let reviewers = [];
   try {
@@ -267,24 +304,50 @@ export async function emitCanonicalClaimNotifications({
   });
   const link = `/admin/sc/claims?claim=${encodeURIComponent(String(claimId))}`;
 
-  for (const reviewer of reviewers) {
+  if (staffFacing) {
+    for (const reviewer of reviewers) {
+      try {
+        const outcome = await createNotificationOnce({
+          recipientType: 'staff',
+          userId: reviewer._id,
+          category: 'verification',
+          type,
+          title,
+          body,
+          link,
+          metadata,
+          dedupeKey: `${canonicalClaimDedupeKey({
+            organizationId: String(organizationId),
+            notificationType: type,
+            transitionId: String(transitionId),
+          })}:staff:${reviewer._id}`,
+        });
+        outcome.created ? (result.created += 1) : (result.skipped += 1);
+      } catch {
+        result.failed += 1;
+      }
+    }
+  }
+
+  const institutionFacing = true;
+  if (institutionFacing) {
     try {
-      const outcome = await createNotificationOnce({
-        recipientType: 'staff',
-        userId: reviewer._id,
+      const instOutcome = await notifyInstitutionOrganizationOwners({
+        organizationId,
         category: 'verification',
         type,
         title,
         body,
-        link,
+        link: '/institution/claim',
         metadata,
         dedupeKey: `${canonicalClaimDedupeKey({
           organizationId: String(organizationId),
           notificationType: type,
           transitionId: String(transitionId),
-        })}:staff:${reviewer._id}`,
+        })}`,
       });
-      outcome.created ? (result.created += 1) : (result.skipped += 1);
+      if (instOutcome.created > 0) result.created += instOutcome.created;
+      else result.skipped += 1;
     } catch {
       result.failed += 1;
     }

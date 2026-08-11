@@ -66,6 +66,11 @@ const verificationProfileSubSchema = new mongoose.Schema(
     professionalRegulatorUrl: { type: String, trim: true, default: '' },
     accreditationPageUrl: { type: String, trim: true, default: '' },
     googleBusinessUrl: { type: String, trim: true, default: '' },
+    logoUrl: { type: String, trim: true, default: '' },
+    credentialPolicy: { type: String, trim: true, default: '' },
+    identityEvidenceUrl: { type: String, trim: true, default: '' },
+    authorityEvidenceUrl: { type: String, trim: true, default: '' },
+    campusEvidenceUrl: { type: String, trim: true, default: '' },
 
     // License / credential (where applicable)
     licenseNumber: { type: String, trim: true, default: '' },

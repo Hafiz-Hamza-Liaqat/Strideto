@@ -196,7 +196,19 @@ export const getClaim = asyncHandler(async (req, res) => {
   if (!membership) return res.status(403).json({ error: 'Active membership required' });
 
   const claim = await InstitutionClaim.findOne({ organizationId }).lean();
-  return res.status(200).json({ claim: claim || null });
+  let competingClaims = [];
+  if (claim?.canonicalInstitutionId) {
+    competingClaims = await InstitutionClaim.find({
+      canonicalInstitutionId: claim.canonicalInstitutionId,
+      state: { $in: [CLAIM_STATES.SUBMITTED, CLAIM_STATES.UNDER_REVIEW, CLAIM_STATES.APPROVED] },
+      _id: { $ne: claim._id },
+    }).select('_id organizationId state').lean();
+  }
+  return res.status(200).json({
+    claim: claim || null,
+    competingClaims,
+    independentFromVerification: true,
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -213,18 +225,15 @@ export const listPrograms = asyncHandler(async (req, res) => {
     return res.status(200).json({ programs: [], message: 'No approved canonical institution claim' });
   }
 
-  const { status, page = 1, limit = 20 } = req.query;
-  const safeLimit = Math.min(parseInt(limit), 50);
-  const query = { institutionId: claim.canonicalInstitutionId };
-  if (status) query.status = status;
-
-  const programs = await Program.find(query)
-    .sort({ createdAt: -1 })
-    .skip((parseInt(page) - 1) * safeLimit)
-    .limit(safeLimit)
-    .lean();
-
-  return res.status(200).json({ programs });
+  const result = await portalService.listOwnedPrograms({
+    canonicalInstitutionId: claim.canonicalInstitutionId,
+    q: req.query.q,
+    status: req.query.status,
+    sort: req.query.sort,
+    page: req.query.page,
+    limit: req.query.limit,
+  });
+  return res.status(200).json(result);
 });
 
 export const createProgram = asyncHandler(async (req, res) => {
@@ -483,6 +492,10 @@ export const updateMemberRole = asyncHandler(async (req, res) => {
   if (target.role === INSTITUTION_ROLES.OWNER && membership.role !== INSTITUTION_ROLES.OWNER) {
     return res.status(403).json({ error: 'Only an owner can change another owner\'s role' });
   }
+  if (target.role === INSTITUTION_ROLES.OWNER && role !== INSTITUTION_ROLES.OWNER) {
+    const { assertNotLastOwner } = await import('../services/institutionTeamService.js');
+    await assertNotLastOwner(organizationId, target);
+  }
 
   target.role = role;
   await target.save();
@@ -507,6 +520,8 @@ export const revokeMember = asyncHandler(async (req, res) => {
   const target = await InstitutionMembership.findOne({ _id: memberId, organizationId, active: true });
   if (!target) return res.status(404).json({ error: 'Membership not found' });
   if (target.role === INSTITUTION_ROLES.OWNER) {
+    const { assertNotLastOwner } = await import('../services/institutionTeamService.js');
+    await assertNotLastOwner(organizationId, target);
     return res.status(403).json({ error: 'Owner membership cannot be revoked this way' });
   }
 
@@ -522,6 +537,225 @@ export const revokeMember = asyncHandler(async (req, res) => {
   });
 
   return res.status(200).json({ message: 'Membership revoked' });
+});
+
+export const listInvites = asyncHandler(async (req, res) => {
+  const { organizationId } = req.params;
+  const membership = await resolveMembershipOrFail(req, organizationId);
+  if (!membership) return res.status(403).json({ error: 'Active membership required' });
+  const { listInvites: list } = await import('../services/institutionTeamService.js');
+  const invites = await list(organizationId);
+  return res.status(200).json({ data: invites });
+});
+
+export const createInvite = asyncHandler(async (req, res) => {
+  const { organizationId } = req.params;
+  const membership = await resolveMembershipOrFail(req, organizationId);
+  if (!membership) return res.status(403).json({ error: 'Active membership required' });
+  const { createInvite: create } = await import('../services/institutionTeamService.js');
+  const result = await create({
+    organizationId,
+    actorAccountId: req.institution.institutionAccountId,
+    actorRole: membership.role,
+    email: req.body?.email,
+    role: req.body?.role,
+  });
+  return res.status(201).json(result);
+});
+
+export const revokeInvite = asyncHandler(async (req, res) => {
+  const { organizationId, invitationId } = req.params;
+  const membership = await resolveMembershipOrFail(req, organizationId);
+  if (!membership) return res.status(403).json({ error: 'Active membership required' });
+  const { revokeInvite: revoke } = await import('../services/institutionTeamService.js');
+  const result = await revoke({
+    organizationId,
+    invitationId,
+    actorAccountId: req.institution.institutionAccountId,
+    actorRole: membership.role,
+  });
+  return res.status(200).json(result);
+});
+
+export const previewInvite = asyncHandler(async (req, res) => {
+  const { previewInvite: preview } = await import('../services/institutionTeamService.js');
+  const result = await preview(req.query.token || req.body?.token);
+  return res.status(200).json(result);
+});
+
+export const acceptInvite = asyncHandler(async (req, res) => {
+  const { InstitutionAccount } = await import('../models/institution/InstitutionAccount.js');
+  const account = await InstitutionAccount.findById(req.institution.institutionAccountId).select('email');
+  if (!account) return res.status(404).json({ error: 'Account not found' });
+  const { acceptInvite: accept } = await import('../services/institutionTeamService.js');
+  const result = await accept({ token: req.body?.token || req.query.token, institutionAccount: account });
+  return res.status(200).json(result);
+});
+
+export const listTestAcceptance = asyncHandler(async (req, res) => {
+  const { organizationId } = req.params;
+  const membership = await resolveMembershipOrFail(req, organizationId);
+  if (!membership) return res.status(403).json({ error: 'Active membership required' });
+  const claim = await portalService.resolveApprovedClaim(organizationId);
+  if (!claim?.canonicalInstitutionId) return res.status(200).json({ records: [], pagination: { page: 1, limit: 20, total: 0, pages: 0 } });
+  const result = await portalService.listTestAcceptance({
+    canonicalInstitutionId: claim.canonicalInstitutionId,
+    q: req.query.q,
+    page: req.query.page,
+    limit: req.query.limit,
+  });
+  return res.status(200).json(result);
+});
+
+export const listScholarships = asyncHandler(async (req, res) => {
+  const { organizationId } = req.params;
+  const membership = await resolveMembershipOrFail(req, organizationId);
+  if (!membership) return res.status(403).json({ error: 'Active membership required' });
+  const claim = await portalService.resolveApprovedClaim(organizationId);
+  if (!claim?.canonicalInstitutionId) return res.status(200).json({ scholarships: [], pagination: { page: 1, limit: 20, total: 0, pages: 0 } });
+  const result = await portalService.listOwnedScholarships({
+    organizationId,
+    canonicalInstitutionId: claim.canonicalInstitutionId,
+    q: req.query.q,
+    page: req.query.page,
+    limit: req.query.limit,
+  });
+  return res.status(200).json(result);
+});
+
+export const createScholarship = asyncHandler(async (req, res) => {
+  const { organizationId } = req.params;
+  const membership = await resolveMembershipOrFail(req, organizationId);
+  if (!membership) return res.status(403).json({ error: 'Active membership required' });
+  if (!canSubmitOfficialChanges(membership.role)) return res.status(403).json({ error: 'Insufficient role' });
+  await portalService.assertApprovedVerification(organizationId);
+  const claim = await portalService.assertApprovedClaim(organizationId);
+  const scholarship = await portalService.createOwnedScholarship({
+    organizationId,
+    canonicalInstitutionId: claim.canonicalInstitutionId,
+    data: req.body,
+    actor: actor(req),
+  });
+  return res.status(201).json({ scholarship });
+});
+
+export const updateScholarship = asyncHandler(async (req, res) => {
+  const { organizationId, scholarshipId } = req.params;
+  const membership = await resolveMembershipOrFail(req, organizationId);
+  if (!membership) return res.status(403).json({ error: 'Active membership required' });
+  if (!canSubmitOfficialChanges(membership.role)) return res.status(403).json({ error: 'Insufficient role' });
+  const claim = await portalService.assertApprovedClaim(organizationId);
+  const scholarship = await portalService.updateOwnedScholarship({
+    scholarshipId,
+    organizationId,
+    canonicalInstitutionId: claim.canonicalInstitutionId,
+    updates: req.body,
+    actor: actor(req),
+  });
+  return res.status(200).json({ scholarship });
+});
+
+export const getUsageBilling = asyncHandler(async (req, res) => {
+  const { organizationId } = req.params;
+  const membership = await resolveMembershipOrFail(req, organizationId);
+  if (!membership) return res.status(403).json({ error: 'Active membership required' });
+  const billing = await portalService.getUsageBilling();
+  return res.status(200).json(billing);
+});
+
+export const denyVault = asyncHandler(async (req, res) => {
+  const { organizationId } = req.params;
+  const membership = await resolveMembershipOrFail(req, organizationId);
+  if (!membership) return res.status(403).json({ error: 'Active membership required' });
+  return res.status(403).json({
+    error: 'Institution membership does not grant Student Vault or private Student access',
+    code: 'VAULT_DENIED',
+  });
+});
+
+export const listApplications = asyncHandler(async (req, res) => {
+  const { organizationId } = req.params;
+  const membership = await resolveMembershipOrFail(req, organizationId);
+  if (!membership) return res.status(403).json({ error: 'Active membership required' });
+  const admissions = await import('../services/institutionAdmissionService.js');
+  const result = await admissions.listInstitutionApplications({
+    organizationId,
+    q: req.query.q,
+    status: req.query.status,
+    programId: req.query.programId,
+    sort: req.query.sort,
+    page: req.query.page,
+    limit: req.query.limit,
+  });
+  return res.status(200).json(result);
+});
+
+export const getApplication = asyncHandler(async (req, res) => {
+  const { organizationId, applicationId } = req.params;
+  const membership = await resolveMembershipOrFail(req, organizationId);
+  if (!membership) return res.status(403).json({ error: 'Active membership required' });
+  const admissions = await import('../services/institutionAdmissionService.js');
+  const application = await admissions.getInstitutionApplication({ organizationId, applicationId });
+  return res.status(200).json({ application });
+});
+
+export const transitionApplication = asyncHandler(async (req, res) => {
+  const { organizationId, applicationId } = req.params;
+  const membership = await resolveMembershipOrFail(req, organizationId);
+  if (!membership) return res.status(403).json({ error: 'Active membership required' });
+  if (!canSubmitOfficialChanges(membership.role)) return res.status(403).json({ error: 'Insufficient role' });
+  const admissions = await import('../services/institutionAdmissionService.js');
+  const application = await admissions.transitionApplication({
+    organizationId,
+    applicationId,
+    toState: req.body?.status || req.body?.toState,
+    note: req.body?.note,
+    missingInformation: req.body?.missingInformation,
+    actorAccountId: req.institution.institutionAccountId,
+    expectedVersion: req.body?.version,
+  });
+  return res.status(200).json({ application });
+});
+
+export const studentSubmitAdmission = asyncHandler(async (req, res) => {
+  const admissions = await import('../services/institutionAdmissionService.js');
+  const application = await admissions.submitStudentApplication({
+    studentUserId: req.user.userId,
+    programId: req.body?.programId,
+    intakeCycleLabel: req.body?.intakeCycleLabel || '',
+    snapshot: req.body?.snapshot,
+    consentAccepted: req.body?.consentAccepted === true,
+  });
+  return res.status(201).json({ application });
+});
+
+export const studentListAdmissions = asyncHandler(async (req, res) => {
+  const admissions = await import('../services/institutionAdmissionService.js');
+  const result = await admissions.listStudentApplications({
+    studentUserId: req.user.userId,
+    page: req.query.page,
+    limit: req.query.limit,
+  });
+  return res.status(200).json(result);
+});
+
+export const studentWithdrawAdmission = asyncHandler(async (req, res) => {
+  const admissions = await import('../services/institutionAdmissionService.js');
+  const application = await admissions.withdrawStudentApplication({
+    studentUserId: req.user.userId,
+    applicationId: req.params.applicationId,
+  });
+  return res.status(200).json({ application });
+});
+
+export const studentRespondAdmission = asyncHandler(async (req, res) => {
+  const admissions = await import('../services/institutionAdmissionService.js');
+  const application = await admissions.studentRespond({
+    studentUserId: req.user.userId,
+    applicationId: req.params.applicationId,
+    response: req.body?.response,
+  });
+  return res.status(200).json({ application });
 });
 
 // ---------------------------------------------------------------------------

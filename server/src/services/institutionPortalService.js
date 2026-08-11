@@ -38,6 +38,15 @@ import {
   claimGrantsAuthority,
   isInstitutionOrgType as _isInstitutionOrgType,
   computeInstitutionCompleteness,
+  isDateOnly,
+  isValidApplicationMode,
+  isValidIntakeStatus,
+  APPLICATION_MODES,
+  INTAKE_STATUSES,
+  toDateOnlyUtc,
+  INSTITUTION_LAUNCH_BILLING,
+  boundedInstitutionQuery,
+  escapeRegex,
 } from '../../../shared/institution/institutionPortal.js';
 import {
   canExercisePrivilegedCapability,
@@ -379,10 +388,12 @@ export async function updateProfile({ organizationId, updates, actor, membership
   const profile = await getOrCreateProfile(organizationId);
 
   const allowed = [
-    'officialDisplayName', 'legalName', 'aliases', 'institutionType',
-    'countryCode', 'addresses', 'officialWebsite', 'officialAdmissionsWebsite',
+    'officialDisplayName', 'legalName', 'aliases', 'institutionType', 'organizationType',
+    'countryCode', 'city', 'region', 'officialDomain', 'logoUrl', 'addresses',
+    'officialWebsite', 'officialAdmissionsWebsite',
     'officialContactEmail', 'officialPhone', 'institutionDescription',
     'academicLevels', 'studyModes', 'accreditationRefs', 'institutionIdentifiers',
+    'representativeName', 'representativeTitle', 'representativeEmail',
   ];
 
   for (const key of allowed) {
@@ -427,7 +438,7 @@ export async function createProgramDraft({
   programData,
   actor,
 }) {
-  const { name, degreeLevel, field, campus, studyMode, durationMonths, officialProgramUrl,
+  const { name, degreeLevel, field, campus, instructionLanguage, studyMode, durationMonths, officialProgramUrl,
     country, admissionRequirementsUrl } = programData;
 
   if (!name) throw Object.assign(new Error('Program name is required'), { code: 'VALIDATION', status: 400 });
@@ -449,6 +460,7 @@ export async function createProgramDraft({
     degreeLevel,
     field,
     campus: campus || '',
+    instructionLanguage: instructionLanguage || '',
     studyMode,
     durationMonths,
     officialProgramUrl: officialProgramUrl || '',
@@ -480,6 +492,9 @@ export async function updateProgram({
 
   // Track high-impact changes
   const HIGH_IMPACT = ['tuition', 'intakes', 'admissionRequirementsUrl', 'status'];
+  if (Array.isArray(updates.intakes)) {
+    updates.intakes = updates.intakes.map((intake) => normalizeIntake(intake));
+  }
   for (const field of HIGH_IMPACT) {
     if (updates[field] !== undefined && JSON.stringify(updates[field]) !== JSON.stringify(program[field])) {
       const category = field === 'tuition' ? CHANGE_CATEGORIES.TUITION
@@ -497,11 +512,40 @@ export async function updateProgram({
   }
 
   const allowed = [
-    'name', 'degreeLevel', 'field', 'campus', 'studyMode', 'durationMonths',
+    'name', 'degreeLevel', 'field', 'campus', 'instructionLanguage', 'studyMode', 'durationMonths',
     'officialProgramUrl', 'country', 'admissionRequirementsUrl', 'intakes', 'tuition',
   ];
+  const skippedConflicts = [];
   for (const key of allowed) {
-    if (updates[key] !== undefined) program[key] = updates[key];
+    if (updates[key] === undefined) continue;
+    const differs = JSON.stringify(updates[key]) !== JSON.stringify(program[key]);
+    if (
+      differs
+      && HIGH_IMPACT.includes(key)
+      && program.status === PUB_STATUSES.PUBLISHED
+    ) {
+      await detectAndStoreConflict({
+        organizationId,
+        canonicalInstitutionId,
+        programId,
+        recordType: 'program',
+        fieldScope: key,
+        existingValue: program[key],
+        existingSourceType: program.sources?.[0]?.sourceType || '',
+        proposedValue: updates[key],
+        proposedSourceType: INSTITUTION_SOURCE_TYPE,
+      });
+      skippedConflicts.push(key);
+      continue;
+    }
+    program[key] = updates[key];
+  }
+  if (skippedConflicts.length) {
+    await prepareNotification({
+      organizationId,
+      eventType: INSTITUTION_NOTIFICATION_TYPES.CONFLICT_REQUIRES_ACTION,
+      payload: { programId, fields: skippedConflicts },
+    });
   }
 
   // Validate tuition — Money contract (no guessed FX, no invented currencies)
@@ -674,14 +718,43 @@ export async function reconfirmFreshness({
 // ---------------------------------------------------------------------------
 
 export async function getDashboardMetrics(organizationId, canonicalInstitutionId) {
-  const [verification, claim, profile, publishedPrograms, draftPrograms, conflicts] = await Promise.all([
+  const { InstitutionAdmissionApplication } = await import('../models/institution/InstitutionAdmissionApplication.js');
+  const { FRESHNESS_STATES } = await import('../../../shared/trust/sourceVerification.js');
+  const { ADMISSION_STATES } = await import('../../../shared/institution/institutionPortal.js');
+  const mongoose = await import('mongoose');
+
+  const [
+    verification, claim, profile, publishedPrograms, draftPrograms, conflicts,
+    scholarshipCount, testAcceptanceCount, internalApplications, stalePrograms, reviewDuePrograms,
+  ] = await Promise.all([
     OrganizationVerification.findOne({ organizationId }).lean(),
     InstitutionClaim.findOne({ organizationId }).lean(),
     InstitutionProfile.findOne({ organizationId }).lean(),
     canonicalInstitutionId ? Program.countDocuments({ institutionId: canonicalInstitutionId, status: PUB_STATUSES.PUBLISHED }) : 0,
     canonicalInstitutionId ? Program.countDocuments({ institutionId: canonicalInstitutionId, status: PUB_STATUSES.DRAFT }) : 0,
     InstitutionDataConflict.countDocuments({ organizationId, state: CONFLICT_STATES.OPEN }),
+    canonicalInstitutionId ? CanonicalScholarship.countDocuments({ institutionId: canonicalInstitutionId, organizationId }) : 0,
+    canonicalInstitutionId ? TestAcceptance.countDocuments({ institutionId: canonicalInstitutionId, acceptanceScope: { $ne: ACCEPTANCE_SCOPES.COUNTRY } }) : 0,
+    InstitutionAdmissionApplication.countDocuments({ organizationId }),
+    canonicalInstitutionId ? Program.countDocuments({ institutionId: canonicalInstitutionId, freshnessState: FRESHNESS_STATES.STALE }) : 0,
+    canonicalInstitutionId ? Program.countDocuments({ institutionId: canonicalInstitutionId, freshnessState: FRESHNESS_STATES.REVIEW_DUE }) : 0,
   ]);
+
+  const orgOid = mongoose.Types.ObjectId.isValid(String(organizationId))
+    ? new mongoose.Types.ObjectId(String(organizationId))
+    : organizationId;
+  const distRows = await InstitutionAdmissionApplication.aggregate([
+    { $match: { organizationId: orgOid } },
+    { $group: { _id: '$status', count: { $sum: 1 } } },
+  ]).catch(() => []);
+  const applicationStatusDistribution = Object.fromEntries(
+    Object.values(ADMISSION_STATES).map((s) => [s, 0])
+  );
+  for (const row of distRows) {
+    if (row._id && applicationStatusDistribution[row._id] !== undefined) {
+      applicationStatusDistribution[row._id] = row.count;
+    }
+  }
 
   return {
     verificationStatus: verification?.status || 'draft',
@@ -690,7 +763,233 @@ export async function getDashboardMetrics(organizationId, canonicalInstitutionId
     publishedPrograms,
     draftPrograms,
     openConflicts: conflicts,
-    // Truthful only — no fabricated applications/enrollments/revenue
+    institutionOwnedScholarships: scholarshipCount,
+    testAcceptanceRecords: testAcceptanceCount,
+    internalApplications,
+    applicationStatusDistribution,
+    staleFacts: stalePrograms,
+    reviewDueFacts: reviewDuePrograms,
+    externalApplicationTraffic: 'not_tracked',
+    launchPlan: INSTITUTION_LAUNCH_BILLING.planLabel,
+  };
+}
+
+export async function getUsageBilling() {
+  return {
+    plan: INSTITUTION_LAUNCH_BILLING,
+    provider: { state: INSTITUTION_LAUNCH_BILLING.providerState, liveStripeCalled: false },
+    wallet: 'not_configured',
+  };
+}
+
+export async function listOwnedPrograms({ canonicalInstitutionId, q, status, sort = '-createdAt', page = 1, limit = 20 }) {
+  const safeLimit = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const filter = { institutionId: canonicalInstitutionId };
+  if (status) filter.status = status;
+  const query = boundedInstitutionQuery(q);
+  if (query) filter.name = { $regex: escapeRegex(query), $options: 'i' };
+  const sortSpec = sort === 'name' ? { name: 1 } : { createdAt: -1 };
+  const [programs, total] = await Promise.all([
+    Program.find(filter).sort(sortSpec).skip((pageNum - 1) * safeLimit).limit(safeLimit).lean(),
+    Program.countDocuments(filter),
+  ]);
+  return { programs, pagination: { page: pageNum, limit: safeLimit, total, pages: Math.ceil(total / safeLimit) } };
+}
+
+export async function listTestAcceptance({ canonicalInstitutionId, q, page = 1, limit = 20 }) {
+  const safeLimit = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const filter = {
+    institutionId: canonicalInstitutionId,
+    acceptanceScope: { $ne: ACCEPTANCE_SCOPES.COUNTRY },
+  };
+  const query = boundedInstitutionQuery(q);
+  if (query) filter.$or = [{ acceptanceStatus: { $regex: escapeRegex(query), $options: 'i' } }];
+  const [records, total] = await Promise.all([
+    TestAcceptance.find(filter).sort({ createdAt: -1 }).skip((pageNum - 1) * safeLimit).limit(safeLimit).select('-adminNotes').lean(),
+    TestAcceptance.countDocuments(filter),
+  ]);
+  return { records, pagination: { page: pageNum, limit: safeLimit, total, pages: Math.ceil(total / safeLimit) } };
+}
+
+export async function listOwnedScholarships({ organizationId, canonicalInstitutionId, q, page = 1, limit = 20 }) {
+  const safeLimit = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const filter = {
+    $or: [
+      { organizationId },
+      { institutionId: canonicalInstitutionId },
+    ],
+  };
+  const query = boundedInstitutionQuery(q);
+  if (query) filter.title = { $regex: escapeRegex(query), $options: 'i' };
+  const [scholarships, total] = await Promise.all([
+    CanonicalScholarship.find(filter).sort({ createdAt: -1 }).skip((pageNum - 1) * safeLimit).limit(safeLimit)
+      .select('-adminNotes')
+      .lean(),
+    CanonicalScholarship.countDocuments(filter),
+  ]);
+  return { scholarships, pagination: { page: pageNum, limit: safeLimit, total, pages: Math.ceil(total / safeLimit) } };
+}
+
+export async function createOwnedScholarship({
+  organizationId,
+  canonicalInstitutionId,
+  data,
+  actor,
+}) {
+  const { containsForbiddenGuarantee } = await import('../../../shared/education/scholarshipIntelligence.js');
+  const { SCHOLARSHIP_TYPES, PROVIDER_TYPES, FUNDING_TYPES } = await import('../../../shared/education/scholarshipIntelligence.js');
+  const { educationSlug } = await import('../../../shared/education/taxonomy.js');
+  const { isDateOnly } = await import('../../../shared/institution/institutionPortal.js');
+
+  const title = String(data.title || '').trim();
+  if (!title) throw Object.assign(new Error('title is required'), { code: 'VALIDATION', status: 400 });
+  if (containsForbiddenGuarantee(title) || containsForbiddenGuarantee(data.summary)) {
+    throw Object.assign(new Error('Guarantee wording is not allowed'), { code: 'FORBIDDEN_GUARANTEE', status: 422 });
+  }
+  if (data.scholarshipType && data.scholarshipType !== SCHOLARSHIP_TYPES.INSTITUTIONAL) {
+    throw Object.assign(
+      new Error('Institution may only manage its own institutional scholarships. External/government awards require independent source authority.'),
+      { code: 'EXTERNAL_AUTHORITY', status: 403 }
+    );
+  }
+  if (data.deadlineDate && !isDateOnly(data.deadlineDate)) {
+    throw Object.assign(new Error('deadlineDate must be YYYY-MM-DD with no timezone'), { code: 'VALIDATION', status: 422 });
+  }
+  if (data.funding?.amountMinor != null && !Number.isInteger(data.funding.amountMinor)) {
+    throw Object.assign(new Error('funding.amountMinor must be an integer'), { code: 'VALIDATION', status: 400 });
+  }
+  const criteria = Array.isArray(data.criteria) && data.criteria.length
+    ? data.criteria
+    : (String(data.eligibility || '').trim()
+      ? [{ criteriaType: 'other', value: String(data.eligibility).trim().slice(0, 500), notes: String(data.eligibility).trim().slice(0, 1000) }]
+      : []);
+
+  let slug = educationSlug(title);
+  const base = slug;
+  let attempt = 0;
+  while (await CanonicalScholarship.exists({ slug })) {
+    attempt += 1;
+    slug = `${base}-${attempt + 1}`;
+  }
+
+  const scholarship = await CanonicalScholarship.create({
+    slug,
+    title,
+    provider: {
+      name: data.provider?.name || '',
+      providerType: PROVIDER_TYPES.UNIVERSITY,
+    },
+    scholarshipType: SCHOLARSHIP_TYPES.INSTITUTIONAL,
+    destinationCountries: data.destinationCountries || [],
+    degreeLevels: data.degreeLevels || [],
+    fields: data.fields || [],
+    studyModes: data.studyModes || [],
+    funding: data.funding || { type: FUNDING_TYPES.UNKNOWN },
+    criteria,
+    applicationMethod: data.applicationMethod,
+    applicationUrl: data.applicationUrl || '',
+    summary: data.summary || '',
+    sources: [{ sourceType: INSTITUTION_SOURCE_TYPE, sourceUrl: data.sourceUrl || '' }],
+    institutionId: canonicalInstitutionId,
+    organizationId,
+    applicableProgramIds: data.applicableProgramIds || [],
+    nationalityScope: data.nationalityScope || [],
+    cycleLabel: data.cycleLabel || '',
+    deadlineDate: data.deadlineDate || '',
+    status: PUB_STATUSES.DRAFT,
+    verificationStatus: 'unverified',
+    freshnessState: 'unknown',
+  });
+
+  await logAudit({
+    action: 'institution_scholarship_created',
+    actor,
+    metadata: { organizationId, scholarshipId: scholarship._id },
+  });
+  return scholarship;
+}
+
+export async function updateOwnedScholarship({
+  scholarshipId,
+  organizationId,
+  canonicalInstitutionId,
+  updates,
+  actor,
+}) {
+  const { containsForbiddenGuarantee } = await import('../../../shared/education/scholarshipIntelligence.js');
+  const { isDateOnly } = await import('../../../shared/institution/institutionPortal.js');
+  const scholarship = await CanonicalScholarship.findById(scholarshipId);
+  if (!scholarship) throw Object.assign(new Error('Scholarship not found'), { code: 'NOT_FOUND', status: 404 });
+  await assertScholarshipOwnership(scholarshipId, organizationId, canonicalInstitutionId);
+
+  if (containsForbiddenGuarantee(updates.title) || containsForbiddenGuarantee(updates.summary)) {
+    throw Object.assign(new Error('Guarantee wording is not allowed'), { code: 'FORBIDDEN_GUARANTEE', status: 422 });
+  }
+  if (updates.deadlineDate && !isDateOnly(updates.deadlineDate)) {
+    throw Object.assign(new Error('deadlineDate must be YYYY-MM-DD with no timezone'), { code: 'VALIDATION', status: 422 });
+  }
+
+  const allowed = [
+    'title', 'summary', 'funding', 'criteria', 'applicationUrl', 'applicationMethod',
+    'destinationCountries', 'degreeLevels', 'fields', 'studyModes', 'applicableProgramIds',
+    'nationalityScope', 'cycleLabel', 'deadlineDate', 'status',
+  ];
+  for (const key of allowed) {
+    if (updates[key] !== undefined) scholarship[key] = updates[key];
+  }
+  if (updates.sourceUrl) {
+    scholarship.sources = [{ sourceType: INSTITUTION_SOURCE_TYPE, sourceUrl: updates.sourceUrl }];
+  }
+  await scholarship.save();
+  await logAudit({
+    action: 'institution_scholarship_updated',
+    actor,
+    metadata: { organizationId, scholarshipId },
+  });
+  return scholarship;
+}
+
+export function normalizeIntake(raw = {}) {
+  const open = raw.applicationOpenDate || toDateOnlyUtc(raw.applicationOpenAt) || '';
+  const deadline = raw.deadlineDate || toDateOnlyUtc(raw.deadlineAt) || '';
+  const start = raw.startDate || '';
+  for (const [label, value] of [['applicationOpenDate', open], ['deadlineDate', deadline], ['startDate', start]]) {
+    if (value && !isDateOnly(value)) {
+      throw Object.assign(new Error(`${label} must be YYYY-MM-DD with no timezone`), { code: 'VALIDATION', status: 422 });
+    }
+  }
+  const mode = raw.applicationMode || APPLICATION_MODES.NOT_CONFIGURED;
+  if (!isValidApplicationMode(mode)) {
+    throw Object.assign(new Error('Invalid application mode'), { code: 'VALIDATION', status: 400 });
+  }
+  const status = raw.status || INTAKE_STATUSES.DRAFT;
+  if (!isValidIntakeStatus(status)) {
+    throw Object.assign(new Error('Invalid intake status'), { code: 'VALIDATION', status: 400 });
+  }
+  if (raw.fee?.amountMinor != null && !Number.isInteger(raw.fee.amountMinor)) {
+    throw Object.assign(new Error('fee.amountMinor must be an integer'), { code: 'VALIDATION', status: 400 });
+  }
+  return {
+    cycleLabel: String(raw.cycleLabel || '').trim(),
+    applicationOpenAt: open ? new Date(`${open}T00:00:00.000Z`) : null,
+    deadlineAt: deadline ? new Date(`${deadline}T00:00:00.000Z`) : null,
+    notes: String(raw.notes || '').trim(),
+    applicationOpenDate: open,
+    deadlineDate: deadline,
+    startDate: start,
+    applicationMode: mode,
+    applicationUrl: String(raw.applicationUrl || '').trim(),
+    capacity: Number.isInteger(raw.capacity) ? raw.capacity : null,
+    requirements: String(raw.requirements || '').trim(),
+    fee: {
+      amountMinor: raw.fee?.amountMinor ?? null,
+      currency: String(raw.fee?.currency || '').trim().toUpperCase(),
+    },
+    status,
+    sourceUrl: String(raw.sourceUrl || '').trim(),
   };
 }
 

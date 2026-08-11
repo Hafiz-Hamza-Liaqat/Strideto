@@ -1,58 +1,144 @@
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useEffect, useRef, useState } from 'react';
+import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { SkipLink } from '../../components/a11y/SkipLink';
+import { Logo } from '../../components/brand/Logo';
+import { useOverlayA11y } from '../../a11y/useOverlayA11y';
 import { useInstitutionAuth } from '../../context/InstitutionAuthContext';
 import { ROUTES } from '../../constants';
+import { institutionNavItems } from '../../config/institutionNavConfig';
+import { InstitutionNotificationBell } from '../../components/notifications/InstitutionNotificationBell';
+import { institutionPortalApi } from '../../services/institutionPortalService';
+import { portalChromeLabel } from './InstitutionUi';
 
-const links = [
-  [ROUTES.INSTITUTION_DASHBOARD, 'Dashboard', true],
-  [ROUTES.INSTITUTION_ONBOARDING, 'Verification', false],
-  [ROUTES.INSTITUTION_PROFILE, 'Profile', false],
-  [ROUTES.INSTITUTION_PROGRAMS, 'Programs', false],
-  [ROUTES.INSTITUTION_DATA_QUALITY, 'Data quality', false],
-  [ROUTES.INSTITUTION_TEAM, 'Team & settings', false],
-];
+function NavLinks({ location, onNavigate }) {
+  const menu = institutionNavItems();
+  const activePath = menu.reduce((best, { path, end }) => {
+    const isMatch = end
+      ? location.pathname === path || location.pathname === `${path}/`
+      : location.pathname === path || location.pathname.startsWith(`${path}/`);
+    if (!isMatch) return best;
+    return !best || path.length > best.length ? path : best;
+  }, null);
 
-function PortalNav({ mobile = false }) {
-  return (
-    <nav aria-label="Institution navigation" className={mobile ? 'flex gap-2 overflow-x-auto pb-1' : 'space-y-1'}>
-      {links.map(([to, label, end]) => (
-        <NavLink key={to} to={to} end={end} className={({ isActive }) => `${mobile ? 'flex min-h-[44px] shrink-0 items-center' : 'block'} rounded-lg px-3 py-2 text-sm font-medium ${isActive ? 'bg-blue-50 text-blue-800 ring-1 ring-blue-200' : 'text-slate-650 hover:bg-slate-100'}`}>
-          {label}
-        </NavLink>
-      ))}
-    </nav>
-  );
+  return menu.map(({ path, label }) => (
+    <Link
+      key={path}
+      to={path}
+      onClick={onNavigate}
+      aria-current={path === activePath ? 'page' : undefined}
+      className={`block px-3 py-2.5 rounded-lg text-sm font-medium min-h-[44px] flex items-center ${
+        path === activePath
+          ? 'bg-primary/10 text-primary dark:text-mint'
+          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
+      }`}
+    >
+      {label}
+    </Link>
+  ));
 }
 
 export default function InstitutionLayout() {
-  const { account, membership, logout } = useInstitutionAuth();
+  const location = useLocation();
+  const { account, membership, organizationId, logout } = useInstitutionAuth();
   const navigate = useNavigate();
-  const handleLogout = async () => { await logout(); navigate(ROUTES.INSTITUTION_LOGIN, { replace: true }); };
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [verificationStatus, setVerificationStatus] = useState('');
+  const panelRef = useRef(null);
+  useOverlayA11y({ open: mobileOpen, onClose: () => setMobileOpen(false), containerRef: panelRef, trapFocus: true });
+
+  useEffect(() => {
+    if (!organizationId) return undefined;
+    institutionPortalApi.dashboard(organizationId)
+      .then(({ data }) => setVerificationStatus(data.verificationStatus || ''))
+      .catch(() => {});
+  }, [organizationId]);
+
+  useEffect(() => {
+    document.body.style.overflow = mobileOpen ? 'hidden' : '';
+    return () => { document.body.style.overflow = ''; };
+  }, [mobileOpen]);
+
+  const handleLogout = async () => {
+    await logout();
+    navigate(ROUTES.INSTITUTION_LOGIN, { replace: true });
+  };
+
+  const chrome = portalChromeLabel(verificationStatus);
 
   return (
-    <div className="min-h-screen bg-slate-50 md:flex">
+    <div className="min-h-screen max-w-full bg-bg-main dark:bg-secondary flex flex-col lg:flex-row">
       <SkipLink />
-      <header className="border-b border-slate-200 bg-white p-3 md:hidden">
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <Link className="font-bold text-slate-900" to={ROUTES.INSTITUTION_DASHBOARD}>Strideto Institution</Link>
-          <button onClick={handleLogout} className="min-h-[44px] rounded-lg px-3 text-sm font-semibold text-red-700 hover:bg-red-50">Log out</button>
+      <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 safe-area-inset-top">
+        <Link to={ROUTES.INSTITUTION_DASHBOARD} className="font-semibold text-gray-900 dark:text-white truncate min-w-0 flex items-center gap-2">
+          <Logo variant="symbol" height={28} />
+          <span>Strideto</span>
+        </Link>
+        <div className="flex items-center gap-1 shrink-0">
+          <InstitutionNotificationBell />
+          <button
+            type="button"
+            aria-label="Open institution menu"
+            aria-expanded={mobileOpen}
+            aria-controls="institution-mobile-nav"
+            onClick={() => setMobileOpen(true)}
+            className="p-2 rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 min-h-[44px] min-w-[44px]"
+          >
+            ☰
+          </button>
         </div>
-        <div className="mt-3"><PortalNav mobile /></div>
       </header>
-      <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white md:flex md:min-h-screen md:flex-col">
-        <div className="border-b border-slate-200 px-5 py-5">
-          <Link to={ROUTES.INSTITUTION_DASHBOARD} className="text-lg font-bold text-slate-900">Strideto</Link>
-          <p className="text-xs text-slate-500">Verified Institution Portal</p>
+
+      {mobileOpen && (
+        <div className="lg:hidden fixed inset-0 z-50">
+          <button type="button" aria-label="Close menu" className="absolute inset-0 bg-black/40" onClick={() => setMobileOpen(false)} />
+          <aside
+            id="institution-mobile-nav"
+            ref={panelRef}
+            role="dialog"
+            aria-modal="true"
+            aria-label="Institution navigation"
+            tabIndex={-1}
+            className="absolute left-0 top-0 bottom-0 w-72 max-w-[85vw] bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 p-4 flex flex-col overflow-y-auto overscroll-contain outline-none"
+          >
+            <div className="flex items-center justify-between mb-4 shrink-0">
+              <span className="font-semibold text-gray-900 dark:text-white">Menu</span>
+              <button type="button" aria-label="Close" onClick={() => setMobileOpen(false)} className="min-h-[44px] min-w-[44px] rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">✕</button>
+            </div>
+            <nav className="space-y-1 flex-1">
+              <NavLinks location={location} onNavigate={() => setMobileOpen(false)} />
+            </nav>
+            <div className="pt-3 border-t border-gray-200 dark:border-gray-700 shrink-0">
+              <p className="text-xs text-gray-500 truncate px-2 break-words-safe">{account?.email || ''}</p>
+              <button type="button" onClick={() => { handleLogout(); setMobileOpen(false); }} className="mt-2 w-full text-left px-3 py-2.5 text-sm text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40 rounded-lg min-h-[44px]">
+                Log out
+              </button>
+            </div>
+          </aside>
         </div>
-        <div className="flex-1 px-3 py-4"><PortalNav /></div>
-        <div className="border-t border-slate-200 p-4">
-          <p className="break-all text-xs text-slate-600">{account?.email}</p>
-          <p className="mt-1 text-xs font-semibold text-slate-700">Role: {membership?.role || 'member'}</p>
-          <button onClick={handleLogout} className="mt-3 min-h-[44px] w-full rounded-lg px-3 text-left text-sm font-semibold text-red-700 hover:bg-red-50">Log out</button>
+      )}
+
+      <aside className="hidden lg:flex w-64 shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex-col">
+        <div className="p-4 border-b border-gray-200 dark:border-gray-700">
+          <div className="flex items-start justify-between gap-2">
+            <Link to={ROUTES.INSTITUTION_DASHBOARD} className="flex items-center gap-2 text-gray-900 dark:text-white font-semibold tracking-tight min-w-0">
+              <Logo variant="symbol" height={28} />
+              Strideto
+            </Link>
+            <InstitutionNotificationBell />
+          </div>
+          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{chrome}</p>
+        </div>
+        <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto"><NavLinks location={location} /></nav>
+        <div className="border-t border-gray-200 dark:border-gray-700 p-4">
+          <p className="break-all text-xs text-gray-600 dark:text-gray-400">{account?.email}</p>
+          <p className="mt-1 text-xs font-semibold text-gray-700 dark:text-gray-300">Role: {membership?.role || 'member'}</p>
+          <button type="button" onClick={handleLogout} className="mt-3 min-h-[44px] w-full rounded-lg px-3 text-left text-sm font-semibold text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40">Log out</button>
         </div>
       </aside>
       <div className="min-w-0 flex-1">
-        <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-4 py-6 outline-none sm:px-6 sm:py-8"><Outlet /></main>
+        <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-4 py-6 outline-none sm:px-6 sm:py-8">
+          <Outlet />
+        </main>
       </div>
     </div>
   );

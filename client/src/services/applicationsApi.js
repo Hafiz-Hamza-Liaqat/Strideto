@@ -20,3 +20,11 @@ export const applicationsApi = {
   removeContact: (id, contactId) => axiosInstance.delete(`/applications/${id}/contacts/${contactId}`),
   upsertInterview: (id, body) => axiosInstance.put(`/applications/${id}/interview`, body),
 };
+
+/** Internal Institution admissions (Phase 6). User realm only. */
+export const studentInstitutionAdmissionApi = {
+  submit: (data) => axiosInstance.post('/student/institution-admissions', data),
+  list: (params) => axiosInstance.get('/student/institution-admissions', { params }),
+  withdraw: (applicationId) => axiosInstance.post(`/student/institution-admissions/${encodeURIComponent(applicationId)}/withdraw`),
+  respond: (applicationId, response) => axiosInstance.post(`/student/institution-admissions/${encodeURIComponent(applicationId)}/respond`, { response }),
+};

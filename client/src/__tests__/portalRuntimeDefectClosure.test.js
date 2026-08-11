@@ -59,5 +59,10 @@ test('Institution acquisition errors and realm paths are truthful', () => {
     '/institution', '/institution/onboarding', '/institution/profile',
     '/institution/programs', '/institution/programs/new',
     '/institution/data-quality', '/institution/team',
+    '/institution/verification', '/institution/claim', '/institution/intakes',
+    '/institution/applications', '/institution/test-acceptance', '/institution/scholarships',
+    '/institution/notifications', '/institution/usage', '/institution/billing',
+    '/institution/settings', '/institution/guidelines', '/institution/help',
   ]) assert.equal(isInstitutionPortalPath(path), true, `${path} must be Institution-protected`);
+  assert.equal(isInstitutionPublicAuthPath('/institution/accept-invitation'), true);
 });

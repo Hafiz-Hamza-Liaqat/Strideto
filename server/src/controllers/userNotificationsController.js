@@ -16,8 +16,10 @@ function recipientContext(req) {
   if (req.agent?.agentAccountId) {
     return { recipientType: 'agent', agentAccountId: req.agent.agentAccountId };
   }
-  // Institution tokens are valid platform principals, but they do not map
-  // to the canonical inbox. Deny them explicitly instead of falling through
+  if (req.institution?.institutionAccountId) {
+    return { recipientType: 'institution', institutionAccountId: req.institution.institutionAccountId };
+  }
+  // Unsupported realms are denied rather than falling through
   // and dereferencing a missing req.user.
   if (!req.user?.userId) return null;
   const isStaff = req.user?.role && STAFF_ROLES.includes(req.user.role);
@@ -30,6 +32,7 @@ function recipientContext(req) {
 function applyRecipientOwner(filter, ctx) {
   if (ctx.recipientType === 'employer') filter.employerId = ctx.employerId;
   else if (ctx.recipientType === 'agent') filter.agentAccountId = ctx.agentAccountId;
+  else if (ctx.recipientType === 'institution') filter.institutionAccountId = ctx.institutionAccountId;
   else filter.userId = ctx.userId;
 }
 

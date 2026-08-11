@@ -2,10 +2,11 @@ import mongoose from 'mongoose';
 
 const userNotificationSchema = new mongoose.Schema(
   {
-    recipientType: { type: String, enum: ['user', 'employer', 'staff', 'agent'], required: true },
+    recipientType: { type: String, enum: ['user', 'employer', 'staff', 'agent', 'institution'], required: true },
     userId: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
     employerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Employer' },
     agentAccountId: { type: mongoose.Schema.Types.ObjectId, ref: 'AgentAccount' },
+    institutionAccountId: { type: mongoose.Schema.Types.ObjectId, ref: 'InstitutionAccount' },
     category: {
       type: String,
       enum: [
@@ -64,6 +65,7 @@ const userNotificationSchema = new mongoose.Schema(
 userNotificationSchema.index({ userId: 1, read: 1, createdAt: -1 });
 userNotificationSchema.index({ employerId: 1, read: 1, createdAt: -1 });
 userNotificationSchema.index({ agentAccountId: 1, read: 1, createdAt: -1 });
+userNotificationSchema.index({ institutionAccountId: 1, read: 1, createdAt: -1 });
 userNotificationSchema.index({ recipientType: 1, createdAt: -1 });
 userNotificationSchema.index(
   { dedupeKey: 1 },

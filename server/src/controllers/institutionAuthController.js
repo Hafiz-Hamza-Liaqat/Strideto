@@ -239,3 +239,20 @@ export const institutionLogoutAll = asyncHandler(async (req, res) => {
   if (result.clearCookie) clearInstitutionRefreshCookie(res);
   return res.status(200).json({ message: 'All sessions revoked' });
 });
+
+export const institutionChangePassword = asyncHandler(async (req, res) => {
+  const { newPassword } = req.body || {};
+  if (!newPassword || newPassword.length < 8) {
+    return res.status(400).json({ error: 'newPassword must be at least 8 characters' });
+  }
+  const result = await institutionSecureAuthFlows.changePassword({
+    principal: req.institution,
+    newPassword,
+    presentedAccessTokenExp: req.institution.exp,
+  });
+  if (result.clearCookie) clearInstitutionRefreshCookie(res);
+  if (result.code !== 'PASSWORD_CHANGED') {
+    return res.status(result.httpStatus).json(result.body || { error: 'Failed to change password' });
+  }
+  return res.status(200).json({ message: 'Password changed. Please log in again.' });
+});

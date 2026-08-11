@@ -191,7 +191,7 @@ check(profileSvc.includes('INVITE_EMAIL_MISMATCH'), 'invite email mismatch 403')
 check(verifySvc.includes('INCOMPLETE_SUBMISSION') && verifySvc.includes('422'), 'incomplete dossier 422');
 check(consultSvc.includes('fail(') && consultSvc.includes('422'), 'availability timezone 422');
 check(agentRoutes.includes('requireAgentAuth'), 'wrong realm denied by requireAgentAuth');
-check(notifCtrl.includes("Notification inbox is not available for this account type"), 'institution inbox still denied');
+check(notifCtrl.includes("Notification inbox is not available for this account type"), 'unsupported inbox realm denied');
 check(caseSvc.includes('vaultGrantsTransferred') || source('server/src/services/caseManagementService.js').includes('authorizedMembershipIds'), 'case transfer does not auto-copy vault in this service');
 check(login.includes('htmlFor') || login.includes('agent-login-email'), 'login labels');
 check(verifyPage.includes('role="alert"') || verifyPage.includes('setError'), 'verification errors exposed');

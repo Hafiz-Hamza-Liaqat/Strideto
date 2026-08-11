@@ -4,7 +4,13 @@ import { useInstitutionAuth } from '../../context/InstitutionAuthContext';
 import { institutionPortalApi } from '../../services/institutionPortalService';
 import { PageState, Panel, fieldClass, primaryButton } from './InstitutionUi';
 
-const empty = { officialDisplayName: '', legalName: '', institutionType: '', countryCode: '', officialWebsite: '', officialAdmissionsWebsite: '', officialContactEmail: '', officialPhone: '', institutionDescription: '' };
+const empty = {
+  officialDisplayName: '', legalName: '', organizationType: '', institutionType: '',
+  countryCode: '', city: '', region: '', officialDomain: '', logoUrl: '',
+  officialWebsite: '', officialAdmissionsWebsite: '', officialContactEmail: '', officialPhone: '',
+  institutionDescription: '', representativeName: '', representativeTitle: '', representativeEmail: '',
+  addressLine1: '',
+};
 
 export default function InstitutionProfile() {
   const { organizationId } = useInstitutionAuth();
@@ -17,7 +23,17 @@ export default function InstitutionProfile() {
 
   useEffect(() => {
     institutionPortalApi.profile(organizationId)
-      .then(({ data }) => setForm({ ...empty, ...data.profile }))
+      .then(({ data }) => {
+        const p = data.profile || {};
+        const primary = (p.addresses || []).find((a) => a.isPrimary) || p.addresses?.[0] || {};
+        setForm({
+          ...empty,
+          ...p,
+          city: p.city || primary.city || '',
+          region: p.region || primary.region || '',
+          addressLine1: primary.addressLine1 || '',
+        });
+      })
       .catch((requestError) => setError(requestError.response?.data?.error || 'Institution profile is unavailable.'))
       .finally(() => setLoading(false));
   }, [organizationId]);
@@ -28,8 +44,28 @@ export default function InstitutionProfile() {
     if (!form.officialDisplayName.trim()) { setFieldError('Official display name is required.'); document.getElementById('institution-official-name')?.focus(); return; }
     setFieldError(''); setBusy(true);
     try {
-      const { data } = await institutionPortalApi.updateProfile(organizationId, form);
-      setForm({ ...empty, ...data.profile });
+      const payload = {
+        ...form,
+        institutionType: form.organizationType || form.institutionType,
+        addresses: [{
+          label: 'Registered',
+          addressLine1: form.addressLine1,
+          city: form.city,
+          region: form.region,
+          countryCode: form.countryCode,
+          isPrimary: true,
+        }],
+      };
+      const { data } = await institutionPortalApi.updateProfile(organizationId, payload);
+      const p = data.profile || {};
+      const primary = (p.addresses || []).find((a) => a.isPrimary) || p.addresses?.[0] || {};
+      setForm((current) => ({
+        ...current,
+        ...p,
+        city: p.city || primary.city || '',
+        region: p.region || primary.region || '',
+        addressLine1: primary.addressLine1 || current.addressLine1,
+      }));
       setMessage('Profile saved as Institution-supplied information. Saving does not change verification or claim approval.');
     } catch (requestError) { setError(requestError.response?.data?.error || 'Profile could not be saved. Your entered values are preserved.'); }
     finally { setBusy(false); }
@@ -37,22 +73,37 @@ export default function InstitutionProfile() {
 
   if (loading) return <PageState>Loading Institution profile…</PageState>;
 
-  const fields = [
-    ['legalName', 'Legal name', 'text'], ['institutionType', 'Institution type', 'text'], ['countryCode', 'Country code', 'text'],
-    ['officialWebsite', 'Official website', 'url'], ['officialAdmissionsWebsite', 'Official admissions website', 'url'],
-    ['officialContactEmail', 'Public contact email', 'email'], ['officialPhone', 'Public phone', 'tel'],
-  ];
-
   return (
     <div className="space-y-6">
-      <div><p className="text-sm font-semibold text-blue-700">Official profile</p><h1 className="mt-1 text-2xl font-bold text-slate-900 sm:text-3xl">Institution profile</h1><p className="mt-2 text-sm text-slate-600">Only public, source-backed Institution information belongs here. Do not enter private representative or security data.</p></div>
-      {message ? <PageState tone="success">{message}</PageState> : null}{error ? <PageState tone="error" role="alert">{error}</PageState> : null}
+      <div>
+        <p className="text-sm font-semibold text-primary">Official profile</p>
+        <h1 className="mt-1 text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">Organization profile</h1>
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Public, source-backed identity. Do not invent missing facts. Legacy records remain compatible.</p>
+      </div>
+      {message ? <PageState tone="success">{message}</PageState> : null}
+      {error ? <PageState tone="error" role="alert">{error}</PageState> : null}
       <Panel>
         <form onSubmit={save} className="grid gap-4 sm:grid-cols-2" noValidate>
-          <div className="sm:col-span-2"><FormField id="institution-official-name" label="Official display name" error={fieldError}><input id="institution-official-name" className={fieldClass} value={form.officialDisplayName} onChange={set('officialDisplayName')} /></FormField></div>
-          {fields.map(([key, label, type]) => <label key={key} className="text-sm font-medium text-slate-700">{label}<input type={type} className={`${fieldClass} mt-1`} value={form[key] || ''} onChange={set(key)} /></label>)}
-          <label className="text-sm font-medium text-slate-700 sm:col-span-2">Source-backed description<textarea className={`${fieldClass} mt-1 min-h-28`} value={form.institutionDescription || ''} onChange={set('institutionDescription')} /></label>
-          <div className="flex flex-wrap items-center gap-3 sm:col-span-2"><button className={primaryButton} disabled={busy}>{busy ? 'Saving…' : 'Save Institution profile'}</button><span className="text-sm text-slate-600">Completeness: {form.completenessScore || 0}% — not a verification badge.</span></div>
+          <div className="sm:col-span-2"><FormField id="institution-official-name" label="Official / display name" error={fieldError}><input id="institution-official-name" className={fieldClass} value={form.officialDisplayName} onChange={set('officialDisplayName')} /></FormField></div>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Legal name<input className={`${fieldClass} mt-1`} value={form.legalName || ''} onChange={set('legalName')} /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Organization type<input className={`${fieldClass} mt-1`} value={form.organizationType || form.institutionType || ''} onChange={set('organizationType')} placeholder="university" /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Country code<input className={`${fieldClass} mt-1`} maxLength={2} value={form.countryCode || ''} onChange={set('countryCode')} /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Region / state / province<input className={`${fieldClass} mt-1`} value={form.region || ''} onChange={set('region')} /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">City<input className={`${fieldClass} mt-1`} value={form.city || ''} onChange={set('city')} /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2">Registered address<input className={`${fieldClass} mt-1`} value={form.addressLine1 || ''} onChange={set('addressLine1')} /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Official website<input type="url" className={`${fieldClass} mt-1`} value={form.officialWebsite || ''} onChange={set('officialWebsite')} placeholder="https://" /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Official domain<input className={`${fieldClass} mt-1`} value={form.officialDomain || ''} onChange={set('officialDomain')} placeholder="institution.edu" /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Official email<input type="email" className={`${fieldClass} mt-1`} value={form.officialContactEmail || ''} onChange={set('officialContactEmail')} /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Phone<input className={`${fieldClass} mt-1`} value={form.officialPhone || ''} onChange={set('officialPhone')} /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2">Logo URL<input type="url" className={`${fieldClass} mt-1`} value={form.logoUrl || ''} onChange={set('logoUrl')} placeholder="https://" /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Representative name<input className={`${fieldClass} mt-1`} value={form.representativeName || ''} onChange={set('representativeName')} /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Representative title<input className={`${fieldClass} mt-1`} value={form.representativeTitle || ''} onChange={set('representativeTitle')} /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2">Representative email<input type="email" className={`${fieldClass} mt-1`} value={form.representativeEmail || ''} onChange={set('representativeEmail')} /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2">Public description<textarea className={`${fieldClass} mt-1 min-h-28`} value={form.institutionDescription || ''} onChange={set('institutionDescription')} /></label>
+          <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
+            <button className={primaryButton} disabled={busy}>{busy ? 'Saving…' : 'Save Institution profile'}</button>
+            <span className="text-sm text-gray-600 dark:text-gray-400">Completeness: {form.completenessScore || 0}% — not a verification badge.</span>
+          </div>
         </form>
       </Panel>
     </div>

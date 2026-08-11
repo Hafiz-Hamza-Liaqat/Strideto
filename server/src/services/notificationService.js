@@ -18,6 +18,7 @@ export async function createUserNotification({
   userId,
   employerId,
   agentAccountId,
+  institutionAccountId,
   category = 'general',
   type,
   title,
@@ -47,6 +48,7 @@ export async function createUserNotification({
     userId,
     employerId,
     agentAccountId,
+    institutionAccountId,
     category,
     type,
     title,
@@ -102,6 +104,10 @@ export async function notifyAgent(agentAccountId, payload) {
   return createUserNotification({ recipientType: 'agent', agentAccountId, ...payload });
 }
 
+export async function notifyInstitution(institutionAccountId, payload) {
+  return createUserNotification({ recipientType: 'institution', institutionAccountId, ...payload });
+}
+
 /** Notify all staff users (admins, moderators, editors). */
 export async function notifyStaff(payload) {
   const staff = await User.find({ role: { $in: STAFF_ROLES } }).select('_id').lean();
@@ -119,10 +125,11 @@ export async function notifyStaff(payload) {
   return UserNotification.insertMany(docs);
 }
 
-export async function getUnreadCount({ recipientType, userId, employerId, agentAccountId }) {
+export async function getUnreadCount({ recipientType, userId, employerId, agentAccountId, institutionAccountId }) {
   const filter = { recipientType, read: false };
   if (recipientType === 'user' || recipientType === 'staff') filter.userId = userId;
   if (recipientType === 'employer') filter.employerId = employerId;
   if (recipientType === 'agent') filter.agentAccountId = agentAccountId;
+  if (recipientType === 'institution') filter.institutionAccountId = institutionAccountId;
   return UserNotification.countDocuments(filter);
 }
