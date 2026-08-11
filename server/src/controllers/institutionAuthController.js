@@ -39,7 +39,10 @@ function clearInstitutionRefreshCookie(res) {
 }
 
 function readInstitutionRefreshCookie(req) {
-  return secureAuthConfig.cookiePolicy.readRefreshCookie({ req, realm: 'institution' });
+  return secureAuthConfig.cookiePolicy.extractRefreshToken({
+    cookieHeader: req.headers.cookie,
+    realm: 'institution',
+  });
 }
 
 function toSafeAccount(account) {
@@ -194,7 +197,8 @@ export const institutionMe = asyncHandler(async (req, res) => {
 
 export const institutionRefreshToken = asyncHandler(async (req, res) => {
   const cookieResult = readInstitutionRefreshCookie(req);
-  const cookieToken = cookieResult?.token || null;
+  const cookieToken =
+    cookieResult.code === 'COOKIE_FOUND' ? cookieResult.token : null;
 
   const result = await institutionSecureAuthFlows.refresh({
     cookieToken,

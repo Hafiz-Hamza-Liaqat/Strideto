@@ -57,7 +57,10 @@ async function issueSecureAgentSession(res, account) {
 }
 
 function readAgentRefreshCookie(req) {
-  return secureAuthConfig.cookiePolicy.readRefreshCookie({ req, realm: 'agent' });
+  return secureAuthConfig.cookiePolicy.extractRefreshToken({
+    cookieHeader: req.headers.cookie,
+    realm: 'agent',
+  });
 }
 
 // ---------------------------------------------------------------------------
@@ -209,7 +212,7 @@ export const agentMe = asyncHandler(async (req, res) => {
 export const agentRefreshToken = asyncHandler(async (req, res) => {
   const cookieResult = readAgentRefreshCookie(req);
   const cookieToken =
-    cookieResult.code === 'COOKIE_FOUND' ? cookieResult.value : null;
+    cookieResult.code === 'COOKIE_FOUND' ? cookieResult.token : null;
 
   const result = await agentSecureAuthFlows.refresh({
     cookieToken,

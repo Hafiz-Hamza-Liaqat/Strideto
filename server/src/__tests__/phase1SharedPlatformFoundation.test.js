@@ -178,6 +178,13 @@ check(/isAuthenticated/.test(instCtx), 'InstitutionAuthContext exposes isAuthent
 check(/isAuthenticated/.test(agentRoute), 'ProtectedAgentRoute gates on isAuthenticated');
 check(/serverConfirmed/.test(usePerms), 'usePermissions requires server confirmation for SuperAdmin bypass');
 
+const agentCtrl = readFileSync(path.join(root, 'server/src/controllers/agentAuthController.js'), 'utf8');
+const instCtrl = readFileSync(path.join(root, 'server/src/controllers/institutionAuthController.js'), 'utf8');
+check(/extractRefreshToken/.test(agentCtrl), 'agent refresh uses extractRefreshToken');
+check(!/readRefreshCookie/.test(agentCtrl), 'agent controller has no nonexistent readRefreshCookie');
+check(/extractRefreshToken/.test(instCtrl), 'institution refresh uses extractRefreshToken');
+check(!/readRefreshCookie/.test(instCtrl), 'institution controller has no nonexistent readRefreshCookie');
+
 // --- Design tokens ---
 const semantic = await import(
   pathToFileURL(path.join(clientSrc, 'design-system/semanticTokens.js')).href

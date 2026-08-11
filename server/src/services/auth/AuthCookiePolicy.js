@@ -131,7 +131,7 @@ export function createAuthCookiePolicy(config) {
 
   function descriptorFor(realm) {
     if (!isKnownRealm(realm)) {
-      throw new TypeError('realm must be "user", "employer", or "agent"');
+      throw new TypeError('realm must be "user", "employer", "agent", or "institution"');
     }
     return descriptors[realm];
   }
