@@ -1,13 +1,13 @@
 # Strideto Phase 6 — Institution Final Portal
 
-> **Status:** NOT FROZEN  
+> **Status:** FROZEN  
 > **Baseline after Phase 5 freeze:** `c1ac88d`  
 > **Authority:** [STRIDETO_FINAL_FROZEN_MODIFICATION_ROADMAP.md](STRIDETO_FINAL_FROZEN_MODIFICATION_ROADMAP.md)  
 > **Phase 0–5:** FROZEN (not redesigned)  
 > **This phase owns:** FINAL Institution official-data portal  
 > **Later phases** may integrate through accepted Institution contracts. They may not redesign the Institution portal.
 
-Runtime probed at `https://localhost:8443` (Docker `edurozgaar-staging` + SEC-3F Caddy). Worker **stopped** (no worker container). Source for this phase is **not loaded** in the currently running baked API/frontend images. New Phase 6 APIs returned 404 on that image. Full mutation journey was therefore not executed (rebuild would be a staging image mutation and was not performed).
+Runtime at `https://localhost:8443` (Docker `edurozgaar-staging` + SEC-3F Caddy + local `appenv-align`). Worker **stopped**. Local rebuild of **frontend, api-a, api-b only** from HEAD; Mongo/Redis/media volumes preserved (`edurozgaar-staging_mongodb_data`, `_redis_data`, `_media_uploads`). No `down -v`, no volume prune, no reseed, no push, no deploy.
 
 ---
 
@@ -121,7 +121,7 @@ Bounded `q` (80 chars, regex-escaped) on programs, intakes, applications, Test A
 
 ## Responsive / accessibility
 
-Source: mobile overlay nav, desktop sidebar, 44px targets, labels, `role=alert`, visible focus, long-name wrap, light/dark. Not a WCAG certification. Viewport matrix was not re-run on a rebuilt Phase 6 image.
+Source: mobile overlay nav, desktop sidebar, 44px targets, labels, `role=alert`, visible focus, long-name wrap, light/dark. Not a WCAG certification. Viewport matrix **was** executed on the rebuilt Phase 6 image at 320/375/768/1024/1440 plus representative 200% zoom.
 
 ---
 
@@ -129,7 +129,7 @@ Source: mobile overlay nav, desktop sidebar, 44px targets, labels, `role=alert`,
 
 | Pack | Result |
 |---|---|
-| `phase6InstitutionPortal.test.js` | **163** checks passed |
+| `phase6InstitutionPortal.test.js` | **167** checks passed (163 prior + claim URL sanitizer + data-quality wrap) |
 | Mission 18 `institutionPortal.test.js` | 50/50 |
 | `institutionSecureAuthFlows` | 2 |
 | Phase 1 foundation | 53 |
@@ -152,34 +152,66 @@ Source: mobile overlay nav, desktop sidebar, 44px targets, labels, `role=alert`,
 
 ---
 
-## Real Docker evidence (current image)
+## Real Docker evidence (rebuilt runtime)
+
+Rebuild: `docker compose --env-file .env.staging -p edurozgaar-staging -f docker-compose.yml -f docker-compose.staging.yml -f docker-compose.sec3f-local.yml -f docker-compose.appenv-align.yml build` then `up -d --no-deps --force-recreate` for **frontend, api-a, api-b only**. Mongo/Redis remained Up ~3h (not recreated). Media volume untouched. Worker absent.
 
 | Check | Result |
 |---|---|
-| Worker container | Absent / stopped |
-| `GET https://localhost:8443/institution/login` | 200 |
-| `GET /institution/register` | 200 |
-| `GET /api/health` | 200, mongo/redis up, no unexpected 5xx |
-| `GET /api/auth/institution/me` | 401 (unauthenticated) |
-| `POST /api/auth/institution/login` without origin | 403 trusted-origin (not 5xx) |
-| `POST /api/auth/institution/change-password` | **404** (Phase 6 route not in running image) |
-| `GET /api/student/institution-admissions` | **404** (Phase 6 route not in running image) |
-| Browser login (light) | Readable labels/inputs; heading “Strideto Institution Portal” (not Verified); privacy boundary present |
-| Browser register (light) | Readable; placeholder visible; unverified-workspace copy |
-| Full mutation journey (verify → Admin → claim → programs → intake → TA → scholarship → team invite → internal application) | **Not executed** — would require rebuilding the running staging images |
+| Worker | Absent / stopped |
+| Frontend / api-a / api-b | Recreated; api-a/api-b healthy; frontend healthy |
+| Mongo / Redis / media | Preserved |
+| `POST /api/auth/institution/change-password` (unauth) | **401** (no longer 404) |
+| `GET /api/student/institution-admissions` (unauth) | **401** (no longer 404) |
+| `GET /api/institution/usage`, `/invites` (unauth) | 401 |
+| Browser login | Strideto Logo; “Institution sign in”; not “Verified Institution Portal”; privacy boundary |
+| Browser register | “Strideto Institution Account”; unverified-workspace copy; readable placeholders |
+| Source/runtime aligned | Yes |
+
+### Mutation journey (disposable local records)
+
+| Gate | Result |
+|---|---|
+| Auth login → protected → refresh/reload → logout → denied → login | Pass |
+| Logout-all then login | Pass |
+| Profile save → reload → logout/login persistence | Pass (`city` marker) |
+| Verification submit → Admin queue → begin review → needs_information → Institution inbox → resubmit → Admin approve | Pass |
+| Self-approval with Institution token | 401/403 |
+| Maps/Business | supporting-only; registryIntegration `none` |
+| Claim start while unverified (independence) → submit → Admin queue → competing submit visible → approve A → approve B 409 | Pass |
+| Team invite → duplicate 409 → accept editor → role update → last-owner 409 → cross-org 403 → Vault denied | Pass |
+| Program create/edit/persist/ownership/requirements; foreign program denied | Pass. Tuition integer minor units persist on PATCH (UI create-then-update). |
+| Intakes date-only YYYY-MM-DD; timezone string 422; internal + external persist | Pass |
+| Student consent submit → Institution inbox snapshot → Institution `under_review` → Student notification; Student cannot self-admit; Vault/students/budget/copilot denied; foreign application 404 | Pass |
+| External intake labelled “Application happens on the Institution’s official website”; usage `externalApplicationTraffic=not_tracked` | Pass |
+| Test Acceptance institution + program; country 403; supersession history | Pass |
+| Institution-owned scholarship; government type 403; guarantee wording 422; `institution_official` source | Pass |
+| Data Quality: GET does not mutate freshness; published tuition PATCH stores conflict (no silent overwrite); stale/review_due counters; explicit reconfirm | Pass |
+| Notifications: verification, claim, admissions, team; unread; read; mark-all; deep `/institution` links; no reviewer-reason leak. Dedicated data-quality inbox event not separately fanned out (conflict is on Data Quality page). No real email. | Pass / INFO |
+| Usage tracked programs/applications/conflicts; billing plan Free; future Not configured; provider `not_configured`; no Stripe; no wallet | Pass |
+| Settings change-password exists and rotates session; logout-all; no raw token/password echo | Pass |
+| Guidelines | All required topics present; no dead links |
+| Unexpected 5xx | **0** |
+
+### Light / dark / responsive
+
+| Gate | Result |
+|---|---|
+| Light | Login, register, dashboard, profile, verification, claim, Programs, applications — readable headings/fields/placeholders/buttons/badges/focus. Chrome is **Verified Institution** only after approval. |
+| Dark | Dashboard, verification, Program editor, applications, settings — Logo, contrast, no old “Verified Institution Portal” branding. |
+| 320 / 375 / 768 / 1024 / 1440 | High-risk nav pages: no severe page-level overflow after wrap fix. Mobile hamburger nav works at 320–768. Desktop sidebar at 1024+. Long names wrap / options truncated. |
+| 200% zoom | Verification, Program editor, admissions inbox, Data Quality — headings/buttons reachable; no severe overflow. Not a WCAG certification. |
+
+Runtime defect found and fixed before freeze: claim form sent evidence **URLs** into ObjectId `authorityEvidenceRefs` (CastError 500). Sanitized to `authorityEvidenceUrls` + ObjectIds. Data Quality conflict JSON / long Program names wrapped at 320.
 
 ---
 
-## Remaining / freeze blockers
+## Remaining (not freeze blockers)
 
-1. **BLOCKER — runtime image lag.** Phase 6 source is complete in the working tree but is not loaded in `edurozgaar-staging-api-*` / frontend. New APIs 404. Full Docker browser acceptance of the Phase 6 journey cannot pass until a **local-only** image rebuild is authorized (not performed: no staging mutation, no deploy, no push).
-2. Dark-mode and 320–1440 / 200% zoom on **new** Institution pages remain to be re-checked on a rebuilt image.
-3. Public discovery, Admin visual redesign, Student portal redesign, Employer/Agent redesign, live Stripe, real email, registry scraping, and AI/n8n fetch remain later phases.
-
-Institution auth/privacy/trust/data-authority contracts are implemented in source (verification ≠ claim, Maps supporting-only, no self-approval, no silent overwrite, Vault deny, consent-scoped admissions). They are not yet proven on the running 8443 image.
+Public discovery, Admin visual redesign, Student portal redesign, Employer/Agent redesign, live Stripe, real email, registry scraping, and AI/n8n fetch remain later phases.
 
 ---
 
 ## Freeze gate
 
-Institution is **NOT FROZEN** until the running `https://localhost:8443` image includes this source and the required real-browser mutation journey passes with zero unexpected 5xx.
+Institution Phase 6 is **FROZEN**. The running `https://localhost:8443` image matches Phase 6 source. The real-browser and HTTP mutation journey passed with **0** unexpected 5xx. Do not start Phase 7 until this freeze commit is on `main`.
