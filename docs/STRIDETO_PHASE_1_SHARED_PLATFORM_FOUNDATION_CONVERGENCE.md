@@ -40,6 +40,7 @@ tokens (light/dark), and Phase 1 shared platform contract modules.
 - **Protected routes** gate on `isAuthenticated`, not cached profile alone.
 - **Session-expired handler** (`client/src/auth/sessionExpired.js`) clears UI cache when refresh fails terminally across user/agent/institution HTTP clients.
 - **Admin permissions** (`usePermissions`): SuperAdmin universal client bypass requires server-confirmed permissions fetch; unauthenticated staff cannot receive permissive nav.
+- **Agent/Institution refresh 500 (runtime):** controllers called nonexistent `cookiePolicy.readRefreshCookie`. Aligned to the accepted `extractRefreshToken({ cookieHeader, realm })` contract used by User/Employer.
 
 ### Notification preferences
 
@@ -90,7 +91,7 @@ Wrong realm → access authorization fails closed. Refresh tokens never in brows
 
 | Suite | Result |
 |---|---|
-| `phase1SharedPlatformFoundation.test.js` | 49 checks passed |
+| `phase1SharedPlatformFoundation.test.js` | 53 checks passed |
 | `agentSecureAuthFlows.test.js` | 3 checks passed |
 | `institutionSecureAuthFlows.test.js` | 2 checks passed |
 | `secureAuthClientContract.test.js` | 63 assertions passed |
@@ -106,15 +107,23 @@ Wrong realm → access authorization fails closed. Refresh tokens never in brows
 
 ## Real-runtime evidence
 
-Local Docker runtime sampled at `https://localhost:8443`:
+Origin: `https://localhost:8443` (Caddy + api-a/api-b + frontend rebuilt after the cookie-extract fix; Mongo/Redis volumes preserved; worker not started).
 
-- Public home and login surfaces load without route error boundary
-- Shared theme semantic CSS variables present on `:root`
-- Worker intentionally not started (per safety policy)
+HTTP (disposable local identities; no secrets printed): 35/35 passed, unexpected 5xx = 0.
 
-Full multi-role login acceptance requires preserved local accounts; session bootstrap
-fixes address the reported Agent verification token and Admin shell/API desync causes
-at the shared client foundation layer.
+| Realm | Login | Refresh/reload cookie | Protected API/page | Logout |
+|---|---|---|---|---|
+| Student | 200 | 200 cookie refresh; dashboard survived bootstrap | `/api/auth/me` 200; `/dashboard` rendered | 200; subsequent refresh 401 |
+| Employer | 200 | 200 | `/api/employer/me` 200; `/employer` dashboard | 200 |
+| Agent | 200 | 200 (after extractRefreshToken fix) | `/api/agent/verification` 200; `/agent` + `/agent/verification` no “Invalid or expired token” | 200 |
+| Institution | 200 | 200 (after extractRefreshToken fix) | `/api/auth/institution/me` 200; `/institution` dashboard | 200 |
+| Staff/Admin | 200 | 200 | `GET /api/admin/permissions` 200 role=Admin server-confirmed; `/admin` “Admin panel” | 200 |
+
+Realm isolation: Student→Agent 401 and `/agent/login`; Student→Institution 401; User→Admin HTTP 403 and UI “Insufficient permissions”; Agent→Institution 401 and `/institution/login`; Institution cookie does not keep Agent session after Agent logout.
+
+Cookie flags (names/flags only): `__Secure-strideto_{user,employer,agent,institution}_rt` HttpOnly=true Secure=true SameSite=Lax; distinct Paths. No refresh token in JSON or localStorage/sessionStorage.
+
+Browser viewports 320 / 768 / 1440: login and shared/auth surfaces rendered, no route error boundary, no severe overflow. Semantic tokens present (`--semantic-page-bg` / `--semantic-text-primary`).
 
 ---
 
@@ -145,7 +154,7 @@ at the shared client foundation layer.
 | BLOCKER | 0 | — |
 | P0 | 0 | — |
 | P1 | 0 | — |
-| MAJOR (fixed) | 2 | Agent/Institution route guard trusted localStorage; Admin SuperAdmin client bypass without server confirmation |
+| MAJOR (fixed) | 3 | Agent/Institution route guard trusted localStorage; Admin SuperAdmin client bypass without server confirmation; Agent/Institution refresh called nonexistent `readRefreshCookie` (HTTP 500) |
 | MINOR | 0 | — |
 | INFO | 1 | Institution portal visual contrast remains for Phase 5/6 |
 
