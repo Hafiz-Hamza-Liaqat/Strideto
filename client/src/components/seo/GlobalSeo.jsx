@@ -1,17 +1,21 @@
 import { Helmet } from 'react-helmet-async';
 import { useLocation } from 'react-router-dom';
 import { organizationSchema, websiteSchema } from '../../seo/schemas';
-import { PRIVATE_ROUTE_PREFIXES } from '../../seo/config';
+import { isPrivateSeoPath } from '../../seo/config';
 import { safeJsonLd } from '../../seo/sanitize';
 
 /** Sitewide Organization + WebSite JSON-LD on public routes only */
 export default function GlobalSeo() {
   const { pathname } = useLocation();
-  const isPrivate = PRIVATE_ROUTE_PREFIXES.some(
-    (prefix) => pathname === prefix.replace(/\/$/, '') || pathname.startsWith(prefix)
-  );
+  const isPrivate = isPrivateSeoPath(pathname);
 
-  if (isPrivate) return null;
+  if (isPrivate) {
+    return (
+      <Helmet prioritizeSeoTags>
+        <meta name="robots" content="noindex, nofollow" />
+      </Helmet>
+    );
+  }
 
   const graph = [organizationSchema(), websiteSchema()].filter(Boolean);
 

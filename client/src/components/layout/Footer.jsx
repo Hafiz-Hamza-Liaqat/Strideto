@@ -1,42 +1,31 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useMemo } from 'react';
 import { ROUTES } from '../../constants';
-import { SITE_URL } from '../../seo/config';
 import { NewsletterSubscribe } from '../newsletter/NewsletterSubscribe';
 import { useSiteContent } from '../../context/SiteContentContext';
 import { useLanguage } from '../../context/LanguageContext';
-import { resolveColumnTitle, resolveLinkLabel, hasFooterPromoContent } from '../../utils/cmsNav';
+import { hasFooterPromoContent } from '../../utils/cmsNav';
 import { FooterPromoColumn } from './FooterPromoColumn';
 import { Logo } from '../brand/Logo';
 import { BRAND_TAGLINE } from '../../design-system/brand.js';
 import { resolvePublicSocialLinks } from '@shared/social/officialSocialLinks.js';
 import { SocialLinksRow } from '../social/SocialLinksRow';
+import { sanitizePublicCopyright, isForbiddenPublicHref } from '@shared/seo/publicCopyright.js';
 
 function FooterLinkColumn({ title, links }) {
+  const visible = links.filter((l) => l.path && !isForbiddenPublicHref(l.path));
   return (
     <div>
       <h3 className="font-semibold text-[#CBD5F5] mb-4 text-sm uppercase tracking-wider">{title}</h3>
       <ul className="space-y-3">
-        {links.map(({ label, path, external }) => (
+        {visible.map(({ label, path }) => (
           <li key={path || label}>
-            {external ? (
-              <a
-                href={path}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-sm text-[#94A3B8] hover:text-primary transition-colors duration-200 break-words-safe"
-              >
-                {label}
-              </a>
-            ) : (
-              <Link
-                to={path}
-                className="text-sm text-[#94A3B8] hover:text-primary transition-colors duration-200 break-words-safe"
-              >
-                {label}
-              </Link>
-            )}
+            <Link
+              to={path}
+              className="text-sm text-[#94A3B8] hover:text-primary transition-colors duration-200 break-words-safe"
+            >
+              {label}
+            </Link>
           </li>
         ))}
       </ul>
@@ -49,62 +38,50 @@ export function Footer() {
   const { footerNav, hasResolved } = useSiteContent();
   const { lang } = useLanguage();
 
-  const cmsColumns = useMemo(() => {
-    if (!hasResolved) return undefined; // still loading — avoid flashing hardcoded columns
-    if (!footerNav?.columns?.length) return null;
-    return footerNav.columns.map((col) => ({
-      title: resolveColumnTitle(col, lang),
-      links: (col.links || []).map((link) => ({
-        label: resolveLinkLabel(link, lang),
-        path: link.path,
-        external: link.external,
-      })),
-    }));
-  }, [footerNav, lang, hasResolved]);
-
-  const cmsSocial = hasResolved && footerNav?.socialLinks?.length ? footerNav.socialLinks : [];
-
-  const quickLinks = [
+  const discoverLinks = [
     { label: t('footer:jobs'), path: ROUTES.JOBS },
-    { label: t('footer:scholarships'), path: ROUTES.SCHOLARSHIPS },
-    { label: t('footer:admissions'), path: ROUTES.ADMISSIONS },
     { label: t('footer:internships'), path: ROUTES.INTERNSHIPS },
-    { label: t('footer:examPrep'), path: ROUTES.EXAM_PREP },
-    { label: t('footer:careerGuidance'), path: ROUTES.CAREER_GUIDANCE },
-    { label: t('footer:blog'), path: ROUTES.BLOG },
+    { label: t('navbar:scholarshipsAndFunding', { ns: 'navbar' }), path: ROUTES.SCHOLARSHIPS },
+    { label: t('navbar:admissionsAndIntakes', { ns: 'navbar' }), path: ROUTES.ADMISSIONS },
+    { label: t('navbar:studyAndInstitutions', { ns: 'navbar' }), path: ROUTES.PROGRAM_EXPLORER },
+    { label: t('navbar:testsAndPrep', { ns: 'navbar' }), path: ROUTES.TEST_HUB },
   ];
 
-  const companyLinks = [
-    { label: t('footer:aboutUs'), path: ROUTES.ABOUT },
-    { label: t('footer:contactLink'), path: ROUTES.CONTACT },
-    { label: t('footer:careers'), path: ROUTES.CAREERS },
-    { label: t('footer:advertise'), path: ROUTES.ADVERTISE },
+  const servicesLinks = [
+    { label: t('footer:agentsDirectory'), path: ROUTES.AGENT_PUBLIC_DIRECTORY },
+    { label: t('footer:professionalMarketplace'), path: ROUTES.AGENT_PUBLIC_MARKETPLACE },
+    { label: t('footer:careerGuidance'), path: ROUTES.CAREER_GUIDANCE },
+    { label: t('footer:resumeBuilder'), path: ROUTES.RESUME_BUILDER },
+  ];
+
+  const organizationLinks = [
+    { label: t('footer:employerPortal'), path: ROUTES.EMPLOYER_LOGIN },
+    { label: t('footer:agentPortal'), path: ROUTES.AGENT_LOGIN },
+    { label: t('footer:institutionPortal'), path: ROUTES.INSTITUTION_LOGIN },
+  ];
+
+  const supportLinks = [
     { label: t('footer:helpCenter'), path: ROUTES.HELP_CENTER },
-    { label: t('footer:faq'), path: ROUTES.FAQ },
     { label: t('footer:support'), path: ROUTES.SUPPORT },
+    { label: t('footer:contactLink'), path: ROUTES.CONTACT },
+    { label: t('footer:sitemap'), path: ROUTES.SITEMAP },
+    { label: t('footer:faq'), path: ROUTES.FAQ },
   ];
 
   const legalLinks = [
     { label: t('footer:privacyPolicy'), path: ROUTES.PRIVACY_POLICY },
     { label: t('footer:termsConditions'), path: ROUTES.TERMS },
+    { label: t('footer:refundPolicy'), path: ROUTES.REFUND_POLICY },
     { label: t('footer:cookiePolicy'), path: ROUTES.COOKIES },
     { label: t('footer:disclaimer'), path: ROUTES.DISCLAIMER },
-    { label: t('footer:refundPolicy'), path: ROUTES.REFUND_POLICY },
-    { label: t('footer:license'), path: ROUTES.LICENSE },
   ];
 
-  const portalLinks = [
-    { label: t('footer:studentPortal'), path: ROUTES.DASHBOARD },
-    { label: t('footer:employerPortal'), path: ROUTES.EMPLOYER_LOGIN },
-    { label: t('footer:resumeBuilder'), path: ROUTES.RESUME_BUILDER },
-    { label: t('footer:submitOpportunity'), path: ROUTES.SUBMIT_OPPORTUNITY },
-    { label: t('footer:sitemap'), path: `${SITE_URL}/sitemap.xml`, external: true },
-  ];
-
+  const cmsSocial = hasResolved && footerNav?.socialLinks?.length ? footerNav.socialLinks : [];
   const socialLinks = !hasResolved ? [] : resolvePublicSocialLinks(cmsSocial);
-
   const newsletterText = hasResolved ? (footerNav?.newsletterText || t('footer:newsletterDesc')) : '';
-  const copyrightText = hasResolved ? (footerNav?.copyrightText || t('footer:copyright')) : '';
+  const copyrightText = hasResolved
+    ? sanitizePublicCopyright(footerNav?.copyrightText || t('footer:copyright'))
+    : '';
   const showPromo = hasResolved && hasFooterPromoContent(footerNav?.promoColumn);
 
   return (
@@ -128,7 +105,7 @@ export function Footer() {
           </div>
           {!hasResolved ? (
             <>
-              {[0, 1, 2, 3].map((i) => (
+              {[0, 1, 2, 3, 4].map((i) => (
                 <div key={i} className="animate-pulse space-y-3" aria-hidden="true">
                   <div className="h-4 w-24 rounded bg-white/10" />
                   <div className="h-3 w-32 rounded bg-white/5" />
@@ -137,14 +114,13 @@ export function Footer() {
                 </div>
               ))}
             </>
-          ) : cmsColumns ? (
-            cmsColumns.map((col) => <FooterLinkColumn key={col.title} title={col.title} links={col.links} />)
           ) : (
             <>
-              <FooterLinkColumn title={t('footer:quickLinks')} links={quickLinks} />
-              <FooterLinkColumn title={t('footer:company')} links={companyLinks} />
+              <FooterLinkColumn title={t('footer:discover')} links={discoverLinks} />
+              <FooterLinkColumn title={t('footer:servicesGroup')} links={servicesLinks} />
+              <FooterLinkColumn title={t('footer:organizations')} links={organizationLinks} />
+              <FooterLinkColumn title={t('footer:supportGroup')} links={supportLinks} />
               <FooterLinkColumn title={t('footer:legal')} links={legalLinks} />
-              <FooterLinkColumn title={t('footer:portals')} links={portalLinks} />
             </>
           )}
           {showPromo && (
@@ -160,9 +136,6 @@ export function Footer() {
         </div>
         <div className="mt-12 pt-6 border-t border-white/10 text-center text-sm text-[#64748B]">
           <p>{copyrightText || '\u00a0'}</p>
-          {hasResolved && footerNav?.contact?.email && (
-            <p className="mt-1">{footerNav.contact.email}{footerNav.contact.phone ? ` · ${footerNav.contact.phone}` : ''}</p>
-          )}
         </div>
       </div>
     </footer>

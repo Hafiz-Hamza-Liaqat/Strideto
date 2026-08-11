@@ -198,8 +198,9 @@ export function ProgramExplorerList() {
   return (
     <>
       <SeoHead
-        title="Program Explorer | Strideto"
+        title="Study & Institutions | Strideto"
         description="Browse international programs by country, degree, field, and study mode."
+        canonical={ROUTES.PROGRAM_EXPLORER}
       />
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="max-w-6xl mx-auto px-4 py-10">
@@ -305,7 +306,9 @@ export function ProgramExplorerDetail() {
 
   if (notFound || !data) {
     return (
-      <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
+      <>
+        <SeoHead title="Program not found | Strideto" noindex />
+        <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex items-center justify-center">
         <div className="text-center">
           <p className="text-gray-500 dark:text-gray-400 mb-4">Program not found.</p>
           <Link to={ROUTES.PROGRAM_EXPLORER} className="text-blue-600 dark:text-blue-400 text-sm underline">
@@ -313,6 +316,7 @@ export function ProgramExplorerDetail() {
           </Link>
         </div>
       </div>
+      </>
     );
   }
 
@@ -321,8 +325,9 @@ export function ProgramExplorerDetail() {
   return (
     <>
       <SeoHead
-        title={`${data.name} | Program Explorer | Strideto`}
-        description={`Program details for ${data.name}${inst ? ` at ${inst.officialName}` : ''}.`}
+        title={`${data.name || 'Program'} | Strideto`}
+        description={`Program details for ${data.name || 'this program'}${inst?.officialName ? ` at ${inst.officialName}` : ''}.`}
+        canonical={`${ROUTES.PROGRAM_EXPLORER}/${data.slug || ''}`}
       />
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="max-w-4xl mx-auto px-4 py-10">

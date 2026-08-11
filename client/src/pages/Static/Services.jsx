@@ -7,14 +7,11 @@ export default function Services() {
   const { t } = useTranslation('static');
 
   const services = [
-    { titleKey: 'serviceJobsTitle', descKey: 'serviceJobsDesc', to: ROUTES.JOBS },
-    { titleKey: 'serviceScholarshipsTitle', descKey: 'serviceScholarshipsDesc', to: ROUTES.SCHOLARSHIPS },
-    { titleKey: 'serviceAdmissionsTitle', descKey: 'serviceAdmissionsDesc', to: ROUTES.ADMISSIONS },
-    { titleKey: 'serviceInternshipsTitle', descKey: 'serviceInternshipsDesc', to: ROUTES.INTERNSHIPS },
-    { titleKey: 'serviceResumeTitle', descKey: 'serviceResumeDesc', to: ROUTES.RESUME_BUILDER },
+    { titleKey: 'serviceAgentsTitle', descKey: 'serviceAgentsDesc', to: ROUTES.AGENT_PUBLIC_DIRECTORY },
+    { titleKey: 'serviceMarketplaceTitle', descKey: 'serviceMarketplaceDesc', to: ROUTES.AGENT_PUBLIC_MARKETPLACE },
     { titleKey: 'serviceCareerTitle', descKey: 'serviceCareerDesc', to: ROUTES.CAREER_GUIDANCE },
-    { titleKey: 'serviceExamTitle', descKey: 'serviceExamDesc', to: ROUTES.EXAM_PREP },
-    { titleKey: 'serviceAlertsTitle', descKey: 'serviceAlertsDesc', to: ROUTES.HOME },
+    { titleKey: 'serviceResumeTitle', descKey: 'serviceResumeDesc', to: ROUTES.RESUME_BUILDER },
+    { titleKey: 'serviceHelpTitle', descKey: 'serviceHelpDesc', to: ROUTES.HELP_CENTER },
   ];
 
   return (
@@ -33,7 +30,7 @@ export default function Services() {
           <Link
             key={s.to}
             to={s.to}
-            className="block p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-primary/50 dark:hover:border-mint/50 hover:shadow-md transition-all duration-200"
+            className="block p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:border-primary/50 dark:hover:border-mint/50 hover:shadow-md transition-all duration-200 min-h-[44px]"
           >
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{t(s.titleKey)}</h2>
             <p className="text-sm text-gray-600 dark:text-gray-400">{t(s.descKey)}</p>

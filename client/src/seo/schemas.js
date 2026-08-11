@@ -135,8 +135,16 @@ export function faqPageSchema(faqs) {
 
 export function jobPostingSchema(job) {
   if (!job) return null;
+  const status = String(job.status || '').toLowerCase();
+  const publication = String(job.publicationState || '').toLowerCase();
+  if (status && status !== 'active') return null;
+  if (publication === 'closed' || publication === 'expired' || publication === 'draft') return null;
+  if (job.acceptingApplications === false) return null;
+  if (!job.title) return null;
   const org = job.organization || job.company;
   const desc = sanitizeJsonLdString(job.description || `${job.title}${org ? ` at ${org}` : ''}`, 5000);
+  const locality = job.city || undefined;
+  const region = job.province || job.location || undefined;
   return stripUndefined({
     '@type': 'JobPosting',
     title: sanitizeJsonLdString(job.title, 200),
@@ -147,14 +155,14 @@ export function jobPostingSchema(job) {
     hiringOrganization: org
       ? { '@type': 'Organization', name: org }
       : undefined,
-    jobLocation: job.province || job.location || job.city
+    jobLocation: locality || region
       ? {
           '@type': 'Place',
           address: {
             '@type': 'PostalAddress',
-            addressLocality: job.city,
-            addressRegion: job.province || job.location,
-            addressCountry: 'PK',
+            addressLocality: locality,
+            addressRegion: region,
+            addressCountry: job.countryCode || job.country || undefined,
           },
         }
       : undefined,

@@ -42,6 +42,7 @@ export const ROUTES = {
   REFUND_POLICY: '/refund-policy',
   CAREERS: '/careers',
   SUPPORT: '/support',
+  SITEMAP: '/sitemap',
   NOTIFICATIONS: '/notifications',
   FOREIGN_STUDY_DETAIL: '/foreign-studies/:slug',
   INSTITUTION_DETAIL: '/schools-and-colleges/:slug',

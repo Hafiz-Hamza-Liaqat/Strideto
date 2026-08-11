@@ -2,8 +2,10 @@
 import { LANGUAGES } from '../i18n/config.js';
 import { BRAND_NAME, BRAND_TAGLINE, BRAND_SITE_URL } from '../design-system/brand.js';
 import { colors } from '../design-system/colors.js';
+import { resolvePublicSiteOrigin } from '@shared/seo/publicSiteOrigin.js';
+import { PRIVATE_SEO_PREFIXES, isPrivateSeoPath } from '@shared/seo/robotsPolicy.js';
 
-export const SITE_URL = (import.meta.env.VITE_APP_URL || BRAND_SITE_URL).replace(/\/$/, '');
+export const SITE_URL = resolvePublicSiteOrigin(import.meta.env.VITE_APP_URL || BRAND_SITE_URL);
 export const SITE_NAME = BRAND_NAME;
 export const SITE_TAGLINE = BRAND_TAGLINE;
 export const DEFAULT_TITLE = `${SITE_NAME} | Jobs, Scholarships, Admissions & Career Platform`;
@@ -37,16 +39,9 @@ export const SEO_CONFIG = {
 };
 
 /** Private route prefixes — excluded from sitemap and marked noindex */
-export const PRIVATE_ROUTE_PREFIXES = [
-  '/auth/',
-  '/profile',
-  '/dashboard',
-  '/saved-jobs',
-  '/employer',
-  '/admin',
-  '/resume-analyzer',
-  '/badges',
-];
+export const PRIVATE_ROUTE_PREFIXES = PRIVATE_SEO_PREFIXES;
+
+export { isPrivateSeoPath };
 
 export function buildCanonicalUrl(path = '/') {
   if (!path) return SITE_URL;
@@ -85,7 +80,8 @@ export function buildAlternateUrls(path = '/') {
 }
 
 export function formatPageTitle(title, suffix = SITE_NAME) {
-  if (!title || !String(title).trim()) return DEFAULT_TITLE;
-  if (title.includes(suffix) || title.includes('|')) return title;
-  return `${title} | ${suffix}`;
+  const raw = title == null ? '' : String(title);
+  if (!raw.trim() || /undefined|null|\[object Object\]/i.test(raw)) return DEFAULT_TITLE;
+  if (raw.includes(suffix) || raw.includes('|')) return raw;
+  return `${raw} | ${suffix}`;
 }

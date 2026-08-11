@@ -1,5 +1,5 @@
 /**
- * Public navbar hierarchy (E.1F-A).
+ * Public navbar hierarchy (Phase 10).
  * Run: node src/__tests__/navbarHierarchy.test.js
  */
 import assert from 'assert';
@@ -18,49 +18,55 @@ const {
   PRIMARY_NAV_ITEMS,
   SECONDARY_NAV_ITEMS,
   DRAWER_NAV_ITEMS,
+  FINAL_NAV_LABELS,
   splitNavForDesktop,
 } = await import(navConfigUrl);
 
 const { shouldEnableUserNavbarSession, isEmployerPortalPath } = await import(authRealmUrl);
 
-const primaryPaths = PRIMARY_NAV_ITEMS.map((i) => i.path).filter(Boolean);
-const secondaryPaths = SECONDARY_NAV_ITEMS.map((i) => i.path);
+assert.strictEqual(PRIMARY_NAV_ITEMS.length, 8);
+assert.strictEqual(FINAL_NAV_LABELS.length, 8);
+assert.deepStrictEqual(FINAL_NAV_LABELS, [
+  'Home',
+  'Jobs',
+  'Scholarships & Funding',
+  'Admissions & Intakes',
+  'Internships',
+  'Study & Institutions',
+  'Tests & Prep',
+  'Services',
+]);
 
+const primaryPaths = PRIMARY_NAV_ITEMS.map((i) => i.path).filter(Boolean);
 assert.ok(primaryPaths.includes('/'));
 assert.ok(primaryPaths.includes('/jobs'));
 assert.ok(primaryPaths.includes('/scholarships'));
 assert.ok(primaryPaths.includes('/admissions'));
 assert.ok(primaryPaths.includes('/internships'));
-assert.ok(primaryPaths.includes('/exam-prep') || PRIMARY_NAV_ITEMS.some((i) => i.labelKey?.includes('examPrep')));
-assert.ok(PRIMARY_NAV_ITEMS.some((i) => i.mega?.length));
+assert.ok(primaryPaths.includes('/program-explorer'));
+assert.ok(primaryPaths.includes('/tests'));
+assert.ok(primaryPaths.includes('/services'));
+assert.ok(PRIMARY_NAV_ITEMS.every((i) => i.path), 'every top-level item has a real path');
+assert.ok(!PRIMARY_NAV_ITEMS.some((i) => i.path === '/exam-prep'));
+assert.ok(PRIMARY_NAV_ITEMS.some((i) => i.mega?.some((m) => m.path === '/exam-prep')));
+assert.ok(PRIMARY_NAV_ITEMS.some((i) => i.mega?.some((m) => m.path === '/agents')));
+assert.ok(!PRIMARY_NAV_ITEMS.some((i) => /admin|dashboard|github/i.test(i.path || '')));
 
-assert.ok(secondaryPaths.includes('/blog'));
-assert.ok(secondaryPaths.includes('/contact'));
-assert.ok(SECONDARY_NAV_ITEMS.some((i) => i.tour === 'resume-builder'));
-assert.ok(SECONDARY_NAV_ITEMS.some((i) => i.tour === 'career-guidance'));
+assert.strictEqual(SECONDARY_NAV_ITEMS.length, 0);
+assert.strictEqual(DRAWER_NAV_ITEMS.length, PRIMARY_NAV_ITEMS.length);
 
-assert.strictEqual(DRAWER_NAV_ITEMS.length, PRIMARY_NAV_ITEMS.length + SECONDARY_NAV_ITEMS.length);
+const split = splitNavForDesktop(PRIMARY_NAV_ITEMS.map((i) => ({ ...i, label: i.labelKey })));
+assert.strictEqual(split.primary.length, 8);
+assert.strictEqual(split.fromCmsSecondary.length, 0);
 
-// Blog/Contact move to More when present in resolved CMS-like list
-const fakeResolved = [
-  { label: 'Home', path: '/' },
-  { label: 'Jobs', path: '/jobs' },
-  { label: 'Blog', path: '/blog' },
-  { label: 'Contact', path: '/contact' },
-];
-const split = splitNavForDesktop(fakeResolved);
-assert.strictEqual(split.primary.length, 2);
-assert.strictEqual(split.fromCmsSecondary.length, 2);
-
-// E.1F-B gating still holds for employer routes
 assert.strictEqual(shouldEnableUserNavbarSession('/employer/jobs', { isUserAuthenticated: true }), false);
 assert.strictEqual(shouldEnableUserNavbarSession('/employer/login', { isUserAuthenticated: true }), false);
 assert.strictEqual(shouldEnableUserNavbarSession('/jobs', { isUserAuthenticated: true }), true);
 assert.strictEqual(isEmployerPortalPath('/employer'), true);
 assert.strictEqual(isEmployerPortalPath('/employer/dashboard'), false);
 
-// No /employer/dashboard route invented
 assert.ok(!DRAWER_NAV_ITEMS.some((i) => i.path === '/employer/dashboard'));
 assert.ok(!PRIMARY_NAV_ITEMS.some((i) => i.path === '/employer/dashboard'));
+assert.ok(!PRIMARY_NAV_ITEMS.some((i) => i.path === '/license'));
 
 console.log('navbarHierarchy.test.js: all assertions passed');

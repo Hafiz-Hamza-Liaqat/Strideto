@@ -12,70 +12,92 @@ export function defaultHeaderItems() {
   return [
     { label: 'Home', path: '/', visible: true, order: 0 },
     { label: 'Jobs', path: '/jobs', visible: true, order: 1 },
-    { label: 'Scholarships', path: '/scholarships', visible: true, order: 2 },
-    { label: 'Admissions', path: '/admissions', visible: true, order: 3 },
+    { label: 'Scholarships & Funding', path: '/scholarships', visible: true, order: 2 },
+    { label: 'Admissions & Intakes', path: '/admissions', visible: true, order: 3 },
     { label: 'Internships', path: '/internships', visible: true, order: 4 },
     {
-      label: 'Education',
-      path: '#',
+      label: 'Study & Institutions',
+      path: '/program-explorer',
       visible: true,
       order: 5,
       children: [
-        { label: 'Schools & Colleges', path: '/schools-and-colleges', visible: true, order: 0 },
-        { label: 'Universities', path: '/intl-scholarships', visible: true, order: 1 },
+        { label: 'Program explorer', path: '/program-explorer', visible: true, order: 0 },
+        { label: 'Schools & Colleges', path: '/schools-and-colleges', visible: true, order: 1 },
         { label: 'Foreign Studies', path: '/foreign-studies', visible: true, order: 2 },
+        { label: 'International Scholarships', path: '/intl-scholarships', visible: true, order: 3 },
       ],
     },
-    { label: 'Exam Prep', path: '/exam-prep', visible: true, order: 6 },
-    { label: 'Blog', path: '/blog', visible: true, order: 7 },
-    { label: 'Contact', path: '/contact', visible: true, order: 8 },
+    {
+      label: 'Tests & Prep',
+      path: '/tests',
+      visible: true,
+      order: 6,
+      children: [
+        { label: 'Test hub', path: '/tests', visible: true, order: 0 },
+        { label: 'Exam Prep', path: '/exam-prep', visible: true, order: 1 },
+      ],
+    },
+    {
+      label: 'Services',
+      path: '/services',
+      visible: true,
+      order: 7,
+      children: [
+        { label: 'Agents & agencies', path: '/agents', visible: true, order: 0 },
+        { label: 'Professional services', path: '/agents/marketplace', visible: true, order: 1 },
+        { label: 'Career Guidance', path: '/career-guidance', visible: true, order: 2 },
+        { label: 'Resume Builder', path: '/resume-builder', visible: true, order: 3 },
+        { label: 'Help Center', path: '/help-center', visible: true, order: 4 },
+      ],
+    },
   ];
 }
 
 function defaultFooterColumns() {
   return [
     {
-      title: 'Quick Links',
+      title: 'Discover',
       links: [
         { label: 'Jobs', path: '/jobs' },
-        { label: 'Scholarships', path: '/scholarships' },
-        { label: 'Admissions', path: '/admissions' },
         { label: 'Internships', path: '/internships' },
-        { label: 'Exam Preparation', path: '/exam-prep' },
-        { label: 'Career Guidance', path: '/career-guidance' },
-        { label: 'Blog', path: '/blog' },
+        { label: 'Scholarships & Funding', path: '/scholarships' },
+        { label: 'Admissions & Intakes', path: '/admissions' },
+        { label: 'Study & Institutions', path: '/program-explorer' },
+        { label: 'Tests & Prep', path: '/tests' },
       ],
     },
     {
-      title: 'Company',
+      title: 'Services',
       links: [
-        { label: 'About Us', path: '/about' },
-        { label: 'Contact', path: '/contact' },
-        { label: 'Careers', path: '/careers' },
-        { label: 'Advertise With Us', path: '/advertise' },
-        { label: 'Help Center', path: '/help-center' },
-        { label: 'FAQ', path: '/faq' },
-        { label: 'Support', path: '/support' },
+        { label: 'Agents / Professional Services', path: '/agents' },
+        { label: 'Professional marketplace', path: '/agents/marketplace' },
+        { label: 'Career Guidance', path: '/career-guidance' },
+        { label: 'Resume Builder', path: '/resume-builder' },
+      ],
+    },
+    {
+      title: 'For organizations',
+      links: [
+        { label: 'Employer', path: '/employer/login' },
+        { label: 'Agent / Agency', path: '/agent/login' },
+        { label: 'Institution', path: '/institution/login' },
+      ],
+    },
+    {
+      title: 'Support',
+      links: [
+        { label: 'Help', path: '/help-center' },
+        { label: 'Contact / Support', path: '/support' },
+        { label: 'Sitemap', path: '/sitemap' },
       ],
     },
     {
       title: 'Legal',
       links: [
         { label: 'Privacy Policy', path: '/privacy-policy' },
-        { label: 'Terms & Conditions', path: '/terms' },
+        { label: 'Terms of Service', path: '/terms' },
+        { label: 'Refund / Payment Policy', path: '/refund-policy' },
         { label: 'Cookie Policy', path: '/cookies' },
-        { label: 'Disclaimer', path: '/disclaimer' },
-        { label: 'Refund Policy', path: '/refund-policy' },
-        { label: 'License', path: '/license' },
-      ],
-    },
-    {
-      title: 'Portals',
-      links: [
-        { label: 'Student Portal', path: '/dashboard' },
-        { label: 'Employer Portal', path: '/employer/login' },
-        { label: 'Resume Builder', path: '/resume-builder' },
-        { label: 'Submit Opportunity', path: '/submit-opportunity' },
       ],
     },
   ];
@@ -95,7 +117,6 @@ const STATIC_PAGE_SEEDS = [
   { slug: 'help-center', pageType: 'help', title: 'Help Center', heading: 'Help Center' },
   { slug: 'support', pageType: 'support', title: 'Support', heading: 'Support' },
   { slug: 'services', pageType: 'services', title: 'Services', heading: 'Our Services' },
-  { slug: 'license', pageType: 'license', title: 'License', heading: 'License' },
 ];
 
 /**
@@ -175,9 +196,9 @@ export async function seedCmsSiteContent() {
           { platform: 'linkedin', url: 'https://linkedin.com/company/strideto', icon: 'linkedin' },
           { platform: 'telegram', url: 'https://t.me/strideto', icon: 'telegram' },
         ],
-        contact: { email: 'contact@strideto.com', phone: '', address: 'Pakistan' },
+        contact: { email: '', phone: '', address: '' },
         newsletterText: 'Get jobs, scholarships & admission alerts.',
-        copyrightText: '© 2026 Strideto. All rights reserved.',
+        copyrightText: '© 2026 Strideto',
       }
     );
     stats.footerNav[footerResult] += 1;
@@ -240,7 +261,7 @@ export async function restorePublishedCmsDefaults(locale = 'en') {
 
   const footer = await CmsNavigation.findOne({ locale, placement: 'footer' });
   if (footer?.status === 'published' && isC61TestMarker(footer.copyrightText)) {
-    footer.copyrightText = '© 2026 Strideto. All rights reserved.';
+    footer.copyrightText = '© 2026 Strideto';
     await footer.save();
     restored.footer = true;
   }

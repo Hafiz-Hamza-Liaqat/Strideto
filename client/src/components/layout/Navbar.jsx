@@ -3,115 +3,55 @@ import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../constants';
 import { useLanguage } from '../../context/LanguageContext';
-import { useAuth } from '../../context/AuthContext';
-import { useEmployerAuth } from '../../context/EmployerAuthContext';
 import { DrawerMenu } from './DrawerMenu';
-import { useHeaderNavItems } from '../../hooks/useHeaderNavItems';
 import { NotificationBell } from '../notifications/NotificationBell';
 import { UserAccountMenu } from './UserAccountMenu';
 import { Logo } from '../brand/Logo';
 import { TourAnchors } from '../../onboarding/TourAnchors';
 import { registerOverlayEscape } from '../../a11y/overlayStack';
-import { PRIMARY_NAV_ITEMS, SECONDARY_NAV_ITEMS, splitNavForDesktop } from './navConfig';
+import { PRIMARY_NAV_ITEMS } from './navConfig';
 
 const linkClass =
-  'px-2.5 xl:px-3 py-2 text-sm text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-mint rounded-lg link-hover whitespace-nowrap';
+  'px-2 xl:px-2.5 py-2 text-sm text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-mint rounded-lg link-hover whitespace-nowrap';
 
 export function Navbar() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [megaOpen, setMegaOpen] = useState(null);
-  const [moreOpen, setMoreOpen] = useState(false);
   const megaRef = useRef(null);
-  const moreRef = useRef(null);
   const menuButtonRef = useRef(null);
   const { t: legacyT } = useLanguage();
   const { t } = useTranslation(['navbar', 'common']);
   const { pathname } = useLocation();
-  const { isAuthenticated } = useAuth();
-  const { isAuthenticated: isEmployer } = useEmployerAuth();
 
   const label = (key) => (key.includes(':') ? t(key.split(':')[1], { ns: key.split(':')[0] }) : legacyT(key));
-  const resolvedPrimary = useHeaderNavItems(PRIMARY_NAV_ITEMS, label);
-  const resolvedSecondaryFallback = useMemo(
+  const navItems = useMemo(
     () =>
-      SECONDARY_NAV_ITEMS.map((item) => ({
+      PRIMARY_NAV_ITEMS.map((item) => ({
         ...item,
         label: label(item.labelKey),
+        mega: item.mega?.map((sub) => ({ ...sub, label: label(sub.labelKey) })),
       })),
     // eslint-disable-next-line react-hooks/exhaustive-deps -- label tied to lang via t/legacyT
     [t, legacyT]
   );
 
-  const { primary: splitPrimary, fromCmsSecondary } = splitNavForDesktop(resolvedPrimary);
-  const desktopPrimary = splitPrimary ?? resolvedPrimary;
-
-  const moreItems = useMemo(() => {
-    const items = [...(fromCmsSecondary?.length ? fromCmsSecondary : resolvedSecondaryFallback)];
-    const paths = new Set(items.map((i) => i.path));
-    for (const tool of resolvedSecondaryFallback) {
-      if (tool.path === ROUTES.RESUME_BUILDER || tool.path === ROUTES.CAREER_GUIDANCE) {
-        if (!paths.has(tool.path)) {
-          items.push(tool);
-          paths.add(tool.path);
-        }
-      }
-    }
-    if (isAuthenticated && !paths.has(ROUTES.DASHBOARD)) {
-      items.push({
-        path: ROUTES.DASHBOARD,
-        label: t('navbar:dashboard'),
-        tour: 'dashboard',
-      });
-    }
-    if (isEmployer && !paths.has(ROUTES.EMPLOYER_DASHBOARD)) {
-      items.push({
-        path: ROUTES.EMPLOYER_DASHBOARD,
-        label: t('navbar:employerPortal', { defaultValue: 'Employer' }),
-        tour: 'employer-dashboard',
-      });
-    }
-    return items;
-  }, [fromCmsSecondary, resolvedSecondaryFallback, isAuthenticated, isEmployer, t]);
+  useEffect(() => {
+    if (!megaOpen) return undefined;
+    return registerOverlayEscape(() => setMegaOpen(null));
+  }, [megaOpen]);
 
   useEffect(() => {
-    if (!megaOpen && !moreOpen) return undefined;
-    return registerOverlayEscape(() => {
-      setMegaOpen(null);
-      setMoreOpen(false);
-    });
-  }, [megaOpen, moreOpen]);
-
-  useEffect(() => {
-    if (!moreOpen) return undefined;
-    const onDoc = (e) => {
-      if (moreRef.current && !moreRef.current.contains(e.target)) setMoreOpen(false);
-    };
-    document.addEventListener('click', onDoc);
-    return () => document.removeEventListener('click', onDoc);
-  }, [moreOpen]);
-
-  useEffect(() => {
-    setMoreOpen(false);
     setMegaOpen(null);
   }, [pathname]);
 
+  const isCurrent = (path) => {
+    if (!path) return false;
+    if (path === ROUTES.HOME) return pathname === ROUTES.HOME;
+    return pathname === path || pathname.startsWith(`${path}/`);
+  };
+
   const renderNavLink = (item, key) => {
-    if (item.external) {
-      return (
-        <a
-          key={key}
-          href={item.path}
-          target="_blank"
-          rel="noopener noreferrer"
-          className={linkClass}
-          aria-current={undefined}
-        >
-          {item.label}
-          {item.icon ? ` ${item.icon}` : ''}
-        </a>
-      );
-    }
-    const current = pathname === item.path || (item.path !== ROUTES.HOME && pathname.startsWith(`${item.path}/`));
+    const current = isCurrent(item.path);
     return (
       <Link
         key={key}
@@ -120,7 +60,6 @@ export function Navbar() {
         aria-current={current ? 'page' : undefined}
       >
         {item.label}
-        {item.icon ? ` ${item.icon}` : ''}
       </Link>
     );
   };
@@ -149,135 +88,60 @@ export function Navbar() {
           </Link>
 
           <nav
-            className="hidden lg:flex items-center gap-0.5 xl:gap-1 min-w-0 flex-1 justify-center overflow-visible"
+            className="hidden min-[1440px]:flex items-center gap-0.5 min-w-0 flex-1 justify-center overflow-visible"
             aria-label={t('navbar:mainNav')}
           >
-            {!desktopPrimary ? (
-              <div className="flex items-center gap-2 animate-pulse" aria-busy="true" aria-label={t('common:loading')}>
-                {[0, 1, 2, 3, 4].map((i) => (
-                  <div key={i} className="h-8 w-14 rounded-lg bg-gray-200 dark:bg-gray-700" />
-                ))}
-              </div>
-            ) : (
-              <>
-                {desktopPrimary.map((item) =>
-                  item.mega ? (
-                    <div
-                      key={item.label}
-                      className="relative shrink-0"
-                      ref={megaOpen === item.label ? megaRef : undefined}
-                      onMouseEnter={() => setMegaOpen(item.label)}
-                      onMouseLeave={() => setMegaOpen(null)}
-                    >
-                      <button
-                        type="button"
-                        className={linkClass}
-                        aria-expanded={megaOpen === item.label}
-                        aria-haspopup="true"
-                        onClick={() => setMegaOpen((cur) => (cur === item.label ? null : item.label))}
-                        onKeyDown={(e) => {
-                          if (e.key === 'ArrowDown') {
-                            e.preventDefault();
-                            setMegaOpen(item.label);
-                          }
-                        }}
-                      >
-                        {item.label} ▾
-                      </button>
-                      {megaOpen === item.label && (
-                        <div className="absolute start-0 top-full pt-1 w-56 animate-dropdown-enter z-50">
-                          <div
-                            className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-2"
-                            role="menu"
-                          >
-                            {item.mega.map((sub) =>
-                              sub.external ? (
-                                <a
-                                  key={sub.path}
-                                  role="menuitem"
-                                  href={sub.path}
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="block px-4 py-2.5 min-h-[44px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 link-hover rounded-lg"
-                                  onClick={() => setMegaOpen(null)}
-                                >
-                                  {sub.label}
-                                </a>
-                              ) : (
-                                <Link
-                                  key={sub.path}
-                                  role="menuitem"
-                                  to={sub.path}
-                                  className="block px-4 py-2.5 min-h-[44px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 link-hover rounded-lg"
-                                  onClick={() => setMegaOpen(null)}
-                                  aria-current={pathname === sub.path ? 'page' : undefined}
-                                >
-                                  {sub.label}
-                                </Link>
-                              )
-                            )}
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  ) : (
-                    <span key={item.path || item.label} className="shrink-0">
-                      {renderNavLink(item, item.path || item.label)}
-                    </span>
-                  )
-                )}
-
-                <div className="relative shrink-0" ref={moreRef}>
-                  <button
-                    type="button"
+            {navItems.map((item) =>
+              item.mega ? (
+                <div
+                  key={item.path || item.label}
+                  className="relative shrink-0"
+                  ref={megaOpen === item.label ? megaRef : undefined}
+                  onMouseEnter={() => setMegaOpen(item.label)}
+                  onMouseLeave={() => setMegaOpen(null)}
+                >
+                  <Link
+                    to={item.path}
                     className={linkClass}
-                    aria-expanded={moreOpen}
+                    aria-current={isCurrent(item.path) ? 'page' : undefined}
+                    aria-expanded={megaOpen === item.label}
                     aria-haspopup="true"
-                    aria-controls="navbar-more-menu"
-                    onClick={() => setMoreOpen((o) => !o)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'ArrowDown') {
+                        e.preventDefault();
+                        setMegaOpen(item.label);
+                      }
+                    }}
                   >
-                    {t('navbar:more')} ▾
-                  </button>
-                  {moreOpen && (
-                    <div
-                      id="navbar-more-menu"
-                      role="menu"
-                      className="absolute end-0 top-full pt-1 w-56 max-w-[calc(100vw-1.5rem)] animate-dropdown-enter z-50"
-                    >
-                      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-2">
-                        {moreItems.map((item) =>
-                          item.external ? (
-                            <a
-                              key={item.path}
-                              role="menuitem"
-                              href={item.path}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="block px-4 py-2.5 min-h-[44px] text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-                              onClick={() => setMoreOpen(false)}
-                              data-tour={item.tour || undefined}
-                            >
-                              {item.label}
-                            </a>
-                          ) : (
-                            <Link
-                              key={item.path}
-                              role="menuitem"
-                              to={item.path}
-                              className="block px-4 py-2.5 min-h-[44px] text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 rounded-lg"
-                              onClick={() => setMoreOpen(false)}
-                              data-tour={item.tour || undefined}
-                              aria-current={pathname === item.path ? 'page' : undefined}
-                            >
-                              {item.label}
-                            </Link>
-                          )
-                        )}
+                    {item.label}
+                  </Link>
+                  {megaOpen === item.label && (
+                    <div className="absolute start-0 top-full pt-1 w-64 animate-dropdown-enter z-50">
+                      <div
+                        className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-2"
+                        role="menu"
+                      >
+                        {item.mega.map((sub) => (
+                          <Link
+                            key={sub.path}
+                            role="menuitem"
+                            to={sub.path}
+                            className="block px-4 py-2.5 min-h-[44px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 link-hover rounded-lg"
+                            onClick={() => setMegaOpen(null)}
+                            aria-current={pathname === sub.path ? 'page' : undefined}
+                          >
+                            {sub.label}
+                          </Link>
+                        ))}
                       </div>
                     </div>
                   )}
                 </div>
-              </>
+              ) : (
+                <span key={item.path || item.label} className="shrink-0">
+                  {renderNavLink(item, item.path || item.label)}
+                </span>
+              )
             )}
           </nav>
 
@@ -289,7 +153,7 @@ export function Navbar() {
               ref={menuButtonRef}
               type="button"
               id="mobile-menu-button"
-              className="lg:hidden min-w-[48px] min-h-[48px] flex items-center justify-center rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700 cursor-pointer"
+              className="min-[1440px]:hidden min-w-[48px] min-h-[48px] flex items-center justify-center rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700 cursor-pointer"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();

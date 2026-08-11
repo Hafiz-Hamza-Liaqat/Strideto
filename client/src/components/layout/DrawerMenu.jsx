@@ -1,9 +1,8 @@
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState, useRef, useMemo } from 'react';
 import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../constants';
-import { useHeaderNavItems } from '../../hooks/useHeaderNavItems';
 import { useAuth } from '../../context/AuthContext';
 import { useEmployerAuth } from '../../context/EmployerAuthContext';
 import { useOverlayA11y } from '../../a11y/useOverlayA11y';
@@ -13,7 +12,7 @@ import { DRAWER_NAV_ITEMS } from './navConfig';
 const DRAWER_DURATION_MS = 220;
 
 export function DrawerMenu({ open, onClose }) {
-  const [educationOpen, setEducationOpen] = useState(false);
+  const [openMega, setOpenMega] = useState(null);
   const [exiting, setExiting] = useState(false);
   const exitTimeoutRef = useRef(null);
   const panelRef = useRef(null);
@@ -22,11 +21,18 @@ export function DrawerMenu({ open, onClose }) {
   const { isAuthenticated } = useAuth();
   const { isAuthenticated: isEmployer } = useEmployerAuth();
 
-  const label = (key) => {
-    const [ns, k] = key.includes(':') ? key.split(':') : ['navbar', key];
-    return t(k, { ns });
-  };
-  const resolvedNavItems = useHeaderNavItems(DRAWER_NAV_ITEMS, label);
+  const navItems = useMemo(
+    () =>
+      DRAWER_NAV_ITEMS.map((item) => ({
+        ...item,
+        label: t(item.labelKey.includes(':') ? item.labelKey.split(':')[1] : item.labelKey, { ns: 'navbar' }),
+        mega: item.mega?.map((sub) => ({
+          ...sub,
+          label: t(sub.labelKey.includes(':') ? sub.labelKey.split(':')[1] : sub.labelKey, { ns: 'navbar' }),
+        })),
+      })),
+    [t]
+  );
 
   const handleClose = () => {
     if (exitTimeoutRef.current) clearTimeout(exitTimeoutRef.current);
@@ -52,7 +58,7 @@ export function DrawerMenu({ open, onClose }) {
   }, [open]);
 
   useEffect(() => {
-    if (!open) setEducationOpen(false);
+    if (!open) setOpenMega(null);
   }, [open]);
 
   useEffect(() => () => {
@@ -69,11 +75,11 @@ export function DrawerMenu({ open, onClose }) {
     'block px-4 py-3.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700 transition-colors min-h-[44px] flex items-center';
 
   const overlayClass = exiting
-    ? 'fixed inset-0 bg-black/50 z-[100] lg:hidden animate-overlay-leave'
-    : 'fixed inset-0 bg-black/50 z-[100] lg:hidden animate-overlay-enter';
+    ? 'fixed inset-0 bg-black/50 z-[100] animate-overlay-leave'
+    : 'fixed inset-0 bg-black/50 z-[100] animate-overlay-enter';
   const asideClass = exiting
-    ? 'fixed top-0 end-0 bottom-0 w-72 max-w-[min(85vw,320px)] bg-white dark:bg-gray-900 border-s border-gray-200 dark:border-gray-800 z-[101] lg:hidden overflow-y-auto overscroll-contain shadow-2xl animate-drawer-leave'
-    : 'fixed top-0 end-0 bottom-0 w-72 max-w-[min(85vw,320px)] bg-white dark:bg-gray-900 border-s border-gray-200 dark:border-gray-800 z-[101] lg:hidden overflow-y-auto overscroll-contain shadow-2xl animate-drawer-enter';
+    ? 'fixed top-0 end-0 bottom-0 w-72 max-w-[min(85vw,320px)] bg-white dark:bg-gray-900 border-s border-gray-200 dark:border-gray-800 z-[101] overflow-y-auto overscroll-contain shadow-2xl animate-drawer-leave'
+    : 'fixed top-0 end-0 bottom-0 w-72 max-w-[min(85vw,320px)] bg-white dark:bg-gray-900 border-s border-gray-200 dark:border-gray-800 z-[101] overflow-y-auto overscroll-contain shadow-2xl animate-drawer-enter';
 
   const drawer = (
     <>
@@ -103,122 +109,97 @@ export function DrawerMenu({ open, onClose }) {
           </button>
         </div>
         <nav className="p-3 flex flex-col gap-0.5 pb-8 safe-area-inset-bottom" aria-label={t('navbar:mobileMenu')}>
-          {!resolvedNavItems ? (
-            <div className="space-y-2 animate-pulse p-2" aria-busy="true">
-              {[0, 1, 2, 3, 4].map((i) => (
-                <div key={i} className="h-11 rounded-lg bg-gray-200 dark:bg-gray-700" />
-              ))}
-            </div>
-          ) : (
-            <>
-              {resolvedNavItems.map((item) =>
-                item.mega ? (
-                  <div key={item.label || 'edu'}>
-                    <button
-                      type="button"
-                      onClick={() => setEducationOpen((o) => !o)}
-                      className={`w-full text-start ${linkClass} flex justify-between items-center`}
-                      aria-expanded={educationOpen}
-                      aria-controls="drawer-education-submenu"
-                    >
-                      {item.label}
-                      <svg
-                        className={`w-5 h-5 transition-transform ${educationOpen ? 'rotate-180' : ''}`}
-                        fill="none"
-                        stroke="currentColor"
-                        viewBox="0 0 24 24"
-                        aria-hidden="true"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                    {educationOpen && (
-                      <div
-                        id="drawer-education-submenu"
-                        className="ps-4 py-1 border-s-2 border-gray-200 dark:border-gray-700 ms-4 my-1 space-y-0.5 animate-dropdown-enter"
-                      >
-                        {item.mega.map((sub) =>
-                          sub.external ? (
-                            <a
-                              key={sub.path}
-                              href={sub.path}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              onClick={handleClose}
-                              className={linkClass}
-                            >
-                              {sub.label}
-                            </a>
-                          ) : (
-                            <Link
-                              key={sub.path}
-                              to={sub.path}
-                              onClick={handleClose}
-                              className={linkClass}
-                              aria-current={isCurrent(sub.path) ? 'page' : undefined}
-                            >
-                              {sub.label}
-                            </Link>
-                          )
-                        )}
-                      </div>
-                    )}
-                  </div>
-                ) : item.external ? (
-                  <a
-                    key={item.path}
-                    href={item.path}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    onClick={handleClose}
-                    className={linkClass}
-                    data-tour={item.tour}
-                  >
-                    {item.label}
-                  </a>
-                ) : (
+          {navItems.map((item) =>
+            item.mega ? (
+              <div key={item.path || item.label}>
+                <div className="flex items-stretch gap-1">
                   <Link
-                    key={item.path}
                     to={item.path}
                     onClick={handleClose}
-                    className={linkClass}
+                    className={`flex-1 ${linkClass}`}
                     aria-current={isCurrent(item.path) ? 'page' : undefined}
-                    data-tour={item.tour}
                   >
                     {item.label}
                   </Link>
-                )
-              )}
+                  <button
+                    type="button"
+                    onClick={() => setOpenMega((cur) => (cur === item.path ? null : item.path))}
+                    className="min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
+                    aria-expanded={openMega === item.path}
+                    aria-controls={`drawer-submenu-${item.path}`}
+                    aria-label={t('navbar:openSubmenu', { label: item.label, defaultValue: `Show ${item.label} pages` })}
+                  >
+                    <svg
+                      className={`w-5 h-5 transition-transform ${openMega === item.path ? 'rotate-180' : ''}`}
+                      fill="none"
+                      stroke="currentColor"
+                      viewBox="0 0 24 24"
+                      aria-hidden="true"
+                    >
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </button>
+                </div>
+                {openMega === item.path && (
+                  <div
+                    id={`drawer-submenu-${item.path}`}
+                    className="ps-4 py-1 border-s-2 border-gray-200 dark:border-gray-700 ms-4 my-1 space-y-0.5 animate-dropdown-enter"
+                  >
+                    {item.mega.map((sub) => (
+                      <Link
+                        key={sub.path}
+                        to={sub.path}
+                        onClick={handleClose}
+                        className={linkClass}
+                        aria-current={isCurrent(sub.path) ? 'page' : undefined}
+                      >
+                        {sub.label}
+                      </Link>
+                    ))}
+                  </div>
+                )}
+              </div>
+            ) : (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={handleClose}
+                className={linkClass}
+                aria-current={isCurrent(item.path) ? 'page' : undefined}
+                data-tour={item.tour}
+              >
+                {item.label}
+              </Link>
+            )
+          )}
 
-              {(isAuthenticated || isEmployer) && (
-                <>
-                  <p className="px-4 pt-4 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-                    {t('navbar:accountMenu')}
-                  </p>
-                  {isAuthenticated ? (
-                    <Link
-                      to={ROUTES.DASHBOARD}
-                      onClick={handleClose}
-                      className={linkClass}
-                      data-tour="dashboard"
-                      aria-current={isCurrent(ROUTES.DASHBOARD) ? 'page' : undefined}
-                    >
-                      {t('navbar:dashboard')}
-                    </Link>
-                  ) : null}
-                  {isEmployer ? (
-                    <Link
-                      to={ROUTES.EMPLOYER_DASHBOARD}
-                      onClick={handleClose}
-                      className={linkClass}
-                      data-tour="employer-dashboard"
-                      aria-current={isEmployerPortalPath(pathname) ? 'page' : undefined}
-                    >
-                      {t('navbar:employerPortal', { defaultValue: 'Employer' })}
-                    </Link>
-                  ) : null}
-                </>
-              )}
+          {(isAuthenticated || isEmployer) && (
+            <>
+              <p className="px-4 pt-4 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                {t('navbar:accountMenu')}
+              </p>
+              {isAuthenticated ? (
+                <Link
+                  to={ROUTES.DASHBOARD}
+                  onClick={handleClose}
+                  className={linkClass}
+                  data-tour="dashboard"
+                  aria-current={isCurrent(ROUTES.DASHBOARD) ? 'page' : undefined}
+                >
+                  {t('navbar:dashboard')}
+                </Link>
+              ) : null}
+              {isEmployer ? (
+                <Link
+                  to={ROUTES.EMPLOYER_DASHBOARD}
+                  onClick={handleClose}
+                  className={linkClass}
+                  data-tour="employer-dashboard"
+                  aria-current={isEmployerPortalPath(pathname) ? 'page' : undefined}
+                >
+                  {t('navbar:employerPortal', { defaultValue: 'Employer' })}
+                </Link>
+              ) : null}
             </>
           )}
         </nav>

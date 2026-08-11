@@ -95,7 +95,7 @@ const FAQ = lazyLoad(() => import('../pages/Static/staticCmsPages').then((m) => 
 const PrivacyPolicy = lazyLoad(() => import('../pages/Static/staticCmsPages').then((m) => ({ default: m.PrivacyPolicyPage })));
 const Terms = lazyLoad(() => import('../pages/Static/staticCmsPages').then((m) => ({ default: m.TermsPage })));
 const Cookies = lazyLoad(() => import('../pages/Static/staticCmsPages').then((m) => ({ default: m.CookiesPage })));
-const License = lazyLoad(() => import('../pages/Static/staticCmsPages').then((m) => ({ default: m.LicensePage })));
+const HumanSitemap = lazyLoad(() => import('../pages/Static/HumanSitemap'));
 const Disclaimer = lazyLoad(() => import('../pages/Static/staticCmsPages').then((m) => ({ default: m.DisclaimerPage })));
 const RefundPolicy = lazyLoad(() => import('../pages/Static/staticCmsPages').then((m) => ({ default: m.RefundPolicyPage })));
 const Careers = lazyLoad(() => import('../pages/Static/staticCmsPages').then((m) => ({ default: m.CareersPage })));
@@ -401,7 +401,8 @@ export const routes = [
       { path: ROUTES.PRIVACY_POLICY, element: <PrivacyPolicy /> },
       { path: ROUTES.TERMS, element: <Terms /> },
       { path: ROUTES.COOKIES, element: <Cookies /> },
-      { path: ROUTES.LICENSE, element: <License /> },
+      { path: ROUTES.LICENSE, element: <NotFound /> },
+      { path: ROUTES.SITEMAP, element: <HumanSitemap /> },
       { path: ROUTES.DISCLAIMER, element: <Disclaimer /> },
       { path: ROUTES.REFUND_POLICY, element: <RefundPolicy /> },
       { path: ROUTES.CAREERS, element: <Careers /> },

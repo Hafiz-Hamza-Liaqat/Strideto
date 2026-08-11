@@ -12,6 +12,7 @@ export function CookieConsent() {
   const { t } = useTranslation(['seo', 'common']);
 
   useEffect(() => {
+    if (!getAdSenseClientId()) return;
     const stored = localStorage.getItem(CONSENT_KEY);
     if (!stored) setVisible(true);
   }, []);

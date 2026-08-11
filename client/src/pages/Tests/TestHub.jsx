@@ -104,7 +104,7 @@ export default function TestHub() {
   return (
     <>
       <SeoHead
-        title="Test Hub — Find the right test for your goals"
+        title="Tests & Prep | Strideto"
         description="Browse international tests including IELTS, TOEFL, SAT, GRE and more. Get preparation guidance, find resources, and see official test information."
         canonical={ROUTES.TEST_HUB}
       />

@@ -5,7 +5,34 @@ import { breadcrumbSchema, combineSchemas, webPageSchema } from '../../seo/schem
 import { ROUTES } from '../../constants';
 
 export default function HelpCenter() {
-  const { t } = useTranslation(['static', 'seo']);
+  const { t } = useTranslation(['static', 'seo', 'footer']);
+
+  const roleGuides = [
+    {
+      title: t('static:helpStudentTitle'),
+      body: t('static:helpStudentBody'),
+      to: ROUTES.STUDENT_HELP,
+      cta: t('static:helpStudentCta'),
+    },
+    {
+      title: t('static:helpEmployerTitle'),
+      body: t('static:helpEmployerBody'),
+      to: ROUTES.EMPLOYER_HELP,
+      cta: t('static:helpEmployerCta'),
+    },
+    {
+      title: t('static:helpAgentTitle'),
+      body: t('static:helpAgentBody'),
+      to: ROUTES.AGENT_GUIDELINES,
+      cta: t('static:helpAgentCta'),
+    },
+    {
+      title: t('static:helpInstitutionTitle'),
+      body: t('static:helpInstitutionBody'),
+      to: ROUTES.INSTITUTION_GUIDELINES,
+      cta: t('static:helpInstitutionCta'),
+    },
+  ];
 
   return (
     <>
@@ -37,11 +64,28 @@ export default function HelpCenter() {
           <p className="text-gray-600 dark:text-gray-300">{t('static:helpApplyBody')}</p>
         </section>
         <section className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">Student guidance</h2>
-          <p className="text-gray-600 dark:text-gray-300 mb-4">
-            Signed-in Students can open contextual guidance for profile, applications, Vault, and privacy without reading legal pages.
-          </p>
-          <Link to={ROUTES.STUDENT_HELP} className="text-primary dark:text-mint hover:underline">Student guidance</Link>
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">{t('static:helpRolesTitle')}</h2>
+          <p className="text-gray-600 dark:text-gray-300 mb-4">{t('static:helpRolesIntro')}</p>
+          <ul className="space-y-4">
+            {roleGuides.map((item) => (
+              <li key={item.to} className="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
+                <h3 className="font-semibold text-gray-900 dark:text-white">{item.title}</h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 mb-3">{item.body}</p>
+                <Link to={item.to} className="text-primary dark:text-mint hover:underline min-h-[44px] inline-flex items-center">
+                  {item.cta}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+        <section className="mb-8">
+          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">{t('static:helpTopicsTitle')}</h2>
+          <ul className="space-y-2 text-gray-600 dark:text-gray-300">
+            <li><Link to={ROUTES.PRIVACY} className="text-primary dark:text-mint hover:underline">{t('static:helpTopicPrivacy')}</Link></li>
+            <li><Link to={ROUTES.PRIVACY_POLICY} className="text-primary dark:text-mint hover:underline">{t('footer:privacyPolicy', { ns: 'footer' })}</Link></li>
+            <li><Link to={ROUTES.REFUND_POLICY} className="text-primary dark:text-mint hover:underline">{t('footer:refundPolicy', { ns: 'footer' })}</Link></li>
+            <li><Link to={ROUTES.SUPPORT} className="text-primary dark:text-mint hover:underline">{t('static:helpTopicSafety')}</Link></li>
+          </ul>
         </section>
         <section className="mb-8">
           <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">{t('static:helpNeedMoreTitle')}</h2>

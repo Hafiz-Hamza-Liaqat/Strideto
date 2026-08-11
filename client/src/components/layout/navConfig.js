@@ -1,55 +1,64 @@
-/** Shared public navbar hierarchy (E.1F-A). Paths match client/src/constants ROUTES. */
+/** Final public navbar IA (Phase 10). Labels are presentation; paths stay stable. */
 
-/** Core destinations shown in the wide-desktop primary nav. */
 export const PRIMARY_NAV_ITEMS = [
   { labelKey: 'navbar:home', path: '/' },
   { labelKey: 'navbar:jobs', path: '/jobs' },
-  { labelKey: 'navbar:scholarships', path: '/scholarships' },
-  { labelKey: 'navbar:admissions', path: '/admissions' },
+  { labelKey: 'navbar:scholarshipsAndFunding', path: '/scholarships' },
+  { labelKey: 'navbar:admissionsAndIntakes', path: '/admissions' },
   { labelKey: 'navbar:internships', path: '/internships' },
   {
-    labelKey: 'navbar:education',
+    labelKey: 'navbar:studyAndInstitutions',
+    path: '/program-explorer',
     mega: [
+      { labelKey: 'navbar:programExplorer', path: '/program-explorer' },
       { labelKey: 'navbar:schoolsAndColleges', path: '/schools-and-colleges' },
-      { labelKey: 'navbar:universities', path: '/intl-scholarships' },
-      { labelKey: 'navbar:foreign', path: '/foreign-studies' },
+      { labelKey: 'navbar:foreignStudies', path: '/foreign-studies' },
+      { labelKey: 'navbar:intlScholarships', path: '/intl-scholarships' },
     ],
   },
-  { labelKey: 'navbar:examPrep', path: '/exam-prep' },
+  {
+    labelKey: 'navbar:testsAndPrep',
+    path: '/tests',
+    mega: [
+      { labelKey: 'navbar:testHub', path: '/tests' },
+      { labelKey: 'navbar:examPrep', path: '/exam-prep' },
+    ],
+  },
+  {
+    labelKey: 'navbar:services',
+    path: '/services',
+    mega: [
+      { labelKey: 'navbar:agentsDirectory', path: '/agents' },
+      { labelKey: 'navbar:professionalMarketplace', path: '/agents/marketplace' },
+      { labelKey: 'navbar:careerGuidance', path: '/career-guidance' },
+      { labelKey: 'navbar:resumeBuilder', path: '/resume-builder' },
+      { labelKey: 'navbar:helpCenter', path: '/help-center' },
+    ],
+  },
 ];
 
-/** Lower-priority destinations relocated into “More” / mobile drawer. */
-export const SECONDARY_NAV_ITEMS = [
-  { labelKey: 'navbar:blog', path: '/blog' },
-  { labelKey: 'navbar:contact', path: '/contact' },
-  { labelKey: 'navbar:resume', path: '/resume-builder', tour: 'resume-builder' },
-  { labelKey: 'navbar:careerGuidance', path: '/career-guidance', tour: 'career-guidance' },
-];
+/** @deprecated Phase 10 removed the public “More” menu. Kept empty for callers. */
+export const SECONDARY_NAV_ITEMS = [];
 
-/** Full public destinations for the mobile drawer (primary + secondary). */
-export const DRAWER_NAV_ITEMS = [...PRIMARY_NAV_ITEMS, ...SECONDARY_NAV_ITEMS];
+export const DRAWER_NAV_ITEMS = PRIMARY_NAV_ITEMS;
+
+export const FINAL_NAV_LABELS = [
+  'Home',
+  'Jobs',
+  'Scholarships & Funding',
+  'Admissions & Intakes',
+  'Internships',
+  'Study & Institutions',
+  'Tests & Prep',
+  'Services',
+];
 
 /**
- * When CMS supplies a full header list, treat Blog/Contact as secondary if present;
- * otherwise keep CMS order as primary and attach fixed tool links in More.
+ * Phase 10: all eight items are primary. CMS Blog/Contact are not promoted into a More menu.
  */
 export function splitNavForDesktop(resolvedItems) {
   if (!resolvedItems?.length) {
-    return { primary: null, secondaryPaths: new Set(SECONDARY_NAV_ITEMS.map((i) => i.path)) };
+    return { primary: null, fromCmsSecondary: [] };
   }
-
-  const secondaryPaths = new Set(['/blog', '/contact']);
-
-  const primary = [];
-  const fromCmsSecondary = [];
-
-  for (const item of resolvedItems) {
-    if (item.path && secondaryPaths.has(item.path) && !item.mega) {
-      fromCmsSecondary.push(item);
-    } else {
-      primary.push(item);
-    }
-  }
-
-  return { primary, fromCmsSecondary, secondaryPaths };
+  return { primary: resolvedItems, fromCmsSecondary: [] };
 }

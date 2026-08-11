@@ -35,6 +35,12 @@ export default function NotFound() {
           >
             {t('seo:browseJobs')}
           </Link>
+          <Link
+            to={ROUTES.SITEMAP}
+            className="inline-flex px-5 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800 text-sm font-medium"
+          >
+            {t('seo:browseSitemap')}
+          </Link>
         </div>
       </div>
     </>
