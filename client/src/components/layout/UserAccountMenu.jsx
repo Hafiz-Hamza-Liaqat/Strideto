@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ROUTES, STAFF_ROLES } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
@@ -12,31 +12,20 @@ import { LanguageSwitcher } from '../i18n/LanguageSwitcher';
 import { restartProductTour } from '../../onboarding';
 import { useOverlayA11y } from '../../a11y/useOverlayA11y';
 
-function truncateId(id) {
-  if (!id) return '';
-  const s = String(id);
-  return s.length > 12 ? `${s.slice(0, 6)}…${s.slice(-4)}` : s;
-}
+const itemClass =
+  'block w-[calc(100%-0.5rem)] mx-1 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary min-h-[44px]';
 
 function MenuLink({ to, onClose, children, className = '' }) {
   return (
-    <Link
-      to={to}
-      onClick={onClose}
-      className={`block px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg mx-1 ${className}`}
-    >
+    <Link to={to} onClick={onClose} className={`${itemClass} ${className}`}>
       {children}
     </Link>
   );
 }
 
-function MenuButton({ onClick, children, className = '' }) {
+function MenuButton({ onClick, children, className = '', ...rest }) {
   return (
-    <button
-      type="button"
-      onClick={onClick}
-      className={`block w-full text-start px-4 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg mx-1 ${className}`}
-    >
+    <button type="button" onClick={onClick} className={`${itemClass} text-start ${className}`} {...rest}>
       {children}
     </button>
   );
@@ -56,13 +45,13 @@ function MenuSectionLabel({ children }) {
 
 export function UserAccountMenu() {
   const { t } = useTranslation(['navbar', 'common']);
+  const navigate = useNavigate();
   const { isAuthenticated, user, logout } = useAuth();
   const { isAuthenticated: isEmployer, logout: employerLogout } = useEmployerAuth();
   const { enabled: userNavbarSession } = useUserNavbarSession();
   const showUserSession = userNavbarSession && isAuthenticated;
-  const { theme, toggleTheme } = useTheme();
+  const { preference, setPreference } = useTheme();
   const [open, setOpen] = useState(false);
-  const [copied, setCopied] = useState(false);
   const [careerHeadline, setCareerHeadline] = useState('');
   const ref = useRef(null);
   const panelRef = useRef(null);
@@ -88,48 +77,32 @@ export function UserAccountMenu() {
     const onDoc = (e) => {
       if (ref.current && !ref.current.contains(e.target)) setOpen(false);
     };
-    document.addEventListener('click', onDoc);
-    return () => document.removeEventListener('click', onDoc);
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
   }, []);
-
-  useEffect(() => {
-    if (!open) setCopied(false);
-  }, [open]);
 
   const close = () => setOpen(false);
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
+    close();
+    navigate(ROUTES.HOME, { replace: true });
+  };
+
+  const handleEmployerLogout = async () => {
+    await employerLogout();
     close();
   };
-
-  const handleEmployerLogout = () => {
-    employerLogout();
-    close();
-  };
-
-  const copyUserId = async () => {
-    if (!user?._id) return;
-    try {
-      await navigator.clipboard.writeText(String(user._id));
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      /* clipboard unavailable */
-    }
-  };
-
-  const userId = user?._id ? String(user._id) : '';
 
   return (
     <div className="relative" ref={ref} data-tour="user-profile">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="relative min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800"
+        className="relative min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         aria-label={t('navbar:accountMenu')}
         aria-expanded={open}
-        aria-haspopup="true"
+        aria-haspopup="dialog"
         aria-controls="account-menu-panel"
       >
         <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
@@ -146,107 +119,131 @@ export function UserAccountMenu() {
         <div
           id="account-menu-panel"
           ref={panelRef}
-          role="menu"
+          role="dialog"
           aria-label={t('navbar:accountMenu')}
-          className="absolute end-0 mt-2 w-72 max-w-[min(18rem,calc(100vw-1rem))] rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg z-50 py-2"
+          className="fixed inset-x-2 top-14 z-[80] mt-0 flex w-auto max-h-[min(32rem,calc(100dvh-5rem))] max-w-[calc(100vw-1rem)] flex-col overflow-hidden rounded-xl border border-gray-200 bg-white shadow-lg dark:border-gray-700 dark:bg-gray-800 sm:absolute sm:inset-x-auto sm:end-0 sm:top-auto sm:mt-2 sm:w-80"
         >
-          {showUserSession ? (
-            <>
-              <div className="px-4 py-3 border-b border-gray-200 dark:border-gray-700">
-                <p className="font-semibold text-gray-900 dark:text-white truncate">{user?.name || t('navbar:profile')}</p>
-                {careerHeadline && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{careerHeadline}</p>
-                )}
-                {user?.email && (
-                  <p className="text-xs text-gray-500 dark:text-gray-400 truncate mt-0.5">{user.email}</p>
-                )}
-                {userId && (
-                  <div className="flex items-center gap-2 mt-2">
-                    <span className="text-xs text-gray-500 dark:text-gray-400">
-                      {t('navbar:userId')}: <span className="font-mono text-gray-700 dark:text-gray-300">{truncateId(userId)}</span>
-                    </span>
-                    <button
-                      type="button"
-                      onClick={copyUserId}
-                      className="text-xs text-primary dark:text-mint hover:underline shrink-0"
-                      title={userId}
-                    >
-                      {copied ? t('navbar:idCopied') : t('navbar:copyId')}
-                    </button>
-                  </div>
-                )}
-              </div>
-              <MenuLink to={ROUTES.DASHBOARD} onClose={close}>{t('navbar:dashboard')}</MenuLink>
-              <MenuLink to={ROUTES.TALENT_PROFILE} onClose={close}>{t('navbar:talentProfile')}</MenuLink>
-              <MenuLink to={ROUTES.APPLICATIONS} onClose={close}>{t('navbar:myApplications')}</MenuLink>
-              <MenuLink to={ROUTES.JOURNEY} onClose={close}>{t('navbar:journey', { defaultValue: 'Journey' })}</MenuLink>
-              <MenuLink to={ROUTES.VAULT} onClose={close}>{t('navbar:vault', { defaultValue: 'Vault' })}</MenuLink>
-              <MenuLink to={ROUTES.NOTIFICATIONS} onClose={close}>{t('navbar:notifications', { defaultValue: 'Notifications' })}</MenuLink>
-              <MenuLink to={ROUTES.PRIVACY} onClose={close}>{t('navbar:privacy', { defaultValue: 'Privacy' })}</MenuLink>
-              <MenuLink to={ROUTES.PROFILE} onClose={close}>{t('navbar:profile')}</MenuLink>
-              <MenuLink to={ROUTES.RESUME_BUILDER} onClose={close}>{t('navbar:resume')}</MenuLink>
-              <MenuLink to={`${ROUTES.PROFILE}#account-settings`} onClose={close}>{t('navbar:accountSettings')}</MenuLink>
-              <MenuLink to={ROUTES.STUDENT_HELP} onClose={close}>{t('navbar:studentHelp', { defaultValue: 'Student help' })}</MenuLink>
-              {STAFF_ROLES.includes(user?.role) && (
-                <MenuLink to={ROUTES.ADMIN} onClose={close}>{t('common:admin')}</MenuLink>
-              )}
-              <MenuSeparator />
-            </>
-          ) : (
-            <>
-              <MenuLink to={ROUTES.LOGIN} onClose={close}>{t('navbar:login')}</MenuLink>
-              <MenuLink to={ROUTES.REGISTER} onClose={close} className="font-medium">{t('navbar:register')}</MenuLink>
-              <MenuLink to={ROUTES.FORGOT_PASSWORD} onClose={close}>{t('navbar:forgotPassword')}</MenuLink>
-              <MenuLink to={ROUTES.EMPLOYER_LOGIN} onClose={close}>{t('navbar:employerLogin', { defaultValue: 'Employer login' })}</MenuLink>
-              <MenuSeparator />
-            </>
-          )}
+          <div className="min-h-0 flex-1 overflow-y-auto py-2">
+            {showUserSession ? (
+              <>
+                <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+                  <p className="break-words font-semibold text-gray-900 dark:text-white">
+                    {user?.name || t('navbar:profile')}
+                  </p>
+                  {careerHeadline ? (
+                    <p className="mt-0.5 break-words text-xs text-gray-500 dark:text-gray-400">{careerHeadline}</p>
+                  ) : null}
+                  {user?.email ? (
+                    <p className="mt-0.5 break-all text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
+                  ) : null}
+                </div>
+                <MenuSectionLabel>{t('navbar:workspace', { defaultValue: 'Workspace' })}</MenuSectionLabel>
+                <MenuLink to={ROUTES.DASHBOARD} onClose={close}>
+                  {t('navbar:myWorkspace', { defaultValue: 'My Workspace' })}
+                </MenuLink>
+                <MenuLink to={ROUTES.TALENT_PROFILE} onClose={close}>{t('navbar:talentProfile')}</MenuLink>
+                <MenuLink to={ROUTES.APPLICATIONS} onClose={close}>{t('navbar:myApplications')}</MenuLink>
+                {STAFF_ROLES.includes(user?.role) ? (
+                  <MenuLink to={ROUTES.ADMIN} onClose={close}>{t('common:admin')}</MenuLink>
+                ) : null}
+                <MenuSectionLabel>{t('navbar:accountGroup', { defaultValue: 'Account' })}</MenuSectionLabel>
+                <MenuLink to={ROUTES.PROFILE} onClose={close}>{t('navbar:profile')}</MenuLink>
+                <MenuLink to={ROUTES.PRIVACY} onClose={close}>
+                  {t('navbar:privacy', { defaultValue: 'Privacy' })}
+                </MenuLink>
+                <MenuLink to={`${ROUTES.PROFILE}#account-settings`} onClose={close}>
+                  {t('navbar:accountSettings')}
+                </MenuLink>
+              </>
+            ) : (
+              <>
+                <MenuLink to={ROUTES.LOGIN} onClose={close}>{t('navbar:login')}</MenuLink>
+                <MenuLink to={ROUTES.REGISTER} onClose={close} className="font-medium">{t('navbar:register')}</MenuLink>
+                <MenuLink to={ROUTES.FORGOT_PASSWORD} onClose={close}>{t('navbar:forgotPassword')}</MenuLink>
+                <MenuLink to={ROUTES.EMPLOYER_LOGIN} onClose={close}>
+                  {t('navbar:employerLogin', { defaultValue: 'Employer login' })}
+                </MenuLink>
+              </>
+            )}
 
-          {isEmployer ? (
-            <>
-              <MenuSectionLabel>{t('navbar:employerPortal', { defaultValue: 'Employer' })}</MenuSectionLabel>
-              <MenuLink to={ROUTES.EMPLOYER_DASHBOARD} onClose={close}>
-                {t('navbar:employerDashboard', { defaultValue: 'Employer dashboard' })}
+            {isEmployer ? (
+              <>
+                <MenuSeparator />
+                <MenuSectionLabel>{t('navbar:employerPortal', { defaultValue: 'Employer' })}</MenuSectionLabel>
+                <MenuLink to={ROUTES.EMPLOYER_DASHBOARD} onClose={close}>
+                  {t('navbar:employerDashboard', { defaultValue: 'Employer dashboard' })}
+                </MenuLink>
+                <MenuButton onClick={handleEmployerLogout} className="text-red-600 dark:text-red-400">
+                  {t('navbar:employerLogout', { defaultValue: 'Log out of employer' })}
+                </MenuButton>
+              </>
+            ) : null}
+
+            <MenuSeparator />
+            <MenuSectionLabel>{t('navbar:preferences', { defaultValue: 'Preferences' })}</MenuSectionLabel>
+            <MenuSectionLabel>{t('navbar:appearance')}</MenuSectionLabel>
+            <div
+              className="mx-3 mb-2 grid grid-cols-3 gap-1 rounded-lg border border-gray-200 p-1 dark:border-gray-700"
+              role="group"
+              aria-label={t('navbar:appearance')}
+            >
+              {['system', 'light', 'dark'].map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={preference === value}
+                  onClick={() => setPreference(value)}
+                  className={`min-h-[44px] rounded-md px-1 text-xs font-medium focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                    preference === value
+                      ? 'bg-primary/15 text-primary dark:text-mint'
+                      : 'text-gray-600 hover:bg-gray-50 dark:text-gray-300 dark:hover:bg-gray-700/50'
+                  }`}
+                >
+                  {value === 'system'
+                    ? t('navbar:appearanceSystem', { defaultValue: 'System' })
+                    : value === 'light'
+                      ? t('navbar:appearanceLight', { defaultValue: 'Light' })
+                      : t('navbar:appearanceDark', { defaultValue: 'Dark' })}
+                </button>
+              ))}
+            </div>
+            <MenuSectionLabel>{t('navbar:languageSwitcher')}</MenuSectionLabel>
+            <div className="px-3 pb-2">
+              <LanguageSwitcher className="w-full" />
+            </div>
+
+            <MenuSeparator />
+            <MenuSectionLabel>{t('navbar:help', { defaultValue: 'Help' })}</MenuSectionLabel>
+            {showUserSession ? (
+              <MenuLink to={ROUTES.STUDENT_HELP} onClose={close}>
+                {t('navbar:studentHelp', { defaultValue: 'Student Help' })}
               </MenuLink>
-              <MenuButton onClick={handleEmployerLogout} className="text-red-600 dark:text-red-400">
-                {t('navbar:employerLogout', { defaultValue: 'Log out of employer' })}
-              </MenuButton>
-              <MenuSeparator />
-            </>
-          ) : null}
-
-          <MenuSectionLabel>{t('navbar:languageSwitcher')}</MenuSectionLabel>
-          <div className="px-3 pb-2">
-            <LanguageSwitcher className="w-full" compact />
+            ) : null}
+            <MenuButton
+              onClick={() => {
+                close();
+                restartProductTour();
+              }}
+            >
+              {t('navbar:productTour', { defaultValue: 'Product Tour' })}
+            </MenuButton>
+            <MenuLink to={ROUTES.HELP_CENTER} onClose={close}>
+              {t('navbar:helpCenter', { defaultValue: 'Help Center' })}
+            </MenuLink>
           </div>
 
-          <MenuSectionLabel>{t('navbar:appearance')}</MenuSectionLabel>
-          <MenuButton onClick={() => { toggleTheme(); }}>
-            {theme === 'dark' ? `☀️ ${t('common:lightMode')}` : `🌙 ${t('common:darkMode')}`}
-          </MenuButton>
-
-          <MenuSeparator />
-          <MenuSectionLabel>{t('navbar:help', { defaultValue: 'Help' })}</MenuSectionLabel>
-          <MenuButton
-            onClick={() => {
-              close();
-              restartProductTour();
-            }}
-          >
-            {t('navbar:productTour', { defaultValue: 'Product Tour' })}
-          </MenuButton>
-          <MenuLink to={ROUTES.HELP_CENTER} onClose={close}>
-            {t('navbar:helpCenter', { defaultValue: 'Help Center' })}
-          </MenuLink>
-
-          {showUserSession && (
-            <>
-              <MenuSeparator />
-              <MenuButton onClick={handleLogout} className="text-red-600 dark:text-red-400">
+          {showUserSession ? (
+            <div className="shrink-0 border-t border-gray-200 bg-white py-1 dark:border-gray-700 dark:bg-gray-800">
+              <MenuSectionLabel>{t('navbar:session', { defaultValue: 'Session' })}</MenuSectionLabel>
+              <MenuButton
+                onClick={handleLogout}
+                className="text-red-600 dark:text-red-400"
+                aria-label={t('common:logout')}
+              >
                 {t('common:logout')}
               </MenuButton>
-            </>
-          )}
+            </div>
+          ) : null}
         </div>
       )}
     </div>

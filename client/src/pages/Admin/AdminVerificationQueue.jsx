@@ -504,7 +504,7 @@ export default function AdminVerificationQueue() {
     },
     {
       key: 'actions',
-      label: '',
+      label: 'Actions',
       render: (row) => (
         <button
           type="button"

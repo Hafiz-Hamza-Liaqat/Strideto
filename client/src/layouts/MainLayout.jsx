@@ -13,7 +13,7 @@ export function MainLayout({ children }) {
   return (
     <SiteContentProvider>
       <AdSlotsProvider>
-        <div className="min-h-screen flex flex-col bg-bg-main dark:bg-secondary min-w-0">
+        <div className="min-h-screen flex flex-col bg-bg-main dark:bg-secondary min-w-0 overflow-x-hidden">
           <SkipLink />
           <GlobalSeo />
           <Navbar />

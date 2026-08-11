@@ -8,7 +8,7 @@ import { LOGIN_REALMS, resolveLoginReturnPath } from '../../utils/loginReturn.js
 import { isOnboardingComplete, markOnboardingPending } from '../../onboarding';
 
 export default function EmployerLogin() {
-  const { t } = useTranslation(['employer', 'common', 'forms']);
+  const { t } = useTranslation(['employer', 'common', 'forms', 'validation']);
   const navigate = useNavigate();
   const location = useLocation();
   const { login, error: ctxError, setError: setCtxError } = useEmployerAuth();
@@ -36,7 +36,11 @@ export default function EmployerLogin() {
         navigate(from, { replace: true });
       }
     } catch (err) {
-      setCtxError?.(err.response?.data?.error || t('employer:loginFailed'));
+      setCtxError?.(
+        err.response?.status === 429
+          ? (err.response?.data?.error || t('validation:tooManyRequests', { defaultValue: 'Too many requests. Please try again later.' }))
+          : (err.response?.data?.error || t('employer:loginFailed'))
+      );
     } finally {
       setSubmitting(false);
     }

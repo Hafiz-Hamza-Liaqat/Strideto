@@ -27,7 +27,11 @@ export default function AgentLogin() {
       await login(email.trim().toLowerCase(), password);
       navigate(from, { replace: true });
     } catch (err) {
-      setCtxError?.(err.response?.data?.error || 'Login failed. Check your credentials.');
+      setCtxError?.(
+        err.response?.status === 429
+          ? (err.response?.data?.error || 'Too many requests. Please try again later.')
+          : (err.response?.data?.error || 'Login failed. Check your credentials.')
+      );
     } finally {
       setSubmitting(false);
     }

@@ -1,11 +1,62 @@
 import { useEffect, useState } from 'react';
+import { ui } from '../../design-system/surfaceClasses';
 
 export default function MessageThread({ threadId, loadMessages, sendMessage, canShareDocuments = false }) {
-  const [messages, setMessages] = useState([]); const [text, setText] = useState('');
-  const [error, setError] = useState(''); const [busy, setBusy] = useState(false);
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   const load = () => threadId && loadMessages(threadId).then((r) => setMessages(r.data.messages || [])).catch((e) => setError(e.response?.data?.error || 'Unable to load messages.'));
   useEffect(() => { void load(); }, [threadId]); // eslint-disable-line react-hooks/exhaustive-deps
-  const submit = async (event) => { event.preventDefault(); if (!text.trim()) return; setBusy(true); setError(''); try { await sendMessage(threadId, { messageType: 'text', text }); setText(''); await load(); } catch (e) { setError(e.response?.data?.error || 'Message could not be sent.'); } finally { setBusy(false); } };
-  if (!threadId) return <p className="text-sm text-slate-500">Conversation context is not available.</p>;
-  return <section className="rounded-xl border bg-white p-4"><h2 className="font-semibold">Consultation messages</h2><p className="mt-1 text-xs text-slate-500">This private thread exists only for this consultation and closes after the bounded post-consultation period.</p>{error && <p className="mt-3 rounded bg-red-50 p-2 text-sm text-red-700">{error}</p>}<div className="mt-4 max-h-80 space-y-2 overflow-y-auto">{messages.length === 0 ? <p className="text-sm text-slate-500">No messages yet.</p> : messages.map((message) => <div key={message._id} className="rounded-lg bg-slate-50 p-3"><p className="text-xs font-medium uppercase text-slate-500">{message.senderActorType} · {message.messageType.replaceAll('_', ' ')}</p>{message.text && <p className="mt-1 whitespace-pre-wrap text-sm">{message.text}</p>}{message.documentReference?.displayName && <p className="mt-1 text-sm text-blue-700">Vault reference: {message.documentReference.displayName}</p>}</div>)}</div><form onSubmit={submit} className="mt-4 flex gap-2"><input value={text} onChange={(e) => setText(e.target.value)} maxLength={4000} disabled={busy} className="min-w-0 flex-1 rounded border px-3 py-2 text-sm disabled:opacity-50" placeholder="Write a consultation message"/><button disabled={busy} className="rounded bg-blue-700 px-4 py-2 text-sm text-white disabled:opacity-50">Send</button></form>{canShareDocuments && <p className="mt-3 text-xs text-slate-500">To share a document, create an exact, time-bounded Agent grant in your <a className="text-blue-700 underline" href="/vault">Vault</a>. A consultation never grants Vault access automatically.</p>}</section>;
+  const submit = async (event) => {
+    event.preventDefault();
+    if (!text.trim()) return;
+    setBusy(true);
+    setError('');
+    try {
+      await sendMessage(threadId, { messageType: 'text', text });
+      setText('');
+      await load();
+    } catch (e) {
+      setError(e.response?.data?.error || 'Message could not be sent.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  if (!threadId) return <p className={ui.muted}>Conversation context is not available.</p>;
+  return (
+    <section className={`${ui.card} p-4`}>
+      <h2 className="font-semibold">Consultation messages</h2>
+      <p className={`mt-1 text-xs ${ui.muted}`}>This private thread exists only for this consultation and closes after the bounded post-consultation period.</p>
+      {error ? <p className={`mt-3 ${ui.error}`} role="alert">{error}</p> : null}
+      <div className="mt-4 max-h-80 space-y-2 overflow-y-auto">
+        {messages.length === 0 ? (
+          <p className={ui.muted}>No messages yet.</p>
+        ) : messages.map((message) => (
+          <div key={message._id} className="rounded-lg bg-slate-50 p-3 dark:bg-slate-900/60">
+            <p className="text-xs font-medium uppercase text-slate-500 dark:text-slate-400">{message.senderActorType} · {message.messageType.replaceAll('_', ' ')}</p>
+            {message.text ? <p className="mt-1 whitespace-pre-wrap text-sm">{message.text}</p> : null}
+            {message.documentReference?.displayName ? <p className={`mt-1 text-sm ${ui.link}`}>Vault reference: {message.documentReference.displayName}</p> : null}
+          </div>
+        ))}
+      </div>
+      <form onSubmit={submit} className="mt-4 flex gap-2">
+        <input
+          value={text}
+          onChange={(e) => setText(e.target.value)}
+          maxLength={4000}
+          disabled={busy}
+          className={`${ui.input} flex-1 disabled:opacity-50`}
+          placeholder="Write a consultation message"
+          aria-label="Consultation message"
+        />
+        <button disabled={busy} className={ui.primaryBtn}>Send</button>
+      </form>
+      {canShareDocuments ? (
+        <p className={`mt-3 text-xs ${ui.muted}`}>
+          To share a document, create an exact, time-bounded Agent grant in your <a className={`${ui.link} underline`} href="/vault">Vault</a>. A consultation never grants Vault access automatically.
+        </p>
+      ) : null}
+    </section>
+  );
 }

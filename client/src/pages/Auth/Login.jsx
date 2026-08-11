@@ -65,6 +65,8 @@ export default function Login() {
         const target = data.email || email.trim().toLowerCase();
         setVerificationEmail(target);
         setError(data.error || t('forms:login.verifyRequired', { defaultValue: 'Please verify your email before signing in.' }));
+      } else if (err.response?.status === 429) {
+        setError(data?.error || t('validation:tooManyRequests'));
       } else {
         const msg = data?.error || t('forms:login.failed');
         const details = data?.details || {};

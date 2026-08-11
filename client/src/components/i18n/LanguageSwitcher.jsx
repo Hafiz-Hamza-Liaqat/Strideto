@@ -33,7 +33,7 @@ export function LanguageSwitcher({ className = '' }) {
           disabled={!enabled}
           title={!enabled ? t('arabicComingSoon') : undefined}
           onClick={() => handleChange(code)}
-          className={`min-w-[44px] min-h-[44px] sm:px-2.5 flex items-center justify-center text-xs sm:text-sm transition-colors ${
+          className={`min-w-[44px] min-h-[44px] px-2 sm:px-2.5 flex items-center justify-center text-xs sm:text-sm whitespace-nowrap transition-colors ${
             lang === code
               ? 'bg-mint/30 dark:bg-mint/20 text-primary dark:text-mint'
               : enabled

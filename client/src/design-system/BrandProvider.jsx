@@ -9,20 +9,21 @@ import { BRAND_NAME, BRAND_TAGLINE } from './brand.js';
  * Applies semantic light/dark tokens alongside legacy color aliases.
  */
 export function BrandProvider({ children }) {
-  const { theme } = useTheme();
+  const { theme, resolvedTheme } = useTheme();
+  const appliedTheme = resolvedTheme === 'dark' || theme === 'dark' ? 'dark' : 'light';
 
   useEffect(() => {
     const root = document.documentElement;
     Object.entries(colorCssVars).forEach(([key, value]) => {
       root.style.setProperty(`--${key}`, value);
     });
-    const semanticVars = semanticCssVarsForTheme(theme);
+    const semanticVars = semanticCssVarsForTheme(appliedTheme);
     Object.entries(semanticVars).forEach(([key, value]) => {
       root.style.setProperty(`--${key}`, value);
     });
     root.dataset.brand = BRAND_NAME;
     root.dataset.tagline = BRAND_TAGLINE;
-  }, [theme]);
+  }, [appliedTheme]);
 
   return children;
 }

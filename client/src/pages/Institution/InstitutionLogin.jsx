@@ -40,7 +40,11 @@ export default function InstitutionLogin() {
       );
       navigate(requested, { replace: true });
     } catch (error) {
-      setServerError(error.response?.data?.error || 'Institution sign-in failed. Check your credentials and try again.');
+      setServerError(
+        error.response?.status === 429
+          ? (error.response?.data?.error || 'Too many requests. Please try again later.')
+          : (error.response?.data?.error || 'Institution sign-in failed. Check your credentials and try again.')
+      );
     } finally { setBusy(false); }
   };
 

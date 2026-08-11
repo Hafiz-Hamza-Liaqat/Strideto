@@ -1,12 +1,12 @@
-import { Link } from 'react-router-dom';
 import { ROUTES } from '../constants';
 import { useAuth } from '../context/AuthContext';
 import { useEmployerAuth } from '../context/EmployerAuthContext';
 
 /**
- * Tour target anchors for Driver.js — kept in the DOM without consuming navbar width.
- * Visible “More” / drawer links carry the same destinations for users.
- * When these nodes are not highlightable, the tour falls back to centered cards.
+ * Decorative Driver.js highlight targets. These are not navigation controls —
+ * visible navbar / drawer links remain the user-facing destinations.
+ * Kept out of the accessibility tree (inert + aria-hidden) so they cannot
+ * receive focus while aria-hidden.
  */
 export function TourAnchors() {
   const { isAuthenticated } = useAuth();
@@ -14,25 +14,16 @@ export function TourAnchors() {
 
   return (
     <div
-      className="pointer-events-none absolute w-px h-px overflow-hidden opacity-0"
+      className="pointer-events-none absolute h-px w-px overflow-hidden opacity-0"
       aria-hidden="true"
+      inert=""
       data-tour-anchors="true"
     >
-      <Link to={ROUTES.RESUME_BUILDER} data-tour="resume-builder" tabIndex={-1}>
-        Resume
-      </Link>
-      <Link to={ROUTES.CAREER_GUIDANCE} data-tour="career-guidance" tabIndex={-1}>
-        Career
-      </Link>
-      {isAuthenticated ? (
-        <Link to={ROUTES.DASHBOARD} data-tour="dashboard" tabIndex={-1}>
-          Dashboard
-        </Link>
-      ) : null}
+      <span data-tour="resume-builder" data-tour-href={ROUTES.RESUME_BUILDER} />
+      <span data-tour="career-guidance" data-tour-href={ROUTES.CAREER_GUIDANCE} />
+      {isAuthenticated ? <span data-tour="dashboard" data-tour-href={ROUTES.DASHBOARD} /> : null}
       {isEmployer ? (
-        <Link to={ROUTES.EMPLOYER_DASHBOARD} data-tour="employer-dashboard" tabIndex={-1}>
-          Employer
-        </Link>
+        <span data-tour="employer-dashboard" data-tour-href={ROUTES.EMPLOYER_DASHBOARD} />
       ) : null}
     </div>
   );

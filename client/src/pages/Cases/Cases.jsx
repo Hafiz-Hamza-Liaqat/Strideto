@@ -1,2 +1,40 @@
-import { useEffect, useState } from 'react'; import { Link } from 'react-router-dom'; import { studentCaseApi } from '../../services/agentService';
-export default function Cases(){const[items,setItems]=useState([]),[loading,setLoading]=useState(true),[error,setError]=useState('');useEffect(()=>{studentCaseApi.list().then(r=>setItems(r.data.cases||[])).catch(e=>setError(e.response?.data?.error||'Unable to load cases.')).finally(()=>setLoading(false));},[]);return <div className="mx-auto max-w-5xl px-4 py-10"><h1 className="text-3xl font-semibold">My professional cases</h1><p className="mt-2 text-sm text-slate-500">You control case consent, approvals, documents, and when to leave.</p>{error&&<p className="mt-4 rounded bg-red-50 p-3 text-red-700" role="alert">{error}</p>}{loading?<p className="mt-6 text-slate-500" role="status">Loading cases…</p>:items.length===0?<div className="mt-6 rounded-xl border bg-white p-8 text-center text-slate-500">No professional cases. A completed consultation may lead to a proposal, but only you can activate it.</div>:<div className="mt-6 grid gap-4 sm:grid-cols-2">{items.map(c=><Link key={c.id} to={`/cases/${c.id}`} className="rounded-xl border bg-white p-5 hover:border-blue-300"><div className="flex justify-between gap-3"><h2 className="font-semibold break-words">{c.title}</h2><span className="h-fit shrink-0 rounded-full bg-slate-100 px-2 py-1 text-xs">{c.lifecycle.replaceAll('_',' ')}</span></div><p className="mt-2 text-sm text-slate-600">{c.caseType.replaceAll('_',' ')} · {c.currentStage.replaceAll('_',' ')}</p></Link>)}</div>}</div>}
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { studentCaseApi } from '../../services/agentService';
+import { ui } from '../../design-system/surfaceClasses';
+
+export default function Cases() {
+  const [items, setItems] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  useEffect(() => {
+    studentCaseApi.list()
+      .then((r) => setItems(r.data.cases || []))
+      .catch((e) => setError(e.response?.data?.error || 'Unable to load cases.'))
+      .finally(() => setLoading(false));
+  }, []);
+  return (
+    <div className={`mx-auto max-w-5xl px-4 py-10 ${ui.page}`}>
+      <h1 className={ui.h1}>My professional cases</h1>
+      <p className={`mt-2 ${ui.muted}`}>You control case consent, approvals, documents, and when to leave.</p>
+      {error ? <p className={`mt-4 ${ui.error}`} role="alert">{error}</p> : null}
+      {loading ? (
+        <p className={`mt-6 ${ui.muted}`} role="status">Loading cases…</p>
+      ) : items.length === 0 ? (
+        <div className={`mt-6 ${ui.empty}`}>No professional cases. A completed consultation may lead to a proposal, but only you can activate it.</div>
+      ) : (
+        <div className="mt-6 grid gap-4 sm:grid-cols-2">
+          {items.map((c) => (
+            <Link key={c.id} to={`/cases/${c.id}`} className={`${ui.card} p-5 hover:border-blue-400 dark:hover:border-blue-500`}>
+              <div className="flex justify-between gap-3">
+                <h2 className="font-semibold break-words">{c.title}</h2>
+                <span className={ui.badge}>{c.lifecycle.replaceAll('_', ' ')}</span>
+              </div>
+              <p className={`mt-2 ${ui.muted}`}>{c.caseType.replaceAll('_', ' ')} · {c.currentStage.replaceAll('_', ' ')}</p>
+            </Link>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

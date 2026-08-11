@@ -1,22 +1,8 @@
 /**
  * CopilotWidget — Mission 19.
  *
- * Small "Ask Strideto" contextual entry point for use on:
- *   - Test detail pages
- *   - Program detail pages
- *   - Scholarship detail pages
- *   - Institution detail pages
- *   - Personalization hub
- *   - Journey dashboard
- *
- * Deep-links to CopilotPage with preselected context and entity refs.
+ * Small "Ask Strideto" contextual entry point. Deep-links to CopilotPage.
  * Does NOT duplicate Copilot implementation — one engine, many entry points.
- *
- * @param {object} props
- * @param {string} props.contextType - COPILOT_CONTEXT_TYPES value
- * @param {object} props.entityRefs - { testIds, programIds, scholarshipIds, institutionIds }
- * @param {string} [props.suggestedQuestion] - pre-fill question
- * @param {string} [props.label] - button label
  */
 import { useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../constants';
@@ -35,27 +21,14 @@ export function CopilotWidget({ contextType, entityRefs = {}, suggestedQuestion 
   };
 
   return (
-    <button onClick={handleClick} style={widgetStyles.btn} title="Ask Strideto Copilot">
-      <span style={widgetStyles.icon}>✦</span>
+    <button
+      type="button"
+      onClick={handleClick}
+      title="Ask Strideto Copilot"
+      className="inline-flex min-h-[44px] items-center gap-1.5 rounded-full border border-indigo-200 bg-indigo-50 px-3.5 py-1.5 text-sm font-semibold text-indigo-700 hover:bg-indigo-100 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:border-indigo-800 dark:bg-indigo-950/40 dark:text-indigo-200 dark:hover:bg-indigo-950/70"
+    >
+      <span aria-hidden="true">✦</span>
       {label ?? 'Ask Strideto'}
     </button>
   );
 }
-
-const widgetStyles = {
-  btn: {
-    display: 'inline-flex',
-    alignItems: 'center',
-    gap: 6,
-    padding: '7px 14px',
-    borderRadius: 20,
-    border: '1px solid #c7d2fe',
-    background: '#eef2ff',
-    color: '#4f46e5',
-    fontSize: 13,
-    fontWeight: 600,
-    cursor: 'pointer',
-    fontFamily: 'inherit',
-  },
-  icon: { fontSize: 14 },
-};

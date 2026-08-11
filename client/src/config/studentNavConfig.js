@@ -1,7 +1,14 @@
 import { ROUTES } from '../constants';
+import {
+  STUDENT_WORKSPACE_PREFIXES,
+  isStudentWorkspacePath,
+  isStudentPortalNavVisible,
+} from './studentWorkspacePaths.js';
+
+export { STUDENT_WORKSPACE_PREFIXES, isStudentWorkspacePath, isStudentPortalNavVisible };
 
 /**
- * Final Student / Applicant portal navigation (Phase 3).
+ * Final Student / Applicant portal navigation (Phase 3 destinations, Phase 11 shell).
  * Does not change public navbar labels (Phase 10).
  */
 export const STUDENT_PORTAL_NAV = [
@@ -23,16 +30,26 @@ export const STUDENT_PORTAL_NAV = [
   { path: ROUTES.STUDENT_HELP, labelKey: 'help' },
 ];
 
-const HIDDEN_PREFIXES = [
-  '/admin',
-  '/employer',
-  '/agent',
-  '/institution',
-  '/auth',
-];
+/** Core destinations shown in the workspace bar when width permits. */
+export const STUDENT_PORTAL_NAV_CORE_KEYS = Object.freeze([
+  'dashboard',
+  'talentProfile',
+  'applications',
+  'journey',
+  'vault',
+  'notifications',
+]);
 
-export function isStudentPortalNavVisible(pathname, isAuthenticated) {
-  if (!isAuthenticated) return false;
-  const path = String(pathname || '');
-  return !HIDDEN_PREFIXES.some((prefix) => path === prefix || path.startsWith(`${prefix}/`));
+export const STUDENT_PORTAL_NAV_CORE = STUDENT_PORTAL_NAV.filter((item) =>
+  STUDENT_PORTAL_NAV_CORE_KEYS.includes(item.labelKey)
+);
+
+export const STUDENT_PORTAL_NAV_OVERFLOW = STUDENT_PORTAL_NAV.filter(
+  (item) => !STUDENT_PORTAL_NAV_CORE_KEYS.includes(item.labelKey)
+);
+
+export function isStudentNavItemCurrent(pathname, item) {
+  const pathOnly = String(item?.path || '').split('#')[0];
+  if (item?.end) return pathname === pathOnly;
+  return pathname === pathOnly || pathname.startsWith(`${pathOnly}/`);
 }

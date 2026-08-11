@@ -1,5 +1,68 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { studentConsultationApi } from '../../services/agentService';
+import { ui } from '../../design-system/surfaceClasses';
 
-export default function ConsultationRequest() { const [params] = useSearchParams(); const navigate = useNavigate(); const serviceId = params.get('serviceId') || ''; const marketplacePostId = params.get('marketplacePostId') || ''; const [data, setData] = useState(null); const [error, setError] = useState(''); const [busy, setBusy] = useState(false); const [form, setForm] = useState({ membershipId: '', requestedStart: '', durationMinutes: 30, consultationType: 'initial', meetingMode: 'video', purpose: '', studentNote: '' }); useEffect(() => { if (!serviceId) { setError('Choose a service before requesting a consultation.'); return; } studentConsultationApi.getAvailability(serviceId).then((r) => { setData(r.data); if (r.data.availability?.[0]) setForm((old) => ({ ...old, membershipId: r.data.availability[0].membershipId })); }).catch((e) => setError(e.response?.data?.error || 'No bookable availability is available.')); }, [serviceId]); const submit = async (event) => { event.preventDefault(); const selected = data?.availability?.find((a) => a.membershipId === form.membershipId); if (!selected) return; setBusy(true); setError(''); try { const requestedStart = new Date(form.requestedStart).toISOString(); const response = await studentConsultationApi.request({ ...form, agentServiceId: serviceId, marketplacePostId: marketplacePostId || undefined, requestedStart, timezone: selected.timezone }); navigate(`/consultations/${response.data.consultation.id}`); } catch (e) { setError(e.response?.data?.error || 'Consultation request failed.'); } finally { setBusy(false); } }; return <div className="mx-auto max-w-2xl px-4 py-10"><h1 className="text-3xl font-semibold">Request consultation</h1><p className="mt-2 text-sm text-slate-500">Times are stored as UTC instants while preserving the Agent’s IANA timezone.</p>{error && <p className="mt-4 rounded bg-red-50 p-3 text-red-700">{error}</p>}{data && <form onSubmit={submit} className="mt-6 space-y-4 rounded-xl border bg-white p-6"><label className="block text-sm">Agent availability<select className="mt-1 w-full rounded border p-2" value={form.membershipId} onChange={(e) => setForm({ ...form, membershipId: e.target.value })}>{data.availability.map((a) => <option key={a.membershipId} value={a.membershipId}>{a.timezone} · {a.windows.length} weekly windows</option>)}</select></label><label className="block text-sm">Requested start<input type="datetime-local" required value={form.requestedStart} onChange={(e) => setForm({ ...form, requestedStart: e.target.value })} className="mt-1 w-full rounded border p-2"/></label><label className="block text-sm">Purpose<input required maxLength={300} value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} className="mt-1 w-full rounded border p-2"/></label><label className="block text-sm">Note<textarea maxLength={2000} value={form.studentNote} onChange={(e) => setForm({ ...form, studentNote: e.target.value })} className="mt-1 w-full rounded border p-2"/></label><p className="rounded bg-amber-50 p-3 text-sm text-amber-800">Payment status: {data.paymentState.replaceAll('_', ' ')}. Strideto does not collect or settle consultation payments in this release.</p><button disabled={busy || data.availability.length === 0} className="rounded bg-blue-700 px-4 py-2 text-white disabled:opacity-50">{busy ? 'Requesting…' : 'Request consultation'}</button></form>}</div>; }
+export default function ConsultationRequest() {
+  const [params] = useSearchParams();
+  const navigate = useNavigate();
+  const serviceId = params.get('serviceId') || '';
+  const marketplacePostId = params.get('marketplacePostId') || '';
+  const [data, setData] = useState(null);
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [form, setForm] = useState({ membershipId: '', requestedStart: '', durationMinutes: 30, consultationType: 'initial', meetingMode: 'video', purpose: '', studentNote: '' });
+  useEffect(() => {
+    if (!serviceId) {
+      setError('Choose a service before requesting a consultation.');
+      return;
+    }
+    studentConsultationApi.getAvailability(serviceId).then((r) => {
+      setData(r.data);
+      if (r.data.availability?.[0]) setForm((old) => ({ ...old, membershipId: r.data.availability[0].membershipId }));
+    }).catch((e) => setError(e.response?.data?.error || 'No bookable availability is available.'));
+  }, [serviceId]);
+  const submit = async (event) => {
+    event.preventDefault();
+    const selected = data?.availability?.find((a) => a.membershipId === form.membershipId);
+    if (!selected) return;
+    setBusy(true);
+    setError('');
+    try {
+      const requestedStart = new Date(form.requestedStart).toISOString();
+      const response = await studentConsultationApi.request({ ...form, agentServiceId: serviceId, marketplacePostId: marketplacePostId || undefined, requestedStart, timezone: selected.timezone });
+      navigate(`/consultations/${response.data.consultation.id}`);
+    } catch (e) {
+      setError(e.response?.data?.error || 'Consultation request failed.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <div className={`mx-auto max-w-2xl px-4 py-10 ${ui.page}`}>
+      <h1 className={ui.h1}>Request consultation</h1>
+      <p className={`mt-2 ${ui.muted}`}>Times are stored as UTC instants while preserving the Agent’s IANA timezone.</p>
+      {error ? <p className={`mt-4 ${ui.error}`} role="alert">{error}</p> : null}
+      {data ? (
+        <form onSubmit={submit} className={`mt-6 space-y-4 ${ui.card} p-6`}>
+          <label className="block text-sm">Agent availability
+            <select className={`${ui.input} mt-1`} value={form.membershipId} onChange={(e) => setForm({ ...form, membershipId: e.target.value })}>
+              {data.availability.map((a) => <option key={a.membershipId} value={a.membershipId}>{a.timezone} · {a.windows.length} weekly windows</option>)}
+            </select>
+          </label>
+          <label className="block text-sm">Requested start
+            <input type="datetime-local" required value={form.requestedStart} onChange={(e) => setForm({ ...form, requestedStart: e.target.value })} className={`${ui.input} mt-1`} />
+          </label>
+          <label className="block text-sm">Purpose
+            <input required maxLength={300} value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} className={`${ui.input} mt-1`} />
+          </label>
+          <label className="block text-sm">Note
+            <textarea maxLength={2000} value={form.studentNote} onChange={(e) => setForm({ ...form, studentNote: e.target.value })} className={`${ui.input} mt-1`} />
+          </label>
+          <p className={ui.warning}>Payment status: {data.paymentState.replaceAll('_', ' ')}. Strideto does not collect or settle consultation payments in this release.</p>
+          <button disabled={busy || data.availability.length === 0} className={ui.primaryBtn}>{busy ? 'Requesting…' : 'Request consultation'}</button>
+        </form>
+      ) : null}
+    </div>
+  );
+}

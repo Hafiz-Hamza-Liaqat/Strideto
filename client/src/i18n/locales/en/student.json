@@ -1,5 +1,7 @@
 {
   "portalNavLabel": "Student portal",
+  "moreWorkspace": "More",
+  "workspaceMenu": "Workspace",
   "nav": {
     "dashboard": "Dashboard",
     "talentProfile": "Talent Profile",
