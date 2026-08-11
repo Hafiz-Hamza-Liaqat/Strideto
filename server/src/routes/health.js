@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { getRedisClient } from '../config/redis.js';
 import { getMongoHealth } from '../config/db.js';
+import { isShuttingDown } from '../config/shutdown.js';
 import { collectMetrics, metricsPrometheusText } from '../config/metrics.js';
 import { getExtendedHealth } from '../controllers/platformOpsController.js';
 import { getQueueStats } from '../services/jobQueueService.js';
@@ -36,7 +37,8 @@ healthRouter.get('/health/ready', async (_req, res) => {
 
   const requireRedis = process.env.REQUIRE_REDIS === '1';
   const redisOk = !requireRedis || redis.status === 'up';
-  const ready = mongo.status === 'up' && redisOk;
+  const shuttingDown = isShuttingDown();
+  const ready = mongo.status === 'up' && redisOk && !shuttingDown;
   const status = ready ? 200 : 503;
   res.status(status).json({
     status: ready ? 'ready' : 'not_ready',
@@ -45,6 +47,7 @@ healthRouter.get('/health/ready', async (_req, res) => {
     redis,
     queue,
     requireRedis,
+    shuttingDown,
     timestamp: new Date().toISOString(),
   });
 });

@@ -1,5 +1,6 @@
 import { LAYOUT_FIELD_TYPES } from '@shared/formSchema.js';
 import { adminFieldClass } from '../admin/AdminImageUrlField';
+import { sanitizeHtmlForRender } from '../../utils/sanitizeHtml';
 
 /**
  * Render a single form field with a11y (C.7.0.2).
@@ -25,10 +26,11 @@ export function FormFieldInput({
       return <h3 className="text-lg font-semibold text-gray-900 dark:text-white mt-4 mb-2">{field.label}</h3>;
     }
     if (field.type === 'richtext') {
+      const safe = sanitizeHtmlForRender(field.defaultValue || field.label || '');
       return (
         <div
           className="prose prose-sm dark:prose-invert max-w-none mb-4"
-          dangerouslySetInnerHTML={{ __html: field.defaultValue || field.label || '' }}
+          dangerouslySetInnerHTML={{ __html: safe }}
         />
       );
     }

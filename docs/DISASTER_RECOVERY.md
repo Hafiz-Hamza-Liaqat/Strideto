@@ -24,18 +24,29 @@ tar -xzf ./backups/media/uploads_YYYYMMDD.tar.gz -C ./server/
 docker compose restart backend
 ```
 
-### 3. Full stack rebuild
+### 3. Application rollback (normal)
+
+Redeploy the previous known-good image/commit. Do **not** delete persistent volumes.
 
 ```bash
-cp .env.backup .env
-docker compose down -v   # caution: removes volumes if not using external DB
-docker compose up -d --build
-# Restore Mongo + media from backups
+# Example: restart app services only. Never use `docker compose down -v`
+# as a normal recovery step — it destroys Mongo, Redis, and media volumes.
+docker compose up -d --no-deps --build api-a api-b frontend
 ```
+
+Database migrations on the frozen track are additive/compatible. Rolling the app back does not imply dropping Mongo data. Worker, when used, must match the app contract for queue payload versions; provider webhook events are idempotent and may be replayed.
 
 ### 4. Redis loss
 
-Redis is cache-only (except refresh tokens). Restart Redis; caches rebuild on demand. Users may need to re-login if refresh tokens were lost.
+Redis is **not** the system of record for applications, jobs, Vault, or commerce.
+
+It currently holds:
+
+- access-token denylist (secure auth)
+- rate-limit counters
+- optional cache
+
+Restart Redis without deleting Mongo/media volumes. Caches rebuild on demand. Rate-limit counters reset (users are not permanently locked). Sessions that relied on the denylist/refresh availability may require re-login. Do not restore Redis from backup as if it were Mongo.
 
 ## Testing Recovery
 

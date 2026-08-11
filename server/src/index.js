@@ -7,8 +7,8 @@ import mongoSanitize from 'express-mongo-sanitize';
 import path from 'path';
 import { fileURLToPath } from 'url';
 import { connectDB } from './config/db.js';
-import { registerGracefulShutdown } from './config/shutdown.js';
-import { getHelmetOptions } from './config/security.js';
+import { registerGracefulShutdown, isShuttingDown } from './config/shutdown.js';
+import { getHelmetOptions, PERMISSIONS_POLICY } from './config/security.js';
 import { startScraperCron } from './scheduler/cron.js';
 import { healthRouter, jobsRouter, scholarshipsRouter, admissionsRouter, blogsRouter, foreignStudiesRouter, authRouter, adminRouter, trendingRouter, newsletterRouter, notificationsRouter, monetizationRouter, usersRouter, v1Router, examsRouter, internshipsRouter, chatbotRouter, webinarsRouter, intlScholarshipsRouter, badgesRouter, seoRouter, resumesRouter, employerRouter, publicProfilesRouter, careerArticlesRouter, resumeTemplatesRouter, cmsRouter, contactRouter, feedbackRouter, institutionsRouter, supportRouter, userInboxRouter, formsRouter, dynamicContentRouter, searchRouter, analyticsRouter, talentRouter, opportunityApplicationsRouter, timelineRouter, documentsRouter, credentialsRouter, careerDashboardRouter, migrationRouter, scoringRouter, assessmentsRouter, employerIntelligenceRouter, organizationVerificationRouter, testsRouter, personalizationRouter, actionEngineRouter, vaultRouter, agentRouter, consultationRouter, caseRouter, professionalTrustRouter, commerceRouter, marketplacePaymentsRouter, institutionPortalRouter, copilotRouter, budgetRouter, skillClaimsRouter, privacyRouter } from './routes/index.js';import { registerCareerTimelineHandlers } from './services/career/careerEventHandlers.js';
 import { registerCareerNotificationHandlers } from './services/career/careerNotificationBridge.js';
@@ -17,6 +17,7 @@ import { getSitemap, getRobots } from './controllers/seoController.js';
 import { stripeWebhook } from './controllers/paymentsController.js';
 import { marketplaceWebhook } from './controllers/marketplacePaymentController.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { requestId } from './middleware/requestId.js';
 import { requestLogger } from './middleware/requestLogger.js';
 import { apiLimiter } from './middleware/rateLimit.js';
 import { getCorsOptions } from './config/cors.js';
@@ -48,6 +49,10 @@ if (process.env.SENTRY_DSN) {
 }
 
 app.use(helmet(getHelmetOptions()));
+app.use((_req, res, next) => {
+  res.setHeader('Permissions-Policy', PERMISSIONS_POLICY);
+  next();
+});
 app.use(compression());
 
 // Stripe webhook requires raw body — must be before express.json()
@@ -56,8 +61,18 @@ app.post('/api/webhooks/stripe-marketplace', express.raw({ type: 'application/js
 
 app.use(cors(getCorsOptions()));
 app.use(express.json({ limit: '1mb' }));
+app.use(express.urlencoded({ extended: false, limit: '1mb' }));
 app.use(mongoSanitize(createMongoSanitizeOptions()));
+app.use(requestId);
 app.use(requestLogger);
+app.use((req, res, next) => {
+  if (!isShuttingDown()) return next();
+  res.status(503).json({
+    error: 'Service unavailable',
+    status: 'shutting_down',
+    requestId: req.id,
+  });
+});
 app.use('/api', apiLimiter);
 
 app.use('/uploads', (_req, res, next) => {

@@ -8,6 +8,7 @@ export function requestLogger(req, res, next) {
     const isError = res.statusCode >= 500;
     recordRequest(ms, isError);
     logger.info('request', {
+      requestId: req.id,
       method: req.method,
       path: req.path,
       status: res.statusCode,

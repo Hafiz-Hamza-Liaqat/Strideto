@@ -79,18 +79,21 @@ export function buildCspDirectives({ forApi = false } = {}) {
 export function getHelmetOptions() {
   return {
     contentSecurityPolicy: {
-      directives: buildCspDirectives({ forApi: false }),
+      directives: buildCspDirectives({ forApi: true }),
     },
     crossOriginEmbedderPolicy: false,
-    crossOriginOpenerPolicy: { policy: 'same-origin-allow-popups' },
+    crossOriginOpenerPolicy: { policy: 'same-origin' },
     crossOriginResourcePolicy: { policy: 'cross-origin' },
     referrerPolicy: { policy: 'strict-origin-when-cross-origin' },
     hsts: isProd ? { maxAge: 31536000, includeSubDomains: true, preload: true } : false,
-    frameguard: { action: 'sameorigin' },
+    frameguard: { action: 'deny' },
     noSniff: true,
     permittedCrossDomainPolicies: { permittedPolicies: 'none' },
   };
 }
+
+export const PERMISSIONS_POLICY =
+  'camera=(), microphone=(), geolocation=(), payment=(self), usb=(), magnetometer=(), gyroscope=()';
 
 /** Flat CSP string for Vite dev/preview response headers. */
 export function buildCspHeaderString() {
