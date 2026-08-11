@@ -14,6 +14,7 @@ import {
   clearAgentAccessToken,
 } from '../services/agentService';
 import { isAgentRoutePrefix } from '../auth/agentAuthRealm';
+import { onSessionExpired } from '../auth/sessionExpired';
 
 const STORAGE_AGENT = 'strideto-agent';
 
@@ -84,37 +85,65 @@ export function AgentAuthProvider({ children }) {
     }
   }, []);
 
-  // Bootstrap session on agent portal routes
+  useEffect(() => {
+    return onSessionExpired((realm) => {
+      if (realm === 'agent') {
+        clearAgentSessionLocal();
+        setAgent(null);
+      }
+    });
+  }, []);
+
+  // Secure bootstrap: cookie refresh first — never trust cached profile alone.
   useEffect(() => {
     if (!isAgentRoutePrefix(pathname)) {
       setLoading(false);
-      return;
+      return undefined;
     }
+
     let cancelled = false;
-    (async () => {
-      try {
-        if (getAgentAccessToken()) {
-          await refreshAgent();
-        } else {
-          // Try silent refresh via cookie
-          const { data } = await agentAuthApi.refreshToken();
-          setAgentAccessToken(data.accessToken);
-          await refreshAgent();
+    setLoading(true);
+
+    agentAuthApi
+      .refreshToken()
+      .then(({ data }) => {
+        if (cancelled) return null;
+        setAgentAccessToken(data.accessToken);
+        return agentAuthApi.me();
+      })
+      .then((res) => {
+        if (!cancelled && res) persistAgent(res.data.account);
+      })
+      .catch(() => {
+        if (!cancelled) {
+          clearAgentSessionLocal();
+          persistAgent(null);
         }
-      } catch {
-        clearAgentSessionLocal();
-        setAgent(null);
-      } finally {
+      })
+      .finally(() => {
         if (!cancelled) setLoading(false);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [pathname, refreshAgent]);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pathname]);
+
+  const value = {
+    agent,
+    loading,
+    error,
+    setError,
+    isAuthenticated: !!agent && !!getAgentAccessToken(),
+    login,
+    register,
+    logout,
+    refreshAgent,
+  };
 
   return (
-    <AgentAuthContext.Provider
-      value={{ agent, loading, error, setError, login, register, logout, refreshAgent }}
-    >
+    <AgentAuthContext.Provider value={value}>
       {children}
     </AgentAuthContext.Provider>
   );

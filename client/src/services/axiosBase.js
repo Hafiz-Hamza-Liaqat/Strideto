@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../constants';
+import { notifySessionExpired } from '../auth/sessionExpired.js';
 
 /**
  * SEC-3E — secure User-realm client contract. The access token lives in
@@ -94,6 +95,7 @@ axiosInstance.interceptors.response.use(
         !isOptionalAuthUrl(original.url)
       ) {
         clearAccessToken();
+        notifySessionExpired('user');
       }
       return Promise.reject(err);
     }
@@ -124,6 +126,7 @@ axiosInstance.interceptors.response.use(
     } catch (refreshErr) {
       clearAccessToken();
       resetAxiosAuthState();
+      notifySessionExpired('user');
       return Promise.reject(refreshErr);
     }
   }

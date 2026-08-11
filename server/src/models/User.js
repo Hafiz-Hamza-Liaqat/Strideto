@@ -35,6 +35,8 @@ const userSchema = new mongoose.Schema(
       whatsapp: { type: Boolean, default: false },
       telegram: { type: Boolean, default: false },
     },
+    /** Mission 1 / Phase 1 category×channel preference map (validated on write). */
+    notificationPreferences: { type: mongoose.Schema.Types.Mixed, default: null },
     passwordResetToken: { type: String, select: false },
     passwordResetExpires: { type: Date, select: false },
     emailVerificationToken: { type: String, select: false },

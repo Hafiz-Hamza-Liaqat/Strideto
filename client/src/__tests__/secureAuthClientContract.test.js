@@ -281,4 +281,30 @@ const mediaLibraryParts = read('components/media/MediaLibraryParts.jsx');
   );
 }
 
+// --- Agent + Institution realm client contract (Phase 1) ----------------------
+{
+  const agentService = read('services/agentService.js');
+  const agentAuthContext = read('context/AgentAuthContext.jsx');
+  const institutionService = read('services/institutionPortalService.js');
+  const institutionAuthContext = read('context/InstitutionAuthContext.jsx');
+
+  for (const [name, src] of [
+    ['agentService.js', agentService],
+    ['institutionPortalService.js', institutionService],
+  ]) {
+    check(
+      !/localStorage\.(set|get|remove)Item\([^)]*refresh/i.test(src),
+      `${name}: no browser-readable refresh token storage`
+    );
+    check(!/sessionStorage\./.test(src), `${name}: no sessionStorage usage`);
+  }
+
+  check(/let inMemoryAgentAccessToken/.test(agentService), 'agentService: in-memory access token');
+  check(/let institutionAccessToken/.test(institutionService), 'institutionService: in-memory access token');
+  check(/isAuthenticated/.test(agentAuthContext), 'AgentAuthContext: isAuthenticated contract');
+  check(/isAuthenticated/.test(institutionAuthContext), 'InstitutionAuthContext: isAuthenticated contract');
+  check(/refreshToken\(\)/.test(agentAuthContext), 'AgentAuthContext: cookie refresh bootstrap');
+  check(/\.refresh\(\)/.test(institutionAuthContext), 'InstitutionAuthContext: cookie refresh bootstrap');
+}
+
 console.log(`secureAuthClientContract.test.js: ${count} assertions passed`);

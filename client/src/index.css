@@ -52,8 +52,8 @@
   }
   .dark body,
   html.dark body {
-    background-color: var(--color-dark);
-    color: #e2e8f0;
+    background-color: var(--semantic-page-bg, var(--color-dark));
+    color: var(--semantic-text-secondary, #e2e8f0);
   }
   h1, h2, h3, h4, h5, h6 {
     font-family: var(--font-heading);

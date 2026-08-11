@@ -2,6 +2,8 @@ import { Notification } from '../models/Notification.js';
 import { UserNotification } from '../models/UserNotification.js';
 import { User } from '../models/User.js';
 import { STAFF_ROLES } from '../config/rbac.js';
+import { evaluateNotificationDelivery } from '../../../shared/platform/notificationPreferencePolicy.js';
+import { NOTIFICATION_CHANNELS } from '../../../shared/international/notificationPreferences.js';
 
 export async function createNotification(data) {
   return Notification.create(data);
@@ -9,6 +11,7 @@ export async function createNotification(data) {
 
 /**
  * Create a per-user/employer/staff inbox notification.
+ * Respects user notification preferences for non-mandatory categories.
  */
 export async function createUserNotification({
   recipientType,
@@ -21,7 +24,23 @@ export async function createUserNotification({
   link,
   metadata,
   dedupeKey,
+  criticalSecurity = false,
+  channel = NOTIFICATION_CHANNELS.IN_APP,
+  skipPreferenceCheck = false,
 }) {
+  if (!skipPreferenceCheck && recipientType === 'user' && userId) {
+    const user = await User.findById(userId).select('notificationPreferences').lean();
+    const decision = evaluateNotificationDelivery({
+      category,
+      channel,
+      preferences: user?.notificationPreferences || {},
+      criticalSecurity,
+    });
+    if (!decision.deliver) {
+      return null;
+    }
+  }
+
   return UserNotification.create({
     recipientType,
     userId,

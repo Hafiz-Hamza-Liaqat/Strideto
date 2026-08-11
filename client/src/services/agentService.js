@@ -6,6 +6,7 @@
 import axios from 'axios';
 import userAxios from './axiosBase';
 import { API_BASE_URL } from '../constants';
+import { notifySessionExpired } from '../auth/sessionExpired.js';
 
 let inMemoryAgentAccessToken = null;
 
@@ -74,7 +75,9 @@ agentAxios.interceptors.response.use(
           })
           .catch(() => {
             clearAgentAccessToken();
+            localStorage.removeItem('strideto-agent');
             agentRefreshPromise = null;
+            notifySessionExpired('agent');
           });
       }
       await agentRefreshPromise;

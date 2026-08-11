@@ -15,6 +15,7 @@ import {
 } from '../services/axiosBase';
 import { resetPermissionsCache } from '../hooks/usePermissions';
 import { shouldSkipUserAuthBootstrap } from '../auth/authRealm';
+import { onSessionExpired } from '../auth/sessionExpired';
 
 /**
  * SEC-3E — the access token lives in `axiosBase.js`'s in-memory store
@@ -122,6 +123,12 @@ export function AuthProvider({ children }) {
       clearAuth();
       return null;
     }
+  }, [clearAuth]);
+
+  useEffect(() => {
+    return onSessionExpired((realm) => {
+      if (realm === 'user') clearAuth();
+    });
   }, [clearAuth]);
 
   useEffect(() => {

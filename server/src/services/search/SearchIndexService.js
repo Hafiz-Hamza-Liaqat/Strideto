@@ -6,6 +6,7 @@ import { SearchQueryLog } from '../../models/SearchQueryLog.js';
 import { rankSearchResults } from '../../../../shared/search/scoring.js';
 import { isPublicSearchable } from '../../../../shared/search/searchDocument.js';
 import { PUBLIC_SEARCH_ENTITY_TYPES, SUGGESTION_ENTITY_TYPES } from '../../../../shared/search/entityTypes.js';
+import { isSearchDomainAllowed } from '../../../../shared/platform/searchPrivacyPolicy.js';
 import { SEARCH_SUGGESTION_LIMIT } from '../../../../shared/search/rankingWeights.js';
 import {
   buildSearchCacheKey,
@@ -178,6 +179,9 @@ export async function searchSuggestions(q, options = {}) {
  */
 export async function upsertSearchDocument(normalizedDoc) {
   if (!normalizedDoc?.entityType || !normalizedDoc?.entityId) return null;
+  if (!isSearchDomainAllowed(normalizedDoc.entityType, 'public')) {
+    return null;
+  }
 
   const doc = await SearchDocument.findOneAndUpdate(
     {

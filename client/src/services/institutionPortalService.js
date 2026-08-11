@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../constants';
+import { notifySessionExpired } from '../auth/sessionExpired.js';
 
 let institutionAccessToken = null;
 let refreshPromise = null;
@@ -40,7 +41,11 @@ client.interceptors.response.use(
     if (!refreshPromise) {
       refreshPromise = client.post('/auth/institution/refresh-token')
         .then(({ data }) => setInstitutionAccessToken(data.accessToken))
-        .catch(() => clearInstitutionAccessToken())
+        .catch(() => {
+          clearInstitutionAccessToken();
+          localStorage.removeItem('strideto-institution');
+          notifySessionExpired('institution');
+        })
         .finally(() => { refreshPromise = null; });
     }
     await refreshPromise;

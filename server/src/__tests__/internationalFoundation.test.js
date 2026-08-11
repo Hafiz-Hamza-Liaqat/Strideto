@@ -180,8 +180,13 @@ await check('realm vocabulary integrity', () => {
   assert.strictEqual(realms.assertRealmIntegrity(), true);
   assert.strictEqual(realms.isValidRealm('employer'), true);
   assert.strictEqual(realms.isActiveRealm('agent'), true); // activated by Mission 11
+  assert.strictEqual(realms.isActiveRealm('institution'), true); // activated by Mission 18 / Phase 1
   assert.strictEqual(realms.isValidRealm('AGENT'), false); // casing drift rejected
-  assert.deepStrictEqual([...realms.ACTIVE_REALMS].sort(), ['admin', 'agent', 'employer', 'user']);
+  assert.deepStrictEqual(
+    [...realms.ACTIVE_REALMS].sort(),
+    ['admin', 'agent', 'employer', 'institution', 'user']
+  );
+  assert.deepStrictEqual(realms.FUTURE_REALMS, []);
 });
 
 // 13. Audit metadata rejects sensitive keys

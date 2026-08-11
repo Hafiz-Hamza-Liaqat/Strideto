@@ -31,12 +31,11 @@ export const ACTIVE_REALMS = Object.freeze([
   ACTOR_REALMS.EMPLOYER,
   ACTOR_REALMS.ADMIN,
   ACTOR_REALMS.AGENT,
+  ACTOR_REALMS.INSTITUTION,
 ]);
 
 /** Realms declared for later missions (contract only, no live auth). */
-export const FUTURE_REALMS = Object.freeze([
-  ACTOR_REALMS.INSTITUTION,
-]);
+export const FUTURE_REALMS = Object.freeze([]);
 
 const REALM_VALUES = Object.values(ACTOR_REALMS);
 const REALM_SET = new Set(REALM_VALUES);
