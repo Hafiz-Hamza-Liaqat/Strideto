@@ -7,7 +7,7 @@ import { InstitutionAdmissionApplication } from '../models/institution/Instituti
 import { Program } from '../models/education/Program.js';
 import { User } from '../models/User.js';
 import { logAudit } from './auditService.js';
-import { notifyUser } from './notificationService.js';
+import { createUserNotificationOnce } from './notificationService.js';
 import { notifyInstitutionOrganizationOwners } from './institutionInboxNotificationBridge.js';
 import {
   ADMISSION_STATES,
@@ -144,6 +144,18 @@ export async function submitStudentApplication({
     dedupeKey: `institution-admission:${doc._id}:received`,
   });
 
+  const { recordHandoffConsent, CONSENT_PURPOSES } = await import('./consentGrantService.js');
+  await recordHandoffConsent({
+    subjectId: studentUserId,
+    counterpartyId: claim.organizationId,
+    counterpartyType: 'institution',
+    purpose: CONSENT_PURPOSES.INSTITUTION_ADMISSION,
+    resourceScope: `institution_admission:${doc._id}`,
+    grantedAt: doc.consentedAt,
+    provenance: 'student_institution_apply',
+    auditIdentity: `institution_admission:${doc._id}`,
+  });
+
   return studentView(doc.toObject());
 }
 
@@ -181,6 +193,13 @@ export async function withdrawStudentApplication({ studentUserId, applicationId 
     body: 'A Student withdrew an internal admission application.',
     link: '/institution/applications',
     dedupeKey: `institution-admission:${doc._id}:withdrawn:${doc.version}`,
+  });
+  const { revokeHandoffConsent, CONSENT_PURPOSES } = await import('./consentGrantService.js');
+  await revokeHandoffConsent({
+    subjectId: studentUserId,
+    purpose: CONSENT_PURPOSES.INSTITUTION_ADMISSION,
+    resourceScope: `institution_admission:${doc._id}`,
+    counterpartyId: doc.organizationId,
   });
   return studentView(doc.toObject());
 }
@@ -293,7 +312,9 @@ export async function transitionApplication({
     metadata: { applicationId, organizationId, from, toState },
   });
 
-  await notifyUser(doc.studentUserId, {
+  await createUserNotificationOnce({
+    recipientType: 'user',
+    userId: doc.studentUserId,
     category: 'admission',
     type: `institution_admission.${toState}`,
     title: 'Admission application update',

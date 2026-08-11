@@ -1,20 +1,20 @@
 import { ROUTES } from '../constants';
 import { isSafeInternalReturnPath } from '@shared/publicDiscovery/safePublicUrl.js';
+import {
+  LOGIN_REALMS,
+  resolveRealmReturnPath,
+} from '@shared/platform/returnPathPolicy.js';
+
+export { LOGIN_REALMS, resolveRealmReturnPath };
 
 export function loginLocationState(location) {
   if (!location) return undefined;
   const pathname = location.pathname || '';
   const search = location.search || '';
-  const combined = `${pathname}${search}`;
   if (!isSafeInternalReturnPath(pathname)) return undefined;
-  return { from: { pathname, search, hash: location.hash || '', combined } };
+  return { from: { pathname, search, hash: location.hash || '', combined: `${pathname}${search}` } };
 }
 
-export function resolveLoginReturnPath(fromState, fallback = ROUTES.HOME) {
-  const pathname = typeof fromState === 'string' ? fromState : fromState?.pathname;
-  if (!isSafeInternalReturnPath(pathname)) return fallback;
-  const search = typeof fromState === 'object' && isSafeInternalReturnPath(`${pathname}${fromState.search || ''}`)
-    ? (fromState.search || '')
-    : '';
-  return `${pathname}${search}`;
+export function resolveLoginReturnPath(fromState, fallback = ROUTES.HOME, realm = LOGIN_REALMS.STUDENT) {
+  return resolveRealmReturnPath(fromState, fallback, realm);
 }

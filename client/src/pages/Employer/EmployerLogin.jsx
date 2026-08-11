@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
 import { useEmployerAuth } from '../../context/EmployerAuthContext';
 import { ROUTES } from '../../constants';
+import { LOGIN_REALMS, resolveLoginReturnPath } from '../../utils/loginReturn.js';
 import { isOnboardingComplete, markOnboardingPending } from '../../onboarding';
 
 export default function EmployerLogin() {
@@ -15,7 +16,11 @@ export default function EmployerLogin() {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const from = location.state?.from?.pathname || ROUTES.EMPLOYER_DASHBOARD;
+  const from = resolveLoginReturnPath(
+    location.state?.from,
+    ROUTES.EMPLOYER_DASHBOARD,
+    LOGIN_REALMS.EMPLOYER
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
-import { ROUTES } from '../../constants';
+import { ROUTES, STAFF_ROLES } from '../../constants';
 import { validateEmail, validatePassword } from '../../utils/validation';
 import { translateValidationError } from '../../utils/validationI18n';
 import { Button } from '../../components/common/Button';
@@ -11,7 +11,7 @@ import { FormField } from '../../components/common/FormField';
 import { Alert } from '../../components/ui/Alerts';
 import { SeoHead } from '../../components/seo';
 import { isOnboardingComplete, markOnboardingPending } from '../../onboarding';
-import { resolveLoginReturnPath } from '../../utils/loginReturn.js';
+import { LOGIN_REALMS, resolveLoginReturnPath } from '../../utils/loginReturn.js';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -24,8 +24,9 @@ export default function Login() {
   const [submitting, setSubmitting] = useState(false);
   const [verificationEmail, setVerificationEmail] = useState('');
 
-  const from = resolveLoginReturnPath(location.state?.from, ROUTES.HOME);
-  const isFromAdmin = from === ROUTES.ADMIN || from.startsWith(`${ROUTES.ADMIN}/`);
+  const requestedFrom = location.state?.from;
+  const previewFrom = resolveLoginReturnPath(requestedFrom, ROUTES.HOME, LOGIN_REALMS.STAFF_OR_STUDENT);
+  const isFromAdmin = previewFrom === ROUTES.ADMIN || previewFrom.startsWith(`${ROUTES.ADMIN}/`);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -43,14 +44,20 @@ export default function Login() {
       const result = await login(email.trim().toLowerCase(), password);
       if (result?.mustChangePassword) {
         navigate(ROUTES.PROFILE, { replace: true, state: { mustChangePassword: true } });
-      } else if (from === ROUTES.HOME || from === ROUTES.LOGIN || from === ROUTES.REGISTER) {
-        const uid = result?.user?._id ? String(result.user._id) : null;
-        if (!isOnboardingComplete({ userId: uid, userFlag: result?.user?.onboardingCompleted })) {
-          markOnboardingPending();
-        }
-        navigate(ROUTES.HOME, { replace: true });
       } else {
-        navigate(from, { replace: true });
+        const realm = STAFF_ROLES.includes(result?.user?.role)
+          ? LOGIN_REALMS.STAFF_OR_STUDENT
+          : LOGIN_REALMS.STUDENT;
+        const from = resolveLoginReturnPath(requestedFrom, ROUTES.HOME, realm);
+        if (from === ROUTES.HOME || from === ROUTES.LOGIN || from === ROUTES.REGISTER) {
+          const uid = result?.user?._id ? String(result.user._id) : null;
+          if (!isOnboardingComplete({ userId: uid, userFlag: result?.user?.onboardingCompleted })) {
+            markOnboardingPending();
+          }
+          navigate(ROUTES.HOME, { replace: true });
+        } else {
+          navigate(from, { replace: true });
+        }
       }
     } catch (err) {
       const data = err.response?.data;

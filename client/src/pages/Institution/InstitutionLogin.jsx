@@ -4,6 +4,7 @@ import { FormField } from '../../components/common/FormField';
 import { Logo } from '../../components/brand/Logo';
 import { useInstitutionAuth } from '../../context/InstitutionAuthContext';
 import { ROUTES } from '../../constants';
+import { LOGIN_REALMS, resolveLoginReturnPath } from '../../utils/loginReturn.js';
 import { PageState, fieldClass, primaryButton } from './InstitutionUi';
 
 export default function InstitutionLogin() {
@@ -32,8 +33,12 @@ export default function InstitutionLogin() {
     setServerError('');
     try {
       await login(email.trim().toLowerCase(), password);
-      const requested = location.state?.from?.pathname;
-      navigate(requested?.startsWith('/institution') ? requested : ROUTES.INSTITUTION_DASHBOARD, { replace: true });
+      const requested = resolveLoginReturnPath(
+        location.state?.from,
+        ROUTES.INSTITUTION_DASHBOARD,
+        LOGIN_REALMS.INSTITUTION
+      );
+      navigate(requested, { replace: true });
     } catch (error) {
       setServerError(error.response?.data?.error || 'Institution sign-in failed. Check your credentials and try again.');
     } finally { setBusy(false); }

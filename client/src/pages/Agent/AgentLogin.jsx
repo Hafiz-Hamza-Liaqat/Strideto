@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAgentAuth } from '../../context/AgentAuthContext';
 import { ROUTES } from '../../constants';
+import { LOGIN_REALMS, resolveLoginReturnPath } from '../../utils/loginReturn.js';
 import { Logo } from '../../components/brand/Logo';
 
 export default function AgentLogin() {
@@ -12,7 +13,11 @@ export default function AgentLogin() {
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
-  const from = location.state?.from?.pathname || ROUTES.AGENT_DASHBOARD;
+  const from = resolveLoginReturnPath(
+    location.state?.from,
+    ROUTES.AGENT_DASHBOARD,
+    LOGIN_REALMS.AGENT
+  );
 
   const handleSubmit = async (e) => {
     e.preventDefault();

@@ -1,5 +1,5 @@
 import { subscribeCareerEvent } from './CareerEventBus.js';
-import { notifyUser } from '../notificationService.js';
+import { createUserNotificationOnce } from '../notificationService.js';
 import { formatAppointmentTime } from '../../utils/appointmentTime.js';
 
 let registered = false;
@@ -104,7 +104,10 @@ export function registerCareerNotificationHandlers() {
       // onJobApplication.
       const opportunityApplicationId = event.payload?.opportunityApplicationId || null;
       try {
-        await notifyUser(userId, {
+        const stageKey = event.payload?.toStage || event.eventType;
+        await createUserNotificationOnce({
+          recipientType: 'user',
+          userId,
           category: event.eventType === 'InterviewScheduled' || event.eventType === 'InterviewCompleted'
             ? 'interview'
             : 'application',
@@ -112,6 +115,9 @@ export function registerCareerNotificationHandlers() {
           title: titleForEvent(event),
           body: bodyForEvent(event),
           link: opportunityApplicationId ? `/applications/${opportunityApplicationId}` : '/applications',
+          dedupeKey: event.eventType === 'InterviewScheduled'
+            ? `user:career:${event.eventType}:${opportunityApplicationId || event.eventId}:${event.payload?.scheduledAt || ''}`
+            : `user:career:${event.eventType}:${opportunityApplicationId || event.eventId}:${stageKey}`,
           metadata: {
             careerEventId: event.eventId,
             careerEventType: event.eventType,

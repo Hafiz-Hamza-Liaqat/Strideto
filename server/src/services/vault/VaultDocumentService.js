@@ -372,6 +372,19 @@ export async function createGrant(userId, documentId, body, { actor, ip } = {}) 
     expiresAt: expiresAt ? new Date(expiresAt) : null,
   });
 
+  const { recordHandoffConsent, CONSENT_PURPOSES } = await import('../consentGrantService.js');
+  await recordHandoffConsent({
+    subjectId: userId,
+    counterpartyId: String(granteeId).trim(),
+    counterpartyType: granteeType,
+    purpose: CONSENT_PURPOSES.VAULT_GRANT,
+    resourceScope: `vault_document:${doc._id}:grant:${grant._id}`,
+    grantedAt: new Date(),
+    expiresAt: grant.expiresAt || null,
+    provenance: 'student_vault_grant',
+    auditIdentity: `vault-grant:${grant._id}`,
+  });
+
   await logAudit({
     ...auditCtx(actor, ip),
     action: 'vault.document.shared',
@@ -400,6 +413,13 @@ export async function revokeDocumentGrant(userId, documentId, grantId, { actor, 
   const doc = await getOwnedDocument(documentId, userId);
 
   const revoked = await revokeGrant(grantId, toId(userId));
+  const { revokeHandoffConsent, CONSENT_PURPOSES } = await import('../consentGrantService.js');
+  await revokeHandoffConsent({
+    subjectId: userId,
+    purpose: CONSENT_PURPOSES.VAULT_GRANT,
+    resourceScope: `vault_document:${doc._id}:grant:${revoked._id}`,
+    counterpartyId: revoked.granteeId,
+  });
 
   await logAudit({
     ...auditCtx(actor, ip),

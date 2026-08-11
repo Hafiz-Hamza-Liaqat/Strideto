@@ -67,16 +67,16 @@ const handlerBody = bridge.slice(handlerStart);
 // --- 5. Notification is still created when tracker linkage is absent (unconditional notifyUser call) ---
 {
   check(
-    /if \(!userId\) return;\s*\n[\s\S]*?const opportunityApplicationId[\s\S]*?try \{\s*await notifyUser\(userId, \{/.test(handlerBody),
-    '5. notifyUser is still called unconditionally (not gated on opportunityApplicationId truthiness) — a missing tracker link no longer suppresses the notification'
+    /if \(!userId\) return;[\s\S]*?const opportunityApplicationId[\s\S]*?try \{[\s\S]*?await createUserNotificationOnce\(\{/.test(handlerBody),
+    '5. createUserNotificationOnce is still called unconditionally (not gated on opportunityApplicationId truthiness) — a missing tracker link no longer suppresses the notification'
   );
 }
 
 // --- 6. Recipient resolution unchanged ---
 {
   check(
-    /const userId = resolveNotifyUserId\(event\);/.test(handlerBody) && /await notifyUser\(userId, \{/.test(handlerBody),
-    '6. Recipient is still resolved via resolveNotifyUserId and passed unchanged to notifyUser'
+    /const userId = resolveNotifyUserId\(event\);/.test(handlerBody) && /userId,/.test(handlerBody) && /createUserNotificationOnce/.test(handlerBody),
+    '6. Recipient is still resolved via resolveNotifyUserId and passed to createUserNotificationOnce'
   );
 }
 

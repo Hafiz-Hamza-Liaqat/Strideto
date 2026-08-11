@@ -550,6 +550,16 @@ export async function updateProgram({
       eventType: INSTITUTION_NOTIFICATION_TYPES.CONFLICT_REQUIRES_ACTION,
       payload: { programId, fields: skippedConflicts },
     });
+    const { notifyInstitutionOrganizationOwners } = await import('./institutionInboxNotificationBridge.js');
+    await notifyInstitutionOrganizationOwners({
+      organizationId,
+      category: 'system',
+      type: 'institution_data_quality.conflict_requires_action',
+      title: 'Data conflict requires review',
+      body: 'A proposed Institution fact was not applied because it conflicts with stronger canonical authority. Review it on Data Quality. Opening that page does not mark data fresh.',
+      link: '/institution/data-quality',
+      dedupeKey: `institution-dq-conflict:${organizationId}:${programId || 'profile'}:${skippedConflicts.slice().sort().join(',')}`,
+    });
   }
 
   // Validate tuition — Money contract (no guessed FX, no invented currencies)

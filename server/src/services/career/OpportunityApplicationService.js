@@ -178,6 +178,19 @@ export const OpportunityApplicationService = {
     });
 
     const plain = toPlain(application);
+    if (plain.organizationId) {
+      const { recordHandoffConsent, CONSENT_PURPOSES } = await import('../consentGrantService.js');
+      await recordHandoffConsent({
+        subjectId: userId,
+        counterpartyId: plain.organizationId,
+        counterpartyType: 'employer',
+        purpose: CONSENT_PURPOSES.EMPLOYER_APPLICATION,
+        resourceScope: `opportunity_application:${plain._id}`,
+        grantedAt: now,
+        provenance: 'student_job_apply',
+        auditIdentity: `opportunity_application:${plain._id}`,
+      });
+    }
     emitApplicationEvent('ApplicationCreated', plain, { initialStage }, actor || actorFromUserId(userId));
     return projectStudentApplication(plain);
   },
@@ -247,6 +260,15 @@ export const OpportunityApplicationService = {
     const updated = await OpportunityApplicationRepository.pushStageHistory(existing._id, historyEntry);
     const plain = toPlain(updated);
 
+    if (transition.toStage === 'withdrawn') {
+      const { revokeHandoffConsent, CONSENT_PURPOSES } = await import('../consentGrantService.js');
+      await revokeHandoffConsent({
+        subjectId: userId,
+        purpose: CONSENT_PURPOSES.EMPLOYER_APPLICATION,
+        resourceScope: `opportunity_application:${existing._id}`,
+        counterpartyId: existing.organizationId,
+      });
+    }
     const eventType = stageEventType(transition.toStage);
     emitApplicationEvent(
       eventType,

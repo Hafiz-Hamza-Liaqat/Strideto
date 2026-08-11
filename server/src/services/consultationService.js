@@ -102,6 +102,22 @@ async function prepareNotification(record, recipientActorType, recipientId, even
       dedupeKey: `agent:consultation:${record._id}:${eventType}:${event._id}`,
     }).catch(() => {});
   }
+  if (recipientActorType === 'student') {
+    const { createUserNotificationOnce } = await import('./notificationService.js');
+    const messageEvent = eventType === 'new_contextual_message';
+    await createUserNotificationOnce({
+      recipientType: 'user',
+      userId: recipientId,
+      category: messageEvent ? 'message' : 'consultation',
+      type: eventType,
+      title: messageEvent ? 'New consultation message' : 'Consultation update',
+      body: 'A consultation event requires your attention. Open the consultation for details.',
+      link: `/consultations/${record._id}`,
+      dedupeKey: messageEvent
+        ? `user:consultation:${record._id}:${eventType}:${event._id}`
+        : `user:consultation:${record._id}:${eventType}`,
+    }).catch(() => {});
+  }
   return event;
 }
 
@@ -206,6 +222,18 @@ export async function requestConsultation(userId, input = {}) {
   const thread = await ConsultationThread.create({ consultationId: record._id, organizationId: record.organizationId, studentUserId: userId, authorizedMembershipIds: [availability.membershipId] });
   await appendEvent(record, 'student', userId, '', record.status, '', { threadId: String(thread._id), marketplaceOrigin: Boolean(marketplacePostId) });
   await prepareNotification(record, 'agent', availability.membershipId, 'consultation_requested');
+  await prepareNotification(record, 'student', userId, 'consultation_requested');
+  const { recordHandoffConsent, CONSENT_PURPOSES } = await import('./consentGrantService.js');
+  await recordHandoffConsent({
+    subjectId: userId,
+    counterpartyId: service.organizationId,
+    counterpartyType: 'agent',
+    purpose: CONSENT_PURPOSES.AGENT_CONSULTATION,
+    resourceScope: `consultation:${record._id}`,
+    grantedAt: new Date(),
+    provenance: 'student_consultation_request',
+    auditIdentity: `consultation:${record._id}`,
+  });
   await logAudit({ actor: { userId, role: 'User' }, action: 'consultation.requested', targetType: 'Consultation', targetId: record._id, metadata: { organizationId: String(record.organizationId), serviceId: String(service._id), paymentState: record.paymentState } });
   await logAudit({ actor: { userId, role: 'User' }, action: 'consultation.participant_assigned', targetType: 'Consultation', targetId: record._id, metadata: { organizationId: String(record.organizationId), membershipId: String(availability.membershipId) } });
   await logAudit({ actor: { userId, role: 'User' }, action: 'consultation.thread_created', targetType: 'ConsultationThread', targetId: thread._id, metadata: { consultationId: String(record._id), organizationId: String(record.organizationId) } });

@@ -73,12 +73,24 @@ export async function queueEmail({ to, templateKey, lang, vars, dedupKey, subjec
   });
 }
 
-export function queueNotification({ dedupKey, ...payload }) {
-  return enqueueJob({
-    type: 'notification',
-    dedupKey,
-    payload,
-  });
+export async function queueNotification({ dedupKey, ...payload }) {
+  // In-app persistence is authoritative while the worker remains stopped.
+  // Email continues to use queueEmail → BackgroundJob and is never fabricated.
+  const { createUserNotificationOnce } = await import('./notificationService.js');
+  try {
+    const outcome = await createUserNotificationOnce({
+      ...payload,
+      dedupeKey: dedupKey,
+    });
+    return {
+      enqueued: Boolean(outcome?.created),
+      persisted: true,
+      created: Boolean(outcome?.created),
+      duplicate: outcome?.created === false,
+    };
+  } catch {
+    return { enqueued: false, persisted: false, created: false };
+  }
 }
 
 export async function onUserRegistered(user) {
