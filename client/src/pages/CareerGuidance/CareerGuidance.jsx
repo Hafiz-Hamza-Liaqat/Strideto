@@ -224,6 +224,71 @@ export default function CareerGuidance() {
           </ul>
         </ScrollReveal>
 
+        <ScrollReveal as="section" className="mb-14" id="career-faq">
+          <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">
+            {t('career:faqTitle', { defaultValue: 'Career guidance FAQ' })}
+          </h2>
+          <p className="text-gray-600 dark:text-gray-400 mb-6">
+            {t('career:faqIntro', {
+              defaultValue: 'Practical answers. Monetary salary figures appear only when country and source provenance support them; otherwise salary is Unavailable / source required.',
+            })}
+          </p>
+          <dl className="space-y-4">
+            {[
+              {
+                q: 'How do I choose a career?',
+                a: 'Start from interests and strengths, review degree/role roadmaps on this page, then validate requirements against official program and job sources—not rumor.',
+              },
+              {
+                q: 'Can I change fields?',
+                a: 'Yes. Map transferable skills, close gaps with assessments and portfolio evidence, and treat prior experience as complementary rather than wasted.',
+              },
+              {
+                q: 'Degree vs portfolio?',
+                a: 'Many roles value both. Degrees help with regulated or academic paths; portfolios and verified skills matter strongly for applied technical and creative roles.',
+              },
+              {
+                q: 'Which certifications matter?',
+                a: 'Prefer certifications that employers or regulators explicitly request for your target role and country. Generic badge lists without job relevance are weak signals.',
+              },
+              {
+                q: 'International careers?',
+                a: 'Confirm visa, credential recognition, and language requirements from official authorities for the destination country before applying.',
+              },
+              {
+                q: 'Remote careers?',
+                a: 'Treat remote as a work-mode filter. Employer eligibility, tax, and time-zone expectations still apply and must be verified on the listing.',
+              },
+              {
+                q: 'How does Skill Trust work?',
+                a: 'Skill Trust reflects evidence-backed signals under Strideto policy. Incomplete profiles stay incomplete—never invent confidence from missing data.',
+              },
+              {
+                q: 'How should I prepare for interviews?',
+                a: 'Practice role-specific scenarios, review your application snapshot, and prepare questions about responsibilities, team, and evaluation criteria.',
+              },
+              {
+                q: 'How are Strideto recommendations produced?',
+                a: 'Recommendations use profile and opportunity signals with deterministic fallbacks. They are guidance aids, not guarantees of admission, hiring, or visa outcomes.',
+              },
+              {
+                q: 'How do I confirm official requirements?',
+                a: 'Use official institution/employer pages and source-backed program records. When salary or eligibility data lacks provenance, treat it as Unavailable / source required.',
+              },
+            ].map((item) => (
+              <div key={item.q} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+                <dt className="font-semibold text-gray-900 dark:text-white">{item.q}</dt>
+                <dd className="mt-2 text-sm text-gray-600 dark:text-gray-400">{item.a}</dd>
+              </div>
+            ))}
+          </dl>
+          <div className="mt-6 flex flex-wrap gap-2">
+            <Link to={ROUTES.JOBS} className="inline-flex min-h-[44px] items-center px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Explore Jobs</Link>
+            <Link to={ROUTES.PROGRAM_EXPLORER || ROUTES.ADMISSIONS} className="inline-flex min-h-[44px] items-center px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Explore Programs</Link>
+            <Link to={ROUTES.ASSESSMENTS} className="inline-flex min-h-[44px] items-center px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Check Assessments</Link>
+          </div>
+        </ScrollReveal>
+
         <ScrollReveal as="section" className="mb-14">
           <div className="flex items-end justify-between gap-4 mb-6">
             <h2 className="text-2xl font-bold text-gray-900 dark:text-white">
