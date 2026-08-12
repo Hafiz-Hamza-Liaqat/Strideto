@@ -142,3 +142,48 @@ See documentation commit that records this addendum (HEAD after both follow-up c
 
 Phase-14 certification remains historical evidence for the prior candidate only.  
 **New HEAD still requires USER MANUAL ACCEPTANCE + re-certification.**
+
+---
+
+## Follow-up addendum — Announcements API startup (Docker)
+
+**Discovered after:** AdminConfirmDialog follow-up HEAD `982c00c`  
+**Symptom:** After rebuilding `api-a` / `api-b`, both replicas crash-looped (`Restarting (1)`). Caddy had no healthy upstream → `POST /api/auth/login` returned **502 Bad Gateway**.
+
+### Exact error
+
+```
+Error [ERR_MODULE_NOT_FOUND]: Cannot find module '/app/utils/asyncHandler.js'
+imported from '/app/src/controllers/announcementsController.js'
+```
+
+### Root cause
+
+`server/src/controllers/announcementsController.js` used `../../utils|models|services/...`, which escapes `src/` to `/app/utils/...`. Peer controllers under `src/controllers/` correctly use `../utils/...`. Admin nested controllers under `src/controllers/admin/` correctly keep `../../utils/...`.
+
+### Fix
+
+Corrected all three imports in `announcementsController.js` to `../…`. No business-scope changes. No other Announcements-chain import defects found after audit.
+
+### Real-runtime result (api rebuild only)
+
+- `api-a` / `api-b`: Up (healthy)
+- Mongo / Redis / frontend / media: preserved / not rebuilt for this fix
+- Worker: remains stopped
+- `/api/health` + readiness: 200
+- `/api/auth/login`: reaches backend (**502 resolved**; unauthenticated/origin checks return 401/403 as appropriate — not gateway failure)
+- `/api/announcements/feed` + `/api/admin/announcements`: **401 Authentication required** (not route 404)
+- `/admin/announcements` SPA: 200
+
+### Focused evidence
+
+- `server/src/__tests__/announcementsStartupWiring.test.js` — 20 assertions
+- `scripts/verify-module-link-integrity.mjs` — module graph links cleanly
+- ESLint on touched controller/test — clean
+
+### Candidate HEAD
+
+See documentation commit that records this addendum.
+
+Phase-14 certification remains historical only.  
+**New HEAD is NOT launch-certified.**
