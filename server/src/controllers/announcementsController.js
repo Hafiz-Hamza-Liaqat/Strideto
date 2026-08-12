@@ -1,6 +1,6 @@
 import mongoose from 'mongoose';
-import { asyncHandler } from '../../utils/asyncHandler.js';
-import { Announcement } from '../../models/Announcement.js';
+import { asyncHandler } from '../utils/asyncHandler.js';
+import { Announcement } from '../models/Announcement.js';
 import {
   acknowledge,
   audienceMatches,
@@ -9,7 +9,7 @@ import {
   markRead,
   resolveAudienceFromRequest,
   resolveUserKeyFromRequest,
-} from '../../services/announcementService.js';
+} from '../services/announcementService.js';
 
 export const getFeed = asyncHandler(async (req, res) => {
   const limit = Math.min(50, Math.max(1, parseInt(req.query.limit, 10) || 20));
