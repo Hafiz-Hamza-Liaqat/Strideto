@@ -8,10 +8,30 @@ import { useInstitutionAuth } from '../../context/InstitutionAuthContext';
 import { institutionPortalApi } from '../../services/institutionPortalService';
 import { PageState, Panel, primaryButton } from './InstitutionUi';
 
+const OTHER_ORG_TYPE = INSTITUTION_TYPES.OTHER;
+const OTHER_ORG_TYPE_PREFIX = /^Other:\s*(.+)$/i;
+
+function parseOrganizationType(raw) {
+  const value = (raw || '').trim();
+  if (!value) return { organizationType: '', organizationTypeOther: '' };
+  const otherMatch = value.match(OTHER_ORG_TYPE_PREFIX);
+  if (otherMatch) return { organizationType: OTHER_ORG_TYPE, organizationTypeOther: otherMatch[1].trim() };
+  if (value === OTHER_ORG_TYPE) return { organizationType: OTHER_ORG_TYPE, organizationTypeOther: '' };
+  if (Object.values(INSTITUTION_TYPES).includes(value)) return { organizationType: value, organizationTypeOther: '' };
+  return { organizationType: OTHER_ORG_TYPE, organizationTypeOther: value };
+}
+
+function serializeOrganizationType(organizationType, organizationTypeOther) {
+  if (organizationType === OTHER_ORG_TYPE) {
+    return `Other: ${organizationTypeOther.trim()}`;
+  }
+  return organizationType;
+}
+
 const ORG_TYPE_OPTIONS = Object.values(INSTITUTION_TYPES);
 
 const empty = {
-  officialDisplayName: '', legalName: '', organizationType: '', institutionType: '',
+  officialDisplayName: '', legalName: '', organizationType: '', institutionType: '', organizationTypeOther: '',
   countryCode: '', city: '', region: '', officialDomain: '', logoUrl: '',
   officialWebsite: '', officialAdmissionsWebsite: '', officialContactEmail: '', officialPhone: '',
   institutionDescription: '', representativeName: '', representativeTitle: '', representativeEmail: '',
@@ -33,10 +53,11 @@ export default function InstitutionProfile() {
       .then(({ data }) => {
         const p = data.profile || {};
         const primary = (p.addresses || []).find((a) => a.isPrimary) || p.addresses?.[0] || {};
+        const orgType = parseOrganizationType(p.organizationType || p.institutionType);
         setForm({
           ...empty,
           ...p,
-          organizationType: p.organizationType || p.institutionType || '',
+          ...orgType,
           city: p.city || primary.city || '',
           region: p.region || primary.region || '',
           addressLine1: primary.addressLine1 || '',
@@ -59,15 +80,22 @@ export default function InstitutionProfile() {
       document.getElementById('institution-official-name')?.focus();
       return;
     }
+    if (form.organizationType === OTHER_ORG_TYPE && !form.organizationTypeOther?.trim()) {
+      setFieldError('Please specify your organization type.');
+      document.getElementById('institution-organization-type-other')?.focus();
+      return;
+    }
     setFieldError('');
     setBusy(true);
     try {
       const officialPhone = typeof phoneValue === 'object'
         ? (phoneValue.e164 || phoneValue.nationalNumber || '')
         : phoneValue;
+      const resolvedOrganizationType = serializeOrganizationType(form.organizationType, form.organizationTypeOther);
       const payload = {
         ...form,
-        institutionType: form.organizationType || form.institutionType,
+        organizationType: resolvedOrganizationType,
+        institutionType: resolvedOrganizationType,
         officialPhone,
         addresses: [{
           label: 'Registered',
@@ -81,10 +109,11 @@ export default function InstitutionProfile() {
       const { data } = await institutionPortalApi.updateProfile(organizationId, payload);
       const p = data.profile || {};
       const primary = (p.addresses || []).find((a) => a.isPrimary) || p.addresses?.[0] || {};
+      const orgType = parseOrganizationType(p.organizationType || p.institutionType);
       setForm((current) => ({
         ...current,
         ...p,
-        organizationType: p.organizationType || p.institutionType || current.organizationType,
+        ...orgType,
         city: p.city || primary.city || '',
         region: p.region || primary.region || '',
         addressLine1: primary.addressLine1 || current.addressLine1,
@@ -128,7 +157,14 @@ export default function InstitutionProfile() {
             <select
               className={`${selectControlClassName()} mt-1`}
               value={form.organizationType || form.institutionType || ''}
-              onChange={set('organizationType')}
+              onChange={(event) => {
+                const nextType = event.target.value;
+                setForm((current) => ({
+                  ...current,
+                  organizationType: nextType,
+                  organizationTypeOther: nextType === OTHER_ORG_TYPE ? current.organizationTypeOther : '',
+                }));
+              }}
             >
               <option value="">Select type</option>
               {ORG_TYPE_OPTIONS.map((type) => (
@@ -136,6 +172,23 @@ export default function InstitutionProfile() {
               ))}
             </select>
           </label>
+
+          {form.organizationType === OTHER_ORG_TYPE ? (
+            <FormField
+              id="institution-organization-type-other"
+              label="Specify organization type"
+              error={fieldError && !form.organizationTypeOther?.trim() ? fieldError : ''}
+            >
+              <input
+                id="institution-organization-type-other"
+                className={inputControlClassName()}
+                value={form.organizationTypeOther || ''}
+                onChange={set('organizationTypeOther')}
+                required
+                placeholder="e.g. vocational academy"
+              />
+            </FormField>
+          ) : null}
 
           <div className="sm:col-span-2">
             <label htmlFor="institution-country" className="text-sm font-medium text-gray-800 dark:text-gray-200">

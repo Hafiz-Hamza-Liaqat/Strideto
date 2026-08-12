@@ -64,16 +64,22 @@ export default function InstitutionUsage() {
             {PIPELINE_ORDER.map((state) => {
               const count = dist[state] || 0;
               const width = pipelineTotal ? Math.max(4, Math.round((count / pipelineTotal) * 100)) : 0;
+              const filterHref = `${ROUTES.INSTITUTION_APPLICATIONS}?status=${encodeURIComponent(state)}`;
               return (
-                <div key={state}>
+                <Link
+                  key={state}
+                  to={filterHref}
+                  className="block rounded-lg p-1 -mx-1 transition hover:bg-gray-50 dark:hover:bg-gray-700/50 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
+                  aria-label={`View ${humanize(state)} applications (${count})`}
+                >
                   <div className="mb-1 flex items-center justify-between text-sm">
-                    <span className="font-medium text-gray-800 dark:text-gray-200">{humanize(state)}</span>
+                    <span className="font-medium text-gray-800 dark:text-gray-200 underline decoration-primary/40 underline-offset-2">{humanize(state)}</span>
                     <span className="tabular-nums text-gray-600 dark:text-gray-400">{count}</span>
                   </div>
                   <div className="h-2 rounded-full bg-gray-100 dark:bg-gray-700">
                     <div className="h-2 rounded-full bg-primary" style={{ width: `${width}%` }} aria-hidden="true" />
                   </div>
-                </div>
+                </Link>
               );
             })}
           </div>

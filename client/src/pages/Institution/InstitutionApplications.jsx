@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useInstitutionAuth } from '../../context/InstitutionAuthContext';
 import { institutionPortalApi } from '../../services/institutionPortalService';
 import { ADMISSION_STATES } from '../../../../shared/institution/institutionPortal.js';
@@ -9,13 +9,14 @@ import { ROUTES } from '../../constants';
 export default function InstitutionApplications() {
   const { organizationId } = useInstitutionAuth();
   const { applicationId } = useParams();
+  const [searchParams] = useSearchParams();
   const [items, setItems] = useState([]);
   const [detail, setDetail] = useState(null);
   const [pagination, setPagination] = useState(null);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
-  const [status, setStatus] = useState('');
+  const [status, setStatus] = useState(() => searchParams.get('status') || '');
   const [nextStatus, setNextStatus] = useState('under_review');
   const [note, setNote] = useState('');
 
@@ -24,7 +25,11 @@ export default function InstitutionApplications() {
     .catch((err) => setError(err.response?.data?.error || 'Applications unavailable.'))
     .finally(() => setLoading(false));
 
-  useEffect(() => { load('', ''); }, [organizationId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    const st = searchParams.get('status') || '';
+    setStatus(st);
+    load('', st);
+  }, [organizationId, searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!applicationId) { setDetail(null); return; }
     institutionPortalApi.application(organizationId, applicationId)
