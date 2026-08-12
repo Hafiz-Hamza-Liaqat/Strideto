@@ -73,6 +73,13 @@ export const listPrograms = asyncHandler(async (req, res) => {
   if (q.degree) filter.degreeLevel = sanitizeString(q.degree);
   if (q.field) filter.field = sanitizeString(q.field);
   if (q.studyMode) filter.studyMode = sanitizeString(q.studyMode);
+  if (q.search) {
+    const term = sanitizeString(q.search).slice(0, 80);
+    if (term) {
+      const re = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$or = [{ name: re }, { slug: re }];
+    }
+  }
 
   const page = parsePage(q);
   const limit = parseLimit(q);

@@ -74,6 +74,23 @@ async function uniqueSlug(title) {
   return `${base}-${Date.now().toString(36)}`;
 }
 
+async function enrichProvenanceFromReferences(data) {
+  if (!requiresMarketplaceProvenance(data)) return data;
+  const programRef = (data.canonicalReferences || []).find((ref) => ref.referenceType === MARKETPLACE_REFERENCE_TYPES.PROGRAM);
+  if (!programRef?.referenceId) return data;
+  const program = await Program.findOne({ _id: programRef.referenceId, status: 'published' }).select('sourceIds').lean();
+  const programSourceIds = (program?.sourceIds || []).map(String).filter(Boolean);
+  if (!programSourceIds.length) return data;
+  const out = { ...data, sourceIds: [...new Set([...(data.sourceIds || []).map(String), ...programSourceIds])] };
+  if (Array.isArray(out.factualClaims)) {
+    out.factualClaims = out.factualClaims.map((claim) => ({
+      ...claim,
+      sourceIds: Array.isArray(claim.sourceIds) && claim.sourceIds.length ? claim.sourceIds : programSourceIds,
+    }));
+  }
+  return out;
+}
+
 async function validateRelatedRecords(data, organizationId) {
   if (data.relatedAgentServiceId) {
     assertObjectId(data.relatedAgentServiceId, 'related service id');
@@ -126,7 +143,7 @@ async function event(post, toStatus, action, actorId, actorRealm, reason = '') {
 
 export async function createDraft(agentAccountId, data) {
   const { profile } = await resolveAgentScope(agentAccountId);
-  const input = normalizedInput(data); validateMarketplaceContent(input);
+  const input = await enrichProvenanceFromReferences(normalizedInput(data)); validateMarketplaceContent(input);
   await validateRelatedRecords(input, profile.organizationId);
   const sources = await sourceState(input);
   const post = await AgentMarketplacePost.create({ ...input, organizationId: profile.organizationId, authorAgentAccountId: agentAccountId, slug: await uniqueSlug(input.title), sourceIds: sources.sourceIds, sourceFreshnessState: sources.freshness, policySignals: [] });
@@ -140,7 +157,7 @@ export async function updateDraft(agentAccountId, postId, data) {
   const post = await AgentMarketplacePost.findOne({ _id: postId, organizationId: profile.organizationId });
   if (!post) throw error('Marketplace post not found', 404);
   if (![[PS.DRAFT, MS.NOT_SUBMITTED], [PS.SUBMITTED, MS.NEEDS_CHANGES]].some(([p, m]) => post.publicationStatus === p && post.moderationStatus === m)) throw error('Post cannot be edited in its current state', 409);
-  const input = { ...post.toObject(), ...normalizedInput(data) }; validateMarketplaceContent(input);
+  const input = await enrichProvenanceFromReferences({ ...post.toObject(), ...normalizedInput(data) }); validateMarketplaceContent(input);
   await validateRelatedRecords(input, profile.organizationId); const sources = await sourceState(input);
   for (const [key, value] of Object.entries(normalizedInput(data))) post[key] = value;
   post.sourceIds = sources.sourceIds; post.sourceFreshnessState = sources.freshness;
