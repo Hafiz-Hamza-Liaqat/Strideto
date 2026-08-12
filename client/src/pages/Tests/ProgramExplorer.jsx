@@ -6,12 +6,14 @@
  * No personalized eligibility decisions (Mission 8).
  */
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useParams, useLocation } from 'react-router-dom';
 import { SeoHead } from '../../components/seo';
 import { programIntelligenceApi } from '../../services/listingsService';
 import { ROUTES } from '../../constants';
+import { useAuth } from '../../context/AuthContext';
 import { Pagination } from '../../components/ui/Pagination';
 import { formatMoney } from '@shared/international/dateDisplay.js';
+import { countryDisplayName } from '@shared/international/country.js';
 import { formatPublicDateOnly, APPLICATION_MODE_LABELS, NO_GUARANTEE_DISCLAIMER, NOT_SPECIFIED } from '@shared/publicDiscovery/publicTruth.js';
 import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
 import { ProvenanceStrip } from '../../components/public/ProvenanceStrip';
@@ -105,7 +107,7 @@ function ProgramCard({ program }) {
         )}
         {program.country && (
           <span className="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-            {program.country}
+            {countryDisplayName(program.country) || program.country}
           </span>
         )}
         {program.durationMonths && (
@@ -120,7 +122,7 @@ function ProgramCard({ program }) {
 
 // ── Program List page ─────────────────────────────────────────────────────────
 
-function FilterBar({ filters, onChange }) {
+function FilterBar({ filters, onChange, countries = [] }) {
   return (
     <div className="flex flex-wrap gap-3">
       <select
@@ -129,11 +131,9 @@ function FilterBar({ filters, onChange }) {
         className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
       >
         <option value="">All Countries</option>
-        <option value="GB">United Kingdom</option>
-        <option value="US">United States</option>
-        <option value="CA">Canada</option>
-        <option value="AU">Australia</option>
-        <option value="DE">Germany</option>
+        {countries.map((code) => (
+          <option key={code} value={code}>{countryDisplayName(code) || code}</option>
+        ))}
       </select>
 
       <select
@@ -176,8 +176,15 @@ export function ProgramExplorerList() {
   const [filters, setFilters] = useState({ page: 1, limit: PAGE_SIZE });
   const [data, setData] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, total: 0, pages: 1 });
+  const [countryOptions, setCountryOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+
+  useEffect(() => {
+    programIntelligenceApi.facets()
+      .then(({ data: d }) => setCountryOptions(d?.countries || []))
+      .catch(() => setCountryOptions([]));
+  }, []);
 
   const fetchData = useCallback(async (params) => {
     setLoading(true);
@@ -212,7 +219,7 @@ export function ProgramExplorerList() {
           </div>
 
           <div className="mb-6">
-            <FilterBar filters={filters} onChange={(f) => setFilters(f)} />
+            <FilterBar filters={filters} onChange={(f) => setFilters(f)} countries={countryOptions} />
           </div>
 
           {error && (
@@ -263,8 +270,63 @@ function Section({ title, children }) {
   );
 }
 
+const APPLY_BTN_PRIMARY = 'inline-flex items-center justify-center min-h-[44px] text-sm px-4 py-2 rounded-lg bg-primary hover:bg-primary-hover text-white font-medium btn-theme transition-colors';
+const APPLY_BTN_SECONDARY = 'inline-flex items-center justify-center min-h-[44px] text-sm px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition-colors break-words-safe';
+
+function buildApplyPath(programId, intake) {
+  const base = ROUTES.STUDENT_INSTITUTION_APPLY.replace(':programId', programId);
+  if (!intake?.cycleLabel) return base;
+  return `${base}?intakeCycleLabel=${encodeURIComponent(intake.cycleLabel)}`;
+}
+
+function intakeSupportsApply(intake) {
+  const mode = intake?.applicationMode || 'not_configured';
+  const applyUrl = publicHttpUrlOrNull(intake?.applicationUrl);
+  return mode === 'internal' || mode === 'platform' || mode === 'both' || (mode === 'external' && applyUrl);
+}
+
+function ProgramApplyActions({ programId, intake, isAuthenticated, loginReturnPath }) {
+  const mode = intake.applicationMode || 'not_configured';
+  const applyUrl = publicHttpUrlOrNull(intake.applicationUrl);
+  const showInternal = ['internal', 'both', 'platform'].includes(mode);
+  const showExternal = ['external', 'both'].includes(mode) && applyUrl;
+
+  if (mode === 'not_configured') {
+    return (
+      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2">
+        Application path not configured for this intake. Use the official program page or contact the institution directly.
+      </p>
+    );
+  }
+
+  const internalPath = buildApplyPath(programId, intake);
+
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {showInternal ? (
+        isAuthenticated ? (
+          <Link to={internalPath} className={APPLY_BTN_PRIMARY}>
+            {APPLICATION_MODE_LABELS.platform || 'Apply on Strideto'}
+          </Link>
+        ) : (
+          <Link to={ROUTES.LOGIN} state={{ from: loginReturnPath }} className={APPLY_BTN_PRIMARY}>
+            Sign in to apply on Strideto
+          </Link>
+        )
+      ) : null}
+      {showExternal ? (
+        <a href={applyUrl} target="_blank" rel="noopener noreferrer" className={APPLY_BTN_SECONDARY}>
+          Apply on the Institution&apos;s official website ↗
+        </a>
+      ) : null}
+    </div>
+  );
+}
+
 export function ProgramExplorerDetail() {
   const { slug } = useParams();
+  const location = useLocation();
+  const { isAuthenticated } = useAuth();
   const [data, setData] = useState(null);
   const [requirements, setRequirements] = useState([]);
   const [acceptedTests, setAcceptedTests] = useState([]);
@@ -321,6 +383,8 @@ export function ProgramExplorerDetail() {
   }
 
   const inst = data.institutionId;
+  const primaryApplyIntake = (data.intakes || []).find((intake) => intakeSupportsApply(intake));
+  const loginReturnPath = location.pathname;
 
   return (
     <>
@@ -387,7 +451,7 @@ export function ProgramExplorerDetail() {
               {data.country && (
                 <div>
                   <p className="text-xs text-gray-400 uppercase tracking-wide">Country</p>
-                  <p className="text-gray-900 dark:text-white">{data.country}</p>
+                  <p className="text-gray-900 dark:text-white">{countryDisplayName(data.country) || data.country}</p>
                 </div>
               )}
             </div>
@@ -407,15 +471,23 @@ export function ProgramExplorerDetail() {
             )}
 
             <div className="mt-5 flex gap-3 flex-wrap">
+              {primaryApplyIntake ? (
+                <ProgramApplyActions
+                  programId={data._id}
+                  intake={primaryApplyIntake}
+                  isAuthenticated={isAuthenticated}
+                  loginReturnPath={loginReturnPath}
+                />
+              ) : null}
               {data.officialProgramUrl && (
                 <a href={data.officialProgramUrl} target="_blank" rel="noopener noreferrer"
-                  className="text-sm px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white transition-colors">
+                  className="inline-flex items-center justify-center min-h-[44px] text-sm px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition-colors">
                   Official Program Page ↗
                 </a>
               )}
               {data.admissionRequirementsUrl && (
                 <a href={data.admissionRequirementsUrl} target="_blank" rel="noopener noreferrer"
-                  className="text-sm px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+                  className="inline-flex items-center justify-center min-h-[44px] text-sm px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition-colors">
                   Admission Requirements ↗
                 </a>
               )}
@@ -431,7 +503,6 @@ export function ProgramExplorerDetail() {
                   const deadline = intake.deadlineDate || formatPublicDateOnly(intake.deadlineAt);
                   const start = intake.startDate || null;
                   const mode = intake.applicationMode || 'not_configured';
-                  const applyUrl = publicHttpUrlOrNull(intake.applicationUrl);
                   return (
                     <div key={i} className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 text-sm min-w-0">
                       <div className="font-medium text-gray-900 dark:text-white break-words-safe">{intake.cycleLabel || 'Intake'}</div>
@@ -441,16 +512,14 @@ export function ProgramExplorerDetail() {
                         <p>Start: {start || NOT_SPECIFIED}</p>
                         <p>Application: {APPLICATION_MODE_LABELS[mode] || NOT_SPECIFIED}</p>
                       </div>
-                      {mode === 'external' && applyUrl && (
-                        <a href={applyUrl} target="_blank" rel="noopener noreferrer" className="inline-flex mt-2 text-primary dark:text-mint hover:underline break-words-safe">
-                          Apply on the Institution’s official website
-                        </a>
-                      )}
-                      {mode === 'internal' && (
-                        <Link to={`/apply/institution/${data._id}`} className="inline-flex mt-2 text-primary dark:text-mint hover:underline">
-                          Apply on Strideto
-                        </Link>
-                      )}
+                      <div className="mt-3 flex flex-wrap gap-2">
+                        <ProgramApplyActions
+                          programId={data._id}
+                          intake={intake}
+                          isAuthenticated={isAuthenticated}
+                          loginReturnPath={loginReturnPath}
+                        />
+                      </div>
                       {intake.notes && <div className="text-xs text-gray-400 mt-0.5">{intake.notes}</div>}
                     </div>
                   );

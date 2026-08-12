@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { SeoHead } from '../../components/seo';
+import { PublicInfoPage } from '../../components/static/PublicInfoPage';
 import { ROUTES } from '../../constants';
 
 function Group({ title, links }) {
@@ -99,21 +99,20 @@ export default function HumanSitemap() {
   ];
 
   return (
-    <>
-      <SeoHead
-        title={t('seo:sitemapTitle')}
-        description={t('seo:sitemapDescription')}
-        canonical={ROUTES.SITEMAP}
-      />
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('static:sitemapHeading')}</h1>
-        <p className="text-gray-600 dark:text-gray-300 mb-10">{t('static:sitemapIntro')}</p>
-        <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3">
-          {groups.map((g) => (
-            <Group key={g.title} title={g.title} links={g.links} />
-          ))}
-        </div>
+    <PublicInfoPage
+      titleKey="sitemapTitle"
+      descriptionKey="sitemapDescription"
+      headingKey="sitemapHeading"
+      breadcrumbKey="breadcrumbSitemap"
+      canonical={ROUTES.SITEMAP}
+      wide
+    >
+      <p className="!mt-0 text-gray-600 dark:text-gray-300 mb-6">{t('static:sitemapIntro')}</p>
+      <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3 not-prose">
+        {groups.map((g) => (
+          <Group key={g.title} title={g.title} links={g.links} />
+        ))}
       </div>
-    </>
+    </PublicInfoPage>
   );
 }

@@ -24,7 +24,11 @@ export const subscribe = asyncHandler(async (req, res) => {
       frequency: req.body.frequency || 'weekly',
     });
   }
-  res.status(201).json({ message: 'Subscribed to student alerts', email: doc.email });
+  res.status(201).json({
+    message: 'Subscription saved. Email delivery is not active until outbound mail is configured.',
+    email: doc.email,
+    deliveryConfigured: false,
+  });
 });
 
 export const unsubscribe = asyncHandler(async (req, res) => {

@@ -79,10 +79,11 @@
     "placeholderFull": "your@email.com",
     "subscribe": "Subscribe",
     "subscribing": "Subscribing…",
-    "success": "Subscribed! You'll receive student alerts.",
+    "success": "Subscription saved. Email delivery is not active yet — we will use this address when digests are enabled.",
     "failed": "Subscription failed. Try again.",
     "enterEmail": "Please enter your email.",
-    "description": "Get daily or weekly alerts: new jobs, scholarships, and admission deadlines.",
+    "description": "Save your email for Strideto updates. Automated digests are not sent until outbound email delivery is configured on the platform.",
+    "deliveryNote": "Your subscription is saved. We do not send email digests until delivery is configured.",
     "daily": "Daily",
     "weekly": "Weekly",
     "frequency": "Alert frequency"

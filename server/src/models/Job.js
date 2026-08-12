@@ -59,9 +59,15 @@ const jobSchema = new mongoose.Schema(
     company: { type: String, required: true },
     organization: { type: String }, // alias / display name
     location: { type: String },
+    /** ISO 3166-1 alpha-2; additive international field (legacy jobs may omit). */
+    countryCode: { type: String, trim: true, uppercase: true, maxlength: 2 },
+    /** Canonical region/state/province; legacy `province` kept as read/write alias. */
+    region: { type: String },
     province: { type: String },
     city: { type: String },
     category: { type: String },
+    jobFamily: { type: String },
+    specialization: { type: String },
     type: { type: String, enum: ['full-time', 'part-time', 'contract', 'internship'], default: 'full-time' },
     jobType: { type: String, enum: ['Government', 'Private', 'Internship'], default: 'Private' },
     educationRequirement: { type: String },
@@ -218,7 +224,12 @@ jobSchema.index({ sourceWebsite: 1, status: 1 });
 jobSchema.index({ status: 1, createdAt: -1 });
 jobSchema.index({ status: 1, deadline: 1 });
 jobSchema.index({ province: 1, status: 1 });
+jobSchema.index({ countryCode: 1, status: 1 });
+jobSchema.index({ region: 1, status: 1 });
+jobSchema.index({ city: 1, status: 1 });
 jobSchema.index({ category: 1, status: 1 });
+jobSchema.index({ jobFamily: 1, status: 1 });
+jobSchema.index({ specialization: 1, status: 1 });
 jobSchema.index({ title: 'text', company: 'text', location: 'text', province: 'text' });
 jobSchema.index({ employerId: 1, status: 1 });
 jobSchema.index({ status: 1, approvalStatus: 1 });

@@ -1,4 +1,4 @@
-import { useState, useEffect, Fragment } from 'react';
+import { useState, useEffect, Fragment, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
@@ -7,7 +7,13 @@ import { jobsApi, savedApi, recommendationsApi } from '../../services/listingsSe
 import { trackSearchQuery } from '../../utils/platformAnalytics';
 import { useListings } from '../../hooks/useListings';
 import { ROUTES } from '../../constants';
-import { JOB_CATEGORIES, PROVINCES, SORT_OPTIONS } from '../../constants/listings';
+import {
+  JOB_FAMILIES,
+  SPECIALIZATIONS_BY_FAMILY,
+  PROVINCES,
+  SORT_OPTIONS,
+  countryDisplayName,
+} from '../../constants/listings';
 import { SearchBar } from '../../components/ui/SearchBar';
 import { Pagination } from '../../components/ui/Pagination';
 import { SaveButton } from '../../components/listings/SaveButton';
@@ -26,12 +32,24 @@ const JOB_SORT_KEYS = {
   deadline: 'sortDeadline',
 };
 
+const selectClass =
+  'w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm';
+
+function mergeRegionOptions(facetRegions, countryCode) {
+  const set = new Set(facetRegions || []);
+  if (countryCode === 'PK') {
+    PROVINCES.forEach((p) => set.add(p));
+  }
+  return [...set].sort((a, b) => a.localeCompare(b));
+}
+
 export default function Jobs() {
   const { t } = useTranslation(['jobs', 'common', 'navbar']);
   const { isAuthenticated } = useAuth();
   const [savedIds, setSavedIds] = useState(new Set());
   const [recommendedJobs, setRecommendedJobs] = useState([]);
   const [, setLoadingRecommended] = useState(false);
+  const [geoFacets, setGeoFacets] = useState({ countries: [], regions: [], cities: [] });
 
   const location = useLocation();
   const initialParams = {
@@ -40,13 +58,29 @@ export default function Jobs() {
     ...(typeof window !== 'undefined' && (() => {
       const p = new URLSearchParams(location.search);
       const o = {};
-      const province = p.get('province'); if (province) o.province = province;
-      const category = p.get('category'); if (category) o.category = category;
-      const search = p.get('search'); if (search) o.search = search;
+      ['countryCode', 'region', 'province', 'city', 'jobFamily', 'specialization', 'category', 'organization', 'deadline', 'type', 'applyType', 'search'].forEach((key) => {
+        const val = p.get(key);
+        if (val) o[key] = val;
+      });
+      if (o.province && !o.region) o.region = o.province;
       return o;
     })()),
   };
   const { data, total, totalPages, loading, error, params, setPage, setFilters } = useListings(jobsApi.list, initialParams);
+
+  const countryCode = params.countryCode || '';
+  const regionValue = params.region || params.province || '';
+  const specializationOptions = useMemo(
+    () => (params.jobFamily ? (SPECIALIZATIONS_BY_FAMILY[params.jobFamily] || []) : []),
+    [params.jobFamily]
+  );
+
+  useEffect(() => {
+    jobsApi
+      .geoFacets({ countryCode: countryCode || undefined, region: regionValue || undefined })
+      .then(({ data: d }) => setGeoFacets(d || { countries: [], regions: [], cities: [] }))
+      .catch(() => setGeoFacets({ countries: [], regions: [], cities: [] }));
+  }, [countryCode, regionValue]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -67,6 +101,46 @@ export default function Jobs() {
     setFilters({ search: q || undefined });
   };
 
+  const handleCountryChange = (value) => {
+    setFilters({
+      countryCode: value || undefined,
+      region: undefined,
+      province: undefined,
+      city: undefined,
+    });
+  };
+
+  const handleRegionChange = (value) => {
+    setFilters({
+      region: value || undefined,
+      province: value || undefined,
+      city: undefined,
+    });
+  };
+
+  const handleJobFamilyChange = (value) => {
+    setFilters({
+      jobFamily: value || undefined,
+      specialization: undefined,
+      category: undefined,
+    });
+  };
+
+  const resetFilters = () => setFilters({
+    countryCode: undefined,
+    region: undefined,
+    province: undefined,
+    city: undefined,
+    jobFamily: undefined,
+    specialization: undefined,
+    category: undefined,
+    organization: undefined,
+    deadline: undefined,
+    type: undefined,
+    applyType: undefined,
+    search: undefined,
+  });
+
   const handleSaveToggle = async (id, save) => {
     if (save) await jobsApi.save(id);
     else await jobsApi.unsave(id);
@@ -78,6 +152,7 @@ export default function Jobs() {
     });
   };
 
+  const regionOptions = mergeRegionOptions(geoFacets.regions, countryCode);
   const seoTitle = t('seoTitle', { ns: 'jobs' });
   const seoDescription = t('seoDescription', { ns: 'jobs' });
 
@@ -145,28 +220,72 @@ export default function Jobs() {
         <div className="flex flex-col md:flex-row gap-6">
           <aside className="w-full md:w-56 flex-shrink-0 space-y-4">
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('provinceLabel', { ns: 'jobs' })}</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {t('countryLabel', { ns: 'jobs', defaultValue: 'Country' })}
+              </label>
+              <select value={countryCode} onChange={(e) => handleCountryChange(e.target.value)} className={selectClass}>
+                <option value="">{t('all', { ns: 'common' })}</option>
+                {geoFacets.countries.map((code) => (
+                  <option key={code} value={code}>{countryDisplayName(code) || code}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {t('regionLabel', { ns: 'jobs', defaultValue: 'State / Province / Region' })}
+              </label>
               <select
-                value={params.province || ''}
-                onChange={(e) => setFilters({ province: e.target.value || undefined })}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
+                value={regionValue}
+                onChange={(e) => handleRegionChange(e.target.value)}
+                className={selectClass}
+                disabled={!countryCode}
               >
                 <option value="">{t('all', { ns: 'common' })}</option>
-                {PROVINCES.map((p) => (
+                {regionOptions.map((p) => (
                   <option key={p} value={p}>{p}</option>
                 ))}
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('categoryLabel', { ns: 'jobs' })}</label>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {t('cityLabel', { ns: 'jobs', defaultValue: 'City' })}
+              </label>
               <select
-                value={params.category || ''}
-                onChange={(e) => setFilters({ category: e.target.value || undefined })}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
+                value={params.city || ''}
+                onChange={(e) => setFilters({ city: e.target.value || undefined })}
+                className={selectClass}
+                disabled={!countryCode}
               >
                 <option value="">{t('all', { ns: 'common' })}</option>
-                {JOB_CATEGORIES.map((c) => (
+                {geoFacets.cities.map((c) => (
                   <option key={c} value={c}>{c}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {t('jobFamilyLabel', { ns: 'jobs', defaultValue: 'Job Family' })}
+              </label>
+              <select value={params.jobFamily || ''} onChange={(e) => handleJobFamilyChange(e.target.value)} className={selectClass}>
+                <option value="">{t('all', { ns: 'common' })}</option>
+                {JOB_FAMILIES.map((f) => (
+                  <option key={f} value={f}>{f}</option>
+                ))}
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                {t('specializationLabel', { ns: 'jobs', defaultValue: 'Specialization' })}
+              </label>
+              <select
+                value={params.specialization || ''}
+                onChange={(e) => setFilters({ specialization: e.target.value || undefined })}
+                className={selectClass}
+                disabled={!params.jobFamily}
+              >
+                <option value="">{t('all', { ns: 'common' })}</option>
+                {specializationOptions.map((s) => (
+                  <option key={s} value={s}>{s}</option>
                 ))}
               </select>
             </div>
@@ -177,7 +296,7 @@ export default function Jobs() {
                 value={params.organization || ''}
                 onChange={(e) => setFilters({ organization: e.target.value || undefined })}
                 placeholder={t('filterByName', { ns: 'jobs' })}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm placeholder-gray-500"
+                className={`${selectClass} placeholder-gray-500`}
               />
             </div>
             <div>
@@ -186,16 +305,12 @@ export default function Jobs() {
                 type="date"
                 value={params.deadline || ''}
                 onChange={(e) => setFilters({ deadline: e.target.value || undefined })}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
+                className={selectClass}
               />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('typeLabel', { ns: 'jobs' })}</label>
-              <select
-                value={params.type || ''}
-                onChange={(e) => setFilters({ type: e.target.value || undefined })}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
-              >
+              <select value={params.type || ''} onChange={(e) => setFilters({ type: e.target.value || undefined })} className={selectClass}>
                 <option value="">{t('all', { ns: 'common' })}</option>
                 <option value="full-time">Full-time</option>
                 <option value="part-time">Part-time</option>
@@ -204,30 +319,14 @@ export default function Jobs() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('applicationModeLabel', { ns: 'jobs', defaultValue: 'Application' })}</label>
-              <select
-                value={params.applyType || ''}
-                onChange={(e) => setFilters({ applyType: e.target.value || undefined })}
-                className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
-              >
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('applicationModeLabel', { ns: 'jobs', defaultValue: 'Application Method' })}</label>
+              <select value={params.applyType || ''} onChange={(e) => setFilters({ applyType: e.target.value || undefined })} className={selectClass}>
                 <option value="">{t('all', { ns: 'common' })}</option>
                 <option value="internal">{t('applyOnStrideto', { ns: 'jobs', defaultValue: 'On Strideto' })}</option>
                 <option value="external">{t('applyExternal', { ns: 'jobs', defaultValue: 'Official website' })}</option>
               </select>
             </div>
-            <button
-              type="button"
-              onClick={() => setFilters({
-                province: undefined,
-                category: undefined,
-                organization: undefined,
-                deadline: undefined,
-                type: undefined,
-                applyType: undefined,
-                search: undefined,
-              })}
-              className="text-sm text-primary dark:text-mint hover:underline min-h-[44px]"
-            >
+            <button type="button" onClick={resetFilters} className="text-sm text-primary dark:text-mint hover:underline min-h-[44px]">
               {t('resetFilters', { ns: 'jobs', defaultValue: 'Reset filters' })}
             </button>
             <AdHost placementId="jobs-sidebar" variant="sidebar" />
@@ -248,15 +347,7 @@ export default function Jobs() {
                 title={t('noJobs', { ns: 'jobs' })}
                 description={t('noJobsAdjust', { ns: 'jobs' })}
                 actionLabel={t('resetFilters', { ns: 'jobs', defaultValue: 'Reset filters' })}
-                onAction={() => setFilters({
-                  province: undefined,
-                  category: undefined,
-                  organization: undefined,
-                  deadline: undefined,
-                  type: undefined,
-                  applyType: undefined,
-                  search: undefined,
-                })}
+                onAction={resetFilters}
               />
             ) : (
               <>
@@ -278,7 +369,13 @@ export default function Jobs() {
                         <h2 className="text-lg font-semibold text-gray-900 dark:text-white break-words-safe">{job.title}</h2>
                         <p className="text-gray-600 dark:text-gray-400 break-words-safe">{job.organization || job.company}</p>
                         <p className="text-sm text-gray-500 dark:text-gray-500 break-words-safe">
-                          {[job.province || job.location, job.category, job.type].filter(Boolean).join(' · ')}
+                          {[
+                            [job.city, job.region || job.province].filter(Boolean).join(', ') || job.location,
+                            job.countryCode ? countryDisplayName(job.countryCode) : null,
+                            job.jobFamily || job.category,
+                            job.specialization,
+                            job.type,
+                          ].filter(Boolean).join(' · ')}
                         </p>
                         {job.deadline && (
                           <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{t('deadline', { ns: 'common' })}: {formatDate(job.deadline)}</p>

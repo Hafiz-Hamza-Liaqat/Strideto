@@ -49,7 +49,10 @@ export default function Contact() {
       />
       <div className="max-w-2xl mx-auto px-4 sm:px-6 py-8 sm:py-10">
         <h1 className="text-2xl sm:text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('static:contactHeading')}</h1>
-        <p className="text-gray-600 dark:text-gray-400 mb-6 sm:mb-8 text-sm sm:text-base">{t('static:contactIntro')}</p>
+        <p className="text-gray-600 dark:text-gray-400 mb-4 sm:mb-6 text-sm sm:text-base">{t('static:contactIntro')}</p>
+        <p className="mb-6 rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/60 px-4 py-3 text-sm text-gray-600 dark:text-gray-300">
+          Support is handled through this form and help articles. We do not publish a phone hotline or guaranteed response-time SLA.
+        </p>
 
         {status === 'success' && (
           <Alert variant="success" className="mb-6">{t('static:contactSuccess')}</Alert>

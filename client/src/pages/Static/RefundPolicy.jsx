@@ -1,13 +1,12 @@
-import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { StaticPageShell, StaticSection } from '../../components/static/StaticPageShell';
+import { PublicInfoPage, PublicInfoSection } from '../../components/static/PublicInfoPage';
 import { ROUTES } from '../../constants';
 
 export default function RefundPolicy() {
-  const { t } = useTranslation('static');
+  const { t } = useTranslation(['static']);
 
   return (
-    <StaticPageShell
+    <PublicInfoPage
       titleKey="refundTitle"
       descriptionKey="refundDescription"
       headingKey="refundHeading"
@@ -15,16 +14,20 @@ export default function RefundPolicy() {
       canonical={ROUTES.REFUND_POLICY}
       ns="static"
       seoNs="static"
+      relatedLinks={[{ to: ROUTES.CONTACT, label: t('contactUs') }]}
     >
-      <StaticSection titleKey="refundIntroTitle" bodyKey="refundIntroBody" />
-      <StaticSection titleKey="refundEmployerTitle" bodyKey="refundEmployerBody" />
-      <StaticSection titleKey="refundStudentTitle" bodyKey="refundStudentBody" />
-      <StaticSection titleKey="refundProcessTitle" bodyKey="refundProcessBody" />
-      <p>
-        <Link to={ROUTES.CONTACT} className="text-primary dark:text-mint font-medium hover:underline">
-          {t('contactUs')}
-        </Link>
-      </p>
-    </StaticPageShell>
+      <PublicInfoSection title={t('refundIntroTitle')}>
+        <p>{t('refundIntroBody')}</p>
+      </PublicInfoSection>
+      <PublicInfoSection title={t('refundEmployerTitle')}>
+        <p>{t('refundEmployerBody')}</p>
+      </PublicInfoSection>
+      <PublicInfoSection title={t('refundStudentTitle')}>
+        <p>{t('refundStudentBody')}</p>
+      </PublicInfoSection>
+      <PublicInfoSection title={t('refundProcessTitle')}>
+        <p>{t('refundProcessBody')}</p>
+      </PublicInfoSection>
+    </PublicInfoPage>
   );
 }

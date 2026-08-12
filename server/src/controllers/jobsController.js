@@ -7,6 +7,8 @@ import {
   projectPublicJob,
   projectPublicJobListItem,
 } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
+import { normalizeCountryCode } from '../../../shared/international/country.js';
+import { isValidJobFamily, isValidSpecialization } from '../../../shared/career/jobTaxonomy.js';
 import {
   getRequestLocale,
   withListLocaleFilter,
@@ -47,9 +49,26 @@ function safeSearchRe(value) {
 function buildJobQuery(q) {
   const filter = buildPublicJobFilter();
   const extraAnd = [];
-  if (q.province) {
-    const re = safeSearchRe(q.province);
-    if (re) filter.province = re;
+  const countryCode = normalizeCountryCode(q.countryCode);
+  if (countryCode) {
+    extraAnd.push({ countryCode });
+  }
+  const regionVal = q.region || q.province;
+  if (regionVal) {
+    const re = safeSearchRe(regionVal);
+    if (re) {
+      extraAnd.push({ $or: [{ region: re }, { province: re }] });
+    }
+  }
+  if (q.city) {
+    const re = safeSearchRe(q.city);
+    if (re) filter.city = re;
+  }
+  if (q.jobFamily && isValidJobFamily(q.jobFamily)) {
+    filter.jobFamily = q.jobFamily.trim();
+  }
+  if (q.specialization && q.jobFamily && isValidSpecialization(q.jobFamily, q.specialization)) {
+    filter.specialization = q.specialization.trim();
   }
   if (q.category) {
     const re = safeSearchRe(q.category);
@@ -73,7 +92,15 @@ function buildJobQuery(q) {
     const re = safeSearchRe(q.search);
     if (re) {
       extraAnd.push({
-        $or: [{ title: re }, { company: re }, { organization: re }, { location: re }, { province: re }],
+        $or: [
+          { title: re },
+          { company: re },
+          { organization: re },
+          { location: re },
+          { province: re },
+          { region: re },
+          { city: re },
+        ],
       });
     }
   }
@@ -85,6 +112,60 @@ function buildJobSort(sort) {
   if (sort === 'deadline') return { deadline: 1, createdAt: -1 };
   return { createdAt: -1 };
 }
+
+/** GET /jobs/geo-facets — lightweight region/city/country facets from active jobs. */
+export const getJobGeoFacets = asyncHandler(async (req, res) => {
+  const baseMatch = buildPublicJobFilter();
+  const countryCode = normalizeCountryCode(req.query.countryCode);
+  const regionVal = String(req.query.region || req.query.province || '').trim();
+  const match = { ...baseMatch };
+  if (countryCode) match.countryCode = countryCode;
+  if (regionVal) {
+    match.$or = [{ region: regionVal }, { province: regionVal }];
+  }
+
+  const [countries, regions, cities] = await Promise.all([
+    Job.aggregate([
+      { $match: baseMatch },
+      { $match: { countryCode: { $exists: true, $nin: [null, ''] } } },
+      { $group: { _id: '$countryCode' } },
+      { $sort: { _id: 1 } },
+    ]),
+    countryCode
+      ? Job.aggregate([
+          { $match: match },
+          {
+            $project: {
+              regionLabel: {
+                $cond: [
+                  { $and: [{ $ne: ['$region', null] }, { $ne: ['$region', ''] }] },
+                  '$region',
+                  '$province',
+                ],
+              },
+            },
+          },
+          { $match: { regionLabel: { $exists: true, $nin: [null, ''] } } },
+          { $group: { _id: '$regionLabel' } },
+          { $sort: { _id: 1 } },
+        ])
+      : Promise.resolve([]),
+    countryCode
+      ? Job.aggregate([
+          { $match: match },
+          { $match: { city: { $exists: true, $nin: [null, ''] } } },
+          { $group: { _id: '$city' } },
+          { $sort: { _id: 1 } },
+        ])
+      : Promise.resolve([]),
+  ]);
+
+  res.json({
+    countries: countries.map((c) => c._id).filter(Boolean),
+    regions: regions.map((r) => r._id).filter(Boolean),
+    cities: cities.map((c) => c._id).filter(Boolean),
+  });
+});
 
 export const getJobs = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);

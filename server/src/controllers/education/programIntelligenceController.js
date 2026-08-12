@@ -54,6 +54,16 @@ function projectProgram(doc) {
 
 // ── List programs ─────────────────────────────────────────────────────────────
 
+export const getProgramFacets = asyncHandler(async (_req, res) => {
+  const rows = await Program.aggregate([
+    { $match: { status: 'published' } },
+    { $match: { country: { $exists: true, $nin: [null, ''] } } },
+    { $group: { _id: { $toUpper: '$country' } } },
+    { $sort: { _id: 1 } },
+  ]);
+  res.json({ countries: rows.map((r) => r._id).filter(Boolean) });
+});
+
 export const listPrograms = asyncHandler(async (req, res) => {
   const q = req.query || {};
   const filter = { status: 'published' };

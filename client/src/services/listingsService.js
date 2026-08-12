@@ -11,6 +11,7 @@ function buildParams(params) {
 
 export const jobsApi = {
   list: (params) => axiosInstance.get(`/jobs${buildParams(params)}`),
+  geoFacets: (params) => axiosInstance.get(`/jobs/geo-facets${buildParams(params)}`),
   get: (idOrSlug) => axiosInstance.get(`/jobs/${encodeURIComponent(idOrSlug)}`),
   save: (id) => axiosInstance.post(`/jobs/${id}/save`),
   unsave: (id) => axiosInstance.delete(`/jobs/${id}/save`),
@@ -306,6 +307,7 @@ export const canonicalScholarshipsApi = {
 // ── Program Intelligence (Mission 7) ─────────────────────────────────────────
 
 export const programIntelligenceApi = {
+  facets: () => axiosInstance.get('/education/programs/facets'),
   list: (params) => axiosInstance.get(`/education/programs${buildParams(params)}`),
   get: (slug) => axiosInstance.get(`/education/programs/${encodeURIComponent(slug)}`),
   compare: (slugs) => axiosInstance.get(`/education/programs/compare?slugs=${slugs.join(',')}`),

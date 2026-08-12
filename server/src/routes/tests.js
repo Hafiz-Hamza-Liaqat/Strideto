@@ -31,6 +31,7 @@ testsRouter.get('/education/institutions/:slug', tests.getInstitution);
 testsRouter.get('/education/institutions/:slug/acceptance', acceptance.getInstitutionAcceptance);
 
 // ── Programs (public, Mission 6 + 7) ─────────────────────────────────────────
+testsRouter.get('/education/programs/facets', programs.getProgramFacets);
 testsRouter.get('/education/programs', programs.listPrograms);
 testsRouter.get('/education/programs/compare', programs.comparePrograms);
 testsRouter.get('/education/programs/:slug', programs.getProgramDetail);

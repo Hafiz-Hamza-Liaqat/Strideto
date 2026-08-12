@@ -59,7 +59,7 @@ export default function CareerGuidance() {
         )}
       />
       <div className="max-w-5xl mx-auto px-4 py-8 md:py-10">
-        <Link to={ROUTES.DASHBOARD} className="text-edur-steel dark:text-edur-sky hover:underline text-sm mb-6 inline-block">{t('career:backToDashboard')}</Link>
+        <Link to={ROUTES.HOME} className="text-edur-steel dark:text-edur-sky hover:underline text-sm mb-6 inline-block">{t('career:backToHome', { defaultValue: '← Home' })}</Link>
         <AdHost placementId="career-guidance-header" className="mb-6" />
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white mb-2">{t('career:title')}</h1>
         <p className="text-lg text-gray-600 dark:text-gray-400 mb-6">{t('career:subtitle')}</p>
@@ -86,7 +86,7 @@ export default function CareerGuidance() {
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">{t('career:pathsByDegree')}</h2>
           <p className="text-sm text-gray-500 mb-6">
             {t('career:roadmapsIntro', {
-              defaultValue: 'Expand a major for roadmaps, skills, Pakistan salary orientation, certifications, and next steps.',
+              defaultValue: 'Expand a major for roles, skills, optional regional salary examples, certifications, and next steps.',
             })}
           </p>
           <div className="space-y-4">
@@ -124,11 +124,22 @@ export default function CareerGuidance() {
                           {degree.requiredSkills.map((s) => <li key={s}>{s}</li>)}
                         </ul>
                       </div>
-                      <div>
-                        <h4 className="font-medium text-gray-900 dark:text-white mb-1">Salary orientation (Pakistan)</h4>
-                        <p>Junior: {degree.salaryPakistanPkr.junior} · Mid: {degree.salaryPakistanPkr.mid}</p>
-                        <p className="text-xs text-gray-500 mt-1">{degree.salaryPakistanPkr.note}</p>
-                      </div>
+                      {degree.salaryPakistanPkr ? (
+                        <div>
+                          <h4 className="font-medium text-gray-900 dark:text-white mb-1">
+                            {t('career:regionalSalaryExample', { defaultValue: 'Regional salary example (Pakistan, PKR/month)' })}
+                          </h4>
+                          <p>
+                            {t('career:junior', { defaultValue: 'Junior' })}: {degree.salaryPakistanPkr.junior}
+                            {' · '}
+                            {t('career:mid', { defaultValue: 'Mid' })}: {degree.salaryPakistanPkr.mid}
+                          </p>
+                          <p className="text-xs text-gray-500 mt-1">{degree.salaryPakistanPkr.note}</p>
+                          <p className="text-xs text-gray-500 mt-1">
+                            {t('career:salaryDisclaimer', { defaultValue: 'Indicative only — varies by country, city, and employer.' })}
+                          </p>
+                        </div>
+                      ) : null}
                       <div>
                         <h4 className="font-medium text-gray-900 dark:text-white mb-1">Certifications</h4>
                         <ul className="list-disc pl-5 space-y-1">

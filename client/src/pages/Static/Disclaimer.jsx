@@ -1,13 +1,12 @@
-import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { StaticPageShell, StaticSection } from '../../components/static/StaticPageShell';
+import { PublicInfoPage, PublicInfoSection } from '../../components/static/PublicInfoPage';
 import { ROUTES } from '../../constants';
 
 export default function Disclaimer() {
-  const { t } = useTranslation('static');
+  const { t } = useTranslation(['static']);
 
   return (
-    <StaticPageShell
+    <PublicInfoPage
       titleKey="disclaimerTitle"
       descriptionKey="disclaimerDescription"
       headingKey="disclaimerHeading"
@@ -15,16 +14,20 @@ export default function Disclaimer() {
       canonical={ROUTES.DISCLAIMER}
       ns="static"
       seoNs="static"
+      relatedLinks={[{ to: ROUTES.CONTACT, label: t('contactUs') }]}
     >
-      <StaticSection titleKey="disclaimerIntroTitle" bodyKey="disclaimerIntroBody" />
-      <StaticSection titleKey="disclaimerAccuracyTitle" bodyKey="disclaimerAccuracyBody" />
-      <StaticSection titleKey="disclaimerThirdPartyTitle" bodyKey="disclaimerThirdPartyBody" />
-      <StaticSection titleKey="disclaimerLiabilityTitle" bodyKey="disclaimerLiabilityBody" />
-      <p>
-        <Link to={ROUTES.CONTACT} className="text-primary dark:text-mint font-medium hover:underline">
-          {t('contactUs')}
-        </Link>
-      </p>
-    </StaticPageShell>
+      <PublicInfoSection title={t('disclaimerIntroTitle')}>
+        <p>{t('disclaimerIntroBody')}</p>
+      </PublicInfoSection>
+      <PublicInfoSection title={t('disclaimerAccuracyTitle')}>
+        <p>{t('disclaimerAccuracyBody')}</p>
+      </PublicInfoSection>
+      <PublicInfoSection title={t('disclaimerThirdPartyTitle')}>
+        <p>{t('disclaimerThirdPartyBody')}</p>
+      </PublicInfoSection>
+      <PublicInfoSection title={t('disclaimerLiabilityTitle')}>
+        <p>{t('disclaimerLiabilityBody')}</p>
+      </PublicInfoSection>
+    </PublicInfoPage>
   );
 }

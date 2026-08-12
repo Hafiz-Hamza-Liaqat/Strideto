@@ -61,6 +61,9 @@ export function NewsletterSubscribe({ compact = false }) {
       <p className="text-sm text-gray-600 dark:text-gray-400">
         {t('newsletter.description')}
       </p>
+      <p className="text-xs text-gray-500 dark:text-gray-400">
+        {t('newsletter.deliveryNote')}
+      </p>
       <div className="flex flex-col sm:flex-row gap-2">
         <label htmlFor={`${fieldId}-email`} className="sr-only">{t('newsletter.placeholderFull')}</label>
         <input
