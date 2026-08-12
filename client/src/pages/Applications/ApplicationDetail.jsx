@@ -265,7 +265,7 @@ export default function ApplicationDetail() {
               {application.applicationChannel === 'external_personal' && (
                 <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
                   {t('applications:authority.externalApplied', {
-                    defaultValue: 'Applied externally. Status is your personal tracker and is not yet confirmed by the employer.',
+                    defaultValue: 'Applied externally. Status not yet provided by Employer unless an owning Employer supplies a matched update.',
                   })}
                 </p>
               )}
