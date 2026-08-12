@@ -119,13 +119,10 @@ export default function InstitutionLayout() {
 
       <aside className="hidden lg:flex w-64 shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex-col">
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <div className="flex items-start justify-between gap-2">
-            <Link to={ROUTES.INSTITUTION_DASHBOARD} className="flex items-center gap-2 text-gray-900 dark:text-white font-semibold tracking-tight min-w-0">
-              <Logo variant="symbol" height={28} />
-              Strideto
-            </Link>
-            <InstitutionNotificationBell />
-          </div>
+          <Link to={ROUTES.INSTITUTION_DASHBOARD} className="flex items-center gap-2 text-gray-900 dark:text-white font-semibold tracking-tight min-w-0">
+            <Logo variant="symbol" height={28} />
+            Strideto
+          </Link>
           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{chrome}</p>
         </div>
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto"><NavLinks location={location} /></nav>
@@ -135,11 +132,14 @@ export default function InstitutionLayout() {
           <button type="button" onClick={handleLogout} className="mt-3 min-h-[44px] w-full rounded-lg px-3 text-left text-sm font-semibold text-red-700 dark:text-red-400 hover:bg-red-50 dark:hover:bg-red-950/40">Log out</button>
         </div>
       </aside>
-      <div className="min-w-0 flex-1">
-        <main id="main-content" tabIndex={-1} className="mx-auto max-w-6xl px-4 py-6 outline-none sm:px-6 sm:py-8">
+      <main id="main-content" tabIndex={-1} className="flex-1 overflow-auto min-w-0 outline-none">
+        <div className="hidden lg:flex items-center justify-end px-4 sm:px-6 md:px-8 pt-4 max-w-6xl mx-auto w-full">
+          <InstitutionNotificationBell />
+        </div>
+        <div className="mx-auto max-w-6xl px-4 py-6 sm:px-6 sm:py-8">
           <Outlet />
-        </main>
-      </div>
+        </div>
+      </main>
     </div>
   );
 }

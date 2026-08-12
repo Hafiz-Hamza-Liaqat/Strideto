@@ -5,6 +5,9 @@ import { SeoHead } from '../../components/seo';
 import { employerApi } from '../../services/employerService';
 import { ROUTES } from '../../constants';
 import { VerificationBadge } from '../../components/common/VerificationBadge';
+import { PortalWelcomeBanner } from '../../components/welcome/PortalWelcomeBanner';
+import { AnnouncementFeed } from '../../components/announcements/AnnouncementFeed';
+import { useEmployerAuth } from '../../context/EmployerAuthContext';
 
 const Card = ({ title, value, sub, to }) => {
   const inner = (
@@ -20,6 +23,7 @@ const Card = ({ title, value, sub, to }) => {
 
 export default function EmployerDashboard() {
   const { t } = useTranslation(['employer', 'common']);
+  const { employer } = useEmployerAuth();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -103,6 +107,12 @@ export default function EmployerDashboard() {
   return (
     <>
       <SeoHead title={t('employer:dashboard')} description={t('employer:dashboardSeoDesc')} noindex />
+      <PortalWelcomeBanner
+        realm="employer"
+        userId={employer?._id || employer?.employerId}
+        displayName={employer?.companyName || employer?.contactName}
+      />
+      <AnnouncementFeed title="Employer announcements" className="mb-6" />
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">{t('employer:dashboardHeading')}</h1>
         <VerificationBadge level={data?.verificationLevel} verified={data?.verified} />

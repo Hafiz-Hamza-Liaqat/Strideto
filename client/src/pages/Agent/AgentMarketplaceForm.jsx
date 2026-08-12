@@ -3,6 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { agentApi } from '../../services/agentService';
 import { ROUTES } from '../../constants';
 import { btnPrimary, cardClass, inputClass, labelClass, muted } from './agentUi';
+import { coerceCountryCode, isValidCountryCode } from '@shared/international/country.js';
 
 const EMPTY = {
   postType: 'service_announcement', title: '', summary: '', contentKind: 'agent_statement', agentStatement: '',
@@ -10,6 +11,14 @@ const EMPTY = {
   referenceType: '', referenceId: '', factualStatement: '', sourceIds: '', effectiveAt: '', endsAt: '',
 };
 const csv = (v, upper = false) => String(v || '').split(',').map((x) => (upper ? x.trim().toUpperCase() : x.trim())).filter(Boolean);
+const validateCountryCsv = (raw, label) => {
+  const codes = csv(raw, true);
+  for (const code of codes) {
+    const normalized = coerceCountryCode(code) || code;
+    if (!isValidCountryCode(normalized)) return `Invalid ISO country code in ${label}: ${code}`;
+  }
+  return '';
+};
 
 export default function AgentMarketplaceForm() {
   const { postId } = useParams();
@@ -47,6 +56,13 @@ export default function AgentMarketplaceForm() {
   const set = (k) => (e) => setForm((f) => ({ ...f, [k]: e.target.value }));
   const submit = async (e) => {
     e.preventDefault(); setBusy(true); setError('');
+    const destErr = validateCountryCsv(form.destinationCountries, 'destination countries');
+    const targetErr = validateCountryCsv(form.targetCountries, 'service countries');
+    if (destErr || targetErr) {
+      setError(destErr || targetErr);
+      setBusy(false);
+      return;
+    }
     const sources = csv(form.sourceIds);
     const refs = form.referenceType && form.referenceId ? [{ referenceType: form.referenceType, referenceId: form.referenceId }] : [];
     const factual = form.contentKind === 'source_backed_fact' && form.factualStatement ? [{ claimKey: 'agent_referenced_fact', statement: form.factualStatement, sourceIds: sources }] : [];
@@ -73,20 +89,21 @@ export default function AgentMarketplaceForm() {
       {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300" role="alert">{error}</p> : null}
       <form onSubmit={submit} className={`grid gap-4 ${cardClass} md:grid-cols-2`}>
         <label className={labelClass}>Post type<select value={form.postType} onChange={set('postType')} className={inputClass}>{['service_announcement', 'consultation_availability', 'application_support', 'scholarship_guidance', 'university_guidance', 'test_guidance', 'career_guidance', 'informational_update', 'verified_opportunity_reference', 'event_or_session', 'other'].map((v) => <option key={v} value={v}>{v.replaceAll('_', ' ')}</option>)}</select></label>
-        <label className={labelClass}>Content classification<select value={form.contentKind} onChange={set('contentKind')} className={inputClass}><option value="agent_statement">Agent statement</option><option value="source_backed_fact">Official/source-backed fact reference</option></select></label>
+        <label className={labelClass}>Content classification<select value={form.contentKind} onChange={set('contentKind')} className={inputClass}><option value="agent_statement">Agent statement (default)</option><option value="source_backed_fact">Official/source-backed fact reference (advanced)</option></select></label>
         <label className={`${labelClass} md:col-span-2`}>Title<input required value={form.title} onChange={set('title')} className={inputClass} /></label>
         <label className={`${labelClass} md:col-span-2`}>Summary<textarea required value={form.summary} onChange={set('summary')} className={inputClass} /></label>
         <label className={`${labelClass} md:col-span-2`}>Agent/Agency statement<textarea required rows="5" value={form.agentStatement} onChange={set('agentStatement')} className={inputClass} placeholder="Describe how you can assist. Do not state guaranteed outcomes." /></label>
         <label className={labelClass}>Related active service<select value={form.relatedAgentServiceId || ''} onChange={set('relatedAgentServiceId')} className={inputClass}><option value="">None</option>{services.filter((s) => s.status === 'active').map((s) => <option key={s._id} value={s._id}>{s.title}</option>)}</select></label>
-        <label className={labelClass}>Destination countries<input value={form.destinationCountries} onChange={set('destinationCountries')} className={inputClass} placeholder="GB, CA" /></label>
-        <label className={labelClass}>Service countries<input value={form.targetCountries} onChange={set('targetCountries')} className={inputClass} /></label>
+        <label className={labelClass}>Destination countries<input value={form.destinationCountries} onChange={set('destinationCountries')} className={inputClass} placeholder="GB, CA (ISO alpha-2)" /></label>
+        <label className={labelClass}>Service countries<input value={form.targetCountries} onChange={set('targetCountries')} className={inputClass} placeholder="GB, CA (ISO alpha-2)" /></label>
         <label className={labelClass}>Journey categories<input value={form.journeyCategories} onChange={set('journeyCategories')} className={inputClass} /></label>
         <label className={labelClass}>Languages<input value={form.languages} onChange={set('languages')} className={inputClass} /></label>
         <label className={labelClass}>End date<input type="date" value={form.endsAt || ''} onChange={set('endsAt')} className={inputClass} /></label>
         {form.contentKind === 'source_backed_fact' ? (
           <>
+            <p className={`md:col-span-2 text-sm ${muted}`}>Source-backed posts require canonical references. Most agents should use Agent statement only.</p>
             <label className={labelClass}>Canonical reference type<select required value={form.referenceType} onChange={set('referenceType')} className={inputClass}><option value="">Select</option><option value="program">Program</option><option value="canonical_scholarship">Scholarship</option><option value="test">Test</option><option value="canonical_institution">Institution</option></select></label>
-            <label className={labelClass}>Canonical record ID<input required value={form.referenceId} onChange={set('referenceId')} className={inputClass} /></label>
+            <label className={labelClass}>Canonical record ID<input required value={form.referenceId} onChange={set('referenceId')} className={inputClass} placeholder="Admin-provided published record id" /></label>
             <label className={`${labelClass} md:col-span-2`}>Referenced factual statement<textarea required value={form.factualStatement} onChange={set('factualStatement')} className={inputClass} /></label>
             <label className={`${labelClass} md:col-span-2`}>Canonical source IDs (comma separated)<input required value={form.sourceIds} onChange={set('sourceIds')} className={inputClass} /></label>
           </>

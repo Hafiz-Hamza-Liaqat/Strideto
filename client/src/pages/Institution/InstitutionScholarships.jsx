@@ -2,18 +2,26 @@ import { useEffect, useState } from 'react';
 import { useInstitutionAuth } from '../../context/InstitutionAuthContext';
 import { institutionPortalApi } from '../../services/institutionPortalService';
 import { PageState, Panel, StatusBadge, fieldClass, primaryButton, secondaryButton } from './InstitutionUi';
+import InstitutionPublishingGate, { canSubmitOrPublish } from './InstitutionPublishingGate';
 
 export default function InstitutionScholarships() {
   const { organizationId } = useInstitutionAuth();
   const [items, setItems] = useState([]);
+  const [authority, setAuthority] = useState(null);
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [form, setForm] = useState({ title: '', summary: '', amountMinor: '', currency: '', deadlineDate: '', cycleLabel: '', sourceUrl: '', nationalityScope: '', eligibility: '' });
 
-  const load = (query = q) => institutionPortalApi.scholarships(organizationId, { q: query })
-    .then(({ data }) => setItems(data.scholarships || []))
+  const load = (query = q) => Promise.all([
+    institutionPortalApi.scholarships(organizationId, { q: query }),
+    institutionPortalApi.dashboard(organizationId),
+  ])
+    .then(([scholarshipRes, dashboardRes]) => {
+      setItems(scholarshipRes.data.scholarships || []);
+      setAuthority(dashboardRes.data);
+    })
     .catch((err) => setError(err.response?.data?.error || 'Unable to load scholarships.'))
     .finally(() => setLoading(false));
 
@@ -42,6 +50,7 @@ export default function InstitutionScholarships() {
   };
 
   if (loading) return <PageState>Loading scholarships…</PageState>;
+  const canCreate = canSubmitOrPublish(authority);
 
   return (
     <div className="space-y-6">
@@ -49,6 +58,7 @@ export default function InstitutionScholarships() {
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Scholarships & funding</h1>
         <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Verified + canonically claimed Institutions may manage their own scholarships. No guarantee wording. External awards require independent source authority.</p>
       </div>
+      <InstitutionPublishingGate authority={authority} action="scholarship create or publish" />
       {error ? <PageState tone="error" role="alert">{error}</PageState> : null}
       {notice ? <PageState tone="success">{notice}</PageState> : null}
       <form className="flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); load(q); }}>
@@ -64,6 +74,9 @@ export default function InstitutionScholarships() {
         </Panel>
       ))}
       <Panel title="Create Institution-owned scholarship">
+        {!canCreate ? (
+          <PageState tone="warning">Scholarship drafts require approved verification and an approved canonical claim. Existing drafts remain private until authority is active.</PageState>
+        ) : null}
         <form className="grid gap-4 sm:grid-cols-2" onSubmit={submit}>
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2">Title<input required className={`${fieldClass} mt-1`} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} /></label>
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Amount (minor units)<input type="number" min="0" className={`${fieldClass} mt-1`} value={form.amountMinor} onChange={(e) => setForm({ ...form, amountMinor: e.target.value })} /></label>
@@ -74,7 +87,7 @@ export default function InstitutionScholarships() {
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2">Source URL<input className={`${fieldClass} mt-1`} value={form.sourceUrl} onChange={(e) => setForm({ ...form, sourceUrl: e.target.value })} /></label>
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2">Eligibility criteria<textarea className={`${fieldClass} mt-1`} value={form.eligibility} onChange={(e) => setForm({ ...form, eligibility: e.target.value })} /></label>
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2">Summary<textarea className={`${fieldClass} mt-1`} value={form.summary} onChange={(e) => setForm({ ...form, summary: e.target.value })} /></label>
-          <div className="sm:col-span-2"><button className={primaryButton}>Create draft</button></div>
+          <div className="sm:col-span-2"><button className={primaryButton} disabled={!canCreate}>Create draft</button></div>
         </form>
       </Panel>
     </div>

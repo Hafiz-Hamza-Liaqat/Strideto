@@ -36,6 +36,14 @@ function quotaError(status, code, message, extra = {}) {
   return error;
 }
 
+/** Server-derived entitlement type for admin review and employer usage UI. */
+export function derivePublishingEntitlementType(snapshot) {
+  if (!snapshot?.policy) return 'not_configured';
+  if (snapshot.policy.paidPublishingEnabled) return 'paid_product';
+  if (snapshot.policy.code) return 'free_quota';
+  return 'not_configured';
+}
+
 export async function loadEmployerPublishingUsage(employerId, { now = new Date() } = {}) {
   const eid = employerId;
   const [drafts, closed, activeFree, pendingReview, chargedJobs, employer] = await Promise.all([
@@ -65,7 +73,7 @@ export async function loadEmployerPublishingUsage(employerId, { now = new Date()
   const eligibilityEmployer = await overlayOrganizationVerification(employer, eid);
   const eligibility = evaluateEmployerSubmissionEligibility(eligibilityEmployer || {});
 
-  return {
+  const payload = {
     policy: {
       code: FREE_BETA_PUBLISHING_POLICY.code,
       version: FREE_BETA_PUBLISHING_POLICY.version,
@@ -88,6 +96,15 @@ export async function loadEmployerPublishingUsage(employerId, { now = new Date()
     },
     usage,
     nextReset: usage.daily.nextEligibleAt || usage.rolling30Days.nextSlotAt || null,
+  };
+  return {
+    ...payload,
+    entitlement: {
+      type: derivePublishingEntitlementType(payload),
+      policyCode: payload.policy.code,
+      policyVersion: payload.policy.version,
+      paidPublishingEnabled: payload.policy.paidPublishingEnabled,
+    },
   };
 }
 

@@ -18,6 +18,8 @@ import { OpportunityApplicationRepository } from '../repositories/career/Opportu
 import { buildEmployerProfileUpdates } from '../utils/employerProfileValidation.js';
 import { isSameStatusNoOp } from '../utils/applicationStatusTransition.js';
 import { parseOpeningsCount } from '../../../shared/employer/openingsCount.js';
+import { normalizeCountryCode } from '../../../shared/international/country.js';
+import { isValidJobFamily, isValidSpecialization } from '../../../shared/career/jobTaxonomy.js';
 import { hiringOwnerIdFrom } from '../services/employer/employerOrganizationService.js';
 import {
   assertChargedSubmissionAllowed,
@@ -46,6 +48,46 @@ const JOB_SORTS = Object.freeze({
 
 function escapeRegex(value) {
   return String(value).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+}
+
+function resolveJobGeoFields(body = {}) {
+  const countryCode = body.countryCode != null && String(body.countryCode).trim()
+    ? normalizeCountryCode(body.countryCode)
+    : undefined;
+  const regionRaw = body.region != null ? String(body.region).trim() : '';
+  const provinceRaw = body.province != null ? String(body.province).trim() : '';
+  const region = regionRaw || provinceRaw || undefined;
+  const city = body.city != null && String(body.city).trim() ? String(body.city).trim() : undefined;
+  return {
+    countryCode: countryCode || undefined,
+    region,
+    province: region,
+    city,
+  };
+}
+
+function resolveJobTaxonomyFields(body = {}) {
+  const jobFamily = body.jobFamily != null && String(body.jobFamily).trim()
+    ? String(body.jobFamily).trim()
+    : undefined;
+  const specialization = body.specialization != null && String(body.specialization).trim()
+    ? String(body.specialization).trim()
+    : undefined;
+  if (jobFamily && !isValidJobFamily(jobFamily)) {
+    return { ok: false, error: 'Invalid job family', field: 'jobFamily' };
+  }
+  if (specialization && jobFamily && !isValidSpecialization(jobFamily, specialization)) {
+    return { ok: false, error: 'Invalid specialization for selected job family', field: 'specialization' };
+  }
+  if (specialization && !jobFamily) {
+    return { ok: false, error: 'jobFamily is required when specialization is set', field: 'jobFamily' };
+  }
+  return {
+    ok: true,
+    jobFamily,
+    specialization,
+    category: body.category != null && String(body.category).trim() ? String(body.category).trim() : undefined,
+  };
 }
 
 /** GET /employer/dashboard - Stats for employer dashboard */
@@ -203,15 +245,24 @@ export const createJob = asyncHandler(async (req, res) => {
 
   const isFirstJob = (employer.totalJobsPosted || 0) === 0;
   const approvalStatus = 'pending';
+  const geo = resolveJobGeoFields(body);
+  const taxonomy = resolveJobTaxonomyFields(body);
+  if (!taxonomy.ok) {
+    return res.status(400).json({ error: taxonomy.error, field: taxonomy.field });
+  }
   const job = await Job.create({
     title,
     slug: finalSlug,
     company: companyName,
     organization: companyName,
     location: body.location,
-    province: body.province,
-    city: body.city,
-    category: body.category,
+    countryCode: geo.countryCode,
+    region: geo.region,
+    province: geo.province,
+    city: geo.city,
+    category: taxonomy.category,
+    jobFamily: taxonomy.jobFamily,
+    specialization: taxonomy.specialization,
     type: body.type || 'full-time',
     jobType: body.jobType || 'Private',
     educationRequirement: body.educationRequirement,
@@ -323,8 +374,23 @@ export const updateJob = asyncHandler(async (req, res) => {
     job.openingsCount = openings.value;
   }
 
+  if (body.jobFamily !== undefined) {
+    const val = String(body.jobFamily || '').trim();
+    if (val && !isValidJobFamily(val)) {
+      return res.status(400).json({ error: 'Invalid job family', field: 'jobFamily' });
+    }
+  }
+  if (body.specialization !== undefined) {
+    const val = String(body.specialization || '').trim();
+    const family = body.jobFamily !== undefined ? String(body.jobFamily || '').trim() : job.jobFamily;
+    if (val && (!family || !isValidSpecialization(family, val))) {
+      return res.status(400).json({ error: 'Invalid specialization for selected job family', field: 'specialization' });
+    }
+  }
+
   const allowed = [
-    'title', 'company', 'organization', 'location', 'province', 'city', 'category', 'type', 'jobType',
+    'title', 'company', 'organization', 'location', 'countryCode', 'region', 'province', 'city',
+    'category', 'jobFamily', 'specialization', 'type', 'jobType',
     'educationRequirement', 'experience', 'applicationLink', 'applyEmail', 'description', 'requirements',
     'salaryRange', 'skillsRequired', 'deadline', 'jobTitle', 'companyName', 'jobDescription', 'applyLink', 'applicationDeadline',
   ];
@@ -337,7 +403,16 @@ export const updateJob = asyncHandler(async (req, res) => {
       else if (key === 'applyLink' || key === 'applicationLink') job.applicationLink = validatedLink;
       else if (key === 'applyEmail') job.applyEmail = validatedEmail;
       else if (key === 'applicationDeadline') job.deadline = body[key] ? new Date(body[key]) : null;
-      else job[key] = body[key];
+      else if (key === 'countryCode') job.countryCode = normalizeCountryCode(body[key]) || undefined;
+      else if (key === 'region' || key === 'province') {
+        const val = String(body[key] || '').trim() || undefined;
+        job.region = val;
+        job.province = val;
+      } else if (key === 'jobFamily') {
+        job.jobFamily = String(body[key] || '').trim() || undefined;
+      } else if (key === 'specialization') {
+        job.specialization = String(body[key] || '').trim() || undefined;
+      } else job[key] = body[key];
     }
   });
   if (body.requirements && Array.isArray(body.requirements)) job.requirements = body.requirements;

@@ -1,4 +1,5 @@
 import { AgentMarketplacePost } from '../models/agent/AgentMarketplacePost.js';
+import mongoose from 'mongoose';
 import { AgentMarketplaceModerationEvent } from '../models/agent/AgentMarketplaceModerationEvent.js';
 import { AgentMarketplaceInterest } from '../models/agent/AgentMarketplaceInterest.js';
 import { AgentProfile } from '../models/agent/AgentProfile.js';
@@ -24,8 +25,23 @@ import {
   MARKETPLACE_INTEREST_STATUSES, marketplaceClaimSignals, requiresMarketplaceProvenance,
   freshnessWarning, isMarketplaceCurrentlyActive,
 } from '../../../shared/agent/marketplace.js';
+import { coerceCountryCode, isValidCountryCode } from '../../../shared/international/country.js';
 
 const error = (message, status = 400) => Object.assign(new Error(message), { status });
+const assertObjectId = (value, label) => {
+  if (!value || !mongoose.Types.ObjectId.isValid(String(value))) {
+    throw error(`Invalid ${label}`, 422);
+  }
+};
+const validateCountryCodeList = (codes, fieldName) => {
+  if (!Array.isArray(codes)) return;
+  for (const raw of codes) {
+    const code = coerceCountryCode(raw) || (typeof raw === 'string' ? raw.trim().toUpperCase() : '');
+    if (!isValidCountryCode(code)) {
+      throw error(`Invalid ISO country code in ${fieldName}: ${raw}`, 422);
+    }
+  }
+};
 const slugify = (value) => String(value || '').trim().toLowerCase().replace(/\s+/g, '-').replace(/[^\w-]+/g, '').replace(/-+/g, '-').replace(/^-|-$/g, '') || 'marketplace-post';
 const list = (value, upper = false) => Array.isArray(value) ? value.map((v) => upper ? String(v).trim().toUpperCase() : String(v).trim()).filter(Boolean).slice(0, 30) : [];
 
@@ -60,6 +76,7 @@ async function uniqueSlug(title) {
 
 async function validateRelatedRecords(data, organizationId) {
   if (data.relatedAgentServiceId) {
+    assertObjectId(data.relatedAgentServiceId, 'related service id');
     const service = await AgentService.findOne({ _id: data.relatedAgentServiceId, organizationId }).lean();
     if (!service) throw error('Related service not found in this organization', 404);
   }
@@ -70,6 +87,7 @@ async function validateRelatedRecords(data, organizationId) {
     [MARKETPLACE_REFERENCE_TYPES.INSTITUTION]: CanonicalInstitution,
   };
   for (const ref of data.canonicalReferences || []) {
+    assertObjectId(ref.referenceId, 'canonical reference id');
     const model = modelMap[ref.referenceType];
     if (!model || !(await model.exists({ _id: ref.referenceId, status: 'published' }))) throw error('Canonical reference is invalid or not publicly published', 422);
   }
@@ -79,6 +97,7 @@ async function sourceState(data) {
   const ids = new Set([...(data.sourceIds || []).map(String)]);
   for (const claim of data.factualClaims || []) for (const id of claim.sourceIds || []) ids.add(String(id));
   if (!ids.size) return { sourceIds: [], freshness: FRESHNESS_STATES.UNKNOWN };
+  for (const id of ids) assertObjectId(id, 'canonical source id');
   const sources = await CanonicalSource.find({ _id: { $in: [...ids] } }).select('_id status lastVerifiedAt nextReviewAt').lean();
   if (sources.length !== ids.size) throw error('One or more canonical sources do not exist', 422);
   const states = sources.map((s) => deriveFreshness({ lastVerifiedAt: s.lastVerifiedAt, nextReviewAt: s.nextReviewAt, sourceStatus: s.status }));
@@ -90,7 +109,12 @@ const editableFields = ['postType','title','summary','contentKind','agentStateme
 function normalizedInput(data) {
   const out = {};
   for (const key of editableFields) if (key in data) out[key] = data[key];
-  for (const key of ['targetCountries','destinationCountries']) if (key in out) out[key] = list(out[key], true);
+  for (const key of ['targetCountries','destinationCountries']) {
+    if (key in out) {
+      out[key] = list(out[key], true);
+      validateCountryCodeList(out[key], key);
+    }
+  }
   for (const key of ['degreeCategories','careerCategories','journeyCategories','languages']) if (key in out) out[key] = list(out[key]);
   return out;
 }
@@ -111,6 +135,7 @@ export async function createDraft(agentAccountId, data) {
 }
 
 export async function updateDraft(agentAccountId, postId, data) {
+  assertObjectId(postId, 'marketplace post id');
   const { profile } = await resolveAgentScope(agentAccountId);
   const post = await AgentMarketplacePost.findOne({ _id: postId, organizationId: profile.organizationId });
   if (!post) throw error('Marketplace post not found', 404);

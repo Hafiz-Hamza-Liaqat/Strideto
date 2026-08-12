@@ -12,6 +12,7 @@
  *   - Suspended/revoked/expired organizations lose privileged publishing authority.
  */
 import { Organization as _Organization } from '../models/Organization.js';
+import mongoose from 'mongoose';
 import { OrganizationVerification } from '../models/OrganizationVerification.js';
 import { CanonicalInstitution } from '../models/education/CanonicalInstitution.js';
 import { Program } from '../models/education/Program.js';
@@ -274,6 +275,9 @@ export async function startClaim({
   let officialDomain = '';
 
   if (canonicalInstitutionId) {
+    if (!mongoose.Types.ObjectId.isValid(String(canonicalInstitutionId))) {
+      throw Object.assign(new Error('Invalid canonical institution id'), { code: 'VALIDATION', status: 422 });
+    }
     const ci = await CanonicalInstitution.findById(canonicalInstitutionId).lean();
     if (!ci) throw Object.assign(new Error('Canonical institution not found'), { code: 'NOT_FOUND', status: 404 });
     normalizedName = (ci.officialName || '').toLowerCase().trim();

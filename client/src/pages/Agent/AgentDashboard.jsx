@@ -2,6 +2,9 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { agentApi } from '../../services/agentService';
 import { ROUTES } from '../../constants';
+import { PortalWelcomeBanner } from '../../components/welcome/PortalWelcomeBanner';
+import { AnnouncementFeed } from '../../components/announcements/AnnouncementFeed';
+import { useAgentAuth } from '../../context/AgentAuthContext';
 
 const STATUS_LABELS = {
   draft: { label: 'Draft', color: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100' },
@@ -20,6 +23,7 @@ const STATUS_LABELS = {
 const cardClass = 'rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4';
 
 export default function AgentDashboard() {
+  const { agent } = useAgentAuth();
   const [dashboard, setDashboard] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -68,6 +72,12 @@ export default function AgentDashboard() {
 
   return (
     <div className="space-y-6">
+      <PortalWelcomeBanner
+        realm="agent"
+        userId={agent?._id || agent?.agentProfileId}
+        displayName={agent?.professionalName || agent?.displayName}
+      />
+      <AnnouncementFeed title="Agent announcements" />
       <div>
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Dashboard</h1>
         <p className="text-slate-500 dark:text-gray-400 text-sm mt-1">

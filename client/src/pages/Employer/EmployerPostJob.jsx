@@ -15,12 +15,20 @@ import {
   DEFAULT_APPLY_METHOD,
   validateApplyMethodSelection,
   resolveApplyMethodFromJob,
+  JOB_FAMILIES,
+  SPECIALIZATIONS_BY_FAMILY,
 } from './employerPostJobValidation';
+import { ISO_3166_ALPHA2, countryDisplayName, PROVINCES } from '../../constants/listings';
 
 const defaultForm = {
   jobTitle: '',
   companyName: '',
   location: '',
+  countryCode: '',
+  region: '',
+  city: '',
+  jobFamily: '',
+  specialization: '',
   jobType: 'Private',
   type: 'full-time',
   salaryRange: '',
@@ -123,7 +131,16 @@ export default function EmployerPostJob() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
-    setForm((f) => ({ ...f, [name]: value }));
+    setForm((f) => {
+      const next = { ...f, [name]: value };
+      if (name === 'jobFamily') next.specialization = '';
+      if (name === 'countryCode') {
+        next.region = '';
+        next.city = '';
+      }
+      if (name === 'region') next.city = '';
+      return next;
+    });
     setFieldErrors((prev) => {
       if (!prev[name]) return prev;
       const next = { ...prev };
@@ -419,6 +436,120 @@ export default function EmployerPostJob() {
             autoComplete="address-level2"
           />
           <FieldError id={`${FIELD_IDS.location}-error`} message={translateFieldError(fieldErrors.location)} />
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+          <div>
+            <label htmlFor={FIELD_IDS.countryCode} className={labelClass}>
+              {t('employer:countryLabel', { defaultValue: 'Country' })}
+              <OptionalMark t={t} />
+            </label>
+            <select
+              id={FIELD_IDS.countryCode}
+              name="countryCode"
+              value={form.countryCode}
+              onChange={handleChange}
+              disabled={submitting}
+              className={inputClass}
+            >
+              <option value="">{t('employer:selectCountry', { defaultValue: 'Select country' })}</option>
+              {[...ISO_3166_ALPHA2].sort((a, b) => (countryDisplayName(a) || a).localeCompare(countryDisplayName(b) || b)).map((code) => (
+                <option key={code} value={code}>{countryDisplayName(code) || code}</option>
+              ))}
+            </select>
+            <FieldError id={`${FIELD_IDS.countryCode}-error`} message={translateFieldError(fieldErrors.countryCode)} />
+          </div>
+          <div>
+            <label htmlFor={FIELD_IDS.region} className={labelClass}>
+              {t('employer:regionLabel', { defaultValue: 'State / Province / Region' })}
+              <OptionalMark t={t} />
+            </label>
+            {form.countryCode === 'PK' ? (
+              <select
+                id={FIELD_IDS.region}
+                name="region"
+                value={form.region}
+                onChange={handleChange}
+                disabled={submitting}
+                className={inputClass}
+              >
+                <option value="">{t('employer:selectRegion', { defaultValue: 'Select region' })}</option>
+                {PROVINCES.map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            ) : (
+              <input
+                id={FIELD_IDS.region}
+                name="region"
+                value={form.region}
+                onChange={handleChange}
+                disabled={submitting || !form.countryCode}
+                className={inputClass}
+                autoComplete="address-level1"
+              />
+            )}
+            <FieldError id={`${FIELD_IDS.region}-error`} message={translateFieldError(fieldErrors.region)} />
+          </div>
+          <div>
+            <label htmlFor={FIELD_IDS.city} className={labelClass}>
+              {t('employer:cityLabel', { defaultValue: 'City' })}
+              <OptionalMark t={t} />
+            </label>
+            <input
+              id={FIELD_IDS.city}
+              name="city"
+              value={form.city}
+              onChange={handleChange}
+              disabled={submitting || !form.countryCode}
+              className={inputClass}
+              autoComplete="address-level2"
+            />
+            <FieldError id={`${FIELD_IDS.city}-error`} message={translateFieldError(fieldErrors.city)} />
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor={FIELD_IDS.jobFamily} className={labelClass}>
+              {t('employer:jobFamilyLabel', { defaultValue: 'Job family' })}
+              <OptionalMark t={t} />
+            </label>
+            <select
+              id={FIELD_IDS.jobFamily}
+              name="jobFamily"
+              value={form.jobFamily}
+              onChange={handleChange}
+              disabled={submitting}
+              className={inputClass}
+            >
+              <option value="">{t('employer:selectJobFamily', { defaultValue: 'Select job family' })}</option>
+              {JOB_FAMILIES.map((f) => (
+                <option key={f} value={f}>{f}</option>
+              ))}
+            </select>
+            <FieldError id={`${FIELD_IDS.jobFamily}-error`} message={translateFieldError(fieldErrors.jobFamily)} />
+          </div>
+          <div>
+            <label htmlFor={FIELD_IDS.specialization} className={labelClass}>
+              {t('employer:specializationLabel', { defaultValue: 'Specialization' })}
+              <OptionalMark t={t} />
+            </label>
+            <select
+              id={FIELD_IDS.specialization}
+              name="specialization"
+              value={form.specialization}
+              onChange={handleChange}
+              disabled={submitting || !form.jobFamily}
+              className={inputClass}
+            >
+              <option value="">{t('employer:selectSpecialization', { defaultValue: 'Select specialization' })}</option>
+              {(SPECIALIZATIONS_BY_FAMILY[form.jobFamily] || []).map((s) => (
+                <option key={s} value={s}>{s}</option>
+              ))}
+            </select>
+            <FieldError id={`${FIELD_IDS.specialization}-error`} message={translateFieldError(fieldErrors.specialization)} />
+          </div>
         </div>
 
         <fieldset className="space-y-4">

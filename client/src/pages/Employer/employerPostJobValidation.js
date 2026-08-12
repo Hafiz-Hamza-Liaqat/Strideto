@@ -3,6 +3,14 @@
  * Mirrors server createJob contract in employerController.js.
  */
 import { parseOpeningsCount } from '../../../../shared/employer/openingsCount.js';
+import { normalizeCountryCode } from '../../../../shared/international/country.js';
+import {
+  JOB_FAMILIES,
+  SPECIALIZATIONS_BY_FAMILY,
+  mapLegacyCategory,
+  isValidJobFamily,
+  isValidSpecialization,
+} from '../../../../shared/career/jobTaxonomy.js';
 
 export const JOB_TYPE_VALUES = ['Private', 'Government', 'Internship'];
 export const EMPLOYMENT_TYPE_VALUES = ['full-time', 'part-time', 'contract', 'internship'];
@@ -11,6 +19,11 @@ export const FIELD_IDS = {
   jobTitle: 'employer-post-job-title',
   companyName: 'employer-post-company',
   location: 'employer-post-location',
+  countryCode: 'employer-post-country',
+  region: 'employer-post-region',
+  city: 'employer-post-city',
+  jobFamily: 'employer-post-job-family',
+  specialization: 'employer-post-specialization',
   jobType: 'employer-post-job-type',
   type: 'employer-post-employment-type',
   salaryRange: 'employer-post-salary',
@@ -32,6 +45,10 @@ export const FIELD_IDS = {
 export const APPLY_METHOD_VALUES = ['internal', 'external_url', 'external_email'];
 export const DEFAULT_APPLY_METHOD = 'internal';
 
+export { JOB_FAMILIES, SPECIALIZATIONS_BY_FAMILY };
+
+const MAX_REGION = 120;
+const MAX_CITY = 120;
 const MAX_TITLE = 200;
 const MAX_COMPANY = 200;
 const MAX_LOCATION = 200;
@@ -174,6 +191,22 @@ export function validateEmployerPostJobForm(form, { today, requireOpenings = tru
 
   if (location.length > MAX_LOCATION) errors.location = 'validationLocationTooLong';
 
+  const countryCodeRaw = String(form.countryCode || '').trim();
+  if (countryCodeRaw && !normalizeCountryCode(countryCodeRaw)) {
+    errors.countryCode = 'validationCountryInvalid';
+  }
+  const region = String(form.region || '').trim();
+  const city = String(form.city || '').trim();
+  if (region.length > MAX_REGION) errors.region = 'validationRegionTooLong';
+  if (city.length > MAX_CITY) errors.city = 'validationCityTooLong';
+
+  const jobFamily = String(form.jobFamily || '').trim();
+  const specialization = String(form.specialization || '').trim();
+  if (jobFamily && !isValidJobFamily(jobFamily)) errors.jobFamily = 'validationJobFamilyInvalid';
+  if (specialization && (!jobFamily || !isValidSpecialization(jobFamily, specialization))) {
+    errors.specialization = 'validationSpecializationInvalid';
+  }
+
   if (!JOB_TYPE_VALUES.includes(form.jobType)) errors.jobType = 'validationJobTypeInvalid';
   if (!EMPLOYMENT_TYPE_VALUES.includes(form.type)) errors.type = 'validationEmploymentTypeInvalid';
 
@@ -236,10 +269,16 @@ export function resolveApplyMethodFromJob(job = {}) {
 
 export function jobToForm(job = {}) {
   const deadline = job.deadline ? new Date(job.deadline).toISOString().slice(0, 10) : '';
+  const legacy = !job.jobFamily && job.category ? mapLegacyCategory(job.category) : null;
   return {
     jobTitle: job.title || '',
     companyName: job.company || job.organization || '',
     location: job.location || '',
+    countryCode: job.countryCode || '',
+    region: job.region || job.province || '',
+    city: job.city || '',
+    jobFamily: job.jobFamily || legacy?.jobFamily || '',
+    specialization: job.specialization || legacy?.specialization || '',
     jobType: job.jobType || 'Private',
     type: job.type || 'full-time',
     salaryRange: job.salaryRange || '',
@@ -271,6 +310,12 @@ export function buildCreateJobPayload(form, skills) {
     jobTitle: String(form.jobTitle || '').trim(),
     companyName: String(form.companyName || '').trim(),
     location: String(form.location || '').trim() || undefined,
+    countryCode: normalizeCountryCode(form.countryCode) || undefined,
+    region: String(form.region || '').trim() || undefined,
+    province: String(form.region || '').trim() || undefined,
+    city: String(form.city || '').trim() || undefined,
+    jobFamily: String(form.jobFamily || '').trim() || undefined,
+    specialization: String(form.specialization || '').trim() || undefined,
     jobType: form.jobType,
     type: form.type,
     salaryRange: String(form.salaryRange || '').trim() || undefined,

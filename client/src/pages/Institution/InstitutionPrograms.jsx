@@ -5,6 +5,7 @@ import { useInstitutionAuth } from '../../context/InstitutionAuthContext';
 import { ROUTES } from '../../constants';
 import { institutionPortalApi } from '../../services/institutionPortalService';
 import { PageState, Panel, StatusBadge, fieldClass, primaryButton, secondaryButton } from './InstitutionUi';
+import InstitutionPublishingGate, { canSubmitOrPublish, PublishingActionButton } from './InstitutionPublishingGate';
 
 export default function InstitutionPrograms() {
   const { organizationId } = useInstitutionAuth();
@@ -29,7 +30,8 @@ export default function InstitutionPrograms() {
     .finally(() => setLoading(false));
 
   useEffect(() => { load(''); }, [organizationId]); // eslint-disable-line react-hooks/exhaustive-deps
-  const canManage = authority?.verificationStatus === 'approved' && authority?.claimState === 'approved' && ['owner', 'admin', 'editor'].includes(authority?.membership?.role);
+  const canManage = canSubmitOrPublish(authority);
+  const canEdit = authority?.claimState === 'approved' && ['owner', 'admin', 'editor'].includes(authority?.membership?.role);
 
   if (loading) return <PageState>Loading Institution Programs…</PageState>;
   return (
@@ -48,6 +50,7 @@ export default function InstitutionPrograms() {
         <button className={secondaryButton} type="button" onClick={() => { setQ(''); load(''); }}>Reset</button>
       </form>
       {error ? <PageState tone="error" role="alert">{error}</PageState> : null}
+      <InstitutionPublishingGate authority={authority} action="program submit or publish" />
       {message ? <PageState tone="warning">{message}. Complete verification and canonical claim review before creating Programs.</PageState> : null}
       {!programs.length ? (
         <Panel><h2 className="font-semibold text-gray-900 dark:text-white">No Programs yet</h2><p className="mt-2 text-sm text-gray-600 dark:text-gray-400">No fake rows are shown. {canManage ? 'Create a source-backed draft when ready.' : 'Program creation is unavailable until authority is approved.'}</p></Panel>
@@ -65,8 +68,16 @@ export default function InstitutionPrograms() {
                 ? <p className="mt-3 text-sm font-semibold text-gray-800 dark:text-gray-200">Tuition: {formatMoney(program.tuition)} {program.tuition.currency.toUpperCase()}</p>
                 : <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">Tuition amount: unknown</p>}
               <div className="mt-4 flex flex-wrap gap-2">
-                {canManage ? <Link className={secondaryButton} to={`/institution/programs/${program._id}/edit`}>Edit Program</Link> : null}
-                {canManage && program.status === 'draft' ? <button className={primaryButton} onClick={() => institutionPortalApi.submitProgram(organizationId, program._id).then(() => load(q)).catch((err) => setError(err.response?.data?.error || 'Submit failed'))}>Submit for review</button> : null}
+                {canEdit ? <Link className={secondaryButton} to={`/institution/programs/${program._id}/edit`}>Edit Program</Link> : null}
+                {canEdit && program.status === 'draft' ? (
+                  <PublishingActionButton
+                    authority={authority}
+                    busy={false}
+                    onClick={() => institutionPortalApi.submitProgram(organizationId, program._id).then(() => load(q)).catch((err) => setError(err.response?.data?.error || err.response?.data?.code || 'Submit failed'))}
+                  >
+                    Submit for review
+                  </PublishingActionButton>
+                ) : null}
               </div>
             </article>
           ))}
