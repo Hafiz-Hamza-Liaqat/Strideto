@@ -100,6 +100,7 @@ function ReportsList() {
       />
       {actionRow && (
         <AdminConfirmDialog
+          open
           title="Update Report"
           message={`Update report ${actionRow._id}?`}
           onConfirm={handleAction}
@@ -199,6 +200,7 @@ function DisputesList() {
       />
       {resolveRow && (
         <AdminConfirmDialog
+          open
           title="Resolve Dispute"
           message={`Resolve dispute ${resolveRow._id}? This action is audited.`}
           onConfirm={handleResolve}

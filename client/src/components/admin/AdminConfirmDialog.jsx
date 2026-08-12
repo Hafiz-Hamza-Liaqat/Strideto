@@ -2,7 +2,7 @@ import { useRef } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useOverlayA11y } from '../../a11y/useOverlayA11y';
 
-export function AdminConfirmDialog({ open = true, title, message, confirmLabel, danger, onConfirm, onCancel, loading, busy, children }) {
+export function AdminConfirmDialog({ open = false, title, message, confirmLabel, danger, onConfirm, onCancel, loading, busy, children }) {
   const { t } = useTranslation('common');
   const panelRef = useRef(null);
   const isLoading = loading || busy;

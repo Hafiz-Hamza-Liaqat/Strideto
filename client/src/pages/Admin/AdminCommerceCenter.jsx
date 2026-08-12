@@ -87,6 +87,7 @@ function ReconciliationPanel() {
       />
       {actionRow && (
         <AdminConfirmDialog
+          open
           title="Mark for Manual Review"
           message={`Mark reconciliation ${actionRow.correlationId} for manual review?`}
           onConfirm={handleManualReview}
