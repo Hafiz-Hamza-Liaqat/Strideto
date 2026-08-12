@@ -108,3 +108,37 @@ Previous Phase-14 certification applies to previous candidate (`5ff6ae0` era pro
 2. Narrow defect closure if needed  
 3. Only after explicit approval: final re-certification against new HEAD  
 4. Only after explicit approval: push / deployment  
+
+---
+
+## Follow-up addendum — AdminConfirmDialog (post-report)
+
+**Discovered after:** initial remediation report commit `ab638be`  
+**Scope:** narrow UX confirmation footgun only — no change to server authorization, financial/trust authority, moderation permissions, or audit behavior.
+
+### Defect
+
+`AdminConfirmDialog` defaulted to `open = true`. Callers that omitted `open` (while relying on conditional mount) were safe only by accident; any accidental mount without `open` would render a confirmation overlay immediately. That violated controlled-component semantics.
+
+### Affected call sites repaired
+
+- `AdminCommerceCenter.jsx` — manual review dialog (now `open` under `{actionRow && …}`)
+- `AdminTrustCenter.jsx` — update report dialog; resolve dispute dialog (same pattern)
+
+### Fix
+
+- Default changed to `open = false` in `AdminConfirmDialog.jsx`
+- Commerce/Trust callers that conditionally mount now pass `open` explicitly
+- Full call-site audit: **22** usages; **0** remaining implicit-open callers
+
+### Focused evidence
+
+- `client/src/__tests__/adminConfirmDialogContract.test.js` — 15 assertions; 22 sites audited
+- ESLint on the three dialog source files: clean
+
+### Remediation candidate HEAD after this follow-up
+
+See documentation commit that records this addendum (HEAD after both follow-up commits).
+
+Phase-14 certification remains historical evidence for the prior candidate only.  
+**New HEAD still requires USER MANUAL ACCEPTANCE + re-certification.**
