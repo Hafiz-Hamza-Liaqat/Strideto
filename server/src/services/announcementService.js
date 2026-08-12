@@ -159,7 +159,7 @@ export function applyAnnouncementBody(doc, body = {}) {
   if (body.status !== undefined && ANNOUNCEMENT_STATUSES.includes(body.status)) doc.status = body.status;
   if (body.priority !== undefined) doc.priority = body.priority === 'high' ? 'high' : 'normal';
   if (body.link !== undefined) doc.link = body.link ? sanitizeString(body.link) : undefined;
-  if (body.scheduledAt !== undefined) doc.scheduledAt = body.scheduledAt ? new Date(body.scheduledAt) : undefined;
+  // Scheduling not available while background worker is stopped — ignore scheduledAt.
   if (body.expiresAt !== undefined) doc.expiresAt = body.expiresAt ? new Date(body.expiresAt) : undefined;
   if (body.surveyOptions !== undefined) {
     doc.surveyOptions = Array.isArray(body.surveyOptions)

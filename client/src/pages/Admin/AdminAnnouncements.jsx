@@ -13,22 +13,23 @@ import { AdminSelectBare } from '../../components/admin/AdminFormFields';
 import axiosInstance from '../../services/axiosBase';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
 
+// Scheduled publishing is disabled at launch: the background worker that would
+// auto-publish at scheduledAt is stopped. Admins save drafts and use Publish Now;
+// optional expiresAt still applies after publish.
+
 const EMPTY = {
   title: '',
   body: '',
   type: 'info',
   audiences: ['all'],
-  status: 'draft',
   priority: 'normal',
   link: '',
-  scheduledAt: '',
   expiresAt: '',
   surveyOptions: [{ label: '', value: '' }, { label: '', value: '' }],
 };
 
 const TYPES = ['info', 'policy', 'maintenance', 'action_required', 'survey'];
 const AUDIENCES = ['student', 'employer', 'agent', 'institution', 'staff', 'all'];
-const STATUSES = ['draft', 'scheduled', 'published', 'expired'];
 
 function toggleAudience(list, value) {
   if (value === 'all') return ['all'];
@@ -48,11 +49,13 @@ export default function AdminAnnouncements() {
   const [form, setForm] = useState(EMPTY);
   const [editOpen, setEditOpen] = useState(false);
   const [editingId, setEditingId] = useState(null);
+  const [editStatus, setEditStatus] = useState('draft');
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(null);
 
   const openCreate = () => {
     setEditingId(null);
+    setEditStatus('draft');
     setForm(EMPTY);
     setEditOpen(true);
   };
@@ -63,17 +66,34 @@ export default function AdminAnnouncements() {
       setEditingId(id);
       setForm({
         ...EMPTY,
-        ...doc,
+        title: doc.title || '',
+        body: doc.body || '',
+        type: doc.type || 'info',
         audiences: doc.audiences || ['all'],
-        scheduledAt: doc.scheduledAt ? doc.scheduledAt.slice(0, 16) : '',
+        priority: doc.priority || 'normal',
+        link: doc.link || '',
         expiresAt: doc.expiresAt ? doc.expiresAt.slice(0, 16) : '',
         surveyOptions: doc.surveyOptions?.length ? doc.surveyOptions : EMPTY.surveyOptions,
       });
+      setEditStatus(doc.status || 'draft');
       setEditOpen(true);
     } catch (err) {
       toast.error(err.response?.data?.error || t('admin:loadFailed'));
     }
   };
+
+  const buildPayload = () => ({
+    title: form.title,
+    body: form.body,
+    type: form.type,
+    audiences: form.audiences,
+    priority: form.priority,
+    link: form.link || undefined,
+    expiresAt: form.expiresAt || undefined,
+    surveyOptions: form.type === 'survey'
+      ? form.surveyOptions.filter((o) => o.label?.trim() && o.value?.trim())
+      : undefined,
+  });
 
   const save = async () => {
     if (!form.title?.trim() || !form.body?.trim()) {
@@ -81,12 +101,7 @@ export default function AdminAnnouncements() {
       return;
     }
     setSaving(true);
-    const payload = {
-      ...form,
-      surveyOptions: form.type === 'survey'
-        ? form.surveyOptions.filter((o) => o.label?.trim() && o.value?.trim())
-        : undefined,
-    };
+    const payload = buildPayload();
     try {
       if (editingId) {
         await axiosInstance.put(`/admin/announcements/${editingId}`, payload);
@@ -95,6 +110,32 @@ export default function AdminAnnouncements() {
         await axiosInstance.post('/admin/announcements', payload);
         toast.success(t('admin:created'));
       }
+      setEditOpen(false);
+      refetch();
+    } catch (err) {
+      toast.error(err.response?.data?.error || t('admin:saveFailed'));
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const publishFromEditor = async () => {
+    if (!form.title?.trim() || !form.body?.trim()) {
+      toast.error(t('admin:titleRequired'));
+      return;
+    }
+    setSaving(true);
+    try {
+      let id = editingId;
+      const payload = buildPayload();
+      if (id) {
+        await axiosInstance.put(`/admin/announcements/${id}`, payload);
+      } else {
+        const { data } = await axiosInstance.post('/admin/announcements', payload);
+        id = data._id;
+      }
+      await axiosInstance.post(`/admin/announcements/${id}/publish`);
+      toast.success(t('admin:announcementPublished', { defaultValue: 'Announcement published' }));
       setEditOpen(false);
       refetch();
     } catch (err) {
@@ -171,7 +212,7 @@ export default function AdminAnnouncements() {
               {t('admin:announcementsTitle', { defaultValue: 'Announcements' })}
             </h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-              {t('admin:announcementsIntro', { defaultValue: 'Role-targeted announcements with read/ack tracking. Publish requires Admin.' })}
+              {t('admin:announcementsIntro', { defaultValue: 'Role-targeted announcements with read/ack tracking. Save as draft, then publish when ready.' })}
             </p>
           </div>
           {canEdit ? (
@@ -198,7 +239,14 @@ export default function AdminAnnouncements() {
           <EscapeWhen active onEscape={() => setEditOpen(false)}>
             <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40">
               <div className="bg-white dark:bg-gray-900 rounded-xl shadow-xl w-full max-w-2xl max-h-[90vh] overflow-y-auto p-5">
-                <h3 className="text-lg font-bold mb-4">{editingId ? t('admin:editAnnouncement', { defaultValue: 'Edit announcement' }) : t('admin:createAnnouncement', { defaultValue: 'New announcement' })}</h3>
+                <h3 className="text-lg font-bold mb-1">{editingId ? t('admin:editAnnouncement', { defaultValue: 'Edit announcement' }) : t('admin:createAnnouncement', { defaultValue: 'New announcement' })}</h3>
+                {editingId ? (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">
+                    Status: <AdminStatusBadge value={editStatus} />
+                  </p>
+                ) : (
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mb-4">New announcements are saved as drafts until you publish.</p>
+                )}
                 <div className="space-y-3">
                   <label className="block">
                     <span className="text-xs text-gray-500">{t('admin:fieldTitle')} *</span>
@@ -242,16 +290,11 @@ export default function AdminAnnouncements() {
                     <span className="text-xs text-gray-500">Link (optional)</span>
                     <input className={fieldClass} value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} />
                   </label>
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                    <label>
-                      <span className="text-xs text-gray-500">Scheduled at</span>
-                      <input type="datetime-local" className={fieldClass} value={form.scheduledAt} onChange={(e) => setForm({ ...form, scheduledAt: e.target.value, status: e.target.value ? 'scheduled' : form.status })} />
-                    </label>
-                    <label>
-                      <span className="text-xs text-gray-500">Expires at</span>
-                      <input type="datetime-local" className={fieldClass} value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} />
-                    </label>
-                  </div>
+                  <label className="block">
+                    <span className="text-xs text-gray-500">Expires at (optional)</span>
+                    <input type="datetime-local" className={fieldClass} value={form.expiresAt} onChange={(e) => setForm({ ...form, expiresAt: e.target.value })} />
+                    <span className="text-xs text-gray-400 mt-1 block">Published announcements hide from feeds after this time.</span>
+                  </label>
                   {form.type === 'survey' ? (
                     <div className="space-y-2">
                       <p className="text-xs text-gray-500">Survey options (one vote per user)</p>
@@ -272,9 +315,12 @@ export default function AdminAnnouncements() {
                     </div>
                   ) : null}
                 </div>
-                <div className="mt-5 flex justify-end gap-2">
+                <div className="mt-5 flex flex-wrap justify-end gap-2">
                   <button type="button" className="min-h-[44px] px-4 py-2 rounded-lg border" onClick={() => setEditOpen(false)}>{t('common:cancel')}</button>
-                  <button type="button" disabled={saving} className="min-h-[44px] px-4 py-2 rounded-lg bg-primary text-white disabled:opacity-50" onClick={save}>{saving ? '…' : t('common:save')}</button>
+                  <button type="button" disabled={saving} className="min-h-[44px] px-4 py-2 rounded-lg border disabled:opacity-50" onClick={() => save()}>{saving ? '…' : t('admin:saveDraft', { defaultValue: 'Save draft' })}</button>
+                  {editStatus !== 'published' ? (
+                    <button type="button" disabled={saving} className="min-h-[44px] px-4 py-2 rounded-lg bg-primary text-white disabled:opacity-50" onClick={publishFromEditor}>{saving ? '…' : t('admin:publishNow', { defaultValue: 'Publish now' })}</button>
+                  ) : null}
                 </div>
               </div>
             </div>

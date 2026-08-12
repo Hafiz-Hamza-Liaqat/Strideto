@@ -53,7 +53,7 @@ export const create = asyncHandler(async (req, res) => {
     title: body.title.trim(),
     body: body.body.trim(),
     createdBy: req.user?.userId,
-    status: body.status === 'scheduled' && body.scheduledAt ? 'scheduled' : 'draft',
+    status: 'draft',
   });
   applyAnnouncementBody(doc, body);
   await doc.save();
@@ -78,8 +78,8 @@ export const update = asyncHandler(async (req, res) => {
 
   const before = { status: doc.status, title: doc.title };
   applyAnnouncementBody(doc, req.body || {});
-  if (req.body?.status === 'scheduled' && doc.scheduledAt && doc.status !== 'published') {
-    doc.status = 'scheduled';
+  if (doc.status !== 'published' && doc.status !== 'expired') {
+    doc.status = 'draft';
   }
   await doc.save();
   await logAudit({
