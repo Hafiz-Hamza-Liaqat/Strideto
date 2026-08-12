@@ -97,10 +97,11 @@ function NavIcon({ name, className = 'w-4 h-4 shrink-0' }) {
   }
 }
 
-function NavLinkItem({ item, pathname, onNavigate, t }) {
+function NavLinkItem({ item, pathname, onNavigate, t, linkRef }) {
   const active = isAdminNavItemActive(item, pathname);
   return (
     <Link
+      ref={active ? linkRef : undefined}
       to={item.path}
       onClick={onNavigate}
       aria-current={active ? 'page' : undefined}
@@ -116,7 +117,7 @@ function NavLinkItem({ item, pathname, onNavigate, t }) {
   );
 }
 
-function NavGroupSection({ group, pathname, expanded, onToggle, onNavigate, t }) {
+function NavGroupSection({ group, pathname, expanded, onToggle, onNavigate, t, activeLinkRef }) {
   const panelId = `admin-nav-group-${group.id}`;
   const visibleItems = group.items;
 
@@ -151,7 +152,7 @@ function NavGroupSection({ group, pathname, expanded, onToggle, onNavigate, t })
         className="space-y-0.5 pl-1"
       >
         {visibleItems.map((item) => (
-          <NavLinkItem key={item.path} item={item} pathname={pathname} onNavigate={onNavigate} t={t} />
+          <NavLinkItem key={item.path} item={item} pathname={pathname} onNavigate={onNavigate} t={t} linkRef={activeLinkRef} />
         ))}
       </div>
     </div>
@@ -163,6 +164,10 @@ function SidebarPanel({ mobile, onClose, groups, can, t, logout }) {
   const pathname = location.pathname;
   const defaultExpanded = groups.map((g) => g.id);
   const [expanded, setExpanded] = useState(() => readExpandedGroups(defaultExpanded));
+  const navRef = useRef(null);
+  const activeLinkRef = useRef(null);
+  const scrollStorageKey = mobile ? 'admin-sidebar-scroll-mobile' : 'admin-sidebar-scroll-desktop';
+  const restoredScrollRef = useRef(false);
 
   useEffect(() => {
     setExpanded((prev) => {
@@ -174,6 +179,46 @@ function SidebarPanel({ mobile, onClose, groups, can, t, logout }) {
       return next;
     });
   }, [pathname, groups, can]);
+
+  useEffect(() => {
+    restoredScrollRef.current = false;
+  }, [pathname, scrollStorageKey]);
+
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav) return undefined;
+
+    const saveScroll = () => {
+      try {
+        sessionStorage.setItem(scrollStorageKey, String(nav.scrollTop));
+      } catch {
+        /* ignore */
+      }
+    };
+
+    nav.addEventListener('scroll', saveScroll, { passive: true });
+    return () => nav.removeEventListener('scroll', saveScroll);
+  }, [scrollStorageKey]);
+
+  useEffect(() => {
+    const nav = navRef.current;
+    if (!nav || restoredScrollRef.current) return;
+
+    try {
+      const saved = sessionStorage.getItem(scrollStorageKey);
+      if (saved != null) {
+        nav.scrollTop = Number(saved) || 0;
+      }
+    } catch {
+      /* ignore */
+    }
+
+    if (activeLinkRef.current?.scrollIntoView) {
+      activeLinkRef.current.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+    }
+
+    restoredScrollRef.current = true;
+  }, [pathname, scrollStorageKey, groups]);
 
   const toggleGroup = useCallback((groupId) => {
     setExpanded((prev) => {
@@ -200,7 +245,7 @@ function SidebarPanel({ mobile, onClose, groups, can, t, logout }) {
         <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{t('admin:adminPortal')}</p>
       </div>
 
-      <nav className="flex-1 overflow-y-auto overscroll-contain p-2 min-h-0" aria-label={t('admin:adminNavigation')}>
+      <nav ref={navRef} className="flex-1 overflow-y-auto overscroll-contain p-2 min-h-0" aria-label={t('admin:adminNavigation')}>
         {groups.map((group) => (
           <NavGroupSection
             key={group.id}
@@ -210,6 +255,7 @@ function SidebarPanel({ mobile, onClose, groups, can, t, logout }) {
             onToggle={() => toggleGroup(group.id)}
             onNavigate={onNavigate}
             t={t}
+            activeLinkRef={activeLinkRef}
           />
         ))}
       </nav>

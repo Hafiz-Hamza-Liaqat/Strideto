@@ -34,6 +34,7 @@ import {
   validateSubmissionCompleteness,
   computeSlaDeadline,
 } from '../../../shared/international/verification.js';
+import { validateEvidenceAcceptance } from '../../../shared/international/evidencePolicy.js';
 import { findForbiddenMetadataKeys } from '../../../shared/international/audit.js';
 import { INSTITUTION_ORGANIZATION_TYPES } from '../../../shared/institution/institutionPortal.js';
 import { InstitutionClaim } from '../models/institution/InstitutionClaim.js';
@@ -586,6 +587,16 @@ export async function reviewEvidence(organizationId, evidenceId, status, reason,
       new Error('Evidence record not found'),
       { code: 'NOT_FOUND', status: 404 }
     );
+  }
+
+  if (status === EVIDENCE_STATUSES.ACCEPTED) {
+    const acceptanceCheck = validateEvidenceAcceptance(evidence.evidenceType, evidence.sourceUrl);
+    if (!acceptanceCheck.ok) {
+      throw Object.assign(
+        new Error(acceptanceCheck.message),
+        { code: acceptanceCheck.code, status: 422 }
+      );
+    }
   }
 
   evidence.status = status;

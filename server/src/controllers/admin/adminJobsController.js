@@ -16,6 +16,10 @@ import {
   JOB_DUPLICATE_RESET_FIELDS,
 } from '../../services/jobWriteBoundary.js';
 import { validateApplicationLink } from '../../utils/jobApplicationDestination.js';
+import {
+  derivePublishingEntitlementType,
+  loadEmployerPublishingUsage,
+} from '../../services/employer/employerPublishingQuota.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -125,7 +129,23 @@ export const getOne = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
   const doc = await Job.findById(id).lean();
   if (!doc) return res.status(404).json({ error: 'Job not found' });
-  res.json(doc);
+
+  let employerEntitlement = { type: 'not_configured' };
+  if (doc.employerId) {
+    try {
+      const usage = await loadEmployerPublishingUsage(doc.employerId);
+      employerEntitlement = usage.entitlement || {
+        type: derivePublishingEntitlementType(usage),
+        policyCode: usage.policy?.code,
+        policyVersion: usage.policy?.version,
+        paidPublishingEnabled: usage.policy?.paidPublishingEnabled,
+      };
+    } catch {
+      employerEntitlement = { type: 'not_configured' };
+    }
+  }
+
+  res.json({ ...doc, employerEntitlement });
 });
 
 export const create = asyncHandler(async (req, res) => {

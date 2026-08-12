@@ -115,6 +115,7 @@ export const ADMIN_NAV_GROUPS = /** @type {AdminNavGroup[]} */ ([
       { path: `${ROUTES.ADMIN}/ai-job-generator`, labelKey: 'aiJobGenerator', perm: PERMISSIONS.CONTENT_JOBS, icon: 'sparkles' },
       { path: `${ROUTES.ADMIN}/import`, labelKey: 'import', perm: PERMISSIONS.CONTENT_IMPORT, icon: 'upload' },
       { path: `${ROUTES.ADMIN}/notifications`, labelKey: 'navBroadcastNotifications', perm: PERMISSIONS.NOTIFICATIONS_SEND, icon: 'bell' },
+      { path: `${ROUTES.ADMIN}/announcements`, labelKey: 'navAnnouncements', perm: PERMISSIONS.NOTIFICATIONS_SEND, icon: 'megaphone' },
       { path: `${ROUTES.ADMIN}/alerts`, labelKey: 'alerts', perm: PERMISSIONS.NOTIFICATIONS_SEND, icon: 'alert' },
     ],
   },

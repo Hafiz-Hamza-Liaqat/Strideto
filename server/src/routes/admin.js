@@ -9,6 +9,8 @@ import * as adminAdmissions from '../controllers/admin/adminAdmissionsController
 import * as adminBlogs from '../controllers/admin/adminBlogsController.js';
 import * as adminForeignStudies from '../controllers/admin/adminForeignStudiesController.js';
 import * as adminNotifications from '../controllers/admin/adminNotificationsController.js';
+import * as adminAnnouncements from '../controllers/admin/adminAnnouncementsController.js';
+import { requireAdmin } from '../middleware/auth.js';
 import * as adminExams from '../controllers/admin/adminExamsController.js';
 import * as adminInternships from '../controllers/admin/adminInternshipsController.js';
 import * as adminWebinars from '../controllers/admin/adminWebinarsController.js';
@@ -220,6 +222,14 @@ adminRouter.get('/notifications', requirePermission(PERMISSIONS.NOTIFICATIONS_SE
 adminRouter.post('/notifications', requirePermission(PERMISSIONS.NOTIFICATIONS_SEND), adminNotifications.create);
 adminRouter.put('/notifications/:id', requirePermission(PERMISSIONS.NOTIFICATIONS_SEND), adminNotifications.update);
 adminRouter.delete('/notifications/:id', requirePermission(PERMISSIONS.NOTIFICATIONS_SEND), adminNotifications.remove);
+
+adminRouter.get('/announcements', requirePermission(PERMISSIONS.NOTIFICATIONS_SEND), adminAnnouncements.list);
+adminRouter.get('/announcements/:id', requirePermission(PERMISSIONS.NOTIFICATIONS_SEND), adminAnnouncements.getOne);
+adminRouter.post('/announcements', requirePermission(PERMISSIONS.NOTIFICATIONS_SEND), adminAnnouncements.create);
+adminRouter.put('/announcements/:id', requirePermission(PERMISSIONS.NOTIFICATIONS_SEND), adminAnnouncements.update);
+adminRouter.post('/announcements/:id/publish', requireAdmin, adminAnnouncements.publish);
+adminRouter.post('/announcements/:id/expire', requireAdmin, adminAnnouncements.expire);
+adminRouter.delete('/announcements/:id', requirePermission(PERMISSIONS.NOTIFICATIONS_SEND), adminAnnouncements.remove);
 
 adminRouter.get('/exams', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.listExams);
 adminRouter.post('/exams', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.createExam);

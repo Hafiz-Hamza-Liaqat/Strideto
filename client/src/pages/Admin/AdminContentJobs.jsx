@@ -77,6 +77,7 @@ export default function AdminContentJobs() {
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(null);
+  const [employerEntitlement, setEmployerEntitlement] = useState(null);
 
   const openCreate = () => {
     setEditingId(null);
@@ -98,6 +99,7 @@ export default function AdminContentJobs() {
         gallery: linesToText(job.gallery),
         deadline: job.deadline ? job.deadline.slice(0, 10) : '',
       });
+      setEmployerEntitlement(job.employerEntitlement || null);
       setEditingId(id);
       setFormOpen(true);
     } catch (err) {
@@ -272,12 +274,20 @@ export default function AdminContentJobs() {
             <div className="max-w-3xl mx-auto my-4 rounded-xl bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 p-4 sm:p-6">
               <h3 className="text-lg font-bold mb-4">{editingId ? t('admin:editJob') : t('admin:createJob')}</h3>
               {editingId ? (
-                <TranslationToolbar
-                  entityType="job"
-                  entityId={editingId}
-                  currentLocale={form.locale || 'en'}
-                  onOpenTranslation={(doc) => openEdit(doc._id)}
-                />
+                <>
+                  <TranslationToolbar
+                    entityType="job"
+                    entityId={editingId}
+                    currentLocale={form.locale || 'en'}
+                    onOpenTranslation={(doc) => openEdit(doc._id)}
+                  />
+                  {employerEntitlement ? (
+                    <p className="mt-3 text-xs rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-gray-600 dark:text-gray-300">
+                      Employer entitlement: <strong className="capitalize">{String(employerEntitlement.type || 'not_configured').replaceAll('_', ' ')}</strong>
+                      {employerEntitlement.policyCode ? ` · ${employerEntitlement.policyCode}` : ''}
+                    </p>
+                  ) : null}
+                </>
               ) : null}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[70vh] overflow-y-auto pr-1 mt-3">
                 <label className="sm:col-span-2">

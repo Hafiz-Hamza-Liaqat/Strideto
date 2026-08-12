@@ -10,6 +10,7 @@ import { AdminStatusBadge } from '../../components/admin/adminTableUtils';
 import { AdminSelectBare } from '../../components/admin/AdminFormFields';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
 import axiosInstance from '../../services/axiosBase';
+import { describeEvidencePolicy, classifyEvidenceSourceUrl, EVIDENCE_SOURCE_KINDS } from '@shared/international/evidencePolicy.js';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Actionable (default)' },
@@ -56,6 +57,27 @@ const CLAIM_STATE_OPTIONS = [
   { value: 'approved', label: 'Claim approved' },
   { value: 'rejected', label: 'Claim rejected' },
 ];
+
+function EvidencePolicyHint({ evidenceType, sourceUrl }) {
+  const policy = describeEvidencePolicy(evidenceType);
+  const sourceKind = classifyEvidenceSourceUrl(sourceUrl);
+  return (
+    <div className="mt-2 rounded border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900/40 p-2 text-xs text-gray-600 dark:text-gray-300 space-y-1">
+      <p><span className="font-semibold text-gray-800 dark:text-gray-100">Policy:</span> {policy.applicablePolicy}</p>
+      <p><span className="font-semibold text-gray-800 dark:text-gray-100">Max trust outcome:</span> {policy.maxTrustOutcome}</p>
+      <p><span className="font-semibold text-gray-800 dark:text-gray-100">Source rule:</span> {policy.sourceConstraint}</p>
+      {policy.supportingOnly && (
+        <p className="text-amber-800 dark:text-amber-200 font-medium">Maps / website note: Google Maps is supporting-only and never grants VERIFIED badges.</p>
+      )}
+      {sourceKind === EVIDENCE_SOURCE_KINDS.ORDINARY_WEBSITE && evidenceType === 'official_domain' && (
+        <p className="text-blue-800 dark:text-blue-200">Website URLs are domain-evidence only — not registration, credential, or accreditation proof.</p>
+      )}
+      {sourceKind === EVIDENCE_SOURCE_KINDS.GOOGLE_MAPS && evidenceType !== 'google_maps' && (
+        <p className="text-red-700 dark:text-red-300 font-medium">This source is a Maps URL and cannot be accepted for this evidence type.</p>
+      )}
+    </div>
+  );
+}
 
 function Field({ label, value }) {
   if (value === undefined || value === null || value === '') return null;
@@ -295,6 +317,7 @@ function VerificationDetailPanel({ orgId, onClose, onAction, can }) {
                         {e.evidenceRef && (
                           <p className="text-xs text-gray-500">Reference: {e.evidenceRef}</p>
                         )}
+                        <EvidencePolicyHint evidenceType={e.evidenceType} sourceUrl={e.sourceUrl} />
                       </div>
                       {can(PERMISSIONS.VERIFICATION_REVIEW) && e.status === 'pending' && (
                         <div className="flex gap-2">
