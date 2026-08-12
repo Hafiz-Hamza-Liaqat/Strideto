@@ -187,3 +187,23 @@ See documentation commit that records this addendum.
 
 Phase-14 certification remains historical only.  
 **New HEAD is NOT launch-certified.**
+
+---
+
+## Addendum — Final Pre-Launch Remediation (locked roadmap)
+
+**Starting HEAD:** `4b77971`  
+**Record:** `docs/STRIDETO_FINAL_PRE_LAUNCH_REMEDIATION_IMPLEMENTATION.md`
+
+Missions A–F committed after path-scoped WIP isolation. Key closures beyond prior remediation:
+
+- Announcement schedule honesty (Draft + Publish Now; no fake cron)
+- Marketplace searchable program picker (no raw ID authoring)
+- Institution admissions pipeline stage → filtered applications
+- Organization type Other custom value
+- Expanded international job taxonomy
+- Career Guidance FAQ / salary honesty
+- External application status copy
+
+**PREVIOUS PHASE-14 CERTIFICATION DOES NOT CERTIFY THE NEW HEAD.**  
+User manual acceptance is required next. Certification / push / deploy were not run.
