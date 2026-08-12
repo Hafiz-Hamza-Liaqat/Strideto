@@ -63,6 +63,11 @@ export default function InstitutionLogin() {
           <FormField id="institution-password" label="Password" error={errors.password}>
             <input id="institution-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} className={fieldClass} placeholder="Enter password" />
           </FormField>
+          <p className="text-right text-sm">
+            <Link className="font-semibold text-primary underline" to={ROUTES.INSTITUTION_FORGOT_PASSWORD}>
+              Forgot password?
+            </Link>
+          </p>
           <button type="submit" disabled={busy || loading} className={`${primaryButton} w-full`}>{busy ? 'Signing in…' : 'Sign in to Institution Portal'}</button>
         </form>
         <p className="mt-5 text-sm text-gray-600 dark:text-gray-400">

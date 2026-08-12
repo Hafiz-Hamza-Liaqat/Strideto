@@ -16,6 +16,8 @@ import { secureTrustedOrigin } from '../middleware/secureTrustedOrigin.js';
 import {
   employerAuthLimiter,
   refreshLimiter,
+  forgotPasswordLimiter,
+  authLimiter,
 } from '../middleware/rateLimit.js';
 import * as agentAuth from '../controllers/agentAuthController.js';
 import * as agent from '../controllers/agentController.js';
@@ -65,6 +67,18 @@ agentRouter.post(
   requireAuth,
   requireAgentAuth,
   agentAuth.agentChangePassword
+);
+agentRouter.post(
+  '/auth/agent/forgot-password',
+  secureTrustedOrigin,
+  forgotPasswordLimiter,
+  agentAuth.agentForgotPassword
+);
+agentRouter.post(
+  '/auth/agent/reset-password',
+  secureTrustedOrigin,
+  authLimiter,
+  agentAuth.agentResetPassword
 );
 
 // Authenticated self

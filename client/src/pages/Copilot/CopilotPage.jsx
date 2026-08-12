@@ -354,26 +354,35 @@ function EvidenceCard({ item }) {
   );
 }
 
+function displayValue(value) {
+  if (value == null || value === 'undefined') return '—';
+  const text = String(value).trim();
+  return text || '—';
+}
+
 function DeterministicResults({ results }) {
+  const hasGaps = Boolean(results.gapSummary && results.gapSummary !== 'Gap analysis available');
   return (
     <div style={styles.deterministicBox}>
-      <div style={styles.deterministicLabel}>Deterministic Results (authoritative)</div>
+      <div style={styles.deterministicLabel}>
+        {hasGaps ? 'Deterministic Results (profile incomplete)' : 'Deterministic Results (authoritative)'}
+      </div>
       {results.eligibility && (
         <div>
           <strong>Eligibility:</strong>{' '}
           {Object.entries(results.eligibility).map(([k, v]) => (
-            <span key={k} style={{ marginRight: 12 }}>{k}: <strong>{v}</strong></span>
+            <span key={k} style={{ marginRight: 12 }}>{k}: <strong>{displayValue(v)}</strong></span>
           ))}
         </div>
       )}
       {results.journeyStage && (
-        <div><strong>Journey stage:</strong> {results.journeyStage}</div>
+        <div><strong>Journey stage:</strong> {displayValue(results.journeyStage)}</div>
       )}
       {results.nextBestAction && (
-        <div><strong>Next best action:</strong> {results.nextBestAction}</div>
+        <div><strong>Next best action:</strong> {displayValue(results.nextBestAction)}</div>
       )}
       {results.gapSummary && (
-        <div><strong>Profile gaps:</strong> {results.gapSummary}</div>
+        <div><strong>Profile gaps:</strong> {displayValue(results.gapSummary)}</div>
       )}
     </div>
   );

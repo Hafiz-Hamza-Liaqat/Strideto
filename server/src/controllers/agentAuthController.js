@@ -18,7 +18,17 @@ import { ORGANIZATION_TYPES } from '../../../shared/international/organization.j
 import { ensureUniqueOrganizationSlug } from '../../../shared/international/organization.js';
 import { normalizeCountryCode } from '../../../shared/international/country.js';
 import { VERIFICATION_STATUSES } from '../../../shared/international/verification.js';
-import { validateEmail, validatePassword } from '../validators/authValidator.js';
+import { validateEmail, validatePassword, validateForgotPassword, validateResetPassword } from '../validators/authValidator.js';
+import crypto from 'crypto';
+import { hashResetToken } from '../utils/tokenStore.js';
+import { queueEmail } from '../services/automationService.js';
+import { isSmtpConfigured } from '../services/emailService.js';
+import { frontendBaseUrl } from '../utils/emailVerification.js';
+
+const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000;
+const FRONTEND_BASE = frontendBaseUrl();
+const GENERIC_RESET_MESSAGE =
+  'If an account exists with this email, you will receive a password reset link shortly.';
 
 function writeAgentRefreshCookie(res, token) {
   secureAuthConfig.cookiePolicy.writeRefreshCookie({ res, realm: 'agent', token });
@@ -290,4 +300,57 @@ export const agentChangePassword = asyncHandler(async (req, res) => {
     return res.status(result.httpStatus).json(result.body || { error: 'Failed to change password' });
   }
   return res.status(200).json({ message: 'Password changed. Please log in again.' });
+});
+
+export const agentForgotPassword = asyncHandler(async (req, res) => {
+  const { emailError } = validateForgotPassword(req.body);
+  if (emailError) {
+    return res.status(400).json({ error: 'Validation failed', details: { email: emailError } });
+  }
+  const email = req.body.email.trim().toLowerCase();
+  const account = await AgentAccount.findOne({ email }).select('+passwordResetToken +passwordResetExpires');
+  if (!account) return res.status(200).json({ message: GENERIC_RESET_MESSAGE });
+
+  const token = crypto.randomBytes(32).toString('hex');
+  account.passwordResetToken = hashResetToken(token);
+  account.passwordResetExpires = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
+  await account.save({ validateBeforeSave: false });
+  if (isSmtpConfigured()) {
+    await queueEmail({
+      to: account.email,
+      templateKey: 'passwordReset',
+      vars: {
+        url: `${FRONTEND_BASE}/agent/reset-password?token=${encodeURIComponent(token)}`,
+        expiresMinutes: 60,
+      },
+      dedupKey: `agent_password_reset:${account._id}:${Date.now()}`,
+    });
+  }
+  return res.status(200).json({ message: GENERIC_RESET_MESSAGE });
+});
+
+export const agentResetPassword = asyncHandler(async (req, res) => {
+  const { tokenError, passwordError } = validateResetPassword(req.body);
+  if (tokenError || passwordError) {
+    return res.status(400).json({
+      error: 'Validation failed',
+      details: { token: tokenError, password: passwordError },
+    });
+  }
+  const result = await agentSecureAuthFlows.resetPassword({
+    hashedToken: hashResetToken(req.body.token.trim()),
+    newPassword: req.body.password,
+  });
+  if (result.code !== 'PASSWORD_RESET') {
+    if (result.code === 'STORAGE_FAILURE') {
+      return res.status(result.httpStatus).json(result.body);
+    }
+    return res.status(400).json({
+      error: 'Invalid or expired reset link. Please request a new password reset.',
+    });
+  }
+  clearAgentRefreshCookie(res);
+  return res.status(200).json({
+    message: 'Password reset successfully. You can now sign in with your new password.',
+  });
 });

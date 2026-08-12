@@ -5,6 +5,7 @@
  * Isolated from User, Employer, and Agent realms.
  */
 import { RefreshSession } from '../../models/RefreshSession.js';
+import { InstitutionAccount } from '../../models/institution/InstitutionAccount.js';
 import { createInitialSessionIssuanceService } from './initialSessionIssuance.js';
 import { createRefreshEligibilityCoordinator } from './RefreshEligibilityCoordinator.js';
 import { createSessionFamilyRevocationService } from './SessionFamilyRevocationService.js';
@@ -32,6 +33,7 @@ export function createInstitutionSecureAuthFlows({
   sessionFamilyRevocationService,
   accountSecurityMutationService,
   denylistService,
+  institutionModel = InstitutionAccount,
 } = {}) {
   if (!jwtProvider || typeof jwtProvider.issueAccessToken !== 'function') {
     throw new TypeError('jwtProvider is required');
@@ -207,7 +209,56 @@ export function createInstitutionSecureAuthFlows({
     return Object.freeze({ code: 'PASSWORD_CHANGED', httpStatus: 200, clearCookie: true });
   }
 
-  return Object.freeze({ issueLoginSession, refresh, logoutCurrent, logoutAll, changePassword });
+  async function resetPassword({ hashedToken, newPassword }) {
+    if (!(await sharedSecurityStateAvailable())) {
+      return Object.freeze({
+        code: 'STORAGE_FAILURE',
+        httpStatus: 503,
+        body: SAFE_BODIES.SERVICE_UNAVAILABLE,
+        clearCookie: false,
+      });
+    }
+
+    let subject;
+    try {
+      subject = await institutionModel.findOne(
+        { passwordResetToken: hashedToken, passwordResetExpires: { $gt: new Date() } },
+        { _id: 1 }
+      );
+    } catch {
+      return Object.freeze({
+        code: 'STORAGE_FAILURE',
+        httpStatus: 503,
+        body: SAFE_BODIES.SERVICE_UNAVAILABLE,
+        clearCookie: false,
+      });
+    }
+    if (!subject?._id) {
+      return Object.freeze({ code: 'RESET_TOKEN_INVALID', httpStatus: 400, clearCookie: false });
+    }
+
+    const result = await accountSecurityMutation.resetPassword({
+      realm: REALM,
+      hashedToken,
+      newPassword,
+    });
+    if (result.code !== 'VERSION_INCREMENTED') {
+      return Object.freeze({
+        code: result.code,
+        httpStatus: result.code === 'STORAGE_FAILURE' ? 503 : 400,
+        body: result.code === 'STORAGE_FAILURE' ? SAFE_BODIES.SERVICE_UNAVAILABLE : undefined,
+        clearCookie: false,
+      });
+    }
+    await familyRevocation.revokeAllFamilies({
+      realm: REALM,
+      subjectId: subject._id.toString(),
+      reason: 'password_reset',
+    });
+    return Object.freeze({ code: 'PASSWORD_RESET', httpStatus: 200, clearCookie: true });
+  }
+
+  return Object.freeze({ issueLoginSession, refresh, logoutCurrent, logoutAll, changePassword, resetPassword });
 }
 
 export const institutionSecureAuthFlows = createInstitutionSecureAuthFlows({

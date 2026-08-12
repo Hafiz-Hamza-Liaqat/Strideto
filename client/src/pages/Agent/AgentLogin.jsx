@@ -73,6 +73,11 @@ export default function AgentLogin() {
                 required
                 className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary"
               />
+              <p className="mt-2 text-right">
+                <Link to={ROUTES.AGENT_FORGOT_PASSWORD} className="text-sm text-primary hover:underline">
+                  Forgot password?
+                </Link>
+              </p>
             </div>
             <button
               type="submit"

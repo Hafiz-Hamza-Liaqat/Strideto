@@ -1,4 +1,5 @@
 import { BRAND_NAME, BRAND_ASSETS } from '../../design-system/brand.js';
+import { useOptionalTheme } from '../../context/ThemeContext.jsx';
 
 /**
  * Responsive Strideto logo.
@@ -12,11 +13,25 @@ export function Logo({
   height = 32,
   title = BRAND_NAME,
 }) {
+  const themeCtx = useOptionalTheme();
+  const resolvedTheme = themeCtx?.resolvedTheme ?? themeCtx?.theme;
+
   let src = BRAND_ASSETS.logo;
-  if (variant === 'symbol') src = BRAND_ASSETS.symbol;
-  else if (variant === 'wordmark') src = BRAND_ASSETS.wordmark;
-  else if (tone === 'light') src = BRAND_ASSETS.logoLight;
-  else if (tone === 'dark') src = BRAND_ASSETS.logoDark;
+  if (variant === 'symbol') {
+    src = BRAND_ASSETS.symbol;
+  } else if (variant === 'wordmark') {
+    src = BRAND_ASSETS.wordmark;
+  } else if (tone === 'light') {
+    src = BRAND_ASSETS.logoLight;
+  } else if (tone === 'dark') {
+    src = BRAND_ASSETS.logoDark;
+  } else if (tone === 'auto') {
+    if (resolvedTheme === 'dark') {
+      src = BRAND_ASSETS.logoLight;
+    } else if (resolvedTheme === 'light') {
+      src = BRAND_ASSETS.logoDark || BRAND_ASSETS.logo;
+    }
+  }
 
   const h = typeof height === 'number' ? `${height}px` : height;
 

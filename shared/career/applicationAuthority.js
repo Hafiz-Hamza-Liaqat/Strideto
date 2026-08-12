@@ -38,13 +38,22 @@ export const EMPLOYER_AUTHORITATIVE_STAGES = Object.freeze([
   'rejected',
 ]);
 
-/** Student-writable stages on internal/institution applications. */
+/** Pre-submit stages students may write before employer/institution pipeline ownership. */
 export const STUDENT_WRITABLE_INTERNAL_STAGES = Object.freeze([
+  'interested',
+  'preparing',
+  'applied',
+]);
+
+/** Stages students may set on external personal trackers (never employer-confirmed). */
+export const STUDENT_WRITABLE_EXTERNAL_STAGES = Object.freeze([
   'interested',
   'preparing',
   'applied',
   'withdrawn',
 ]);
+
+const PRE_APPLY_STAGES = new Set(['interested', 'preparing']);
 
 const EMPLOYER_TYPES = new Set(['job', 'internship']);
 const INSTITUTION_TYPES = new Set([
@@ -104,18 +113,27 @@ export function isExternalPersonalTracker(app = {}) {
  * internal/institution channels are further restricted.
  */
 export function getStudentAllowedTransitions(app = {}, machineTransitions) {
-  const fromStage = app.pipelineStage;
+  const fromStage = String(app.pipelineStage || '');
   const templateId = app.stageTemplateId || opportunityTypeOf(app);
   const machine = Array.isArray(machineTransitions)
     ? machineTransitions
     : getAllowedTransitions(templateId, fromStage);
-  if (resolveStageAuthority(app) === STAGE_AUTHORITY.PERSONAL) {
-    return [...machine];
+  const authority = resolveStageAuthority(app);
+
+  if (authority === STAGE_AUTHORITY.PERSONAL) {
+    return machine.filter((to) => {
+      if (isEmployerAuthoritativeStage(to)) return false;
+      return STUDENT_WRITABLE_EXTERNAL_STAGES.includes(to);
+    });
   }
+
   return machine.filter((to) => {
     if (to === 'withdrawn') return true;
     if (isEmployerAuthoritativeStage(to)) return false;
-    return STUDENT_WRITABLE_INTERNAL_STAGES.includes(to);
+    if (PRE_APPLY_STAGES.has(fromStage)) {
+      return PRE_APPLY_STAGES.has(to) || to === 'applied';
+    }
+    return false;
   });
 }
 

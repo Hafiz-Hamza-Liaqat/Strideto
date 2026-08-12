@@ -177,6 +177,8 @@ export function computeFinalGroundingStatus({
   guaranteeBlocked,
   certaintBlocked,
   hasInjectionAttempt,
+  hasProfileGaps = false,
+  profileIncomplete = false,
   evidenceItems: _evidenceItems = [],
 }) {
   if (guaranteeBlocked || certaintBlocked) return GROUNDING_STATUS.POLICY_BLOCKED;
@@ -184,6 +186,11 @@ export function computeFinalGroundingStatus({
   if (packetGroundingStatus === GROUNDING_STATUS.STALE_EVIDENCE) return GROUNDING_STATUS.STALE_EVIDENCE;
   if (citationViolation) return GROUNDING_STATUS.PARTIALLY_GROUNDED;
   if (hasInjectionAttempt) return GROUNDING_STATUS.PARTIALLY_GROUNDED;
+  if (hasProfileGaps || profileIncomplete) {
+    if (packetGroundingStatus === GROUNDING_STATUS.WELL_GROUNDED) {
+      return GROUNDING_STATUS.PARTIALLY_GROUNDED;
+    }
+  }
   return packetGroundingStatus;
 }
 
@@ -243,12 +250,21 @@ export function applyOutputPolicy(generatedAnswer, packet, context = {}) {
   const freshnessWarnings = propagateFreshnessWarnings(evidenceItems);
 
   // 6. Final grounding status
+  const hasProfileGaps = evidenceItems.some(
+    (i) => i.entityType === 'gap_analysis' && i.value && i.value !== 'Gap analysis available'
+  );
+  const profileItem = evidenceItems.find((i) => i.entityType === 'student_profile');
+  const profileIncomplete = profileItem?.value?.includes('Profile completeness:')
+    && !profileItem.value.includes('Profile completeness: 100%');
+
   const finalGrounding = computeFinalGroundingStatus({
     packetGroundingStatus: packet.groundingStatus ?? GROUNDING_STATUS.INSUFFICIENT_EVIDENCE,
     citationViolation,
     guaranteeBlocked: guaranteeCheck.blocked,
     certaintBlocked: certaintyCheck.blocked,
     hasInjectionAttempt: injectionCheck.hasInjectionAttempt,
+    hasProfileGaps,
+    profileIncomplete,
     evidenceItems,
   });
 

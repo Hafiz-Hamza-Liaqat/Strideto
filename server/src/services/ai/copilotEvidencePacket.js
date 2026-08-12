@@ -27,6 +27,18 @@ import { FRESHNESS_STATES, authorityTier } from '../../../../shared/trust/source
 
 const MAX_ITEMS = COPILOT_BOUNDS.MAX_EVIDENCE_ITEMS;
 
+/** Gap objects use label/key/severity — never emit "undefined" in summaries. */
+export function formatGapEntry(g = {}) {
+  const label = g.label || g.key || 'Profile field';
+  const severity = g.severity || 'unknown';
+  return `${label}: ${severity}`;
+}
+
+export function formatGapSummary(gaps = []) {
+  if (!Array.isArray(gaps) || gaps.length === 0) return 'Gap analysis available';
+  return gaps.slice(0, 5).map(formatGapEntry).join(', ');
+}
+
 // ── Evidence item builder ─────────────────────────────────────────────────────
 
 function makeId() {
@@ -221,9 +233,7 @@ export function assembleEvidencePacket(retrievalResult) {
       entityId: null,
       scope: 'profile',
       fact: 'Profile Gap Analysis',
-      value: Array.isArray(gaps.gaps)
-        ? gaps.gaps.slice(0, 5).map((g) => `${g.field}: ${g.severity}`).join(', ')
-        : 'Gap analysis available',
+      value: formatGapSummary(gaps.gaps),
       sourceType: SOURCE_STATEMENT_TYPES.STRIDETO_DERIVED,
       sourceLabel: 'Strideto Gap Analysis (Mission 8)',
       freshnessState: FRESHNESS_STATES.FRESH,
@@ -293,7 +303,14 @@ export function assembleEvidencePacket(retrievalResult) {
   // Derive source warnings and conflicts
   const sourceWarnings = deriveSourceWarnings(cappedItems);
   const conflicts = detectConflicts(cappedItems);
-  const groundingStatus = deriveGroundingStatus(cappedItems, conflicts);
+  let groundingStatus = deriveGroundingStatus(cappedItems, conflicts);
+  const hasProfileGaps = Array.isArray(retrievalResult.gapAnalysis?.gaps)
+    && retrievalResult.gapAnalysis.gaps.length > 0;
+  const profileIncomplete = retrievalResult.studentContext?.profileCompleteness != null
+    && retrievalResult.studentContext.profileCompleteness < 100;
+  if ((hasProfileGaps || profileIncomplete) && groundingStatus === GROUNDING_STATUS.WELL_GROUNDED) {
+    groundingStatus = GROUNDING_STATUS.PARTIALLY_GROUNDED;
+  }
 
   return {
     items: cappedItems,

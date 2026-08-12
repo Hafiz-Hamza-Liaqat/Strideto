@@ -8,6 +8,7 @@ import { translateValidationError } from '../../utils/validationI18n';
 import { Button } from '../../components/common/Button';
 import { SocialAuthButton } from '../../components/auth/SocialAuthButton';
 import { FormField } from '../../components/common/FormField';
+import { PasswordInput } from '../../components/forms/PasswordInput.jsx';
 import { Alert } from '../../components/ui/Alerts';
 import { SeoHead } from '../../components/seo';
 import { isOnboardingComplete, markOnboardingPending } from '../../onboarding';
@@ -120,13 +121,12 @@ export default function Login() {
             />
           </FormField>
           <FormField label={t('common:password')} id="login-password" error={errors.password}>
-            <input
+            <PasswordInput
               id="login-password"
-              type="password"
               autoComplete="current-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-shadow duration-200"
+              error={Boolean(errors.password)}
               placeholder={t('common:passwordPlaceholder')}
             />
           </FormField>

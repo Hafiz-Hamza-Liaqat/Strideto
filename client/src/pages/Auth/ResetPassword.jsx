@@ -8,6 +8,7 @@ import { translateValidationError } from '../../utils/validationI18n';
 import { authApi } from '../../services/authService';
 import { Button } from '../../components/common/Button';
 import { FormField } from '../../components/common/FormField';
+import { PasswordInput } from '../../components/forms/PasswordInput.jsx';
 import { Alert } from '../../components/ui/Alerts';
 
 export default function ResetPassword() {
@@ -85,24 +86,22 @@ export default function ResetPassword() {
         {token ? (
           <form onSubmit={handleSubmit} className="space-y-4">
             <FormField label={t('forms:resetPassword.newPassword')} id="reset-password" error={errors.password}>
-              <input
+              <PasswordInput
                 id="reset-password"
-                type="password"
                 autoComplete="new-password"
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-shadow duration-200"
+                error={Boolean(errors.password)}
                 placeholder={t('common:passwordPlaceholder')}
               />
             </FormField>
             <FormField label={t('forms:resetPassword.confirmPassword')} id="reset-confirm" error={errors.confirmPassword}>
-              <input
+              <PasswordInput
                 id="reset-confirm"
-                type="password"
                 autoComplete="new-password"
                 value={confirmPassword}
                 onChange={(e) => setConfirmPassword(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-shadow duration-200"
+                error={Boolean(errors.confirmPassword)}
                 placeholder={t('common:passwordPlaceholder')}
               />
             </FormField>

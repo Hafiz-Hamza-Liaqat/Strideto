@@ -75,3 +75,47 @@ export function normalizePhone(value, { defaultCountryCallingCode } = {}) {
 export function isValidPhone(value, opts) {
   return normalizePhone(value, opts) !== null;
 }
+
+/**
+ * Minimal ITU country calling codes for common destinations. Unknown codes return
+ * `null`; callers may still collect national numbers without a mapped dial code.
+ */
+export const COUNTRY_CALLING_CODES = Object.freeze({
+  AE: '971',
+  AU: '61',
+  BD: '880',
+  CA: '1',
+  CN: '86',
+  DE: '49',
+  EG: '20',
+  FR: '33',
+  GB: '44',
+  IN: '91',
+  MY: '60',
+  NG: '234',
+  PK: '92',
+  QA: '974',
+  SA: '966',
+  SG: '65',
+  TR: '90',
+  US: '1',
+  ZA: '27',
+});
+
+/** Resolve the country calling code digits for an ISO alpha-2 code, or `null`. */
+export function getCountryCallingCode(countryCode) {
+  if (typeof countryCode !== 'string') return null;
+  const code = countryCode.trim().toUpperCase();
+  return COUNTRY_CALLING_CODES[code] ?? null;
+}
+
+/**
+ * Build an E.164 string from structured parts when the national number is present.
+ * Returns `null` when dial code or national digits are missing/invalid.
+ */
+export function formatPhoneE164({ countryCode, dialCode, nationalNumber } = {}) {
+  const cc = String(dialCode || getCountryCallingCode(countryCode) || '').replace(/[^\d]/g, '');
+  const national = String(nationalNumber || '').replace(/[^\d]/g, '').replace(/^0+/, '');
+  if (!cc || !national) return null;
+  return normalizePhone(`+${cc}${national}`);
+}

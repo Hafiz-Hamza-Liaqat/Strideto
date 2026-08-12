@@ -81,8 +81,20 @@ check(
   'student may withdraw internal application'
 );
 check(
-  authority.getStudentAllowedTransitions(external).includes('viewed'),
-  'external personal tracker may set viewed as My tracking status'
+  !authority.getStudentAllowedTransitions(external).includes('viewed'),
+  'external personal tracker cannot set employer viewed state'
+);
+check(
+  authority.getStudentAllowedTransitions({ ...external, pipelineStage: 'preparing' }).includes('applied'),
+  'external personal tracker may mark applied from preparing'
+);
+check(
+  authority.getStudentAllowedTransitions(external).includes('withdrawn'),
+  'external applied may withdraw'
+);
+check(
+  authority.getStudentAllowedTransitions(internalJob).join(',') === 'withdrawn',
+  'internal applied student transitions are withdraw-only'
 );
 
 let blocked = false;
@@ -100,7 +112,7 @@ check(oaService.includes('isInternalEmployerApplication(existing)'), 'internal i
 
 check(kanban.includes("app.stageAuthority === 'personal'"), 'kanban moves only personal tracker');
 check(!kanban.includes('getAllowedTransitions(templateId'), 'kanban does not fall back to full machine');
-check(detail.includes('authority.myTrackingStatus') || detail.includes('authority.employerReadOnly'), 'detail distinguishes authority');
+check(detail.includes('EmployerInstitutionStagePanel') || detail.includes('employerReadOnly'), 'detail distinguishes authority');
 check(myApps.includes('CHANNEL_FILTERS'), 'list filters internal vs external');
 check(source('client/src/i18n/locales/en/applications.json').includes('My tracking status'), 'My tracking status copy');
 check(source('client/src/i18n/locales/en/applications.json').includes('Application happens outside Strideto'), 'external outside-Strideto copy');

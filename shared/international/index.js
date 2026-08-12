@@ -25,3 +25,4 @@ export * from './dateDisplay.js';
 export * from './verification.js';
 export * from './jurisdiction.js';
 export * from './countryReadiness.js';
+export * from './location.js';

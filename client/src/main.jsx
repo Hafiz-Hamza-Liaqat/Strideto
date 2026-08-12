@@ -2,7 +2,6 @@ import React, { Suspense, useEffect, useState } from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { HelmetProvider } from 'react-helmet-async';
-import { useTranslation } from 'react-i18next';
 import { initI18n } from './i18n/index.js';
 import App from './App';
 import { ThemeProvider } from './context/ThemeContext';
@@ -16,6 +15,7 @@ import { NotificationProvider } from './context/NotificationContext';
 import { LanguageProvider } from './context/LanguageContext';
 import { LANG_STORAGE_KEY } from './i18n/config.js';
 import { OnboardingProvider } from './onboarding';
+import { ScrollManager } from './components/navigation/ScrollManager.jsx';
 import './index.css';
 
 const BOOTSTRAP_LOADING = {
@@ -34,12 +34,7 @@ function getBootstrapLoadingText() {
 }
 
 function PageLoading() {
-  const { t } = useTranslation('common');
-  return (
-    <div className="min-h-screen flex items-center justify-center text-gray-500 bg-bg-main dark:bg-secondary">
-      {t('loading')}
-    </div>
-  );
+  return <div className="min-h-screen bg-bg-main dark:bg-secondary" aria-hidden="true" />;
 }
 
 function Bootstrap() {
@@ -70,6 +65,7 @@ function Bootstrap() {
                   <ToastProvider>
                     <NotificationProvider>
                       <OnboardingProvider>
+                        <ScrollManager />
                         <Suspense fallback={<PageLoading />}>
                           <App />
                         </Suspense>

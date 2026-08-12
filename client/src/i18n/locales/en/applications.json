@@ -37,6 +37,10 @@
     "myTrackingStatus": "My tracking status",
     "outsideStrideto": "Application happens outside Strideto",
     "employerReadOnly": "This is an internal Strideto employer application. Employer workflow states are read-only.",
+    "institutionReadOnly": "This is an institution application. Admission workflow states are read-only.",
+    "externalApplied": "Applied externally. Status is your personal tracker and is not yet confirmed by the employer.",
+    "statusNotProvided": "Status not yet provided by Employer",
+    "withdraw": "Withdraw application",
     "personalEditable": "This is your personal tracker. It is not Employer-confirmed."
   },
   "sort": {

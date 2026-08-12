@@ -23,6 +23,7 @@ const ForeignStudies = lazyLoad(() => import('../pages/ForeignStudies/ForeignStu
 const ForeignStudyDetail = lazyLoad(() => import('../pages/ForeignStudies/ForeignStudyDetail'));
 const InstitutionDetail = lazyLoad(() => import('../pages/SchoolsAndColleges/InstitutionDetail'));
 const NotificationsPage = lazyLoad(() => import('../pages/Notifications/NotificationsPage'));
+const AnnouncementsPage = lazyLoad(() => import('../pages/Announcements/AnnouncementsPage'));
 const Blog = lazyLoad(() => import('../pages/Blog/Blog'));
 const BlogPost = lazyLoad(() => import('../pages/Blog/BlogPost'));
 const Contact = lazyLoad(() => import('../pages/Contact/Contact'));
@@ -104,6 +105,8 @@ const SupportTickets = lazyLoad(() => import('../pages/Support/SupportTickets'))
 const SubmitOpportunity = lazyLoad(() => import('../pages/Static/SubmitOpportunity'));
 const NotFound = lazyLoad(() => import('../pages/Static/NotFound'));
 const EmployerLogin = lazyLoad(() => import('../pages/Employer/EmployerLogin'));
+const EmployerForgotPassword = lazyLoad(() => import('../pages/Employer/EmployerForgotPassword'));
+const EmployerResetPassword = lazyLoad(() => import('../pages/Employer/EmployerResetPassword'));
 const EmployerRegister = lazyLoad(() => import('../pages/Employer/EmployerRegister'));
 const EmployerLayout = lazyLoad(() => import('../pages/Employer/EmployerLayout'));
 const EmployerDashboard = lazyLoad(() => import('../pages/Employer/EmployerDashboard'));
@@ -129,6 +132,7 @@ const AdminCareerGuidance = lazyLoad(() => import('../pages/Admin/AdminCareerGui
 const AdminCompanies = lazyLoad(() => import('../pages/Admin/AdminCompanies'));
 const AdminEmployers = lazyLoad(() => import('../pages/Admin/AdminEmployers'));
 const AdminNotifications = lazyLoad(() => import('../pages/Admin/AdminNotifications'));
+const AdminAnnouncements = lazyLoad(() => import('../pages/Admin/AdminAnnouncements'));
 const AdminAdvertisements = lazyLoad(() => import('../pages/Admin/AdminAdvertisements'));
 const AdminExamPreparation = lazyLoad(() => import('../pages/Admin/AdminExamPreparation'));
 const AdminUsers = lazyLoad(() => import('../pages/Admin/AdminUsers'));
@@ -176,6 +180,8 @@ const EmployerPublicGate = lazyLoad(() => import('../pages/Public/EmployerPublic
 const CompanyProfile = lazyLoad(() => import('../pages/Public/CompanyProfile'));
 const UniversityProfile = lazyLoad(() => import('../pages/Public/UniversityProfile'));
 const AgentLogin = lazyLoad(() => import('../pages/Agent/AgentLogin'));
+const AgentForgotPassword = lazyLoad(() => import('../pages/Agent/AgentForgotPassword'));
+const AgentResetPassword = lazyLoad(() => import('../pages/Agent/AgentResetPassword'));
 const AgentRegister = lazyLoad(() => import('../pages/Agent/AgentRegister'));
 const AgentLayout = lazyLoad(() => import('../pages/Agent/AgentLayout'));
 const AgentDashboard = lazyLoad(() => import('../pages/Agent/AgentDashboard'));
@@ -204,6 +210,8 @@ const AgentConsultations = lazyLoad(() => import('../pages/Agent/AgentConsultati
 const AgentConsultationDetail = lazyLoad(() => import('../pages/Agent/AgentConsultationDetail'));
 const AgentAvailability = lazyLoad(() => import('../pages/Agent/AgentAvailability'));
 const InstitutionLogin = lazyLoad(() => import('../pages/Institution/InstitutionLogin'));
+const InstitutionForgotPassword = lazyLoad(() => import('../pages/Institution/InstitutionForgotPassword'));
+const InstitutionResetPassword = lazyLoad(() => import('../pages/Institution/InstitutionResetPassword'));
 const InstitutionRegister = lazyLoad(() => import('../pages/Institution/InstitutionRegister'));
 const InstitutionLayout = lazyLoad(() => import('../pages/Institution/InstitutionLayout'));
 const InstitutionDashboard = lazyLoad(() => import('../pages/Institution/InstitutionDashboard'));
@@ -266,6 +274,8 @@ function PageFallback() {
 
 export const routes = [
   { path: ROUTES.INSTITUTION_LOGIN, element: <InstitutionLogin /> },
+  { path: ROUTES.INSTITUTION_FORGOT_PASSWORD, element: <InstitutionForgotPassword /> },
+  { path: ROUTES.INSTITUTION_RESET_PASSWORD, element: <InstitutionResetPassword /> },
   { path: ROUTES.INSTITUTION_REGISTER, element: <InstitutionRegister /> },
   { path: ROUTES.INSTITUTION_ACCEPT_INVITATION, element: <InstitutionAcceptInvitation /> },
   {
@@ -411,9 +421,13 @@ export const routes = [
       { path: ROUTES.LOGIN, element: <Login /> },
       { path: ROUTES.REGISTER, element: <Register /> },
       { path: ROUTES.EMPLOYER_LOGIN, element: <EmployerLogin /> },
+      { path: ROUTES.EMPLOYER_FORGOT_PASSWORD, element: <EmployerForgotPassword /> },
+      { path: ROUTES.EMPLOYER_RESET_PASSWORD, element: <EmployerResetPassword /> },
       { path: ROUTES.EMPLOYER_REGISTER, element: <EmployerRegister /> },
       { path: ROUTES.EMPLOYER_ACCEPT_INVITATION, element: <EmployerAcceptInvitation /> },
       { path: ROUTES.AGENT_LOGIN, element: <AgentLogin /> },
+      { path: ROUTES.AGENT_FORGOT_PASSWORD, element: <AgentForgotPassword /> },
+      { path: ROUTES.AGENT_RESET_PASSWORD, element: <AgentResetPassword /> },
       { path: ROUTES.AGENT_REGISTER, element: <AgentRegister /> },
       { path: ROUTES.AGENT_ACCEPT_INVITATION, element: <AgentAcceptInvitation /> },
       { path: ROUTES.AGENT_PUBLIC_DIRECTORY, element: <AgentDirectory /> },
@@ -532,6 +546,14 @@ export const routes = [
         ),
       },
       {
+        path: ROUTES.ANNOUNCEMENTS,
+        element: (
+          <ProtectedRoute>
+            <AnnouncementsPage />
+          </ProtectedRoute>
+        ),
+      },
+      {
         path: ROUTES.PRIVACY,
         element: (
           <ProtectedRoute>
@@ -585,6 +607,7 @@ export const routes = [
           { path: 'companies', element: <AdminCompanies /> },
           { path: 'employers', element: <AdminEmployers /> },
           { path: 'notifications', element: <AdminNotifications /> },
+          { path: 'announcements', element: <AdminAnnouncements /> },
           { path: 'advertisements', element: <AdminAdvertisements /> },
           { path: 'exam-preparation', element: <AdminExamPreparation /> },
           { path: 'users', element: <AdminUsers /> },

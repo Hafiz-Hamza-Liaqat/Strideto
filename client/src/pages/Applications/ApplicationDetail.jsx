@@ -31,6 +31,59 @@ function Section({ title, children, id }) {
   );
 }
 
+function EmployerInstitutionStagePanel({ application, onWithdraw }) {
+  const { t } = useTranslation(['applications']);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
+  const allowed = application.allowedTransitions || [];
+  const canWithdraw = allowed.includes('withdrawn');
+
+  async function handleWithdraw() {
+    setBusy(true);
+    setError('');
+    try {
+      await onWithdraw();
+    } catch (err) {
+      setError(err.response?.data?.error || t('applications:tracker.stageError'));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  return (
+    <div className="space-y-3">
+      <p className="text-sm text-gray-600 dark:text-gray-400">
+        {application.stageAuthority === 'institution'
+          ? t('applications:authority.institutionReadOnly', {
+              defaultValue: 'This is an institution application. Admission workflow states are read-only.',
+            })
+          : t('applications:authority.employerReadOnly')}
+      </p>
+      <p className="text-sm text-gray-600 dark:text-gray-400">
+        {t('applications:tracker.current')}:{' '}
+        <strong className="text-gray-900 dark:text-white">
+          {t(`applications:stages.${application.pipelineStage}`, { defaultValue: application.pipelineStage })}
+        </strong>
+      </p>
+      {canWithdraw ? (
+        <button
+          type="button"
+          disabled={busy}
+          onClick={handleWithdraw}
+          className="inline-flex items-center px-4 py-2 rounded-lg border border-red-300 dark:border-red-700 text-red-700 dark:text-red-300 text-sm font-medium min-h-[44px] disabled:opacity-50"
+        >
+          {busy ? t('applications:tracker.saving') : t('applications:authority.withdraw', { defaultValue: 'Withdraw application' })}
+        </button>
+      ) : (
+        <p className="text-sm text-gray-500 dark:text-gray-400">
+          {t('applications:tracker.noTransitions')}
+        </p>
+      )}
+      {error ? <p className="text-sm text-red-600 dark:text-red-400" role="alert">{error}</p> : null}
+    </div>
+  );
+}
+
 export default function ApplicationDetail() {
   const { id } = useParams();
   const { t, i18n } = useTranslation(['applications', 'common']);
@@ -194,17 +247,37 @@ export default function ApplicationDetail() {
           title={
             application.stageAuthority === 'personal'
               ? t('applications:authority.myTrackingStatus')
-              : t('applications:tracker.stageManagement')
+              : application.stageAuthority === 'institution'
+                ? t('applications:authority.institutionStatus', { defaultValue: 'Institution status' })
+                : t('applications:authority.employerStatus', { defaultValue: 'Employer status' })
           }
           id="stage-mgmt"
         >
-          <StageTransitionControl
-            currentStage={application.pipelineStage}
-            allowedTransitions={application.allowedTransitions || []}
-            onTransition={async (payload) => {
-              await afterMutation(applicationsApi.transitionStage(id, payload));
-            }}
-          />
+          {(application.stageAuthority === 'employer' || application.stageAuthority === 'institution') ? (
+            <EmployerInstitutionStagePanel
+              application={application}
+              onWithdraw={async () => {
+                await afterMutation(applicationsApi.transitionStage(id, { toStage: 'withdrawn' }));
+              }}
+            />
+          ) : (
+            <>
+              {application.applicationChannel === 'external_personal' && (
+                <p className="text-sm text-gray-600 dark:text-gray-400 mb-3">
+                  {t('applications:authority.externalApplied', {
+                    defaultValue: 'Applied externally. Status is your personal tracker and is not yet confirmed by the employer.',
+                  })}
+                </p>
+              )}
+              <StageTransitionControl
+                currentStage={application.pipelineStage}
+                allowedTransitions={application.allowedTransitions || []}
+                onTransition={async (payload) => {
+                  await afterMutation(applicationsApi.transitionStage(id, payload));
+                }}
+              />
+            </>
+          )}
         </Section>
 
         <Section title={t('applications:detail.stageHistoryTitle')} id="stage-history-heading">

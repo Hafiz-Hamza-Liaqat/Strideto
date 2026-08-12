@@ -81,6 +81,11 @@ export default function EmployerLogin() {
                   required
                   className="w-full px-4 py-2 rounded-lg border border-[#E5E7EB] bg-white text-[#0F172A]"
                 />
+                <p className="mt-2 text-right">
+                  <Link to={ROUTES.EMPLOYER_FORGOT_PASSWORD} className="text-sm text-[#635BFF] hover:underline">
+                    {t('common:forgotPassword', { defaultValue: 'Forgot password?' })}
+                  </Link>
+                </p>
               </div>
               <button
                 type="submit"

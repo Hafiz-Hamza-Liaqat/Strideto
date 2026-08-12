@@ -26,6 +26,8 @@ const EMPLOYER_NO_REFRESH = [
   '/auth/employer/register',
   '/auth/employer/refresh-token',
   '/auth/employer/logout',
+  '/auth/employer/forgot-password',
+  '/auth/employer/reset-password',
 ];
 
 function isEmployerNoRefreshUrl(url = '') {
@@ -104,6 +106,8 @@ export const employerAuthApi = {
   logout: () => employerAxios.post('/auth/employer/logout'),
   logoutAll: () => employerAxios.post('/auth/employer/logout-all'),
   changePassword: (payload) => employerAxios.post('/auth/employer/change-password', payload),
+  forgotPassword: (email) => employerAxios.post('/auth/employer/forgot-password', { email }),
+  resetPassword: (data) => employerAxios.post('/auth/employer/reset-password', data),
   refresh: () => employerAxios.post('/auth/employer/refresh-token', {}),
 };
 

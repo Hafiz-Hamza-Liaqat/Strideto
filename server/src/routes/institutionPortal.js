@@ -15,7 +15,7 @@ import { requireAuth, requireInstitutionAuth, requireUserAuth } from '../middlew
 import { requireStaff, requirePermission } from '../middleware/rbac.js';
 import { PERMISSIONS } from '../config/rbac.js';
 import { secureTrustedOrigin } from '../middleware/secureTrustedOrigin.js';
-import { employerAuthLimiter, refreshLimiter, searchLimiter } from '../middleware/rateLimit.js';
+import { employerAuthLimiter, refreshLimiter, searchLimiter, forgotPasswordLimiter, authLimiter } from '../middleware/rateLimit.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { INSTITUTION_TYPES } from '../../../shared/education/taxonomy.js';
 import * as authCtrl from '../controllers/institutionAuthController.js';
@@ -77,6 +77,20 @@ institutionPortalRouter.post(
   requireAuth,
   requireInstitutionAuth,
   authCtrl.institutionChangePassword
+);
+
+institutionPortalRouter.post(
+  '/auth/institution/forgot-password',
+  secureTrustedOrigin,
+  forgotPasswordLimiter,
+  authCtrl.institutionForgotPassword
+);
+
+institutionPortalRouter.post(
+  '/auth/institution/reset-password',
+  secureTrustedOrigin,
+  authLimiter,
+  authCtrl.institutionResetPassword
 );
 
 institutionPortalRouter.get(

@@ -27,6 +27,8 @@ const AGENT_NO_REFRESH = [
   '/auth/agent/register',
   '/auth/agent/refresh-token',
   '/auth/agent/logout',
+  '/auth/agent/forgot-password',
+  '/auth/agent/reset-password',
 ];
 
 function isAgentNoRefreshUrl(url = '') {
@@ -99,6 +101,8 @@ export const agentAuthApi = {
   refreshToken: () => agentAxios.post('/api/auth/agent/refresh-token'),
   changePassword: (newPassword) =>
     agentAxios.post('/api/auth/agent/change-password', { newPassword }),
+  forgotPassword: (email) => agentAxios.post('/api/auth/agent/forgot-password', { email }),
+  resetPassword: (data) => agentAxios.post('/api/auth/agent/reset-password', data),
 };
 
 export const agentApi = {

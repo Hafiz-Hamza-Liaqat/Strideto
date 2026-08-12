@@ -22,6 +22,8 @@ const noRefreshPaths = [
   '/auth/institution/register',
   '/auth/institution/refresh-token',
   '/auth/institution/logout',
+  '/auth/institution/forgot-password',
+  '/auth/institution/reset-password',
 ];
 
 client.interceptors.request.use((config) => {
@@ -63,6 +65,8 @@ export const institutionAuthApi = {
   logout: () => client.post('/auth/institution/logout'),
   logoutAll: () => client.post('/auth/institution/logout-all'),
   changePassword: (newPassword) => client.post('/auth/institution/change-password', { newPassword }),
+  forgotPassword: (email) => client.post('/auth/institution/forgot-password', { email }),
+  resetPassword: (data) => client.post('/auth/institution/reset-password', data),
   previewInvite: (token) => client.get('/auth/institution/invitations/preview', { params: { token } }),
   acceptInvite: (token) => client.post('/auth/institution/invitations/accept', { token }),
 };
@@ -71,6 +75,7 @@ const portalPath = (organizationId, suffix = '') =>
   `/institution/${encodeURIComponent(organizationId)}${suffix}`;
 
 export const institutionPortalApi = {
+  searchInstitutions: (params) => client.get('/institutions/directory', { params }),
   dashboard: (organizationId) => client.get(portalPath(organizationId, '/dashboard')),
   onboarding: (organizationId) => client.get(portalPath(organizationId, '/onboarding')),
   profile: (organizationId) => client.get(portalPath(organizationId, '/profile')),

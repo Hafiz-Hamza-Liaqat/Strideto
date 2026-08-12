@@ -72,3 +72,8 @@ export function useTheme() {
   if (!ctx) throw new Error('useTheme must be used within ThemeProvider');
   return ctx;
 }
+
+/** Safe reader for surfaces that must render outside ThemeProvider. */
+export function useOptionalTheme() {
+  return useContext(ThemeContext);
+}
