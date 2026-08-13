@@ -1,25 +1,34 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { PublicInfoPage } from '../../components/static/PublicInfoPage';
+import { Icon } from '../../components/brand/Icon';
 import { ROUTES } from '../../constants';
 
-function Group({ title, links }) {
+function Group({ title, description, icon, links }) {
   return (
-    <section className="min-w-0">
-      <h2 className="text-sm font-semibold uppercase tracking-wider text-gray-500 dark:text-gray-400 mb-3">
-        {title}
-      </h2>
-      <ul className="space-y-2">
+    <section className="min-w-0 rounded-2xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm">
+      <div className="flex items-start gap-3 mb-3">
+        <span className="mt-0.5 inline-flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-primary/10 text-primary dark:text-mint">
+          <Icon name={icon} className="w-5 h-5" />
+        </span>
+        <div className="min-w-0">
+          <h2 className="text-base font-semibold text-gray-900 dark:text-white">{title}</h2>
+          {description ? (
+            <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">{description}</p>
+          ) : null}
+        </div>
+      </div>
+      <ul className="space-y-1">
         {links.map((item) => (
           <li key={item.to}>
             <Link
               to={item.to}
-              className="text-primary dark:text-mint hover:underline break-words-safe min-h-[44px] inline-flex items-center"
+              className="group flex min-h-[44px] items-center rounded-lg px-2 text-sm text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-700/60 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
             >
-              {item.label}
+              <span className="break-words-safe group-hover:text-primary dark:group-hover:text-mint">{item.label}</span>
             </Link>
             {item.note ? (
-              <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">{item.note}</p>
+              <p className="px-2 pb-1 text-xs text-gray-500 dark:text-gray-400">{item.note}</p>
             ) : null}
           </li>
         ))}
@@ -33,7 +42,9 @@ export default function HumanSitemap() {
 
   const groups = [
     {
-      title: t('static:sitemapOpportunities'),
+      title: t('static:sitemapOpportunities', { defaultValue: 'Find opportunities' }),
+      description: t('static:sitemapOpportunitiesDesc', { defaultValue: 'Browse jobs, internships, funding, and admissions.' }),
+      icon: 'briefcase',
       links: [
         { to: ROUTES.JOBS, label: t('navbar:jobs') },
         { to: ROUTES.INTERNSHIPS, label: t('navbar:internships') },
@@ -42,9 +53,11 @@ export default function HumanSitemap() {
       ],
     },
     {
-      title: t('static:sitemapEducation'),
+      title: t('static:sitemapEducation', { defaultValue: 'Plan your studies' }),
+      description: t('static:sitemapEducationDesc', { defaultValue: 'Explore programs, schools, and exam preparation.' }),
+      icon: 'document',
       links: [
-        { to: ROUTES.PROGRAM_EXPLORER, label: t('navbar:studyAndInstitutions') },
+        { to: ROUTES.PROGRAM_EXPLORER, label: t('navbar:programExplorer', { defaultValue: 'Program Explorer' }) },
         { to: ROUTES.SCHOOLS_AND_COLLEGES, label: t('navbar:schoolsAndColleges') },
         { to: ROUTES.FOREIGN_STUDIES, label: t('navbar:foreignStudies') },
         { to: ROUTES.INTL_SCHOLARSHIPS, label: t('navbar:intlScholarships') },
@@ -53,9 +66,10 @@ export default function HumanSitemap() {
       ],
     },
     {
-      title: t('static:sitemapProfessional'),
+      title: t('static:sitemapProfessional', { defaultValue: 'Get professional help' }),
+      description: t('static:sitemapProfessionalDesc', { defaultValue: 'Find agents, marketplace services, and career tools.' }),
+      icon: 'search',
       links: [
-        { to: ROUTES.SERVICES, label: t('navbar:services') },
         { to: ROUTES.AGENT_PUBLIC_DIRECTORY, label: t('navbar:agentsDirectory') },
         { to: ROUTES.AGENT_PUBLIC_MARKETPLACE, label: t('navbar:professionalMarketplace') },
         { to: ROUTES.CAREER_GUIDANCE, label: t('navbar:careerGuidance') },
@@ -64,14 +78,9 @@ export default function HumanSitemap() {
       ],
     },
     {
-      title: t('static:sitemapAccount'),
-      links: [
-        { to: ROUTES.LOGIN, label: t('navbar:login'), note: t('static:sitemapAuthNote') },
-        { to: ROUTES.REGISTER, label: t('navbar:register'), note: t('static:sitemapAuthNote') },
-      ],
-    },
-    {
-      title: t('static:sitemapOrganizations'),
+      title: t('static:sitemapOrganizations', { defaultValue: 'Organizations' }),
+      description: t('static:sitemapOrganizationsDesc', { defaultValue: 'Portals for employers, agents, and institutions.' }),
+      icon: 'briefcase',
       links: [
         { to: ROUTES.EMPLOYER_LOGIN, label: t('footer:employerPortal'), note: t('static:sitemapOrgNote') },
         { to: ROUTES.AGENT_LOGIN, label: t('footer:agentPortal'), note: t('static:sitemapOrgNote') },
@@ -79,17 +88,23 @@ export default function HumanSitemap() {
       ],
     },
     {
-      title: t('static:sitemapHelp'),
+      title: t('static:sitemapAccount', { defaultValue: 'Account' }),
+      description: t('static:sitemapAccountDesc', { defaultValue: 'Sign in or create a student account.' }),
+      icon: 'document',
       links: [
-        { to: ROUTES.HELP_CENTER, label: t('footer:helpCenter') },
-        { to: ROUTES.SUPPORT, label: t('footer:support') },
-        { to: ROUTES.CONTACT, label: t('footer:contactLink') },
-        { to: ROUTES.FAQ, label: t('footer:faq') },
+        { to: ROUTES.LOGIN, label: t('navbar:login'), note: t('static:sitemapAuthNote') },
+        { to: ROUTES.REGISTER, label: t('navbar:register'), note: t('static:sitemapAuthNote') },
       ],
     },
     {
-      title: t('static:sitemapLegal'),
+      title: t('static:sitemapHelp', { defaultValue: 'Help & safety' }),
+      description: t('static:sitemapHelpDesc', { defaultValue: 'Support, policies, and legal information.' }),
+      icon: 'search',
       links: [
+        { to: ROUTES.HELP_CENTER, label: t('footer:helpCenter') },
+        { to: ROUTES.FAQ, label: t('footer:faq') },
+        { to: ROUTES.SUPPORT, label: t('footer:support') },
+        { to: ROUTES.CONTACT, label: t('footer:contactLink') },
         { to: ROUTES.PRIVACY_POLICY, label: t('footer:privacyPolicy') },
         { to: ROUTES.TERMS, label: t('footer:termsConditions') },
         { to: ROUTES.REFUND_POLICY, label: t('footer:refundPolicy') },
@@ -109,9 +124,9 @@ export default function HumanSitemap() {
       wide
     >
       <p className="!mt-0 text-gray-600 dark:text-gray-300 mb-6">{t('static:sitemapIntro')}</p>
-      <div className="grid gap-10 sm:grid-cols-2 lg:grid-cols-3 not-prose">
+      <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3 not-prose">
         {groups.map((g) => (
-          <Group key={g.title} title={g.title} links={g.links} />
+          <Group key={g.title} {...g} />
         ))}
       </div>
     </PublicInfoPage>

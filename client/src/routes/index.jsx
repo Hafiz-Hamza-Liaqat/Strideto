@@ -8,6 +8,8 @@ import { ProtectedEmployerRoute } from '../components/employer/ProtectedEmployer
 import { ProtectedAgentRoute } from '../components/agent/ProtectedAgentRoute';
 import { ProtectedInstitutionRoute } from '../components/institution/ProtectedInstitutionRoute';
 import { RouteErrorBoundary } from '../components/common/RouteErrorBoundary';
+import { AdminRouteGuard } from '../components/admin/AdminRouteGuard';
+import { PERMISSIONS } from '../config/rbac';
 import { ROUTES } from '../constants';
 
 const Home = lazyLoad(() => import('../pages/Home/Home'));
@@ -266,8 +268,12 @@ function lazyLoad(importFn) {
 function PageFallback() {
   const { t } = useTranslation('common');
   return (
-    <div className="min-h-[40vh] flex items-center justify-center">
-      <div className="animate-pulse text-gray-500 dark:text-gray-400">{t('loading')}</div>
+    <div
+      className="min-h-[12rem] w-full bg-bg-main dark:bg-secondary flex items-center justify-center motion-reduce:min-h-[8rem]"
+      role="status"
+      aria-live="polite"
+    >
+      <span className="text-sm text-gray-500 dark:text-gray-400">{t('loading')}</span>
     </div>
   );
 }
@@ -590,7 +596,11 @@ export const routes = [
           { path: 'review', element: <AdminReviewQueue /> },
           { path: 'audit', element: <AuditLogPage /> },
           { path: 'verification-queue', element: <AdminVerificationQueue /> },
-          { path: 'agent-marketplace', element: <AdminAgentMarketplace /> },
+          { path: 'agent-marketplace', element: (
+            <AdminRouteGuard anyPermission={[PERMISSIONS.WORKFLOW_REVIEW, PERMISSIONS.WORKFLOW_APPROVE]}>
+              <AdminAgentMarketplace />
+            </AdminRouteGuard>
+          ) },
           { path: 'growth-dashboard', element: <GrowthDashboard /> },
           { path: 'ai-job-generator', element: <AIJobGenerator /> },
           { path: 'analytics', element: <AnalyticsDashboard /> },
