@@ -43,7 +43,7 @@ export function isScoringEnabled() {
 }
 
 export function isAssessmentsEnabled() {
-  return import.meta.env.VITE_ASSESSMENTS_ENABLED !== '0';
+  return import.meta.env.VITE_ASSESSMENTS_ENABLED === '1';
 }
 
 export function isEmployerIntelligenceEnabled() {

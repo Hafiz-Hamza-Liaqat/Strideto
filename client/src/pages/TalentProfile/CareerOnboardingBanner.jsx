@@ -50,9 +50,9 @@ export function CareerOnboardingBanner({ profileLoaded, form }) {
     },
     {
       id: 'assess',
-      title: t('talent:onboarding.stepAssess', { defaultValue: 'Take an assessment' }),
+      title: t('talent:onboarding.stepPrep', { defaultValue: 'Explore Tests & Prep' }),
       done: false,
-      to: ROUTES.ASSESSMENTS,
+      to: ROUTES.TEST_HUB,
     },
   ];
 

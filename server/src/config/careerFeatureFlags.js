@@ -69,11 +69,11 @@ export function isScoringEnabled() {
 
 /** Career assessments / verified skills platform (C.8.4) */
 export function isAssessmentsEnabled() {
-  return process.env.ASSESSMENTS_ENABLED !== '0';
+  return process.env.ASSESSMENTS_ENABLED === '1';
 }
 
 export function isAssessmentResultsEnabled() {
-  return process.env.ASSESSMENT_RESULTS_ENABLED !== '0';
+  return process.env.ASSESSMENT_RESULTS_ENABLED === '1' && isAssessmentsEnabled();
 }
 
 /** Credential issuance from assessments (requires assessments + documents platform) */

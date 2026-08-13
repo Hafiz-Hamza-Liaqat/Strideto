@@ -12,11 +12,11 @@ import { AdHost } from '../../components/ads';
 import { DEGREE_ROADMAPS } from '@shared/career/degreeRoadmaps.js';
 
 const SKILL_KEYS = [
-  { key: 'webDev', to: `${ROUTES.ASSESSMENTS}/programming-fundamentals` },
-  { key: 'dataScience', to: `${ROUTES.ASSESSMENTS}/numerical-reasoning-basics` },
-  { key: 'aiMl', to: `${ROUTES.ASSESSMENTS}/problem-solving-basics` },
-  { key: 'cybersecurity', to: `${ROUTES.ASSESSMENTS}/computer-fundamentals` },
-  { key: 'cloud', to: `${ROUTES.ASSESSMENTS}/computer-fundamentals` },
+  { key: 'webDev', to: ROUTES.TEST_HUB },
+  { key: 'dataScience', to: ROUTES.TEST_HUB },
+  { key: 'aiMl', to: ROUTES.TEST_HUB },
+  { key: 'cybersecurity', to: ROUTES.EXAM_PREP },
+  { key: 'cloud', to: ROUTES.EXAM_PREP },
 ];
 
 export default function CareerGuidance() {
@@ -70,7 +70,7 @@ export default function CareerGuidance() {
             { to: ROUTES.SCHOLARSHIPS, label: t('navbar:scholarships', { defaultValue: 'Scholarships' }) },
             { to: ROUTES.INTERNSHIPS, label: t('navbar:internships', { defaultValue: 'Internships' }) },
             { to: ROUTES.ADMISSIONS, label: t('navbar:admissions', { defaultValue: 'Admissions' }) },
-            { to: ROUTES.ASSESSMENTS, label: t('career:assessmentsLink', { defaultValue: 'Assessments' }) },
+            { to: ROUTES.TEST_HUB, label: t('navbar:testsAndPrep', { defaultValue: 'Tests & Prep' }) },
           ].map((link) => (
             <Link
               key={link.to}
@@ -153,15 +153,19 @@ export default function CareerGuidance() {
                       <div>
                         <h4 className="font-medium text-gray-900 dark:text-white mb-1">Learning resources</h4>
                         <ul className="space-y-1">
-                          {degree.learning.map((l) => (
+                          {degree.learning.map((l) => {
+                            const href = String(l.href || '').startsWith('/assessments') ? ROUTES.TEST_HUB : l.href;
+                            const label = String(l.label || '').replace(/\s*assessment$/i, '').trim() || l.label;
+                            return (
                             <li key={l.href}>
                               {l.external ? (
                                 <a href={l.href} target="_blank" rel="noopener noreferrer" className="text-primary hover:underline">{l.label}</a>
                               ) : (
-                                <Link to={l.href} className="text-primary hover:underline">{l.label}</Link>
+                                <Link to={href} className="text-primary hover:underline">{label}</Link>
                               )}
                             </li>
-                          ))}
+                            );
+                          })}
                         </ul>
                       </div>
                       <div className="flex flex-wrap gap-2 pt-1">
@@ -169,7 +173,7 @@ export default function CareerGuidance() {
                         <Link to={degree.links.scholarships} className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium">Scholarships</Link>
                         <Link to={degree.links.internships} className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium">Internships</Link>
                         <Link to={degree.links.admissions} className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium">Admissions</Link>
-                        <Link to={degree.links.assessments} className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium">Assessments</Link>
+                        <Link to={ROUTES.TEST_HUB} className="px-3 py-1.5 rounded-lg bg-primary/10 text-primary text-xs font-medium">Tests & Prep</Link>
                       </div>
                       {degree.faq?.length ? (
                         <div>
@@ -285,7 +289,7 @@ export default function CareerGuidance() {
           <div className="mt-6 flex flex-wrap gap-2">
             <Link to={ROUTES.JOBS} className="inline-flex min-h-[44px] items-center px-4 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-hover focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Explore Jobs</Link>
             <Link to={ROUTES.PROGRAM_EXPLORER || ROUTES.ADMISSIONS} className="inline-flex min-h-[44px] items-center px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Explore Programs</Link>
-            <Link to={ROUTES.ASSESSMENTS} className="inline-flex min-h-[44px] items-center px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Check Assessments</Link>
+            <Link to={ROUTES.TEST_HUB} className="inline-flex min-h-[44px] items-center px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm font-medium text-gray-800 dark:text-gray-100 hover:bg-gray-50 dark:hover:bg-gray-800 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary">Tests & Prep</Link>
           </div>
         </ScrollReveal>
 
