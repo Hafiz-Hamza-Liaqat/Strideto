@@ -62,3 +62,4 @@ Thumbs.db
 # Misc
 .cache/
 .turbo/
+qa-artifacts/
