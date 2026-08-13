@@ -6,7 +6,7 @@ export function ProtectedInstitutionRoute({ children }) {
   const { loading, isAuthenticated } = useInstitutionAuth();
   const location = useLocation();
 
-  if (loading) {
+  if (loading && !isAuthenticated) {
     return <div className="grid min-h-screen place-items-center text-slate-600" role="status">Loading Institution Portal…</div>;
   }
   if (!isAuthenticated) {

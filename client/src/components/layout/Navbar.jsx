@@ -11,13 +11,24 @@ import { TourAnchors } from '../../onboarding/TourAnchors';
 import { registerOverlayEscape } from '../../a11y/overlayStack';
 import { PRIMARY_NAV_ITEMS } from './navConfig';
 
-const linkClass =
-  'px-2 xl:px-2.5 py-2 text-sm text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-mint rounded-lg link-hover whitespace-nowrap';
+export function isNavPathCurrent(pathname, path) {
+  if (!path) return false;
+  if (path === ROUTES.HOME) return pathname === ROUTES.HOME;
+  return pathname === path || pathname.startsWith(`${path}/`);
+}
+
+export function isNavItemCurrent(pathname, item) {
+  if (item?.mega?.some((sub) => isNavPathCurrent(pathname, sub.path))) return true;
+  return isNavPathCurrent(pathname, item?.path);
+}
+
+const linkClass = 'nav-item text-gray-700 dark:text-gray-300';
 
 export function Navbar() {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [megaOpen, setMegaOpen] = useState(null);
   const megaRef = useRef(null);
+  const firstMenuItemRef = useRef(null);
   const menuButtonRef = useRef(null);
   const { t: legacyT } = useLanguage();
   const { t } = useTranslation(['navbar', 'common']);
@@ -44,14 +55,17 @@ export function Navbar() {
     setMegaOpen(null);
   }, [pathname]);
 
-  const isCurrent = (path) => {
-    if (!path) return false;
-    if (path === ROUTES.HOME) return pathname === ROUTES.HOME;
-    return pathname === path || pathname.startsWith(`${path}/`);
-  };
+  useEffect(() => {
+    if (!megaOpen) return undefined;
+    const onDoc = (event) => {
+      if (megaRef.current && !megaRef.current.contains(event.target)) setMegaOpen(null);
+    };
+    document.addEventListener('mousedown', onDoc);
+    return () => document.removeEventListener('mousedown', onDoc);
+  }, [megaOpen]);
 
   const renderNavLink = (item, key) => {
-    const current = isCurrent(item.path);
+    const current = isNavItemCurrent(pathname, item);
     return (
       <Link
         key={key}
@@ -103,32 +117,34 @@ export function Navbar() {
                   <Link
                     to={item.path}
                     className={linkClass}
-                    aria-current={isCurrent(item.path) ? 'page' : undefined}
+                    aria-current={isNavItemCurrent(pathname, item) ? 'page' : undefined}
                     aria-expanded={megaOpen === item.label}
                     aria-haspopup="true"
                     onKeyDown={(e) => {
                       if (e.key === 'ArrowDown') {
                         e.preventDefault();
                         setMegaOpen(item.label);
+                        requestAnimationFrame(() => firstMenuItemRef.current?.focus());
                       }
                     }}
                   >
                     {item.label}
                   </Link>
                   {megaOpen === item.label && (
-                    <div className="absolute start-0 top-full pt-1 w-64 animate-dropdown-enter z-50">
+                    <div className="absolute start-0 top-full pt-1 w-64 max-w-[calc(100vw-1.5rem)] animate-dropdown-enter z-50">
                       <div
-                        className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-2"
+                        className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg py-2 max-h-[min(70vh,24rem)] overflow-y-auto"
                         role="menu"
                       >
-                        {item.mega.map((sub) => (
+                        {item.mega.map((sub, idx) => (
                           <Link
                             key={sub.path}
+                            ref={idx === 0 ? firstMenuItemRef : undefined}
                             role="menuitem"
                             to={sub.path}
-                            className="block px-4 py-2.5 min-h-[44px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 link-hover rounded-lg"
+                            className="block px-4 py-2.5 min-h-[44px] text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700 focus-visible:bg-gray-100 dark:focus-visible:bg-gray-700 rounded-lg"
                             onClick={() => setMegaOpen(null)}
-                            aria-current={pathname === sub.path ? 'page' : undefined}
+                            aria-current={isNavPathCurrent(pathname, sub.path) ? 'page' : undefined}
                           >
                             {sub.label}
                           </Link>

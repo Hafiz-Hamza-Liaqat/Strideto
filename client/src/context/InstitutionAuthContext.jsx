@@ -84,7 +84,8 @@ export function InstitutionAuthProvider({ children }) {
     }
 
     let cancelled = false;
-    setLoading(true);
+    const alreadyHydrated = !!getInstitutionAccessToken();
+    if (!alreadyHydrated) setLoading(true);
 
     institutionAuthApi
       .refresh()

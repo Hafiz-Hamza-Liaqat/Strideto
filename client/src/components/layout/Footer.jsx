@@ -22,7 +22,7 @@ function FooterLinkColumn({ title, links }) {
           <li key={path || label}>
             <Link
               to={path}
-              className="text-sm text-[#94A3B8] hover:text-primary transition-colors duration-200 break-words-safe"
+              className="text-sm text-[#94A3B8] hover:text-primary focus-visible:text-primary transition-colors duration-200 break-words-safe"
             >
               {label}
             </Link>
@@ -43,8 +43,15 @@ export function Footer() {
     { label: t('footer:internships'), path: ROUTES.INTERNSHIPS },
     { label: t('navbar:scholarshipsAndFunding', { ns: 'navbar' }), path: ROUTES.SCHOLARSHIPS },
     { label: t('navbar:admissionsAndIntakes', { ns: 'navbar' }), path: ROUTES.ADMISSIONS },
-    { label: t('navbar:studyAndInstitutions', { ns: 'navbar' }), path: ROUTES.PROGRAM_EXPLORER },
-    { label: t('navbar:testsAndPrep', { ns: 'navbar' }), path: ROUTES.TEST_HUB },
+  ];
+
+  const studyPrepareLinks = [
+    { label: t('navbar:programExplorer', { ns: 'navbar' }), path: ROUTES.PROGRAM_EXPLORER },
+    { label: t('navbar:schoolsAndColleges', { ns: 'navbar' }), path: ROUTES.SCHOOLS_AND_COLLEGES },
+    { label: t('navbar:foreignStudies', { ns: 'navbar' }), path: ROUTES.FOREIGN_STUDIES },
+    { label: t('navbar:intlScholarships', { ns: 'navbar' }), path: ROUTES.INTL_SCHOLARSHIPS },
+    { label: t('footer:testsAndPrep'), path: ROUTES.TEST_HUB },
+    { label: t('footer:examPrep'), path: ROUTES.EXAM_PREP },
   ];
 
   const servicesLinks = [
@@ -61,11 +68,12 @@ export function Footer() {
   ];
 
   const supportLinks = [
+    { label: t('footer:careerBlog'), path: ROUTES.BLOG },
     { label: t('footer:helpCenter'), path: ROUTES.HELP_CENTER },
+    { label: t('footer:faq'), path: ROUTES.FAQ },
     { label: t('footer:support'), path: ROUTES.SUPPORT },
     { label: t('footer:contactLink'), path: ROUTES.CONTACT },
     { label: t('footer:sitemap'), path: ROUTES.SITEMAP },
-    { label: t('footer:faq'), path: ROUTES.FAQ },
   ];
 
   const legalLinks = [
@@ -87,7 +95,7 @@ export function Footer() {
   return (
     <footer className="bg-[#020617] text-[#94A3B8] mt-auto safe-area-inset-bottom">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 py-12 sm:py-14">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-6 gap-8 lg:gap-10">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-7 gap-8 lg:gap-10">
           <div className="sm:col-span-2 lg:col-span-1">
             <Link to={ROUTES.HOME} className="inline-flex items-center mb-3 link-hover" aria-label={t('common:appName')}>
               <Logo variant="full" tone="dark" height={36} />
@@ -105,7 +113,7 @@ export function Footer() {
           </div>
           {!hasResolved ? (
             <>
-              {[0, 1, 2, 3, 4].map((i) => (
+              {[0, 1, 2, 3, 4, 5].map((i) => (
                 <div key={i} className="animate-pulse space-y-3" aria-hidden="true">
                   <div className="h-4 w-24 rounded bg-white/10" />
                   <div className="h-3 w-32 rounded bg-white/5" />
@@ -117,6 +125,7 @@ export function Footer() {
           ) : (
             <>
               <FooterLinkColumn title={t('footer:discover')} links={discoverLinks} />
+              <FooterLinkColumn title={t('footer:studyPrepare')} links={studyPrepareLinks} />
               <FooterLinkColumn title={t('footer:servicesGroup')} links={servicesLinks} />
               <FooterLinkColumn title={t('footer:organizations')} links={organizationLinks} />
               <FooterLinkColumn title={t('footer:supportGroup')} links={supportLinks} />

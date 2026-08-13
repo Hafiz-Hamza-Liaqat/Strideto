@@ -94,15 +94,18 @@ export function AgentAuthProvider({ children }) {
     });
   }, []);
 
-  // Secure bootstrap: cookie refresh first — never trust cached profile alone.
+  const agentRouteActive = isAgentRoutePrefix(pathname);
+
+  // Realm-boundary bootstrap only — never re-run on every in-portal pathname.
   useEffect(() => {
-    if (!isAgentRoutePrefix(pathname)) {
+    if (!agentRouteActive) {
       setLoading(false);
       return undefined;
     }
 
     let cancelled = false;
-    setLoading(true);
+    const alreadyHydrated = !!getAgentAccessToken();
+    if (!alreadyHydrated) setLoading(true);
 
     agentAuthApi
       .refreshToken()
@@ -133,7 +136,7 @@ export function AgentAuthProvider({ children }) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [agentRouteActive]);
 
   const value = {
     agent,

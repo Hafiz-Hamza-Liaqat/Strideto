@@ -60,6 +60,7 @@ export default function HumanSitemap() {
         { to: ROUTES.AGENT_PUBLIC_MARKETPLACE, label: t('navbar:professionalMarketplace') },
         { to: ROUTES.CAREER_GUIDANCE, label: t('navbar:careerGuidance') },
         { to: ROUTES.RESUME_BUILDER, label: t('navbar:resumeBuilder') },
+        { to: ROUTES.BLOG, label: t('footer:careerBlog') },
       ],
     },
     {

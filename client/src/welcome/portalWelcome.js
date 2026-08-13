@@ -33,7 +33,28 @@ export function consumeWelcomeBack(realm) {
   }
 }
 
+const MILESTONE_PREFIX = 'strideto-milestone-seen';
+
+/** Show a server-backed milestone at most once per user+key. */
+export function consumeMilestoneOnce(userId, milestoneKey) {
+  if (!userId || !milestoneKey) return false;
+  try {
+    const key = `${MILESTONE_PREFIX}:${userId}:${milestoneKey}`;
+    if (localStorage.getItem(key) === '1') return false;
+    localStorage.setItem(key, '1');
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 export const PORTAL_ONBOARDING_ACTIONS = {
+  student: {
+    title: 'Welcome to Strideto',
+    body: 'Complete your profile, discover opportunities, and track applications from your dashboard.',
+    ctaLabel: 'Open profile',
+    ctaPathKey: 'profile',
+  },
   employer: {
     title: 'Welcome to your employer workspace',
     body: 'Post a job draft or complete verification to unlock submissions for review.',

@@ -8,6 +8,7 @@ import { useEmployerAuth } from '../../context/EmployerAuthContext';
 import { useOverlayA11y } from '../../a11y/useOverlayA11y';
 import { isEmployerPortalPath } from '../../auth/authRealm';
 import { DRAWER_NAV_ITEMS } from './navConfig';
+import { isNavItemCurrent, isNavPathCurrent } from './Navbar';
 
 const DRAWER_DURATION_MS = 220;
 
@@ -65,14 +66,12 @@ export function DrawerMenu({ open, onClose }) {
     if (exitTimeoutRef.current) clearTimeout(exitTimeoutRef.current);
   }, []);
 
-  const isCurrent = (path) => {
-    if (!path) return false;
-    if (path === ROUTES.HOME) return pathname === ROUTES.HOME;
-    return pathname === path || pathname.startsWith(`${path}/`);
-  };
+  const isCurrent = (path) => isNavPathCurrent(pathname, path);
+  const isItemCurrent = (item) => isNavItemCurrent(pathname, item);
 
   const linkClass =
     'block px-4 py-3.5 rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700 transition-colors min-h-[44px] flex items-center';
+  const currentLinkClass = `${linkClass} bg-primary/10 text-primary font-semibold dark:bg-mint/15 dark:text-mint`;
 
   const overlayClass = exiting
     ? 'fixed inset-0 bg-black/50 z-[100] animate-overlay-leave'
@@ -116,8 +115,8 @@ export function DrawerMenu({ open, onClose }) {
                   <Link
                     to={item.path}
                     onClick={handleClose}
-                    className={`flex-1 ${linkClass}`}
-                    aria-current={isCurrent(item.path) ? 'page' : undefined}
+                    className={`flex-1 ${isItemCurrent(item) ? currentLinkClass : linkClass}`}
+                    aria-current={isItemCurrent(item) ? 'page' : undefined}
                   >
                     {item.label}
                   </Link>
@@ -150,7 +149,7 @@ export function DrawerMenu({ open, onClose }) {
                         key={sub.path}
                         to={sub.path}
                         onClick={handleClose}
-                        className={linkClass}
+                        className={isCurrent(sub.path) ? currentLinkClass : linkClass}
                         aria-current={isCurrent(sub.path) ? 'page' : undefined}
                       >
                         {sub.label}
@@ -164,7 +163,7 @@ export function DrawerMenu({ open, onClose }) {
                 key={item.path}
                 to={item.path}
                 onClick={handleClose}
-                className={linkClass}
+                className={isCurrent(item.path) ? currentLinkClass : linkClass}
                 aria-current={isCurrent(item.path) ? 'page' : undefined}
                 data-tour={item.tour}
               >

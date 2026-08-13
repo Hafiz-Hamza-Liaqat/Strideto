@@ -6,7 +6,7 @@ export function ProtectedEmployerRoute({ children }) {
   const { employer, loading, isAuthenticated } = useEmployerAuth();
   const location = useLocation();
 
-  if (loading) {
+  if (loading && !isAuthenticated) {
     return (
       <div className="min-h-[40vh] flex items-center justify-center">
         <div className="animate-pulse text-slate-600">Loading...</div>

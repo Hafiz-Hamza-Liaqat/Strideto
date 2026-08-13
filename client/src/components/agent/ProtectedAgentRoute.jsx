@@ -6,7 +6,7 @@ export function ProtectedAgentRoute({ children }) {
   const { loading, isAuthenticated } = useAgentAuth();
   const location = useLocation();
 
-  if (loading) {
+  if (loading && !isAuthenticated) {
     return <div className="min-h-screen grid place-items-center text-slate-500">Loading agent portal…</div>;
   }
   if (!isAuthenticated) {

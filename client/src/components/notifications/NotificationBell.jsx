@@ -91,7 +91,7 @@ export function NotificationBellCore({ api, enabled, viewAllRoute }) {
         )}
       </button>
       {open && (
-        <div id="notification-panel" role="region" aria-label={t('dashboard:notifications')} className="absolute right-0 mt-2 w-80 max-w-[calc(100vw-2rem)] rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg z-50">
+        <div id="notification-panel" role="region" aria-label={t('dashboard:notifications')} className="fixed inset-x-2 top-14 z-50 max-h-[min(70vh,24rem)] overflow-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 shadow-lg sm:absolute sm:inset-x-auto sm:right-0 sm:top-auto sm:mt-2 sm:w-80 sm:max-w-[calc(100vw-2rem)]">
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700">
             <span className="font-semibold text-gray-900 dark:text-white">{t('dashboard:notifications')}</span>
             <Link to={viewAllRoute} className="text-xs text-primary dark:text-mint" onClick={() => setOpen(false)}>
@@ -115,8 +115,8 @@ export function NotificationBellCore({ api, enabled, viewAllRoute }) {
                     : n.title}
                   className={`w-full text-left px-4 py-3 border-b border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700/50 focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary ${!n.read ? 'bg-primary/5' : ''}`}
                 >
-                  <p className="text-sm font-medium text-gray-900 dark:text-white line-clamp-1">{n.title}</p>
-                  {n.body && <p className="text-xs text-gray-500 dark:text-gray-400 line-clamp-2 mt-0.5">{n.body}</p>}
+                  <p className="text-sm font-medium text-gray-900 dark:text-white break-words">{n.title}</p>
+                  {n.body && <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5 break-words">{n.body}</p>}
                 </button>
               );
             })}

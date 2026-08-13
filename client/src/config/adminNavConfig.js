@@ -76,7 +76,7 @@ export const ADMIN_NAV_GROUPS = /** @type {AdminNavGroup[]} */ ([
       { path: `${ROUTES.ADMIN}/webinars`, labelKey: 'webinars', perm: PERMISSIONS.CONTENT_BLOGS, icon: 'video' },
       { path: `${ROUTES.ADMIN}/exam-preparation`, labelKey: 'examPreparation', perm: PERMISSIONS.CONTENT_MCQS, icon: 'clipboard' },
       { path: `${ROUTES.ADMIN}/site-cms`, labelKey: 'siteCms', perm: [PERMISSIONS.CONTENT_SITE, PERMISSIONS.CONTENT_NAV, PERMISSIONS.CONTENT_PAGES], icon: 'cms' },
-      { path: `${ROUTES.ADMIN}/page-builder`, labelKey: 'pageBuilder', perm: PERMISSIONS.CONTENT_SITE, icon: 'content' },
+      { path: `${ROUTES.ADMIN}/page-builder`, labelKey: 'pageBuilder', perm: PERMISSIONS.CONTENT_SITE, icon: 'content', end: true },
       { path: `${ROUTES.ADMIN}/page-builder/history`, labelKey: 'pageBuilderHistory', perm: PERMISSIONS.CONTENT_SITE, icon: 'content' },
       { path: `${ROUTES.ADMIN}/page-builder/templates`, labelKey: 'blockTemplates', perm: PERMISSIONS.CONTENT_SITE, icon: 'content' },
       { path: `${ROUTES.ADMIN}/page-builder/global-blocks`, labelKey: 'globalBlocks', perm: PERMISSIONS.CONTENT_SITE, icon: 'content' },

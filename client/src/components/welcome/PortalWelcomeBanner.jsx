@@ -9,6 +9,9 @@ import {
 } from '../../welcome/portalWelcome';
 
 const CTA_PATHS = {
+  student: {
+    profile: ROUTES.PROFILE,
+  },
   employer: {
     postJob: ROUTES.EMPLOYER_POST_JOB,
   },

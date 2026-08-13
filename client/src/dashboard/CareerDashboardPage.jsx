@@ -5,6 +5,7 @@ import { ListingCardSkeleton } from '../components/listings/ListingCardSkeleton'
 import { DashboardLayout } from './DashboardLayout';
 import { useDashboardComposition } from './useDashboardComposition';
 import { ResumeEncouragementBanner } from '../components/profile/ResumeEncouragementBanner';
+import { PortalWelcomeBanner } from '../components/welcome/PortalWelcomeBanner';
 import { useAuth } from '../context/AuthContext';
 import { useEmployerAuth } from '../context/EmployerAuthContext';
 import {
@@ -59,6 +60,11 @@ export default function CareerDashboardPage() {
           <p className="mb-4 text-sm text-amber-600 dark:text-amber-400" role="status">{error}</p>
         ) : null}
         <div className="mb-8">
+          <PortalWelcomeBanner
+            realm="student"
+            userId={user?._id}
+            displayName={user?.name || user?.firstName}
+          />
           <ResumeEncouragementBanner />
         </div>
         <DashboardLayout

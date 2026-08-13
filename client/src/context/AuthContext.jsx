@@ -114,13 +114,13 @@ export function AuthProvider({ children }) {
   }, [clearAuth]);
 
   /** Silent refresh via the HttpOnly cookie — never reads/writes a stored refresh token. */
-  const refreshToken = useCallback(async () => {
+  const refreshToken = useCallback(async ({ clearOnFailure = true } = {}) => {
     try {
       const { data } = await authApi.refreshToken();
       setAccessToken(data.accessToken);
       return data.accessToken;
     } catch {
-      clearAuth();
+      if (clearOnFailure) clearAuth();
       return null;
     }
   }, [clearAuth]);
@@ -131,22 +131,25 @@ export function AuthProvider({ children }) {
     });
   }, [clearAuth]);
 
+  const userRealmActive = !shouldSkipUserAuthBootstrap(pathname);
+
   useEffect(() => {
-    if (shouldSkipUserAuthBootstrap(pathname)) {
+    if (!userRealmActive) {
       setLoading(false);
       return undefined;
     }
 
-    setLoading(true);
+    const alreadyHydrated = !!getAccessToken();
+    if (!alreadyHydrated) setLoading(true);
     let cancelled = false;
 
-    // Secure bootstrap: attempt a silent cookie-based refresh first (the
-    // page reload starts with no in-memory access token by construction),
-    // then hydrate the profile via /auth/me only on success.
-    refreshToken()
+    // Realm-boundary bootstrap only (not every pathname). Quiet refresh when
+    // already hydrated so in-app navigation never unmounts the shell.
+    refreshToken({ clearOnFailure: false })
       .then((token) => {
         if (cancelled) return null;
         if (!token) {
+          clearAuth();
           persistUser(null);
           return null;
         }
@@ -166,7 +169,7 @@ export function AuthProvider({ children }) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [userRealmActive]);
 
   const value = {
     user,

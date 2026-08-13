@@ -51,15 +51,17 @@ function popoverPlacement(preferred = { side: 'bottom', align: 'start' }) {
 }
 
 /**
- * Build Driver.js steps. Employer dashboard step only when isEmployer.
+ * Build Driver.js steps for the current product.
+ * Role sequences follow Phase 15 product-tour IA.
  */
-export function buildTourSteps({ isEmployer = false } = {}) {
+export function buildTourSteps({ isEmployer = false, role = null } = {}) {
+  const resolvedRole = role || (isEmployer ? 'employer' : 'student');
   const steps = [
     {
       popover: {
         title: 'Welcome to Strideto',
         description:
-          'Every Step Toward Success.\n\nDiscover jobs, scholarships, admissions, internships, resume tools, career guidance, and more—all in one place.',
+          'Every Step Toward Success.\n\nDiscover jobs, scholarships, admissions, internships, programs, and career tools worldwide.',
         side: 'over',
         align: 'center',
       },
@@ -67,7 +69,16 @@ export function buildTourSteps({ isEmployer = false } = {}) {
   ];
 
   const pushTargeted = (selector, popover) => {
-    if (!elExists(selector)) return;
+    if (!elExists(selector)) {
+      steps.push({
+        popover: {
+          ...popover,
+          side: 'over',
+          align: 'center',
+        },
+      });
+      return;
+    }
     const placement = popoverPlacement({ side: popover.side, align: popover.align });
     if (isHighlightable(selector)) {
       steps.push({
@@ -75,7 +86,6 @@ export function buildTourSteps({ isEmployer = false } = {}) {
         popover: { ...popover, ...placement },
       });
     } else {
-      // Keep the educational step as a centered card when the anchor is off-screen/hidden.
       steps.push({
         popover: {
           ...popover,
@@ -87,71 +97,152 @@ export function buildTourSteps({ isEmployer = false } = {}) {
     }
   };
 
-  pushTargeted(TOUR_SELECTORS.search, {
-    title: 'Search',
-    description: 'Search thousands of opportunities instantly.',
-    side: 'bottom',
-    align: 'start',
-  });
-
-  pushTargeted(TOUR_SELECTORS.nav, {
-    title: 'Navigation',
-    description:
-      'Browse:\n• Jobs\n• Scholarships\n• Admissions\n• Internships\n• Career Guidance\n• Foreign Studies\n• Resume Builder',
-    side: 'bottom',
-    align: 'start',
-  });
-
-  pushTargeted(TOUR_SELECTORS.resume, {
-    title: 'Resume Builder',
-    description: 'Create a professional resume using guided templates.\n\nTip: use “Try Resume Builder” on the final step.',
-    side: 'bottom',
-    align: 'end',
-  });
-
-  pushTargeted(TOUR_SELECTORS.dashboard, {
-    title: 'Dashboard',
-    description:
-      'Track:\nApplications\nSaved Opportunities\nAchievements\nProfile Progress\nRecommendations',
-    side: 'bottom',
-    align: 'end',
-  });
-
-  pushTargeted(TOUR_SELECTORS.career, {
-    title: 'Career Guidance',
-    description: 'Explore career paths, articles, and personalized recommendations.',
-    side: 'bottom',
-    align: 'end',
-  });
-
-  if (isEmployer) {
+  if (resolvedRole === 'employer') {
     pushTargeted(TOUR_SELECTORS.employer, {
-      title: 'Employer Dashboard',
-      description: 'Manage job posts.\nReview applicants.\nTrack hiring.',
+      title: 'Verify',
+      description: 'Complete organization verification before privileged hiring actions.',
       side: 'bottom',
       align: 'end',
+    });
+    steps.push({
+      popover: {
+        title: 'Job draft → Submit',
+        description: 'Create a job draft, then submit it for review. Free quota and 24h rules still apply.',
+        side: 'over',
+        align: 'center',
+      },
+    });
+    steps.push({
+      popover: {
+        title: 'Applicants → Pipeline → Interviews',
+        description: 'Employer controls received, screening, interview, offer, hired, and rejected. Students cannot change those stages.',
+        side: 'over',
+        align: 'center',
+      },
+    });
+    steps.push({
+      popover: {
+        title: 'Usage',
+        description: 'Plans & Usage shows the same entitlement snapshot as Admin. Paid products remain not_configured until live commerce is accepted.',
+        side: 'over',
+        align: 'center',
+      },
+    });
+  } else if (resolvedRole === 'agent') {
+    steps.push({
+      popover: {
+        title: 'Profile → Verify',
+        description: 'Complete the six onboarding stages, then submit verification. Status never claims under_review unless the server says so.',
+        side: 'over',
+        align: 'center',
+      },
+    });
+    steps.push({
+      popover: {
+        title: 'Services → Availability → Consultations',
+        description: 'Publish services, set IANA timezone availability, then receive consultation requests.',
+        side: 'over',
+        align: 'center',
+      },
+    });
+    steps.push({
+      popover: {
+        title: 'Cases → Trust',
+        description: 'Manage cases and trust reports. Commerce remains not_configured at launch.',
+        side: 'over',
+        align: 'center',
+      },
+    });
+  } else if (resolvedRole === 'institution') {
+    steps.push({
+      popover: {
+        title: 'Verify → Canonical Claim',
+        description: 'Organization verification and canonical claim are separate. Publishing stays blocked until both are approved.',
+        side: 'over',
+        align: 'center',
+      },
+    });
+    steps.push({
+      popover: {
+        title: 'Programs → Intakes → Applications',
+        description: 'Publish source-backed programs, manage intakes, and review institution-authoritative applications.',
+        side: 'over',
+        align: 'center',
+      },
+    });
+    steps.push({
+      popover: {
+        title: 'Data Quality',
+        description: 'Keep official facts current. Completeness is not verification.',
+        side: 'over',
+        align: 'center',
+      },
+    });
+  } else if (resolvedRole === 'admin') {
+    steps.push({
+      popover: {
+        title: 'Overview → Verification',
+        description: 'Review organization verification. Same-state needs_information updates do not invent a transition.',
+        side: 'over',
+        align: 'center',
+      },
+    });
+    steps.push({
+      popover: {
+        title: 'Trust / Data Quality',
+        description: 'Trust and data-quality queues stay separate from announcements and alerts.',
+        side: 'over',
+        align: 'center',
+      },
+    });
+    steps.push({
+      popover: {
+        title: 'Announcements → Operations',
+        description: 'Announcements are durable dashboard communication. Alerts are multi-channel operational distribution. Unavailable channels stay labelled not configured.',
+        side: 'over',
+        align: 'center',
+      },
+    });
+  } else {
+    pushTargeted(TOUR_SELECTORS.profile, {
+      title: 'Profile',
+      description: 'Complete your profile so recommendations and applications stay accurate.',
+      side: 'bottom',
+      align: 'end',
+    });
+    pushTargeted(TOUR_SELECTORS.search, {
+      title: 'Discover',
+      description: 'Search jobs, internships, scholarships, admissions, and programs worldwide. Country is international — not a Pakistan-only default.',
+      side: 'bottom',
+      align: 'start',
+    });
+    pushTargeted(TOUR_SELECTORS.dashboard, {
+      title: 'Save / Journey → Apply → Track',
+      description: 'Save opportunities, apply where supported, then track Employer or Institution status as read-only truth. External tracking is labelled My tracking status.',
+      side: 'bottom',
+      align: 'end',
+    });
+    steps.push({
+      popover: {
+        title: 'Vault → Services → Privacy',
+        description: 'Keep documents in Vault, use professional services when you need them, and review privacy controls in Account.',
+        side: 'over',
+        align: 'center',
+      },
     });
   }
 
   pushTargeted(TOUR_SELECTORS.notifications, {
     title: 'Notifications',
-    description:
-      'Receive updates about:\nJobs\nScholarships\nAdmissions\nDeadlines\nAnnouncements',
-    side: 'bottom',
-    align: 'end',
-  });
-
-  pushTargeted(TOUR_SELECTORS.profile, {
-    title: 'Your Profile',
-    description: 'Complete your profile for better recommendations and visibility.',
+    description: 'In-app updates for applications, deadlines, and announcements.',
     side: 'bottom',
     align: 'end',
   });
 
   steps.push({
     popover: {
-      title: "You're ready! 🎉",
-      description: 'Explore opportunities, build your resume, or finish the tour whenever you like.',
+      title: "You're ready",
+      description: 'Explore opportunities, finish your profile, or leave the tour whenever you like.',
       side: 'over',
       align: 'center',
     },

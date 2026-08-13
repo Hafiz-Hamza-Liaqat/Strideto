@@ -154,6 +154,38 @@
   .link-hover {
     @apply transition-colors duration-200;
   }
+  .nav-item {
+    @apply px-2 xl:px-2.5 py-2 text-sm rounded-lg whitespace-nowrap transition-colors duration-200 min-h-[44px] inline-flex items-center;
+  }
+  .nav-item:hover {
+    @apply bg-gray-100 text-primary dark:bg-gray-800 dark:text-mint;
+  }
+  .nav-item[aria-current="page"],
+  .nav-item.is-current {
+    @apply bg-primary-light text-primary font-semibold dark:bg-gray-800 dark:text-mint;
+  }
+  .nav-item[aria-expanded="true"]:not([aria-current="page"]) {
+    @apply bg-gray-100 dark:bg-gray-800;
+  }
+  .interactive-card {
+    @apply transition-all duration-200 ease-out rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800;
+  }
+  .interactive-card:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 24px rgba(15, 23, 42, 0.1);
+    @apply border-primary dark:border-mint;
+  }
+  .interactive-card:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+  @media (prefers-reduced-motion: reduce) {
+    .interactive-card:hover,
+    .card-hover:hover,
+    .card-theme:hover {
+      transform: none;
+    }
+  }
   .input-focus {
     @apply transition-shadow duration-200;
   }

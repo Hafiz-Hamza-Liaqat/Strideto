@@ -32,7 +32,6 @@ export const PRIMARY_NAV_ITEMS = [
       { labelKey: 'navbar:professionalMarketplace', path: '/agents/marketplace' },
       { labelKey: 'navbar:careerGuidance', path: '/career-guidance' },
       { labelKey: 'navbar:resumeBuilder', path: '/resume-builder' },
-      { labelKey: 'navbar:helpCenter', path: '/help-center' },
     ],
   },
 ];

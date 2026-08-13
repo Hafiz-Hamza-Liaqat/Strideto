@@ -101,20 +101,19 @@ export function EmployerAuthProvider({ children }) {
     }
   }, [persistEmployer]);
 
+  const employerRouteActive = isEmployerRoutePrefix(pathname);
+
   useEffect(() => {
-    // Never attempt an employer cookie refresh from a User-only page —
-    // mirrors AuthContext.jsx's reciprocal `shouldSkipUserAuthBootstrap`
-    // guard so neither realm's bootstrap ever touches the other's route.
-    if (!isEmployerRoutePrefix(pathname)) {
+    // Realm-boundary bootstrap only — never re-run on every in-portal pathname.
+    if (!employerRouteActive) {
       setLoading(false);
       return undefined;
     }
 
     let cancelled = false;
-    setLoading(true);
+    const alreadyHydrated = !!getEmployerAccessToken();
+    if (!alreadyHydrated) setLoading(true);
 
-    // Secure bootstrap: attempt a silent cookie-based refresh first, then
-    // hydrate the profile only on success — never trusts a stored token.
     employerAuthApi
       .refresh()
       .then(({ data }) => {
@@ -139,7 +138,7 @@ export function EmployerAuthProvider({ children }) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pathname]);
+  }, [employerRouteActive]);
 
   const value = {
     employer,

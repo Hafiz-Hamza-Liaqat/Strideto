@@ -12,7 +12,7 @@ export function ProtectedRoute({ children, requireRole, requireStaff }) {
   const location = useLocation();
   const { t } = useTranslation(['static', 'common']);
 
-  if (loading) {
+  if (loading && !isAuthenticated) {
     return (
       <div className="min-h-[40vh] flex items-center justify-center">
         <div className="animate-pulse text-gray-500 dark:text-gray-400">{t('common:loading')}</div>
