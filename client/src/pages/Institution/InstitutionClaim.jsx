@@ -96,7 +96,7 @@ export default function InstitutionClaim() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Canonical Institution claim</h1>
-        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Search for an existing published institution record or propose a new one. You do not need to guess database IDs.</p>
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Search for an existing published institution record or propose a new one. You do not need to guess database IDs. A canonical claim does not establish legitimacy. Organization verification remains separate.</p>
       </div>
       {error ? <PageState tone="error" role="alert">{error}</PageState> : null}
       <div className="flex flex-wrap gap-2">

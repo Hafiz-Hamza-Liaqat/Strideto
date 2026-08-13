@@ -157,9 +157,21 @@ export default function InstitutionDashboard() {
         <StatusBadge label="Canonical claim" value={data.claimState || 'not_started'} />
         <StatusBadge label="Portal role" value={data.membership?.role} />
       </div>
-      {data.verificationStatus !== 'approved' || data.claimState !== 'approved' ? (
-        <PageState tone="warning"><strong>Publishing authority is not active.</strong> Verification is {humanize(data.verificationStatus)} and the canonical claim is {humanize(data.claimState || 'not started')}. Privileged canonical publication remains server-blocked.</PageState>
-      ) : <PageState tone="success">Approved verification and canonical claim authority are active. Program changes still follow review and provenance controls.</PageState>}
+      {data.verificationStatus === 'approved' && data.claimState !== 'approved' ? (
+        <PageState tone="warning">
+          <p>✓ Organization verification — Approved</p>
+          <p className="mt-1">⏳ Canonical Institution claim — {humanize(data.claimState || 'under review')}</p>
+          <p className="mt-2 text-sm">You may prepare private drafts. Publishing becomes available after the canonical Institution claim is approved.</p>
+        </PageState>
+      ) : data.verificationStatus !== 'approved' || data.claimState !== 'approved' ? (
+        <PageState tone="warning">
+          <p>Organization verification — {humanize(data.verificationStatus)}</p>
+          <p className="mt-1">Canonical Institution claim — {humanize(data.claimState || 'not started')}</p>
+          <p className="mt-2 text-sm">These are separate reviews. Organization verification does not grant canonical publishing authority.</p>
+        </PageState>
+      ) : (
+        <PageState tone="success">Approved verification and canonical claim authority are active. Program changes still follow review and provenance controls.</PageState>
+      )}
 
       {nextActions.length ? (
         <Panel title="Suggested next actions">
