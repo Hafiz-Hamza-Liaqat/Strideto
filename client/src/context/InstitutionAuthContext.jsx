@@ -75,6 +75,15 @@ export function InstitutionAuthProvider({ children }) {
     }
   }, []);
 
+  const logoutAll = useCallback(async () => {
+    try {
+      await institutionAuthApi.logoutAll();
+    } finally {
+      clearLocalSession();
+      setSession(null);
+    }
+  }, []);
+
   useEffect(() => {
     return onSessionExpired((realm) => {
       if (realm === 'institution') {
@@ -118,6 +127,25 @@ export function InstitutionAuthProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [institutionRouteActive]);
 
+  useEffect(() => {
+    if (!institutionRouteActive) return undefined;
+    const refreshQuietly = () => {
+      if (document.hidden || !getInstitutionAccessToken()) return;
+      institutionAuthApi.refresh().then(({ data }) => {
+        if (data?.accessToken) setInstitutionAccessToken(data.accessToken);
+      }).catch(() => {});
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refreshQuietly();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', refreshQuietly);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', refreshQuietly);
+    };
+  }, [institutionRouteActive]);
+
   const account = session?.account || null;
   const memberships = session?.memberships || [];
   const organizationId = memberships[0]?.organizationId || null;
@@ -134,7 +162,8 @@ export function InstitutionAuthProvider({ children }) {
     login,
     register,
     logout,
-  }), [account, memberships, organizationId, loading, error, login, register, logout]);
+    logoutAll,
+  }), [account, memberships, organizationId, loading, error, login, register, logout, logoutAll]);
 
   return <InstitutionAuthContext.Provider value={value}>{children}</InstitutionAuthContext.Provider>;
 }

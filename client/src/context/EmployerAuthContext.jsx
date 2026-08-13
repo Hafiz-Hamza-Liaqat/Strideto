@@ -147,6 +147,25 @@ export function EmployerAuthProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [employerRouteActive]);
 
+  useEffect(() => {
+    if (!employerRouteActive) return undefined;
+    const refreshQuietly = () => {
+      if (document.hidden || !getEmployerAccessToken()) return;
+      employerAuthApi.refresh().then(({ data }) => {
+        if (data?.accessToken) setEmployerAccessToken(data.accessToken);
+      }).catch(() => {});
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refreshQuietly();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', refreshQuietly);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', refreshQuietly);
+    };
+  }, [employerRouteActive]);
+
   const value = {
     employer,
     loading,

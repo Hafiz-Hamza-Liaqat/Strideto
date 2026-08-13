@@ -92,6 +92,15 @@ export function AgentAuthProvider({ children }) {
     }
   }, []);
 
+  const logoutAll = useCallback(async () => {
+    try {
+      await agentAuthApi.logoutAll();
+    } finally {
+      clearAgentSessionLocal();
+      setAgent(null);
+    }
+  }, []);
+
   useEffect(() => {
     return onSessionExpired((realm) => {
       if (realm === 'agent') {
@@ -145,6 +154,25 @@ export function AgentAuthProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [agentRouteActive]);
 
+  useEffect(() => {
+    if (!agentRouteActive) return undefined;
+    const refreshQuietly = () => {
+      if (document.hidden || !getAgentAccessToken()) return;
+      agentAuthApi.refreshToken().then(({ data }) => {
+        if (data?.accessToken) setAgentAccessToken(data.accessToken);
+      }).catch(() => {});
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refreshQuietly();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', refreshQuietly);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', refreshQuietly);
+    };
+  }, [agentRouteActive]);
+
   const value = {
     agent,
     loading,
@@ -154,6 +182,7 @@ export function AgentAuthProvider({ children }) {
     login,
     register,
     logout,
+    logoutAll,
     refreshAgent,
   };
 
