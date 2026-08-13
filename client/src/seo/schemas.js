@@ -46,7 +46,7 @@ export function organizationSchema() {
       url: `${SITE_URL}/branding/logo-symbol.svg`,
     },
     description: DEFAULT_DESCRIPTION,
-    areaServed: { '@type': 'Country', name: 'Pakistan' },
+    areaServed: 'Worldwide',
     sameAs: organizationSameAsUrls(),
   });
 }
@@ -238,7 +238,7 @@ export function scholarshipSchema(item) {
     provider: item.provider
       ? { '@type': 'Organization', name: item.provider }
       : { '@type': 'Organization', name: SITE_NAME },
-    eligibleRegion: item.country || 'Pakistan',
+    eligibleRegion: item.country || undefined,
     applicationDeadline: item.deadline,
     amount: item.amount
       ? { '@type': 'MonetaryAmount', currency: 'PKR', value: item.amount }

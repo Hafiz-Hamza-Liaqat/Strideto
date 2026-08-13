@@ -12,7 +12,7 @@ export const DEFAULT_TITLE = `${SITE_NAME} | Jobs, Scholarships, Admissions & Ca
 export const DEFAULT_DESCRIPTION =
   'Discover jobs, scholarships, admissions, internships, and career resources—all in one place. Every step toward success with Strideto.';
 export const DEFAULT_KEYWORDS =
-  'jobs pakistan, government jobs, private jobs, scholarships, internships, career guidance, resume builder, admissions, universities, students, education portal, Pakistan jobs, latest jobs, career opportunities, Strideto';
+  'jobs, scholarships, admissions, internships, career guidance, resume builder, universities, students, education portal, career opportunities, Strideto';
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.png`;
 export const TWITTER_HANDLE = '@Strideto';
 export const THEME_COLOR = colors.primary;

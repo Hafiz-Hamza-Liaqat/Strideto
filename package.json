@@ -1,7 +1,7 @@
 {
   "name": "strideto-e-portal",
   "version": "1.0.0",
-  "description": "Strideto – Pakistan Job & Education E-Portal",
+  "description": "Strideto – international jobs, scholarships, admissions, and career platform",
   "private": true,
   "scripts": {
     "dev": "npm run dev --prefix client",

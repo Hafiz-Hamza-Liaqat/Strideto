@@ -2,7 +2,7 @@
   "name": "strideto-client",
   "private": true,
   "version": "1.0.0",
-  "description": "Strideto – Pakistan Job & Education E-Portal (React frontend)",
+  "description": "Strideto – international jobs, scholarships, admissions, and career platform (React frontend)",
   "license": "MIT",
   "author": "Syed Daniyal Abbas",
   "type": "module",
