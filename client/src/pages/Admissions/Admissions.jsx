@@ -7,6 +7,7 @@ import { admissionsApi, savedApi } from '../../services/listingsService';
 import { useListings } from '../../hooks/useListings';
 import { ROUTES } from '../../constants';
 import { SORT_OPTIONS } from '../../constants/listings';
+import { DateInput } from '../../components/forms/NativeTemporalInput';
 import { SearchBar } from '../../components/ui/SearchBar';
 import { Pagination } from '../../components/ui/Pagination';
 import { SaveButton } from '../../components/listings/SaveButton';
@@ -98,7 +99,7 @@ export default function Admissions() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('deadlineAfter', { ns: 'admissions' })}</label>
-              <input type="date" value={params.deadline || ''} onChange={(e) => setFilters({ deadline: e.target.value || undefined })} className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm" />
+              <DateInput value={params.deadline || ''} onChange={(e) => setFilters({ deadline: e.target.value || undefined })} className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm" />
             </div>
             <AdHost placementId="admissions-sidebar" variant="sidebar" />
           </aside>

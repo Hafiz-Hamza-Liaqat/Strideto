@@ -22,7 +22,7 @@ export function isNavItemCurrent(pathname, item) {
   return isNavPathCurrent(pathname, item?.path);
 }
 
-const linkClass = 'nav-item text-gray-700 dark:text-gray-300';
+const linkClass = 'nav-item';
 
 export function Navbar() {
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -79,7 +79,7 @@ export function Navbar() {
   };
 
   return (
-    <header className="sticky top-0 z-40 border-b border-gray-200 dark:border-gray-800 bg-surface/98 dark:bg-surface-dark/98 backdrop-blur safe-area-inset-top">
+    <header className="public-navbar sticky top-0 z-40 border-b backdrop-blur safe-area-inset-top">
       <div className="max-w-7xl mx-auto px-3 sm:px-6 min-w-0">
         <div
           className="flex items-center justify-between h-14 md:h-16 gap-2 min-h-[56px] min-w-0"
@@ -91,13 +91,10 @@ export function Navbar() {
             aria-label={t('common:appName')}
           >
             <span className="inline-flex sm:hidden shrink-0">
-              <Logo variant="symbol" height={36} className="shrink-0" />
+              <Logo variant="symbol" tone="light" height={36} className="shrink-0" />
             </span>
-            <span className="hidden sm:inline-flex dark:hidden shrink-0">
-              <Logo variant="full" height={36} className="shrink-0" />
-            </span>
-            <span className="hidden sm:dark:inline-flex shrink-0">
-              <Logo variant="full" tone="dark" height={36} className="shrink-0" />
+            <span className="hidden sm:inline-flex shrink-0">
+              <Logo variant="full" tone="light" height={36} className="shrink-0" />
             </span>
           </Link>
 
@@ -161,7 +158,7 @@ export function Navbar() {
             )}
           </nav>
 
-          <div className="flex items-center gap-0.5 sm:gap-1 shrink-0 relative">
+          <div className="public-navbar-tools flex items-center gap-0.5 sm:gap-1 shrink-0 relative">
             <TourAnchors />
             <NotificationBell />
             <UserAccountMenu />
@@ -169,7 +166,7 @@ export function Navbar() {
               ref={menuButtonRef}
               type="button"
               id="mobile-menu-button"
-              className="min-[1440px]:hidden min-w-[48px] min-h-[48px] flex items-center justify-center rounded-lg text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 active:bg-gray-200 dark:active:bg-gray-700 cursor-pointer"
+              className="min-[1440px]:hidden min-w-[48px] min-h-[48px] flex items-center justify-center rounded-lg text-slate-200 hover:bg-white/10 active:bg-white/15 cursor-pointer"
               onClick={(e) => {
                 e.preventDefault();
                 e.stopPropagation();

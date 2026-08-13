@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
 import { FormField } from '../../components/common/FormField';
+import { DateInput } from '../../components/forms/NativeTemporalInput';
 import { Button } from '../../components/common/Button';
 import {
   GRADING_SYSTEMS,
@@ -99,9 +100,8 @@ export function TalentProfileForm({ form, setForm, activeTab }) {
             />
           </FormField>
           <FormField label={t('talent:personal.dateOfBirth')} id="tp-dob">
-            <input
+            <DateInput
               id="tp-dob"
-              type="date"
               className={inputClass}
               value={form.personal.dateOfBirth}
               onChange={(e) => updateNested(setForm, 'personal.dateOfBirth', e.target.value)}

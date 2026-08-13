@@ -23,6 +23,7 @@ import { formatDate } from '../../utils/formatDate';
 import { useAuth } from '../../context/AuthContext';
 import { AdHost } from '../../components/ads';
 import { LocationCascadeFilter } from '../../components/forms/LocationCascadeFilter';
+import { DateInput } from '../../components/forms/NativeTemporalInput';
 import { ScrollReveal } from '../../components/ui/ScrollReveal';
 
 const PER_PAGE = 10;
@@ -257,8 +258,7 @@ export default function Jobs() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('deadlineAfter', { ns: 'jobs' })}</label>
-              <input
-                type="date"
+              <DateInput
                 value={params.deadline || ''}
                 onChange={(e) => setFilters({ deadline: e.target.value || undefined })}
                 className={selectClass}
