@@ -69,6 +69,7 @@ test('valid Agent registration succeeds beside a same-email Student in restricte
       displayName: 'Disposable Agent Practice',
       agentType: 'agent',
       countryCode: 'pk',
+      acceptedTerms: true,
     },
   }, res);
 
@@ -100,6 +101,7 @@ test('same-realm duplicate is a truthful 409 and creates no second organization'
       displayName: 'Must Not Be Created',
       agentType: 'agency',
       countryCode: 'GB',
+      acceptedTerms: true,
     },
   }, res);
   assert.equal(res.statusCode, 409);
@@ -111,7 +113,7 @@ test('invalid country and weak password return actionable 422 responses', async 
   const countryRes = responseDouble();
   await handler({ body: {
     email: 'invalid-country@example.test', password: 'ValidPass9',
-    displayName: 'Invalid Country', agentType: 'agent', countryCode: 'XX',
+    displayName: 'Invalid Country', agentType: 'agent', countryCode: 'XX', acceptedTerms: true,
   } }, countryRes);
   assert.equal(countryRes.statusCode, 422);
   assert.match(countryRes.body.error, /ISO 3166-1/);
@@ -119,7 +121,7 @@ test('invalid country and weak password return actionable 422 responses', async 
   const passwordRes = responseDouble();
   await handler({ body: {
     email: 'weak-password@example.test', password: 'alllowercase',
-    displayName: 'Weak Password', agentType: 'agent', countryCode: 'PK',
+    displayName: 'Weak Password', agentType: 'agent', countryCode: 'PK', acceptedTerms: true,
   } }, passwordRes);
   assert.equal(passwordRes.statusCode, 422);
   assert.match(passwordRes.body.error, /uppercase/);

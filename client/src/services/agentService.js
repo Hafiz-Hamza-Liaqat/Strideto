@@ -99,8 +99,8 @@ export const agentAuthApi = {
   logout: () => agentAxios.post('/api/auth/agent/logout'),
   logoutAll: () => agentAxios.post('/api/auth/agent/logout-all'),
   refreshToken: () => agentAxios.post('/api/auth/agent/refresh-token'),
-  changePassword: (newPassword) =>
-    agentAxios.post('/api/auth/agent/change-password', { newPassword }),
+  changePassword: (payload) =>
+    agentAxios.post('/api/auth/agent/change-password', payload),
   forgotPassword: (email) => agentAxios.post('/api/auth/agent/forgot-password', { email }),
   resetPassword: (data) => agentAxios.post('/api/auth/agent/reset-password', data),
 };

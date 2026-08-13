@@ -9,6 +9,8 @@
  *   - requireInstitutionAuth on portal routes
  *   - User/Employer/Agent cannot invoke Institution mutations
  */
+import { legalAcceptanceMetadata, requireAcceptedTerms } from '../../../shared/legal/policyVersions.js';
+import { validateChangePassword } from '../validators/authValidator.js';
 import { InstitutionAccount } from '../models/institution/InstitutionAccount.js';
 import { InstitutionMembership } from '../models/institution/InstitutionMembership.js';
 import { InstitutionProfile } from '../models/institution/InstitutionProfile.js';
@@ -89,6 +91,9 @@ export const institutionRegister = asyncHandler(async (req, res) => {
   if (!email || !password || !displayName || !institutionType) {
     return res.status(400).json({ error: 'email, password, displayName, and institutionType are required' });
   }
+  if (!requireAcceptedTerms(req.body)) {
+    return res.status(400).json({ error: 'You must agree to the Terms of Service and Privacy Policy' });
+  }
 
   const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
   const normalizedDisplayName = typeof displayName === 'string' ? displayName.trim() : '';
@@ -125,7 +130,11 @@ export const institutionRegister = asyncHandler(async (req, res) => {
   });
 
   // Create InstitutionAccount
-  const account = await InstitutionAccount.create({ email: normalizedEmail, password });
+  const account = await InstitutionAccount.create({
+    email: normalizedEmail,
+    password,
+    ...legalAcceptanceMetadata(),
+  });
 
   // Create owner membership
   await InstitutionMembership.create({
@@ -251,13 +260,21 @@ export const institutionLogoutAll = asyncHandler(async (req, res) => {
 });
 
 export const institutionChangePassword = asyncHandler(async (req, res) => {
-  const { newPassword } = req.body || {};
-  if (!newPassword || newPassword.length < 8) {
-    return res.status(400).json({ error: 'newPassword must be at least 8 characters' });
+  const { currentError, passwordError } = validateChangePassword(req.body);
+  if (currentError || passwordError) {
+    return res.status(400).json({
+      error: 'Validation failed',
+      details: { currentPassword: currentError, newPassword: passwordError },
+    });
+  }
+  const account = await InstitutionAccount.findById(req.institution.subjectId || req.institution.institutionAccountId).select('+password');
+  if (!account) return res.status(404).json({ error: 'Account not found' });
+  if (!(await account.comparePassword(req.body.currentPassword))) {
+    return res.status(401).json({ error: 'Current password is incorrect' });
   }
   const result = await institutionSecureAuthFlows.changePassword({
     principal: req.institution,
-    newPassword,
+    newPassword: req.body.newPassword,
     presentedAccessTokenExp: req.institution.exp,
   });
   if (result.clearCookie) clearInstitutionRefreshCookie(res);

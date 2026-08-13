@@ -18,7 +18,8 @@ import { ORGANIZATION_TYPES } from '../../../shared/international/organization.j
 import { ensureUniqueOrganizationSlug } from '../../../shared/international/organization.js';
 import { normalizeCountryCode } from '../../../shared/international/country.js';
 import { VERIFICATION_STATUSES } from '../../../shared/international/verification.js';
-import { validateEmail, validatePassword, validateForgotPassword, validateResetPassword } from '../validators/authValidator.js';
+import { validateEmail, validatePassword, validateForgotPassword, validateResetPassword, validateChangePassword } from '../validators/authValidator.js';
+import { legalAcceptanceMetadata, requireAcceptedTerms } from '../../../shared/legal/policyVersions.js';
 import crypto from 'crypto';
 import { hashResetToken } from '../utils/tokenStore.js';
 import { queueEmail } from '../services/automationService.js';
@@ -92,6 +93,9 @@ export function createAgentRegisterHandler({
   if (!email || !password || !displayName || !agentType) {
     return res.status(400).json({ error: 'email, password, displayName, and agentType are required' });
   }
+  if (!requireAcceptedTerms(req.body)) {
+    return res.status(400).json({ error: 'You must agree to the Terms of Service and Privacy Policy' });
+  }
 
   const normalizedEmail = typeof email === 'string' ? email.trim().toLowerCase() : '';
   const normalizedDisplayName = typeof displayName === 'string' ? displayName.trim() : '';
@@ -134,6 +138,7 @@ export function createAgentRegisterHandler({
   const account = await agentAccountModel.create({
     email: normalizedEmail,
     password,
+    ...legalAcceptanceMetadata(),
   });
 
   // Create profile linked to organization
@@ -284,14 +289,22 @@ export const agentLogoutAll = asyncHandler(async (req, res) => {
 // ---------------------------------------------------------------------------
 
 export const agentChangePassword = asyncHandler(async (req, res) => {
-  const { newPassword } = req.body || {};
-  if (!newPassword || newPassword.length < 8) {
-    return res.status(400).json({ error: 'newPassword must be at least 8 characters' });
+  const { currentError, passwordError } = validateChangePassword(req.body);
+  if (currentError || passwordError) {
+    return res.status(400).json({
+      error: 'Validation failed',
+      details: { currentPassword: currentError, newPassword: passwordError },
+    });
+  }
+  const account = await AgentAccount.findById(req.agent.subjectId || req.agent.agentAccountId).select('+password');
+  if (!account) return res.status(404).json({ error: 'Account not found' });
+  if (!(await account.comparePassword(req.body.currentPassword))) {
+    return res.status(401).json({ error: 'Current password is incorrect' });
   }
 
   const result = await agentSecureAuthFlows.changePassword({
     principal: req.agent,
-    newPassword,
+    newPassword: req.body.newPassword,
     presentedAccessTokenExp: req.agent.exp,
   });
 

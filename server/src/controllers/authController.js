@@ -15,6 +15,7 @@ import { isSmtpConfigured } from '../services/emailService.js';
 import { logAudit, auditFromRequest } from '../services/auditService.js';
 import { getPermissionsForRole } from '../config/rbac.js';
 import { hashResetToken } from '../utils/tokenStore.js';
+import { legalAcceptanceMetadata } from '../../../shared/legal/policyVersions.js';
 import {
   applyVerificationTokenFields,
   buildVerifyEmailUrl,
@@ -92,11 +93,11 @@ async function issueAndQueueVerification(user) {
 }
 
 export const register = asyncHandler(async (req, res) => {
-  const { emailError, passwordError, name } = validateAuthRegister(req.body);
-  if (emailError || passwordError) {
+  const { emailError, passwordError, name, termsError } = validateAuthRegister(req.body);
+  if (emailError || passwordError || termsError) {
     return res.status(400).json({
       error: 'Validation failed',
-      details: { email: emailError, password: passwordError },
+      details: { email: emailError, password: passwordError, acceptedTerms: termsError },
     });
   }
   const email = req.body.email.trim().toLowerCase();
@@ -117,6 +118,7 @@ export const register = asyncHandler(async (req, res) => {
     role: 'User',
     referredBy,
     emailVerified: false,
+    ...legalAcceptanceMetadata(),
   });
   await ensureReferralCode(user);
 

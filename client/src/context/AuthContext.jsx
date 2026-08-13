@@ -149,6 +149,9 @@ export function AuthProvider({ children }) {
       .then((token) => {
         if (cancelled) return null;
         if (!token) {
+          if (alreadyHydrated && getAccessToken()) {
+            return authApi.me();
+          }
           clearAuth();
           persistUser(null);
           return null;
@@ -170,6 +173,23 @@ export function AuthProvider({ children }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [userRealmActive]);
+
+  useEffect(() => {
+    if (!userRealmActive) return undefined;
+    const refreshQuietly = () => {
+      if (document.hidden) return;
+      refreshToken({ clearOnFailure: false });
+    };
+    const onVisibility = () => {
+      if (document.visibilityState === 'visible') refreshQuietly();
+    };
+    document.addEventListener('visibilitychange', onVisibility);
+    window.addEventListener('focus', refreshQuietly);
+    return () => {
+      document.removeEventListener('visibilitychange', onVisibility);
+      window.removeEventListener('focus', refreshQuietly);
+    };
+  }, [userRealmActive, refreshToken]);
 
   const value = {
     user,

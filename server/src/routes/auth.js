@@ -23,13 +23,14 @@ import { getMyReferrals } from '../controllers/referralsController.js';
 import { requireAuth, requireUserAuth, optionalAuth } from '../middleware/auth.js';
 import { secureTrustedOrigin } from '../middleware/secureTrustedOrigin.js';
 import { authLimiter, forgotPasswordLimiter, refreshLimiter, resendVerificationLimiter } from '../middleware/rateLimit.js';
+import { requireTurnstileWhenEnabled } from '../middleware/turnstile.js';
 
 export const authRouter = Router();
 authRouter.use(privateResponse);
 
-authRouter.post('/auth/register', authLimiter, register);
+authRouter.post('/auth/register', authLimiter, requireTurnstileWhenEnabled('register'), register);
 authRouter.post('/auth/login', authLimiter, secureTrustedOrigin, login);
-authRouter.post('/auth/forgot-password', forgotPasswordLimiter, forgotPassword);
+authRouter.post('/auth/forgot-password', forgotPasswordLimiter, requireTurnstileWhenEnabled('password_recovery'), forgotPassword);
 authRouter.post('/auth/reset-password', authLimiter, secureTrustedOrigin, resetPassword);
 authRouter.get('/auth/verify-email', verifyEmail);
 authRouter.post('/auth/verify-email', verifyEmail);

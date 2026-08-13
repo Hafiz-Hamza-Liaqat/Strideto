@@ -8,6 +8,8 @@ import { useInstitutionAuth } from '../../context/InstitutionAuthContext';
 import { ROUTES } from '../../constants';
 import { getInstitutionRegistrationError } from '../../utils/portalRegistrationErrors';
 import { PageState, fieldClass, primaryButton } from './InstitutionUi';
+import { TermsConsentField } from '../../components/auth/TermsConsentField';
+import { TurnstileField } from '../../components/auth/TurnstileField';
 
 const TYPE_LABELS = Object.freeze({
   university: 'University',
@@ -21,7 +23,7 @@ export default function InstitutionRegister() {
   const { account, organizationId, loading, register } = useInstitutionAuth();
   const navigate = useNavigate();
   const [form, setForm] = useState({
-    displayName: '', institutionType: 'university', countryCode: '', email: '', password: '',
+    displayName: '', institutionType: 'university', countryCode: '', email: '', password: '', acceptedTerms: false,
   });
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
@@ -37,6 +39,10 @@ export default function InstitutionRegister() {
       setError('Select a country.');
       return;
     }
+    if (!form.acceptedTerms) {
+      setError('You must agree to the Terms of Service and Privacy Policy');
+      return;
+    }
     setBusy(true);
     setError('');
     try {
@@ -45,6 +51,7 @@ export default function InstitutionRegister() {
         displayName: form.displayName.trim(),
         countryCode: form.countryCode.trim().toUpperCase(),
         email: form.email.trim().toLowerCase(),
+        acceptedTerms: true,
       });
       navigate(ROUTES.INSTITUTION_ONBOARDING, { replace: true });
     } catch (registrationError) {
@@ -89,6 +96,11 @@ export default function InstitutionRegister() {
             <input id="institution-register-password" required type="password" minLength={8} maxLength={128} value={form.password} onChange={set('password')} className={fieldClass} autoComplete="new-password" placeholder="8–128 characters" />
           </FormField>
           <p className="text-xs text-gray-500 dark:text-gray-400">Use 8–128 characters with uppercase, lowercase, and a number.</p>
+          <TermsConsentField
+            checked={form.acceptedTerms}
+            onChange={(checked) => setForm((current) => ({ ...current, acceptedTerms: checked }))}
+          />
+          <TurnstileField action="register" />
           <button type="submit" disabled={busy || loading} className={`${primaryButton} w-full`}>{busy ? 'Creating restricted account…' : 'Create Institution account'}</button>
         </form>
         <p className="mt-5 text-sm text-gray-600 dark:text-gray-400">Already registered? <Link className="font-semibold text-primary underline" to={ROUTES.INSTITUTION_LOGIN}>Sign in</Link></p>

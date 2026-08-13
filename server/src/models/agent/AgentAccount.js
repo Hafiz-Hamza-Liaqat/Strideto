@@ -37,6 +37,10 @@ const agentAccountSchema = new mongoose.Schema(
     passwordResetToken: { type: String, select: false },
     passwordResetExpires: { type: Date, select: false },
     lastLoginAt: { type: Date, default: null },
+    termsAcceptedAt: { type: Date, default: null },
+    termsVersion: { type: String, trim: true, default: '' },
+    privacyAcknowledgedAt: { type: Date, default: null },
+    privacyVersion: { type: String, trim: true, default: '' },
   },
   { timestamps: true }
 );

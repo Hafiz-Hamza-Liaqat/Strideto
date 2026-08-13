@@ -49,6 +49,10 @@ const employerSchema = new mongoose.Schema(
      * invalidation contract defined in
      * docs/STRIDETO_AUTHENTICATION_SESSION_SECURITY_ARCHITECTURE_AUDIT.md.
      */
+    termsAcceptedAt: { type: Date, default: null },
+    termsVersion: { type: String, trim: true, default: '' },
+    privacyAcknowledgedAt: { type: Date, default: null },
+    privacyVersion: { type: String, trim: true, default: '' },
     tokenVersion: {
       type: Number,
       default: 0,

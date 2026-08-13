@@ -27,7 +27,8 @@ export function validateAuthRegister(body) {
   const emailError = validateEmail(body.email);
   const passwordError = validatePassword(body.password, true);
   const name = body.name != null ? String(body.name).trim() : '';
-  return { emailError, passwordError, name };
+  const termsError = body.acceptedTerms === true ? null : 'You must agree to the Terms of Service and Privacy Policy';
+  return { emailError, passwordError, name, termsError };
 }
 
 export function validateAuthLogin(body) {

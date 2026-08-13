@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
 import { useEmployerAuth } from '../../context/EmployerAuthContext';
 import { ROUTES } from '../../constants';
+import { TermsConsentField } from '../../components/auth/TermsConsentField';
+import { TurnstileField } from '../../components/auth/TurnstileField';
 
 export default function EmployerRegister() {
   const { t } = useTranslation(['employer', 'common', 'forms']);
@@ -16,6 +18,7 @@ export default function EmployerRegister() {
     website: '',
     companyDescription: '',
     password: '',
+    acceptedTerms: false,
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
@@ -27,9 +30,13 @@ export default function EmployerRegister() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setError('');
+    if (!form.acceptedTerms) {
+      setError('You must agree to the Terms of Service and Privacy Policy');
+      return;
+    }
     setSubmitting(true);
     try {
-      await register(form);
+      await register({ ...form, acceptedTerms: true });
       navigate(ROUTES.EMPLOYER_DASHBOARD, { replace: true });
     } catch (err) {
       setError(err.response?.data?.error || t('employer:registrationFailed'));
@@ -112,6 +119,11 @@ export default function EmployerRegister() {
                   className="w-full px-4 py-2 rounded-lg border border-[#E5E7EB] bg-white text-[#0F172A]"
                 />
               </div>
+              <TermsConsentField
+                checked={form.acceptedTerms}
+                onChange={(checked) => setForm((f) => ({ ...f, acceptedTerms: checked }))}
+              />
+              <TurnstileField action="register" />
               <button
                 type="submit"
                 disabled={submitting}

@@ -11,6 +11,9 @@ import { FormField } from '../../components/common/FormField';
 import { Alert } from '../../components/ui/Alerts';
 import { SeoHead } from '../../components/seo';
 import { isOnboardingComplete, markOnboardingPending } from '../../onboarding';
+import { TermsConsentField } from '../../components/auth/TermsConsentField';
+import { TurnstileField } from '../../components/auth/TurnstileField';
+import { PasswordInput } from '../../components/forms/PasswordInput';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -22,6 +25,7 @@ export default function Register() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
 
@@ -34,14 +38,15 @@ export default function Register() {
     const confirmErr = password !== confirmPassword
       ? t('validation:passwordMismatch')
       : null;
-    if (nameErr || emailErr || passwordErr || confirmErr) {
-      setErrors({ name: nameErr, email: emailErr, password: passwordErr, confirmPassword: confirmErr });
+    const termsErr = acceptedTerms ? null : t('forms:register.termsRequired', { defaultValue: 'You must agree to the Terms of Service and Privacy Policy' });
+    if (nameErr || emailErr || passwordErr || confirmErr || termsErr) {
+      setErrors({ name: nameErr, email: emailErr, password: passwordErr, confirmPassword: confirmErr, acceptedTerms: termsErr });
       return;
     }
     setErrors({});
     setSubmitting(true);
     try {
-      const result = await register({ name: name.trim(), email: email.trim().toLowerCase(), password, referralCode: refCode || undefined });
+      const result = await register({ name: name.trim(), email: email.trim().toLowerCase(), password, referralCode: refCode || undefined, acceptedTerms: true });
       if (result?.requiresVerification) {
         const params = new URLSearchParams({
           pending: '1',
@@ -114,27 +119,29 @@ export default function Register() {
             />
           </FormField>
           <FormField label={t('common:password')} id="reg-password" error={errors.password}>
-            <input
+            <PasswordInput
               id="reg-password"
-              type="password"
               autoComplete="new-password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-shadow duration-200"
               placeholder={t('forms:register.passwordHint')}
             />
           </FormField>
           <FormField label={t('common:confirmPassword')} id="reg-confirm" error={errors.confirmPassword}>
-            <input
+            <PasswordInput
               id="reg-confirm"
-              type="password"
               autoComplete="new-password"
               value={confirmPassword}
               onChange={(e) => setConfirmPassword(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-transparent outline-none transition-shadow duration-200"
               placeholder={t('forms:register.confirmPlaceholder')}
             />
           </FormField>
+          <TermsConsentField
+            checked={acceptedTerms}
+            onChange={setAcceptedTerms}
+            error={errors.acceptedTerms}
+          />
+          <TurnstileField action="register" />
           <Button type="submit" disabled={submitting} className="w-full">
             {submitting ? t('forms:register.signingUp') : t('common:register')}
           </Button>

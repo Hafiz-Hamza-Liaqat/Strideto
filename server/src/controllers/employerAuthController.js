@@ -14,6 +14,7 @@ import { queueEmail } from '../services/automationService.js';
 import { isSmtpConfigured } from '../services/emailService.js';
 import { frontendBaseUrl } from '../utils/emailVerification.js';
 import { ensureUniqueEmployerSlug } from '../utils/employerSlug.js';
+import { legalAcceptanceMetadata, requireAcceptedTerms } from '../../../shared/legal/policyVersions.js';
 
 /**
  * SEC-3E.1 — trusted-origin enforcement is composed at the route level
@@ -87,6 +88,9 @@ export const employerRegister = asyncHandler(async (req, res) => {
       .status(400)
       .json({ error: 'companyName, email and password are required' });
   }
+  if (!requireAcceptedTerms(req.body)) {
+    return res.status(400).json({ error: 'You must agree to the Terms of Service and Privacy Policy' });
+  }
   const emailNorm = email.trim().toLowerCase();
   const existing = await Employer.findOne({ email: emailNorm });
   if (existing) {
@@ -111,6 +115,7 @@ export const employerRegister = asyncHandler(async (req, res) => {
         website: (website || '').trim(),
         companyDescription: (companyDescription || '').trim(),
         password,
+        ...legalAcceptanceMetadata(),
       });
     } catch (err) {
       // Only a concurrent slug collision is retryable here; a duplicate email

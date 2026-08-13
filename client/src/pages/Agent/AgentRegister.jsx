@@ -4,6 +4,9 @@ import { useAgentAuth } from '../../context/AgentAuthContext';
 import { getAgentRegistrationError } from '../../utils/portalRegistrationErrors';
 import { ROUTES } from '../../constants';
 import { Logo } from '../../components/brand/Logo';
+import { CountrySelect } from '../../components/forms/CountrySelect';
+import { TermsConsentField } from '../../components/auth/TermsConsentField';
+import { TurnstileField } from '../../components/auth/TurnstileField';
 
 export default function AgentRegister() {
   const navigate = useNavigate();
@@ -14,6 +17,7 @@ export default function AgentRegister() {
     displayName: '',
     agentType: 'agent',
     countryCode: '',
+    acceptedTerms: false,
   });
   const [submitting, setSubmitting] = useState(false);
 
@@ -22,6 +26,10 @@ export default function AgentRegister() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setCtxError?.(null);
+    if (!form.acceptedTerms) {
+      setCtxError?.('You must agree to the Terms of Service and Privacy Policy');
+      return;
+    }
     setSubmitting(true);
     try {
       await register({
@@ -29,6 +37,7 @@ export default function AgentRegister() {
         email: form.email.trim().toLowerCase(),
         displayName: form.displayName.trim(),
         countryCode: form.countryCode.trim().toUpperCase(),
+        acceptedTerms: true,
       });
       navigate(ROUTES.AGENT_ONBOARDING, { replace: true });
     } catch (err) {
@@ -76,14 +85,12 @@ export default function AgentRegister() {
               </select>
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Country (ISO code)</label>
-              <input
-                type="text"
+              <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Country</label>
+              <CountrySelect
                 value={form.countryCode}
-                onChange={set('countryCode')}
-                maxLength={2}
-                className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="e.g. PK, GB, US"
+                allowAll={false}
+                placeholder="Search country"
+                onChange={(code) => setForm((f) => ({ ...f, countryCode: code || '' }))}
               />
             </div>
             <div>
@@ -108,6 +115,11 @@ export default function AgentRegister() {
               />
               <p className="mt-1 text-xs text-slate-500">Use 8–128 characters with uppercase, lowercase, and a number.</p>
             </div>
+            <TermsConsentField
+              checked={form.acceptedTerms}
+              onChange={(checked) => setForm((f) => ({ ...f, acceptedTerms: checked }))}
+            />
+            <TurnstileField action="register" />
             <button
               type="submit"
               disabled={submitting}
