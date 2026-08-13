@@ -51,7 +51,7 @@ export default function InstitutionTestAcceptance() {
       {error ? <PageState tone="error" role="alert">{error}</PageState> : null}
       {notice ? <PageState tone="success">{notice}</PageState> : null}
       <form className="flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); load(q); }}>
-        <input className={`${fieldClass} max-w-md`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter" aria-label="Filter test acceptance" />
+        <input className={`${fieldClass} max-w-md`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Filter by test or program" aria-label="Filter test acceptance" />
         <button className={secondaryButton} type="submit">Search</button>
         <button className={secondaryButton} type="button" onClick={() => { setQ(''); load(''); }}>Reset</button>
       </form>
@@ -64,7 +64,7 @@ export default function InstitutionTestAcceptance() {
       ))}
       <Panel title="Add Institution / Program Test Acceptance">
         <form className="grid gap-4 sm:grid-cols-2" onSubmit={submit}>
-          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Test catalog ID<input required className={`${fieldClass} mt-1`} value={form.testId} onChange={(e) => setForm({ ...form, testId: e.target.value })} /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Test catalog ID<input required className={`${fieldClass} mt-1`} value={form.testId} onChange={(e) => setForm({ ...form, testId: e.target.value })} placeholder="e.g. ielts-academic" /></label>
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Scope
             <select className={`${fieldClass} mt-1`} value={form.acceptanceScope} onChange={(e) => setForm({ ...form, acceptanceScope: e.target.value })}>
               {[ACCEPTANCE_SCOPES.INSTITUTION, ACCEPTANCE_SCOPES.PROGRAM, ACCEPTANCE_SCOPES.PROGRAM_INTAKE].map((v) => <option key={v} value={v}>{humanize(v)}</option>)}
@@ -81,7 +81,7 @@ export default function InstitutionTestAcceptance() {
               {Object.values(ACCEPTANCE_STATUSES).map((v) => <option key={v} value={v}>{humanize(v)}</option>)}
             </select>
           </label>
-          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Minimum overall score<input type="number" className={`${fieldClass} mt-1`} value={form.minimumOverallScore} onChange={(e) => setForm({ ...form, minimumOverallScore: e.target.value })} /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Minimum overall score<input type="number" min="0" step="any" className={`${fieldClass} mt-1`} value={form.minimumOverallScore} onChange={(e) => setForm({ ...form, minimumOverallScore: e.target.value })} placeholder="e.g. 6.5" /></label>
           <div className="sm:col-span-2"><button className={primaryButton}>Record draft</button></div>
         </form>
       </Panel>

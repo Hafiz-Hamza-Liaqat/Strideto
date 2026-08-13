@@ -86,7 +86,7 @@ export default function InstitutionTeam() {
       {canManage ? (
         <Panel title="Invitations">
           <form className="grid gap-3 sm:grid-cols-2" onSubmit={sendInvite}>
-            <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Email<input required type="email" className={`${fieldClass} mt-1`} value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} /></label>
+            <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Email<input required type="email" className={`${fieldClass} mt-1`} value={invite.email} onChange={(e) => setInvite({ ...invite, email: e.target.value })} placeholder="colleague@example.edu" autoComplete="email" /></label>
             <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Role
               <select className={`${fieldClass} mt-1`} value={invite.role} onChange={(e) => setInvite({ ...invite, role: e.target.value })}>
                 <option value="admin">Admin</option>

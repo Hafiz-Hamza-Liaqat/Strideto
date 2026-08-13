@@ -91,11 +91,11 @@ export default function InstitutionIntakes() {
         <form className="grid gap-4 sm:grid-cols-2" onSubmit={save}>
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2">Program
             <select required className={`${fieldClass} mt-1`} value={selected} onChange={(e) => setSelected(e.target.value)}>
-              <option value="">Select</option>
+              <option value="">Select a program</option>
               {programs.map((p) => <option key={p._id} value={p._id}>{p.name}</option>)}
             </select>
           </label>
-          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Intake name / term<input className={`${fieldClass} mt-1`} value={intake.cycleLabel} onChange={(e) => setIntake({ ...intake, cycleLabel: e.target.value })} required /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200" htmlFor="institution-intake-name">Intake name / term<input id="institution-intake-name" className={`${fieldClass} mt-1`} value={intake.cycleLabel} onChange={(e) => setIntake({ ...intake, cycleLabel: e.target.value })} required placeholder="Fall 2027" /></label>
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Application mode
             <select className={`${fieldClass} mt-1`} value={intake.applicationMode} onChange={(e) => setIntake({ ...intake, applicationMode: e.target.value })}>
               {Object.values(APPLICATION_MODES).map((m) => <option key={m} value={m}>{humanize(m)}</option>)}
@@ -104,12 +104,15 @@ export default function InstitutionIntakes() {
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Opening date<input type="date" className={`${fieldClass} mt-1`} value={intake.applicationOpenDate} onChange={(e) => setIntake({ ...intake, applicationOpenDate: e.target.value })} /></label>
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Deadline<input type="date" className={`${fieldClass} mt-1`} value={intake.deadlineDate} onChange={(e) => setIntake({ ...intake, deadlineDate: e.target.value })} /></label>
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Start date<input type="date" className={`${fieldClass} mt-1`} value={intake.startDate} onChange={(e) => setIntake({ ...intake, startDate: e.target.value })} /></label>
-          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Official application URL<input className={`${fieldClass} mt-1`} value={intake.applicationUrl} onChange={(e) => setIntake({ ...intake, applicationUrl: e.target.value })} placeholder="Required for external mode" /></label>
-          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Capacity<input type="number" min="0" className={`${fieldClass} mt-1`} value={intake.capacity} onChange={(e) => setIntake({ ...intake, capacity: e.target.value })} /></label>
-          <label className="text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2">Requirements<textarea className={`${fieldClass} mt-1`} value={intake.requirements} onChange={(e) => setIntake({ ...intake, requirements: e.target.value })} /></label>
-          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Fee minor units<input type="number" min="0" className={`${fieldClass} mt-1`} value={intake.feeAmount} onChange={(e) => setIntake({ ...intake, feeAmount: e.target.value })} /></label>
-          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Fee currency<input maxLength={3} className={`${fieldClass} mt-1`} value={intake.feeCurrency} onChange={(e) => setIntake({ ...intake, feeCurrency: e.target.value })} /></label>
-          <label className="text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2">Source URL<input className={`${fieldClass} mt-1`} value={intake.sourceUrl} onChange={(e) => setIntake({ ...intake, sourceUrl: e.target.value })} /></label>
+          <div>
+            <label className="text-sm font-medium text-gray-800 dark:text-gray-200" htmlFor="institution-intake-apply-url">Official application URL<input id="institution-intake-apply-url" type="url" className={`${fieldClass} mt-1`} value={intake.applicationUrl} onChange={(e) => setIntake({ ...intake, applicationUrl: e.target.value })} placeholder="https://www.example.edu/apply" /></label>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Required when application mode is external.</p>
+          </div>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200" htmlFor="institution-intake-capacity">Capacity<input id="institution-intake-capacity" type="number" min="0" step="1" className={`${fieldClass} mt-1`} value={intake.capacity} onChange={(e) => setIntake({ ...intake, capacity: e.target.value })} placeholder="e.g. 250" /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2" htmlFor="institution-intake-requirements">Requirements<textarea id="institution-intake-requirements" className={`${fieldClass} mt-1`} value={intake.requirements} onChange={(e) => setIntake({ ...intake, requirements: e.target.value })} placeholder="Describe academic, language, document or eligibility requirements..." /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200" htmlFor="institution-intake-fee-amount">Fee minor units<input id="institution-intake-fee-amount" type="number" min="0" step="1" className={`${fieldClass} mt-1`} value={intake.feeAmount} onChange={(e) => setIntake({ ...intake, feeAmount: e.target.value })} placeholder="e.g. 50000" /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200" htmlFor="institution-intake-fee-currency">Fee currency<input id="institution-intake-fee-currency" maxLength={3} className={`${fieldClass} mt-1`} value={intake.feeCurrency} onChange={(e) => setIntake({ ...intake, feeCurrency: e.target.value })} placeholder="USD" /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2" htmlFor="institution-intake-source-url">Source URL<input id="institution-intake-source-url" type="url" className={`${fieldClass} mt-1`} value={intake.sourceUrl} onChange={(e) => setIntake({ ...intake, sourceUrl: e.target.value })} placeholder="https://www.example.edu/admissions" /></label>
           <div className="sm:col-span-2"><button className={primaryButton}>Save intake</button></div>
         </form>
       </Panel>

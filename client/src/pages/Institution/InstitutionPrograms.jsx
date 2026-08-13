@@ -45,7 +45,7 @@ export default function InstitutionPrograms() {
         {canManage ? <Link className={primaryButton} to={ROUTES.INSTITUTION_PROGRAM_NEW}>Create Program draft</Link> : null}
       </div>
       <form className="flex flex-wrap gap-2" onSubmit={(e) => { e.preventDefault(); load(q); }}>
-        <input className={`${fieldClass} max-w-md`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search programs" aria-label="Search programs" />
+        <input className={`${fieldClass} max-w-md`} value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search by program name" aria-label="Search programs" />
         <button className={secondaryButton} type="submit">Search</button>
         <button className={secondaryButton} type="button" onClick={() => { setQ(''); load(''); }}>Reset</button>
       </form>

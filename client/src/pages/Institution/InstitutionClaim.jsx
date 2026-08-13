@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react';
+import { CountrySelect } from '../../components/forms/CountrySelect';
 import { useInstitutionAuth } from '../../context/InstitutionAuthContext';
 import { institutionPortalApi } from '../../services/institutionPortalService';
 import { PageState, Panel, StatusBadge, fieldClass, primaryButton } from './InstitutionUi';
@@ -53,6 +54,10 @@ export default function InstitutionClaim() {
 
   const startClaim = async (event) => {
     event.preventDefault();
+    if (mode === 'propose' && !form.countryCode) {
+      setError('Select a country.');
+      return;
+    }
     setBusy(true); setError('');
     try {
       const payload = mode === 'search' && selectedInstitution
@@ -123,14 +128,23 @@ export default function InstitutionClaim() {
             </div>
             {mode === 'search' ? (
               <>
-                <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                <label className="text-sm font-medium text-gray-800 dark:text-gray-200" htmlFor="institution-claim-search-name">
                   Search by institution name
-                  <input className={`${fieldClass} mt-1`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Official institution name" />
+                  <input id="institution-claim-search-name" className={`${fieldClass} mt-1`} value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} placeholder="Official institution name" />
                 </label>
-                <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
-                  Country code (optional)
-                  <input className={`${fieldClass} mt-1`} value={searchCountry} onChange={(e) => setSearchCountry(e.target.value)} maxLength={2} placeholder="GB" />
-                </label>
+                <div className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                  <label htmlFor="institution-claim-search-country">Country (optional)</label>
+                  <CountrySelect
+                    id="institution-claim-search-country"
+                    className="mt-1"
+                    allowAll
+                    allLabel="All countries"
+                    placeholder="Search country"
+                    value={searchCountry}
+                    inputClassName={fieldClass}
+                    onChange={(code) => setSearchCountry(code || '')}
+                  />
+                </div>
                 {searching ? <p className="text-sm text-gray-500">Searching…</p> : null}
                 {candidates.length > 0 ? (
                   <ul className="space-y-2 rounded-lg border border-gray-200 dark:border-gray-700 p-3" role="list">
@@ -153,12 +167,32 @@ export default function InstitutionClaim() {
               </>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
-                <label className="text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2">Official Institution name<input required className={`${fieldClass} mt-1`} value={form.officialName} onChange={(e) => setForm({ ...form, officialName: e.target.value })} /></label>
-                <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Country code<input required className={`${fieldClass} mt-1`} value={form.countryCode} onChange={(e) => setForm({ ...form, countryCode: e.target.value })} maxLength={2} placeholder="GB" /></label>
-                <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Official domain<input className={`${fieldClass} mt-1`} value={form.officialDomain} onChange={(e) => setForm({ ...form, officialDomain: e.target.value })} placeholder="institution.example" /></label>
+                <label className="text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2" htmlFor="institution-claim-official-name">
+                  Official Institution name
+                  <input id="institution-claim-official-name" required className={`${fieldClass} mt-1`} value={form.officialName} onChange={(e) => setForm({ ...form, officialName: e.target.value })} placeholder="Official legal name" />
+                </label>
+                <div className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                  <label htmlFor="institution-claim-country">Country</label>
+                  <CountrySelect
+                    id="institution-claim-country"
+                    className="mt-1"
+                    allowAll={false}
+                    placeholder="Search country"
+                    value={form.countryCode}
+                    inputClassName={fieldClass}
+                    onChange={(code) => setForm((current) => ({ ...current, countryCode: code || '' }))}
+                  />
+                </div>
+                <label className="text-sm font-medium text-gray-800 dark:text-gray-200" htmlFor="institution-claim-domain">
+                  Official domain
+                  <input id="institution-claim-domain" className={`${fieldClass} mt-1`} value={form.officialDomain} onChange={(e) => setForm({ ...form, officialDomain: e.target.value })} placeholder="www.example.edu" />
+                </label>
               </div>
             )}
-            <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Representative authority evidence URL<input className={`${fieldClass} mt-1`} value={form.authorityEvidence} onChange={(e) => setForm({ ...form, authorityEvidence: e.target.value })} /></label>
+            <label className="text-sm font-medium text-gray-800 dark:text-gray-200" htmlFor="institution-claim-evidence">
+              Representative authority evidence URL
+              <input id="institution-claim-evidence" type="url" className={`${fieldClass} mt-1`} value={form.authorityEvidence} onChange={(e) => setForm({ ...form, authorityEvidence: e.target.value })} placeholder="https://www.example.edu/about/governance" />
+            </label>
             <div>
               <button className={primaryButton} disabled={busy || (mode === 'search' && !selectedInstitution)}>
                 {busy ? 'Starting…' : 'Start canonical claim'}

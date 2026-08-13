@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, Navigate, useNavigate } from 'react-router-dom';
 import { INSTITUTION_ORGANIZATION_TYPES } from '../../../../shared/institution/institutionPortal.js';
 import { FormField } from '../../components/common/FormField';
+import { CountrySelect } from '../../components/forms/CountrySelect';
 import { Logo } from '../../components/brand/Logo';
 import { useInstitutionAuth } from '../../context/InstitutionAuthContext';
 import { ROUTES } from '../../constants';
@@ -32,6 +33,10 @@ export default function InstitutionRegister() {
   const set = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
   const submit = async (event) => {
     event.preventDefault();
+    if (!form.countryCode) {
+      setError('Select a country.');
+      return;
+    }
     setBusy(true);
     setError('');
     try {
@@ -66,9 +71,17 @@ export default function InstitutionRegister() {
               {INSTITUTION_ORGANIZATION_TYPES.map((value) => <option key={value} value={value}>{TYPE_LABELS[value]}</option>)}
             </select>
           </FormField>
-          <FormField id="institution-register-country" label="Country (ISO 3166-1 two-letter code)">
-            <input id="institution-register-country" required maxLength={2} placeholder="For example: PK, GB, US" value={form.countryCode} onChange={set('countryCode')} className={fieldClass} autoComplete="country" />
+          <FormField id="institution-register-country" label="Country">
+            <CountrySelect
+              id="institution-register-country"
+              value={form.countryCode}
+              allowAll={false}
+              placeholder="Search country"
+              inputClassName={fieldClass}
+              onChange={(code) => setForm((current) => ({ ...current, countryCode: code || '' }))}
+            />
           </FormField>
+          <p className="text-xs text-gray-500 dark:text-gray-400">Select the country where this institution is legally based.</p>
           <FormField id="institution-register-email" label="Representative email">
             <input id="institution-register-email" required type="email" value={form.email} onChange={set('email')} className={fieldClass} autoComplete="username" placeholder="you@institution.edu" />
           </FormField>

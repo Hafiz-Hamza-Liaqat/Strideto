@@ -6,6 +6,7 @@ import { ACCEPTANCE_SCOPES, ACCEPTANCE_STATUSES } from '@shared/education/accept
 import { useInstitutionAuth } from '../../context/InstitutionAuthContext';
 import { ROUTES } from '../../constants';
 import { institutionPortalApi } from '../../services/institutionPortalService';
+import { CountrySelect } from '../../components/forms/CountrySelect';
 import { PageState, Panel, fieldClass, humanize, primaryButton, secondaryButton } from './InstitutionUi';
 import InstitutionPublishingGate, { canSubmitOrPublish } from './InstitutionPublishingGate';
 
@@ -100,8 +101,133 @@ export default function InstitutionProgramEditor() {
       <div><p className="text-sm font-semibold text-primary">Institution-owned canonical content</p><h1 className="mt-1 text-2xl font-bold text-gray-900 dark:text-white sm:text-3xl">{editing ? 'Edit Program draft' : 'Create Program draft'}</h1><p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Ownership is checked by the server against the approved canonical Institution claim.</p></div>
       {error ? <PageState tone="error" role="alert">{error}</PageState> : null}{notice ? <PageState tone="success">{notice}</PageState> : null}
       <InstitutionPublishingGate authority={authority} action="program submit or publish" />
-      <Panel title="Program details"><form className="grid min-w-0 gap-4 sm:grid-cols-2" onSubmit={save}><label className="min-w-0 text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2">Program name<input id="institution-program-name" className={`${fieldClass} mt-1`} value={program.name} onChange={set('name')} /></label>{select('degreeLevel', 'Degree level', DEGREE_LEVELS)}{select('field', 'Academic field', ACADEMIC_FIELDS)}{select('studyMode', 'Study mode', STUDY_MODES)}<label className="text-sm font-medium text-gray-800 dark:text-gray-200">Duration in months<input type="number" min="1" className={`${fieldClass} mt-1`} value={program.durationMonths} onChange={set('durationMonths')} /></label><label className="text-sm font-medium text-gray-800 dark:text-gray-200">Campus<input className={`${fieldClass} mt-1`} value={program.campus} onChange={set('campus')} /></label><label className="text-sm font-medium text-gray-800 dark:text-gray-200">Instruction language<input className={`${fieldClass} mt-1`} value={program.instructionLanguage || ''} onChange={set('instructionLanguage')} placeholder="en" /></label><label className="text-sm font-medium text-gray-800 dark:text-gray-200">Country code<input maxLength="2" className={`${fieldClass} mt-1`} value={program.country} onChange={set('country')} /></label><label className="text-sm font-medium text-gray-800 dark:text-gray-200">Official Program URL<input type="url" className={`${fieldClass} mt-1`} value={program.officialProgramUrl} onChange={set('officialProgramUrl')} /></label><label className="text-sm font-medium text-gray-800 dark:text-gray-200">Admission requirements URL<input type="url" className={`${fieldClass} mt-1`} value={program.admissionRequirementsUrl} onChange={set('admissionRequirementsUrl')} /></label><label className="text-sm font-medium text-gray-800 dark:text-gray-200">Intake label<input className={`${fieldClass} mt-1`} value={program.intakeLabel} onChange={set('intakeLabel')} placeholder="Autumn 2027" /></label><label className="text-sm font-medium text-gray-800 dark:text-gray-200">Intake deadline<input type="date" className={`${fieldClass} mt-1`} value={program.intakeDeadline} onChange={set('intakeDeadline')} /></label><label className="text-sm font-medium text-gray-800 dark:text-gray-200">Tuition minor units<input type="number" min="0" className={`${fieldClass} mt-1`} value={program.tuitionAmountMinor} onChange={set('tuitionAmountMinor')} /></label><label className="text-sm font-medium text-gray-800 dark:text-gray-200">Tuition currency<input maxLength="3" className={`${fieldClass} mt-1`} value={program.tuitionCurrency} onChange={set('tuitionCurrency')} placeholder="JPY" /></label><label className="text-sm font-medium text-gray-800 dark:text-gray-200">Tuition period<select className={`${fieldClass} mt-1`} value={program.tuitionPer} onChange={set('tuitionPer')}><option value="year">Year</option><option value="semester">Semester</option><option value="program">Whole Program</option></select></label><div className="flex items-end"><button className={primaryButton} disabled={busy}>{busy ? 'Saving…' : 'Save draft'}</button></div></form></Panel>
-      {editing ? <div className="grid gap-4 xl:grid-cols-2"><Panel title="Add Program requirement"><form className="space-y-4" onSubmit={addRequirement}><label className="text-sm font-medium text-gray-800 dark:text-gray-200">Requirement type<select className={`${fieldClass} mt-1`} value={requirement.requirementType} onChange={(event) => setRequirement({ ...requirement, requirementType: event.target.value })}>{Object.values(PROGRAM_REQUIREMENT_TYPES).map((value) => <option key={value} value={value}>{humanize(value)}</option>)}</select></label><label className="text-sm font-medium text-gray-800 dark:text-gray-200">Semantics<select className={`${fieldClass} mt-1`} value={requirement.semantics} onChange={(event) => setRequirement({ ...requirement, semantics: event.target.value })}>{Object.values(REQUIREMENT_SEMANTICS).map((value) => <option key={value} value={value}>{humanize(value)}</option>)}</select></label><label className="text-sm font-medium text-gray-800 dark:text-gray-200">Source-backed description<textarea required className={`${fieldClass} mt-1 min-h-24`} value={requirement.description} onChange={(event) => setRequirement({ ...requirement, description: event.target.value })} /></label><label className="text-sm font-medium text-gray-800 dark:text-gray-200">Intake (optional)<input className={`${fieldClass} mt-1`} value={requirement.intake} onChange={(event) => setRequirement({ ...requirement, intake: event.target.value })} /></label><button className={primaryButton} disabled={busy}>Record requirement draft</button></form></Panel><Panel title="Add TestAcceptance"><form className="space-y-4" onSubmit={addAcceptance}><label className="text-sm font-medium text-gray-800 dark:text-gray-200">Test catalog ID<input required className={`${fieldClass} mt-1`} value={acceptance.testId} onChange={(event) => setAcceptance({ ...acceptance, testId: event.target.value })} /></label><label className="text-sm font-medium text-gray-800 dark:text-gray-200">Scope<select className={`${fieldClass} mt-1`} value={acceptance.acceptanceScope} onChange={(event) => setAcceptance({ ...acceptance, acceptanceScope: event.target.value })}>{[ACCEPTANCE_SCOPES.PROGRAM, ACCEPTANCE_SCOPES.PROGRAM_INTAKE, ACCEPTANCE_SCOPES.INSTITUTION].map((value) => <option key={value} value={value}>{humanize(value)}</option>)}</select></label><label className="text-sm font-medium text-gray-800 dark:text-gray-200">Acceptance status<select className={`${fieldClass} mt-1`} value={acceptance.acceptanceStatus} onChange={(event) => setAcceptance({ ...acceptance, acceptanceStatus: event.target.value })}>{Object.values(ACCEPTANCE_STATUSES).map((value) => <option key={value} value={value}>{humanize(value)}</option>)}</select></label><label className="text-sm font-medium text-gray-800 dark:text-gray-200">Minimum overall score<input type="number" className={`${fieldClass} mt-1`} value={acceptance.minimumOverallScore} onChange={(event) => setAcceptance({ ...acceptance, minimumOverallScore: event.target.value })} /></label><label className="text-sm font-medium text-gray-800 dark:text-gray-200">Program intake (optional)<input className={`${fieldClass} mt-1`} value={acceptance.intake} onChange={(event) => setAcceptance({ ...acceptance, intake: event.target.value })} /></label><button className={primaryButton} disabled={busy}>Record TestAcceptance draft</button><p className="text-xs text-gray-600 dark:text-gray-400">Country-level acceptance cannot be modified by an Institution.</p></form></Panel></div> : <PageState role="note">Save the Program first to add intake-scoped requirements and TestAcceptance records.</PageState>}
+      <Panel title="Program details">
+        <form className="grid min-w-0 gap-4 sm:grid-cols-2" onSubmit={save}>
+          <label className="min-w-0 text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2">
+            Program name
+            <input id="institution-program-name" className={`${fieldClass} mt-1`} value={program.name} onChange={set('name')} placeholder="Bachelor of Science in Computer Science" />
+          </label>
+          {select('degreeLevel', 'Degree level', DEGREE_LEVELS)}
+          {select('field', 'Academic field', ACADEMIC_FIELDS)}
+          {select('studyMode', 'Study mode', STUDY_MODES)}
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
+            Duration in months
+            <input type="number" min="1" step="1" className={`${fieldClass} mt-1`} value={program.durationMonths} onChange={set('durationMonths')} placeholder="e.g. 48" />
+          </label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
+            Campus
+            <input className={`${fieldClass} mt-1`} value={program.campus} onChange={set('campus')} placeholder="Main campus" />
+          </label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
+            Instruction language
+            <input className={`${fieldClass} mt-1`} value={program.instructionLanguage || ''} onChange={set('instructionLanguage')} placeholder="English" />
+          </label>
+          <div className="text-sm font-medium text-gray-800 dark:text-gray-200">
+            <label htmlFor="institution-program-country">Country</label>
+            <CountrySelect
+              id="institution-program-country"
+              className="mt-1"
+              allowAll={false}
+              placeholder="Search country"
+              value={program.country}
+              inputClassName={fieldClass}
+              onChange={(code) => setProgram((current) => ({ ...current, country: code || '' }))}
+            />
+          </div>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
+            Official Program URL
+            <input type="url" className={`${fieldClass} mt-1`} value={program.officialProgramUrl} onChange={set('officialProgramUrl')} placeholder="https://www.example.edu/programs/computer-science" />
+          </label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
+            Admission requirements URL
+            <input type="url" className={`${fieldClass} mt-1`} value={program.admissionRequirementsUrl} onChange={set('admissionRequirementsUrl')} placeholder="https://www.example.edu/admissions/requirements" />
+          </label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
+            Intake label
+            <input className={`${fieldClass} mt-1`} value={program.intakeLabel} onChange={set('intakeLabel')} placeholder="Fall 2027" />
+          </label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
+            Intake deadline
+            <input type="date" className={`${fieldClass} mt-1`} value={program.intakeDeadline} onChange={set('intakeDeadline')} />
+          </label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
+            Tuition minor units
+            <input type="number" min="0" step="1" className={`${fieldClass} mt-1`} value={program.tuitionAmountMinor} onChange={set('tuitionAmountMinor')} placeholder="e.g. 1500000" />
+          </label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
+            Tuition currency
+            <input maxLength="3" className={`${fieldClass} mt-1`} value={program.tuitionCurrency} onChange={set('tuitionCurrency')} placeholder="USD" />
+          </label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
+            Tuition period
+            <select className={`${fieldClass} mt-1`} value={program.tuitionPer} onChange={set('tuitionPer')}>
+              <option value="year">Year</option>
+              <option value="semester">Semester</option>
+              <option value="program">Whole Program</option>
+            </select>
+          </label>
+          <div className="flex items-end"><button className={primaryButton} disabled={busy}>{busy ? 'Saving…' : 'Save draft'}</button></div>
+        </form>
+      </Panel>
+      {editing ? (
+        <div className="grid gap-4 xl:grid-cols-2">
+          <Panel title="Add Program requirement">
+            <form className="space-y-4" onSubmit={addRequirement}>
+              <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                Requirement type
+                <select className={`${fieldClass} mt-1`} value={requirement.requirementType} onChange={(event) => setRequirement({ ...requirement, requirementType: event.target.value })}>
+                  {Object.values(PROGRAM_REQUIREMENT_TYPES).map((value) => <option key={value} value={value}>{humanize(value)}</option>)}
+                </select>
+              </label>
+              <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                Semantics
+                <select className={`${fieldClass} mt-1`} value={requirement.semantics} onChange={(event) => setRequirement({ ...requirement, semantics: event.target.value })}>
+                  {Object.values(REQUIREMENT_SEMANTICS).map((value) => <option key={value} value={value}>{humanize(value)}</option>)}
+                </select>
+              </label>
+              <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                Source-backed description
+                <textarea required className={`${fieldClass} mt-1 min-h-24`} value={requirement.description} onChange={(event) => setRequirement({ ...requirement, description: event.target.value })} placeholder="Describe academic, language, document or eligibility requirements..." />
+              </label>
+              <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                Intake (optional)
+                <input className={`${fieldClass} mt-1`} value={requirement.intake} onChange={(event) => setRequirement({ ...requirement, intake: event.target.value })} placeholder="Fall 2027" />
+              </label>
+              <button className={primaryButton} disabled={busy}>Record requirement draft</button>
+            </form>
+          </Panel>
+          <Panel title="Add TestAcceptance">
+            <form className="space-y-4" onSubmit={addAcceptance}>
+              <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                Test catalog ID
+                <input required className={`${fieldClass} mt-1`} value={acceptance.testId} onChange={(event) => setAcceptance({ ...acceptance, testId: event.target.value })} placeholder="e.g. ielts-academic" />
+              </label>
+              <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                Scope
+                <select className={`${fieldClass} mt-1`} value={acceptance.acceptanceScope} onChange={(event) => setAcceptance({ ...acceptance, acceptanceScope: event.target.value })}>
+                  {[ACCEPTANCE_SCOPES.PROGRAM, ACCEPTANCE_SCOPES.PROGRAM_INTAKE, ACCEPTANCE_SCOPES.INSTITUTION].map((value) => <option key={value} value={value}>{humanize(value)}</option>)}
+                </select>
+              </label>
+              <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                Acceptance status
+                <select className={`${fieldClass} mt-1`} value={acceptance.acceptanceStatus} onChange={(event) => setAcceptance({ ...acceptance, acceptanceStatus: event.target.value })}>
+                  {Object.values(ACCEPTANCE_STATUSES).map((value) => <option key={value} value={value}>{humanize(value)}</option>)}
+                </select>
+              </label>
+              <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                Minimum overall score
+                <input type="number" min="0" step="any" className={`${fieldClass} mt-1`} value={acceptance.minimumOverallScore} onChange={(event) => setAcceptance({ ...acceptance, minimumOverallScore: event.target.value })} placeholder="e.g. 6.5" />
+              </label>
+              <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
+                Program intake (optional)
+                <input className={`${fieldClass} mt-1`} value={acceptance.intake} onChange={(event) => setAcceptance({ ...acceptance, intake: event.target.value })} placeholder="Fall 2027" />
+              </label>
+              <button className={primaryButton} disabled={busy}>Record TestAcceptance draft</button>
+              <p className="text-xs text-gray-600 dark:text-gray-400">Country-level acceptance cannot be modified by an Institution.</p>
+            </form>
+          </Panel>
+        </div>
+      ) : <PageState role="note">Save the Program first to add intake-scoped requirements and TestAcceptance records.</PageState>}
     </div>
   );
 }

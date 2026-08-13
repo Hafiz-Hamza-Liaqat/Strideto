@@ -147,13 +147,13 @@ export default function InstitutionProfile() {
         <form onSubmit={save} className="grid gap-4 sm:grid-cols-2" noValidate>
           <div className="sm:col-span-2">
             <FormField id="institution-official-name" label="Official / display name" error={fieldError}>
-              <input id="institution-official-name" className={inputControlClassName()} value={form.officialDisplayName} onChange={set('officialDisplayName')} />
+              <input id="institution-official-name" className={inputControlClassName()} value={form.officialDisplayName} onChange={set('officialDisplayName')} placeholder="Official name as it should appear publicly" />
             </FormField>
           </div>
 
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
             Legal name
-            <input className={`${inputControlClassName()} mt-1`} value={form.legalName || ''} onChange={set('legalName')} />
+            <input className={`${inputControlClassName()} mt-1`} value={form.legalName || ''} onChange={set('legalName')} placeholder="Registered legal name" />
           </label>
 
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
@@ -177,7 +177,7 @@ export default function InstitutionProfile() {
             </select>
           </label>
 
-          {form.organizationType === OTHER_ORG_TYPE ? (
+          <div className={form.organizationType === OTHER_ORG_TYPE ? '' : 'hidden'}>
             <FormField
               id="institution-organization-type-other"
               label="Specify organization type"
@@ -188,11 +188,11 @@ export default function InstitutionProfile() {
                 className={inputControlClassName()}
                 value={form.organizationTypeOther || ''}
                 onChange={set('organizationTypeOther')}
-                required
+                required={form.organizationType === OTHER_ORG_TYPE}
                 placeholder="e.g. vocational academy"
               />
             </FormField>
-          ) : null}
+          </div>
 
           <div className="sm:col-span-2">
             <span className="text-sm font-medium text-gray-800 dark:text-gray-200">Country, region, city</span>
@@ -213,19 +213,19 @@ export default function InstitutionProfile() {
           </div>
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2">
             Registered address
-            <input className={`${inputControlClassName()} mt-1`} value={form.addressLine1 || ''} onChange={set('addressLine1')} />
+            <input className={`${inputControlClassName()} mt-1`} value={form.addressLine1 || ''} onChange={set('addressLine1')} placeholder="Street address" />
           </label>
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
             Official website
-            <input type="url" className={`${inputControlClassName()} mt-1`} value={form.officialWebsite || ''} onChange={set('officialWebsite')} placeholder="https://" />
+            <input type="url" className={`${inputControlClassName()} mt-1`} value={form.officialWebsite || ''} onChange={set('officialWebsite')} placeholder="https://www.example.edu" />
           </label>
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
             Official domain
-            <input className={`${inputControlClassName()} mt-1`} value={form.officialDomain || ''} onChange={set('officialDomain')} placeholder="institution.edu" />
+            <input className={`${inputControlClassName()} mt-1`} value={form.officialDomain || ''} onChange={set('officialDomain')} placeholder="www.example.edu" />
           </label>
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
             Official email
-            <input type="email" className={`${inputControlClassName()} mt-1`} value={form.officialContactEmail || ''} onChange={set('officialContactEmail')} />
+            <input type="email" className={`${inputControlClassName()} mt-1`} value={form.officialContactEmail || ''} onChange={set('officialContactEmail')} placeholder="admissions@example.edu" />
           </label>
           <div>
             <span className="text-sm font-medium text-gray-800 dark:text-gray-200">Phone</span>
@@ -239,23 +239,23 @@ export default function InstitutionProfile() {
           </div>
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2">
             Logo URL
-            <input type="url" className={`${inputControlClassName()} mt-1`} value={form.logoUrl || ''} onChange={set('logoUrl')} placeholder="https://" />
+            <input type="url" className={`${inputControlClassName()} mt-1`} value={form.logoUrl || ''} onChange={set('logoUrl')} placeholder="https://www.example.edu/logo.png" />
           </label>
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
             Representative name
-            <input className={`${inputControlClassName()} mt-1`} value={form.representativeName || ''} onChange={set('representativeName')} />
+            <input className={`${inputControlClassName()} mt-1`} value={form.representativeName || ''} onChange={set('representativeName')} placeholder="Full name" />
           </label>
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
             Representative title
-            <input className={`${inputControlClassName()} mt-1`} value={form.representativeTitle || ''} onChange={set('representativeTitle')} />
+            <input className={`${inputControlClassName()} mt-1`} value={form.representativeTitle || ''} onChange={set('representativeTitle')} placeholder="Registrar, director, or authorised officer" />
           </label>
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2">
             Representative email
-            <input type="email" className={`${inputControlClassName()} mt-1`} value={form.representativeEmail || ''} onChange={set('representativeEmail')} />
+            <input type="email" className={`${inputControlClassName()} mt-1`} value={form.representativeEmail || ''} onChange={set('representativeEmail')} placeholder="you@example.edu" />
           </label>
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2">
             Public description
-            <textarea className={`${textareaControlClassName()} mt-1`} value={form.institutionDescription || ''} onChange={set('institutionDescription')} />
+            <textarea className={`${textareaControlClassName()} mt-1`} value={form.institutionDescription || ''} onChange={set('institutionDescription')} placeholder="Short public description of the institution" />
           </label>
           <div className="flex flex-wrap items-center gap-3 sm:col-span-2">
             <button className={primaryButton} disabled={busy}>{busy ? 'Saving…' : 'Save Institution profile'}</button>

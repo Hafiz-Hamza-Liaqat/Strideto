@@ -58,6 +58,7 @@ export default function InstitutionSettings() {
               autoComplete="new-password"
               minLength={8}
               required
+              placeholder="8–128 characters"
               value={password}
               onChange={(event) => setPassword(event.target.value)}
             />

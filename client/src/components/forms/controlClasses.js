@@ -1,5 +1,5 @@
 const CONTROL_BASE =
-  'w-full px-4 py-2.5 rounded-lg border bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-shadow duration-200 focus-visible:ring-2 focus-visible:border-transparent disabled:opacity-60 disabled:cursor-not-allowed';
+  'w-full px-4 py-2.5 rounded-lg border bg-white dark:bg-gray-800 text-gray-900 dark:text-white outline-none transition-shadow duration-200 focus-visible:ring-2 focus-visible:border-transparent disabled:opacity-60 disabled:cursor-not-allowed [color-scheme:light] dark:[color-scheme:dark]';
 
 const CONTROL_BORDER_DEFAULT = 'border-gray-300 dark:border-gray-600 focus-visible:ring-primary';
 const CONTROL_BORDER_ERROR = 'border-red-500 dark:border-red-400 focus-visible:ring-red-500';
