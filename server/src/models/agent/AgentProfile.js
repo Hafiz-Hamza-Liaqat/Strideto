@@ -112,6 +112,7 @@ const agentProfileSchema = new mongoose.Schema(
       enum: Object.values(AGENT_ONBOARDING_STEPS),
       default: AGENT_ONBOARDING_STEPS.ACCOUNT,
     },
+    onboardingSkippedSteps: { type: [String], default: [] },
     onboardingCompletedAt: { type: Date, default: null },
 
     // Profile completeness score (0-100) — recomputed on save

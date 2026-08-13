@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ISO_3166_ALPHA2, countryDisplayName } from '@shared/international/country.js';
 import { AGENT_SERVICE_CATEGORIES, AGENT_ONBOARDING_STEPS } from '@shared/agent/constants.js';
+import { AGENT_ONBOARDING_STEP_POLICY, validateAgentOnboardingStep } from '@shared/agent/onboardingPolicy.js';
 import { agentApi } from '../../services/agentService';
 import { ROUTES } from '../../constants';
 import { Logo } from '../../components/brand/Logo';
@@ -57,6 +58,22 @@ function stepIndexForKey(key, isAgency) {
   return visible.findIndex((s) => s.key === key);
 }
 
+function restoreStepIndex(onboardingStep, isAgency) {
+  if (!onboardingStep || onboardingStep === AGENT_ONBOARDING_STEPS.ACCOUNT) return 0;
+  const idx = stepIndexForKey(onboardingStep, isAgency);
+  if (idx < 0) return 0;
+  const visible = STEPS.filter((s) => !s.agencyOnly || isAgency);
+  return Math.min(idx + 1, visible.length - 1);
+}
+
+function FieldHint({ error, optional }) {
+  return (
+    <p className={`mt-1 min-h-[1.25rem] text-xs ${error ? 'text-red-600 dark:text-red-400' : 'text-gray-500 dark:text-gray-400'}`} role={error ? 'alert' : undefined}>
+      {error || (optional ? 'Optional' : '\u00a0')}
+    </p>
+  );
+}
+
 export default function AgentOnboarding() {
   const navigate = useNavigate();
   const { i18n } = useTranslation();
@@ -65,9 +82,12 @@ export default function AgentOnboarding() {
   const [accountType, setAccountType] = useState('professional');
   const [verificationStatus, setVerificationStatus] = useState('draft');
   const [currentStep, setCurrentStep] = useState(0);
+  const [completedKeys, setCompletedKeys] = useState([]);
+  const [skippedKeys, setSkippedKeys] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [fieldErrors, setFieldErrors] = useState({});
   const [form, setForm] = useState({
     professionalName: '',
     professionalSummary: '',
@@ -90,12 +110,14 @@ export default function AgentOnboarding() {
   const isAgency = accountType === 'agency';
   const visibleSteps = STEPS.filter((s) => !s.agencyOnly || isAgency);
   const step = visibleSteps[currentStep] || visibleSteps[0];
+  const stepPolicy = AGENT_ONBOARDING_STEP_POLICY[step.key] || {};
 
   useEffect(() => {
     Promise.all([agentApi.getProfile(), agentApi.getVerification()])
       .then(([profileRes, verificationRes]) => {
         const profile = profileRes.data.profile || {};
         const org = profileRes.data.organization || {};
+        const agency = profileRes.data.accountType === 'agency';
         setAccountType(profileRes.data.accountType || 'professional');
         setVerificationStatus(verificationRes.data.verificationStatus || 'draft');
         setForm((f) => ({
@@ -123,14 +145,31 @@ export default function AgentOnboarding() {
           representativeRole: (profile.credentialReferences || []).find((r) => r.startsWith('rep:role='))?.slice(9) || '',
           representativeEmail: (profile.credentialReferences || []).find((r) => r.startsWith('rep:email='))?.slice(10) || '',
         }));
-        const idx = stepIndexForKey(profile.onboardingStep || 'identity', profileRes.data.accountType === 'agency');
-        if (idx >= 0) setCurrentStep(idx);
+        setSkippedKeys(profile.onboardingSkippedSteps || []);
+        const last = profile.onboardingStep || AGENT_ONBOARDING_STEPS.ACCOUNT;
+        if (last && last !== AGENT_ONBOARDING_STEPS.ACCOUNT) {
+          const done = [];
+          const visible = STEPS.filter((s) => !s.agencyOnly || agency);
+          for (const item of visible) {
+            done.push(item.key);
+            if (item.key === last) break;
+          }
+          setCompletedKeys(done);
+        }
+        setCurrentStep(restoreStepIndex(profile.onboardingStep, agency));
       })
       .catch((e) => setError(e.response?.data?.error || 'Failed to load onboarding'))
       .finally(() => setLoading(false));
   }, []);
 
-  const patch = (partial) => setForm((f) => ({ ...f, ...partial }));
+  const patch = (partial) => {
+    setForm((f) => ({ ...f, ...partial }));
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      Object.keys(partial).forEach((key) => { delete next[key]; });
+      return next;
+    });
+  };
 
   const buildProfilePayload = () => {
     const officeLocation = {
@@ -152,7 +191,7 @@ export default function AgentOnboarding() {
       yearsOfExperience: form.yearsOfExperience ? Number(form.yearsOfExperience) : null,
       officialEmail: form.officialEmail,
       website: form.website,
-      phone: typeof form.phone === 'object' ? (form.phone.e164 || form.phone.nationalNumber || '') : form.phone,
+      phone: typeof form.phone === 'object' ? (form.phone.e164 || '') : form.phone,
       officeLocation,
       serviceCountries: form.serviceCountries,
       destinationCountries: form.destinationCountries,
@@ -163,14 +202,26 @@ export default function AgentOnboarding() {
     };
   };
 
-  const advance = async () => {
+  const persistAndAdvance = async ({ skip = false } = {}) => {
+    const payload = buildProfilePayload();
+    const verdict = validateAgentOnboardingStep(step.key, payload, { skip });
+    if (!verdict.ok) {
+      setFieldErrors(verdict.errors || {});
+      setError(verdict.message);
+      return;
+    }
+
     setSubmitting(true);
     setError(null);
+    setFieldErrors({});
     try {
-      if (['identity', 'services', 'markets', 'representative'].includes(step.key)) {
-        await agentApi.updateProfile(buildProfilePayload());
+      if (['identity', 'services', 'markets', 'representative'].includes(step.key) && !skip) {
+        await agentApi.updateProfile(payload);
       }
-      await agentApi.submitOnboardingStep(step.key);
+      const { data } = await agentApi.submitOnboardingStep(step.key, { skip });
+      const saved = data.profile || {};
+      setSkippedKeys(saved.onboardingSkippedSteps || (skip ? [...skippedKeys, step.key] : skippedKeys.filter((k) => k !== step.key)));
+      setCompletedKeys((keys) => (keys.includes(step.key) ? keys : [...keys, step.key]));
 
       if (step.key === 'review') {
         navigate(ROUTES.AGENT_VERIFICATION, { replace: true });
@@ -179,7 +230,7 @@ export default function AgentOnboarding() {
 
       if (currentStep < visibleSteps.length - 1) setCurrentStep((s) => s + 1);
     } catch (e) {
-      setError(e.response?.data?.error || 'Failed to advance step');
+      setError(e.response?.data?.error || 'Failed to save this step. Your entries were kept.');
     } finally {
       setSubmitting(false);
     }
@@ -195,6 +246,13 @@ export default function AgentOnboarding() {
 
   const underReview = ['under_review', 'verification_pending', 'enhanced_review'].includes(verificationStatus);
 
+  const stepTone = (key, index) => {
+    if (skippedKeys.includes(key) && index !== currentStep) return 'skipped';
+    if (completedKeys.includes(key) && index !== currentStep) return 'complete';
+    if (index === currentStep) return 'current';
+    return 'upcoming';
+  };
+
   return (
     <div className="min-h-screen bg-bg-main dark:bg-secondary px-4 py-12">
       <div className="max-w-2xl mx-auto">
@@ -202,16 +260,30 @@ export default function AgentOnboarding() {
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mb-2">Agent Onboarding</h1>
         <p className={`${muted} mb-8`}>Complete these steps to set up your professional agent profile. Profile completion is not verification.</p>
 
-        <div className="flex items-center gap-2 mb-8 overflow-x-auto pb-2">
-          {visibleSteps.map((s, i) => (
-            <div key={s.key} className="flex items-center gap-2">
-              <div className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${i < currentStep ? 'bg-green-500 text-white' : i === currentStep ? 'bg-primary text-white' : 'bg-slate-200 dark:bg-gray-700 text-slate-500 dark:text-gray-300'}`}>
-                {i < currentStep ? '✓' : i + 1}
-              </div>
-              {i < visibleSteps.length - 1 ? <div className={`w-8 h-0.5 flex-shrink-0 ${i < currentStep ? 'bg-green-400' : 'bg-slate-200 dark:bg-gray-700'}`} /> : null}
-            </div>
-          ))}
-        </div>
+        <ol className="flex items-center gap-2 mb-8 overflow-x-auto pb-2" aria-label="Onboarding progress">
+          {visibleSteps.map((s, i) => {
+            const tone = stepTone(s.key, i);
+            const cls = tone === 'complete'
+              ? 'bg-green-500 text-white'
+              : tone === 'skipped'
+                ? 'bg-amber-400 text-amber-950'
+                : tone === 'current'
+                  ? 'bg-primary text-white'
+                  : 'bg-slate-200 dark:bg-gray-700 text-slate-500 dark:text-gray-300';
+            return (
+              <li key={s.key} className="flex items-center gap-2">
+                <div
+                  className={`w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0 ${cls}`}
+                  aria-current={tone === 'current' ? 'step' : undefined}
+                  title={`${s.label} (${tone})`}
+                >
+                  {tone === 'complete' ? '✓' : tone === 'skipped' ? '–' : i + 1}
+                </div>
+                {i < visibleSteps.length - 1 ? <div className={`w-8 h-0.5 flex-shrink-0 ${tone === 'complete' ? 'bg-green-400' : tone === 'skipped' ? 'bg-amber-300' : 'bg-slate-200 dark:bg-gray-700'}`} /> : null}
+              </li>
+            );
+          })}
+        </ol>
 
         <div className={cardClass}>
           <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{step.label}</h2>
@@ -222,19 +294,23 @@ export default function AgentOnboarding() {
               <p className="text-sm text-gray-600 dark:text-gray-300">Account type: <strong>{isAgency ? 'Agency / organization' : 'Individual professional'}</strong></p>
               <label className={labelClass}>
                 {isAgency ? 'Public display name' : 'Professional name'}
-                <input className={inputControlClassName({ className: 'mt-1' })} value={form.professionalName} onChange={(e) => patch({ professionalName: e.target.value })} required />
+                <input className={inputControlClassName({ className: 'mt-1', error: Boolean(fieldErrors.professionalName) })} value={form.professionalName} onChange={(e) => patch({ professionalName: e.target.value })} />
+                <FieldHint error={fieldErrors.professionalName} />
               </label>
               <label className={labelClass}>
                 Biography / about
                 <textarea className={textareaControlClassName({ className: 'mt-1' })} rows={4} maxLength={2000} value={form.professionalSummary} onChange={(e) => patch({ professionalSummary: e.target.value })} placeholder="Describe your professional background…" />
+                <FieldHint optional />
               </label>
               <label className={labelClass}>
                 Primary country
-                <div className="mt-1"><CountrySelect value={form.countryCode} onChange={(code) => patch({ countryCode: code })} /></div>
+                <div className="mt-1"><CountrySelect value={form.countryCode} error={Boolean(fieldErrors.countryCode)} onChange={(code) => patch({ countryCode: code, officeLocation: { ...form.officeLocation, countryCode: code, region: '', city: '' } })} /></div>
+                <FieldHint error={fieldErrors.countryCode} />
               </label>
               <label className={labelClass}>
                 Years of experience (self-declared)
                 <input type="number" min="0" max="99" className={inputControlClassName({ className: 'mt-1' })} value={form.yearsOfExperience} onChange={(e) => patch({ yearsOfExperience: e.target.value })} />
+                <FieldHint optional />
               </label>
             </div>
           ) : null}
@@ -243,19 +319,23 @@ export default function AgentOnboarding() {
             <div className="space-y-4 mb-6">
               <label className={labelClass}>
                 Official email
-                <input type="email" className={inputControlClassName({ className: 'mt-1' })} value={form.officialEmail} onChange={(e) => patch({ officialEmail: e.target.value })} />
+                <input type="email" className={inputControlClassName({ className: 'mt-1', error: Boolean(fieldErrors.officialEmail) })} value={form.officialEmail} onChange={(e) => patch({ officialEmail: e.target.value })} />
+                <FieldHint error={fieldErrors.officialEmail} />
               </label>
               <label className={labelClass}>
                 Official website
                 <input type="url" className={inputControlClassName({ className: 'mt-1' })} value={form.website} onChange={(e) => patch({ website: e.target.value })} placeholder="https://" />
+                <FieldHint optional />
               </label>
               <div>
                 <span className={labelClass}>Phone</span>
-                <PhoneInput className="mt-1" value={form.phone} defaultCountry={form.countryCode || 'US'} onChange={(phone) => patch({ phone })} />
+                <PhoneInput className="mt-1" value={form.phone} defaultCountry={form.countryCode || form.officeLocation.countryCode || ''} onChange={(phone) => patch({ phone })} />
+                <FieldHint optional />
               </div>
               <label className={labelClass}>
                 Office address line
                 <input className={inputControlClassName({ className: 'mt-1' })} value={form.officeLocation.addressLine1} onChange={(e) => patch({ officeLocation: { ...form.officeLocation, addressLine1: e.target.value } })} />
+                <FieldHint optional />
               </label>
               <LocationFields
                 value={form.officeLocation}
@@ -283,6 +363,7 @@ export default function AgentOnboarding() {
                 Service specialties
                 <MultiSelect className="mt-1" value={form.specialties} onChange={(specialties) => patch({ specialties })} options={SPECIALTY_OPTIONS} emptyLabel="Select specialties" />
               </label>
+              <FieldHint error={fieldErrors.markets} optional={!fieldErrors.markets} />
             </div>
           ) : null}
 
@@ -290,19 +371,23 @@ export default function AgentOnboarding() {
             <div className="space-y-4 mb-6">
               <label className={labelClass}>
                 Legal entity name
-                <input className={inputControlClassName({ className: 'mt-1' })} value={form.legalName} onChange={(e) => patch({ legalName: e.target.value })} required />
+                <input className={inputControlClassName({ className: 'mt-1', error: Boolean(fieldErrors.legalName) })} value={form.legalName} onChange={(e) => patch({ legalName: e.target.value })} />
+                <FieldHint error={fieldErrors.legalName} />
               </label>
               <label className={labelClass}>
                 Authorized representative name
                 <input className={inputControlClassName({ className: 'mt-1' })} value={form.representativeName} onChange={(e) => patch({ representativeName: e.target.value })} />
+                <FieldHint optional />
               </label>
               <label className={labelClass}>
                 Representative role / title
                 <input className={inputControlClassName({ className: 'mt-1' })} value={form.representativeRole} onChange={(e) => patch({ representativeRole: e.target.value })} />
+                <FieldHint optional />
               </label>
               <label className={labelClass}>
                 Representative email
                 <input type="email" className={inputControlClassName({ className: 'mt-1' })} value={form.representativeEmail} onChange={(e) => patch({ representativeEmail: e.target.value })} />
+                <FieldHint optional />
               </label>
               <p className="text-xs text-gray-500 dark:text-gray-400">Representative authority is verified separately through the organization verification dossier — not by filling this form alone.</p>
             </div>
@@ -344,13 +429,20 @@ export default function AgentOnboarding() {
             </div>
           ) : null}
 
-          {error ? <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm" role="alert">{error}</div> : null}
+          <div className="mb-4 min-h-[3rem]" aria-live="polite">
+            {error ? <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm" role="alert">{error}</div> : null}
+          </div>
 
-          <div className="flex gap-3">
-            {currentStep > 0 ? <button type="button" onClick={() => setCurrentStep((s) => s - 1)} className={btnSecondary}>Back</button> : null}
-            <button type="button" onClick={advance} disabled={submitting} className={btnPrimary}>
+          <div className="flex flex-wrap gap-3">
+            {currentStep > 0 ? <button type="button" onClick={() => { setError(null); setFieldErrors({}); setCurrentStep((s) => s - 1); }} className={btnSecondary}>Back</button> : null}
+            <button type="button" onClick={() => persistAndAdvance({ skip: false })} disabled={submitting} className={btnPrimary}>
               {submitting ? 'Saving…' : step.key === 'review' ? 'Finish & open verification' : 'Save & continue'}
             </button>
+            {stepPolicy.skippable ? (
+              <button type="button" onClick={() => persistAndAdvance({ skip: true })} disabled={submitting} className={btnSecondary}>
+                Skip for now
+              </button>
+            ) : null}
           </div>
         </div>
       </div>

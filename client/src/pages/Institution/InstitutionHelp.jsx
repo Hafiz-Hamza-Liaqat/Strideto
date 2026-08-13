@@ -1,5 +1,9 @@
 import { Link } from 'react-router-dom';
 import { ROUTES } from '../../constants';
+import { useInstitutionAuth } from '../../context/InstitutionAuthContext';
+import { InstitutionGettingStartedGuide } from './InstitutionGettingStartedGuide';
+import { useEffect, useState } from 'react';
+import { institutionPortalApi } from '../../services/institutionPortalService';
 
 const CARDS = [
   { title: 'What can I do?', body: 'Complete the organization profile, submit verification and a canonical claim, then author official programs and intakes.', to: ROUTES.INSTITUTION_GUIDELINES },
@@ -11,10 +15,30 @@ const CARDS = [
 ];
 
 export default function InstitutionHelp() {
+  const { organizationId, account } = useInstitutionAuth();
+  const [workspace, setWorkspace] = useState(null);
+
+  useEffect(() => {
+    if (!organizationId) return undefined;
+    let active = true;
+    institutionPortalApi.dashboard(organizationId)
+      .then(({ data }) => { if (active) setWorkspace(data); })
+      .catch(() => { if (active) setWorkspace(null); });
+    return () => { active = false; };
+  }, [organizationId]);
+
   return (
-    <div className="space-y-4 max-w-3xl">
+    <div className="space-y-4 max-w-6xl">
       <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Help</h1>
       <p className="text-sm text-gray-600 dark:text-gray-400">Short answers for Institution staff. Guidelines remain the handbook.</p>
+      {workspace ? (
+        <InstitutionGettingStartedGuide
+          emailVerified={Boolean(account?.emailVerified)}
+          profileCompleteness={workspace.profileCompleteness}
+          verificationStatus={workspace.verificationStatus}
+          claimState={workspace.claimState}
+        />
+      ) : null}
       <div className="grid gap-3 sm:grid-cols-2">
         {CARDS.map((card) => (
           <Link key={card.title} to={card.to} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 hover:border-primary">

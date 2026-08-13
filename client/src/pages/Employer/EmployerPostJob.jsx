@@ -18,7 +18,9 @@ import {
   JOB_FAMILIES,
   SPECIALIZATIONS_BY_FAMILY,
 } from './employerPostJobValidation';
-import { ISO_3166_ALPHA2, countryDisplayName, PROVINCES } from '../../constants/listings';
+import { CountrySelect } from '../../components/forms/CountrySelect';
+import { DateInput } from '../../components/forms/NativeTemporalInput';
+import { regionsForCountry } from '@shared/international/regions.js';
 
 const defaultForm = {
   jobTitle: '',
@@ -312,6 +314,8 @@ export default function EmployerPostJob() {
     return <div className="text-slate-600 dark:text-gray-300">{t('common:loading')}</div>;
   }
 
+  const regionCatalog = regionsForCountry(form.countryCode);
+
   return (
     <>
       <SeoHead
@@ -440,43 +444,46 @@ export default function EmployerPostJob() {
           <FieldError id={`${FIELD_IDS.location}-error`} message={translateFieldError(fieldErrors.location)} />
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-          <div>
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 min-w-0">
+          <div className="min-w-0">
             <label htmlFor={FIELD_IDS.countryCode} className={labelClass}>
               {t('employer:countryLabel', { defaultValue: 'Country' })}
-              <OptionalMark t={t} />
             </label>
-            <select
+            <CountrySelect
               id={FIELD_IDS.countryCode}
-              name="countryCode"
               value={form.countryCode}
-              onChange={handleChange}
               disabled={submitting}
-              className={inputClass}
-            >
-              <option value="">{t('employer:selectCountry', { defaultValue: 'Select country' })}</option>
-              {[...ISO_3166_ALPHA2].sort((a, b) => (countryDisplayName(a) || a).localeCompare(countryDisplayName(b) || b)).map((code) => (
-                <option key={code} value={code}>{countryDisplayName(code) || code}</option>
-              ))}
-            </select>
+              placeholder={t('employer:selectCountry', { defaultValue: 'Select country' })}
+              onChange={(code) => {
+                setForm((f) => ({ ...f, countryCode: code || '', region: '', city: '' }));
+                setFieldErrors((prev) => {
+                  if (!prev.countryCode && !prev.region && !prev.city) return prev;
+                  const next = { ...prev };
+                  delete next.countryCode;
+                  delete next.region;
+                  delete next.city;
+                  return next;
+                });
+              }}
+            />
+            <p className={helpClass}>Optional</p>
             <FieldError id={`${FIELD_IDS.countryCode}-error`} message={translateFieldError(fieldErrors.countryCode)} />
           </div>
-          <div>
+          <div className="min-w-0">
             <label htmlFor={FIELD_IDS.region} className={labelClass}>
               {t('employer:regionLabel', { defaultValue: 'State / Province / Region' })}
-              <OptionalMark t={t} />
             </label>
-            {form.countryCode === 'PK' ? (
+            {regionCatalog.length > 0 ? (
               <select
                 id={FIELD_IDS.region}
                 name="region"
                 value={form.region}
                 onChange={handleChange}
-                disabled={submitting}
+                disabled={submitting || !form.countryCode}
                 className={inputClass}
               >
-                <option value="">{t('employer:selectRegion', { defaultValue: 'Select region' })}</option>
-                {PROVINCES.map((p) => (
+                <option value="">{form.countryCode ? 'Optional' : 'Select country first'}</option>
+                {regionCatalog.map((p) => (
                   <option key={p} value={p}>{p}</option>
                 ))}
               </select>
@@ -489,14 +496,14 @@ export default function EmployerPostJob() {
                 disabled={submitting || !form.countryCode}
                 className={inputClass}
                 autoComplete="address-level1"
+                placeholder={form.countryCode ? 'Optional' : 'Select country first'}
               />
             )}
             <FieldError id={`${FIELD_IDS.region}-error`} message={translateFieldError(fieldErrors.region)} />
           </div>
-          <div>
+          <div className="min-w-0">
             <label htmlFor={FIELD_IDS.city} className={labelClass}>
               {t('employer:cityLabel', { defaultValue: 'City' })}
-              <OptionalMark t={t} />
             </label>
             <input
               id={FIELD_IDS.city}
@@ -506,6 +513,7 @@ export default function EmployerPostJob() {
               disabled={submitting || !form.countryCode}
               className={inputClass}
               autoComplete="address-level2"
+              placeholder={form.countryCode ? 'Optional' : 'Select country first'}
             />
             <FieldError id={`${FIELD_IDS.city}-error`} message={translateFieldError(fieldErrors.city)} />
           </div>
@@ -680,10 +688,9 @@ export default function EmployerPostJob() {
             {t('employer:applicationDeadline')}
             <OptionalMark t={t} />
           </label>
-          <input
+          <DateInput
             id={FIELD_IDS.applicationDeadline}
             name="applicationDeadline"
-            type="date"
             value={form.applicationDeadline}
             onChange={handleChange}
             aria-invalid={fieldErrors.applicationDeadline ? 'true' : undefined}

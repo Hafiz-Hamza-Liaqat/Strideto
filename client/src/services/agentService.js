@@ -110,8 +110,8 @@ export const agentApi = {
   getProfile: () => agentAxios.get('/api/agent/profile'),
   updateProfile: (data) => agentAxios.patch('/api/agent/profile', data),
   getCompleteness: () => agentAxios.get('/api/agent/profile/completeness'),
-  submitOnboardingStep: (step) =>
-    agentAxios.post('/api/agent/onboarding/step', { step }),
+  submitOnboardingStep: (step, { skip = false } = {}) =>
+    agentAxios.post('/api/agent/onboarding/step', { step, skip: Boolean(skip) }),
   getVerification: () => agentAxios.get('/api/agent/verification'),
   getVerificationDetails: (organizationId) =>
     agentAxios.get(`/api/organizations/${organizationId}/verification`),

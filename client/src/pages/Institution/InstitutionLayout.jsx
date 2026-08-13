@@ -1,8 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 import { Link, Outlet, useLocation, useNavigate } from 'react-router-dom';
 import { SkipLink } from '../../components/a11y/SkipLink';
-import { Logo } from '../../components/brand/Logo';
+import { PortalBrand } from '../../components/brand/PortalBrand';
 import { useOverlayA11y } from '../../a11y/useOverlayA11y';
+import { portalNavLinkClass } from '../../components/layout/portalNavClasses';
 import { useInstitutionAuth } from '../../context/InstitutionAuthContext';
 import { ROUTES } from '../../constants';
 import { institutionNavItems } from '../../config/institutionNavConfig';
@@ -26,11 +27,7 @@ function NavLinks({ location, onNavigate }) {
       to={path}
       onClick={onNavigate}
       aria-current={path === activePath ? 'page' : undefined}
-      className={`block px-3 py-2.5 rounded-lg text-sm font-medium min-h-[44px] flex items-center ${
-        path === activePath
-          ? 'bg-primary/10 text-primary dark:text-mint'
-          : 'text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800'
-      }`}
+      className={portalNavLinkClass(path === activePath)}
     >
       {label}
     </Link>
@@ -69,10 +66,7 @@ export default function InstitutionLayout() {
     <div className="min-h-screen max-w-full bg-bg-main dark:bg-secondary flex flex-col lg:flex-row">
       <SkipLink />
       <header className="lg:hidden sticky top-0 z-40 flex items-center justify-between px-4 py-3 border-b border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 safe-area-inset-top">
-        <Link to={ROUTES.INSTITUTION_DASHBOARD} className="font-semibold text-gray-900 dark:text-white truncate min-w-0 flex items-center gap-2">
-          <Logo variant="symbol" height={28} />
-          <span>Strideto</span>
-        </Link>
+        <PortalBrand role="institution" subtitle={chrome} className="truncate min-w-0" height={26} />
         <div className="flex items-center gap-1 shrink-0">
           <InstitutionNotificationBell />
           <button
@@ -119,11 +113,7 @@ export default function InstitutionLayout() {
 
       <aside className="hidden lg:flex w-64 shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex-col">
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
-          <Link to={ROUTES.INSTITUTION_DASHBOARD} className="flex items-center gap-2 text-gray-900 dark:text-white font-semibold tracking-tight min-w-0">
-            <Logo variant="symbol" height={28} />
-            Strideto
-          </Link>
-          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{chrome}</p>
+          <PortalBrand role="institution" subtitle={chrome} />
         </div>
         <nav className="flex-1 px-3 py-4 space-y-1 overflow-y-auto"><NavLinks location={location} /></nav>
         <div className="border-t border-gray-200 dark:border-gray-700 p-4">

@@ -47,6 +47,7 @@ import {
   VERIFICATION_STATUSES,
 } from '../../../shared/international/verification.js';
 import { coerceCountryCode } from '../../../shared/international/country.js';
+import { validateAgentOnboardingStep } from '../../../shared/agent/onboardingPolicy.js';
 import {
   isPubliclyLaunchVisible,
   withFixtureExclusion,
@@ -290,7 +291,7 @@ export async function getProfileCompleteness(agentAccountId) {
 // Onboarding
 // ---------------------------------------------------------------------------
 
-export async function advanceOnboardingStep(agentAccountId, step) {
+export async function advanceOnboardingStep(agentAccountId, step, { skip = false } = {}) {
   const validSteps = Object.values(AGENT_ONBOARDING_STEPS);
   if (!validSteps.includes(step)) {
     const err = new Error('Invalid onboarding step');
@@ -305,7 +306,23 @@ export async function advanceOnboardingStep(agentAccountId, step) {
     throw err;
   }
 
+  const org = await Organization.findById(profile.organizationId).select('legalName').lean();
+  const verdict = validateAgentOnboardingStep(step, {
+    ...profile.toObject(),
+    legalName: org?.legalName || '',
+  }, { skip: Boolean(skip) });
+  if (!verdict.ok) {
+    const err = new Error(verdict.message || 'Complete the required fields before continuing.');
+    err.status = 422;
+    err.details = verdict.errors;
+    throw err;
+  }
+
   profile.onboardingStep = step;
+  const skipped = new Set(profile.onboardingSkippedSteps || []);
+  if (skip) skipped.add(step);
+  else skipped.delete(step);
+  profile.onboardingSkippedSteps = [...skipped];
   if (step === AGENT_ONBOARDING_STEPS.REVIEW) {
     profile.onboardingCompletedAt = new Date();
   }

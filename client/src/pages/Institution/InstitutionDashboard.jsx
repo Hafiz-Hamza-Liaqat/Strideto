@@ -8,6 +8,9 @@ import { canSubmitOrPublish } from './InstitutionPublishingGate';
 import { PortalWelcomeBanner } from '../../components/welcome/PortalWelcomeBanner';
 import { MilestoneDelight } from '../../components/welcome/MilestoneDelight';
 import { AnnouncementFeed } from '../../components/announcements/AnnouncementFeed';
+import { InstitutionGettingStartedGuide } from './InstitutionGettingStartedGuide';
+import { isPortalOnboardingComplete, markPortalOnboardingComplete } from '../../welcome/portalWelcome';
+import { shouldShowInstitutionGettingStarted } from './institutionGettingStarted.js';
 
 function buildNextActions(data) {
   if (!data) return [];
@@ -97,8 +100,9 @@ function buildNextActions(data) {
 }
 
 export default function InstitutionDashboard() {
-  const { organizationId } = useInstitutionAuth();
+  const { organizationId, account } = useInstitutionAuth();
   const [state, setState] = useState({ loading: true, data: null, profile: null, error: '' });
+  const [guideHidden, setGuideHidden] = useState(() => isPortalOnboardingComplete('institution', organizationId));
 
   useEffect(() => {
     let active = true;
@@ -133,6 +137,24 @@ export default function InstitutionDashboard() {
         userId={organizationId}
         displayName={profile?.officialDisplayName || profile?.legalName}
       />
+      {!guideHidden && shouldShowInstitutionGettingStarted({
+        emailVerified: Boolean(account?.emailVerified),
+        profileCompleteness: data.profileCompleteness,
+        verificationStatus: data.verificationStatus,
+        claimState: data.claimState,
+      }) ? (
+        <InstitutionGettingStartedGuide
+          emailVerified={Boolean(account?.emailVerified)}
+          profileCompleteness={data.profileCompleteness}
+          verificationStatus={data.verificationStatus}
+          claimState={data.claimState}
+          dismissible
+          onDismiss={() => {
+            markPortalOnboardingComplete('institution', organizationId);
+            setGuideHidden(true);
+          }}
+        />
+      ) : null}
       <MilestoneDelight
         userId={organizationId}
         eventKey={`verification-approved:${data.verificationStatus}`}

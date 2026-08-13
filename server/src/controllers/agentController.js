@@ -234,8 +234,8 @@ export const getCompleteness = asyncHandler(async (req, res) => {
 // ---------------------------------------------------------------------------
 
 export const submitOnboardingStep = asyncHandler(async (req, res) => {
-  const { step } = req.body || {};
-  const profile = await advanceOnboardingStep(req.agent.agentAccountId, step);
+  const { step, skip } = req.body || {};
+  const profile = await advanceOnboardingStep(req.agent.agentAccountId, step, { skip: Boolean(skip) });
   return res.status(200).json({ profile });
 });
 
