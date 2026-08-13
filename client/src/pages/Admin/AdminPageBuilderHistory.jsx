@@ -166,7 +166,7 @@ export default function AdminPageBuilderHistory() {
           <label className="block text-sm sm:col-span-2">
             <span className="font-medium text-gray-700 dark:text-gray-300">Page key</span>
             <select
-              className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 py-2 text-sm"
+              className="mt-1 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm [color-scheme:light] dark:[color-scheme:dark]"
               value={PILOT_PAGES.some((p) => p.pageKey === pageKey) ? pageKey : '__custom__'}
               onChange={(e) => {
                 if (e.target.value !== '__custom__') {
@@ -299,7 +299,7 @@ export default function AdminPageBuilderHistory() {
               <label className="flex items-center gap-1">
                 Timeline
                 <select
-                  className="rounded border px-2 py-1 text-sm"
+                  className="rounded border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-2 py-1 text-sm [color-scheme:light] dark:[color-scheme:dark]"
                   value={compareTimeline}
                   onChange={(e) => setCompareTimeline(e.target.value)}
                 >

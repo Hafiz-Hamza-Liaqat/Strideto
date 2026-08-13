@@ -41,7 +41,9 @@ function normalizeGenerateResult(data) {
   return {
     summary: data.summary != null ? String(data.summary) : '',
     description: data.description != null ? String(data.description) : '',
+    sections: data.sections && typeof data.sections === 'object' ? data.sections : null,
     suggested: data.suggested && typeof data.suggested === 'object' ? data.suggested : null,
+    aiConfigured: data.aiConfigured === true,
   };
 }
 

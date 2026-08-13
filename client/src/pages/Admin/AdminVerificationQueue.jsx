@@ -353,8 +353,14 @@ function VerificationDetailPanel({ orgId, onClose, onAction, can }) {
                 {v.status === 'verification_pending' && (
                   <button type="button" onClick={() => runAction('begin-review')} disabled={!!actionLoading} className="min-h-[44px] text-xs px-3 py-1.5 bg-blue-600 text-white rounded hover:bg-blue-700 disabled:opacity-50">Start review</button>
                 )}
-                {['under_review', 'enhanced_review', 'needs_information'].includes(v.status) && (
+                {['under_review', 'enhanced_review'].includes(v.status) && (
                   <button type="button" onClick={() => setActiveAction('request-information')} className="min-h-[44px] text-xs px-3 py-1.5 bg-yellow-600 text-white rounded hover:bg-yellow-700">Request more information</button>
+                )}
+                {v.status === 'needs_information' && (
+                  <div className="w-full rounded-lg border border-amber-300 dark:border-amber-600 bg-amber-50 dark:bg-amber-900/20 px-3 py-2 text-sm text-amber-900 dark:text-amber-200">
+                    Waiting for organization response
+                    <button type="button" onClick={() => setActiveAction('request-information')} className="ml-3 min-h-[44px] text-xs px-3 py-1.5 bg-yellow-600 text-white rounded hover:bg-yellow-700">Update requested information</button>
+                  </div>
                 )}
                 {['under_review', 'needs_information'].includes(v.status) && (
                   <button type="button" onClick={() => setActiveAction('escalate')} className="min-h-[44px] text-xs px-3 py-1.5 bg-purple-600 text-white rounded hover:bg-purple-700">Move to enhanced review</button>
