@@ -113,6 +113,9 @@ export const getExtendedHealth = asyncHandler(async (_req, res) => {
     backgroundJobs = { status: 'unavailable' };
   }
   const smtpConfigured = isSmtpConfigured();
+  const pending = Number(backgroundJobs?.pending) || 0;
+  const { resolveEmailDeliveryState } = await import('../services/emailDeliveryState.js');
+  const email = await resolveEmailDeliveryState({ pending });
   res.json({
     status: mongo.status === 'up' ? 'ok' : 'degraded',
     service: 'Strideto API',
@@ -120,11 +123,14 @@ export const getExtendedHealth = asyncHandler(async (_req, res) => {
     redis: redis.status,
     smtp: smtpConfigured ? 'configured' : 'not_configured',
     email: {
-      configured: smtpConfigured,
-      mode: smtpConfigured ? 'live' : 'placeholder',
-      note: smtpConfigured
-        ? 'Emails sent via SMTP'
-        : 'SMTP not configured — email jobs log placeholders and complete without sending',
+      configured: email.providerConfigured,
+      providerConfigured: email.providerConfigured,
+      workerRunning: email.workerRunning,
+      deliveryEnabled: email.deliveryEnabled,
+      queuePending: email.queuePending,
+      effectiveState: email.effectiveState,
+      mode: email.effectiveState,
+      note: email.note,
     },
     backgroundJobs,
     uptime: process.uptime(),

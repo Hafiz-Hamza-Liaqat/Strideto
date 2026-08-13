@@ -8,6 +8,7 @@ import { disconnectDB } from './config/db.js';
 import { getRedisClient } from './config/redis.js';
 import { logger } from './utils/logger.js';
 import { processQueue, getQueueStats } from './services/jobQueueService.js';
+import { touchWorkerHeartbeat } from './services/workerHeartbeat.js';
 import { processDueScheduledWorkflows } from './services/workflow/workflowSchedulerService.js';
 import {
   runScholarshipDeadlineReminders,
@@ -19,6 +20,7 @@ const INTERVAL_MS = Number(process.env.WORKER_POLL_INTERVAL_MS) || 15_000;
 let running = true;
 
 async function tick() {
+  await touchWorkerHeartbeat();
   const result = await processQueue();
   if (result.processed > 0) {
     logger.info('worker_queue_processed', result);

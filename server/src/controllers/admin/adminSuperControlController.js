@@ -636,8 +636,11 @@ export const getSystemReadiness = asyncHandler(async (req, res) => {
       api: { status: 'ready_for_internal_testing', note: 'This handler executed.' },
       db: { status: dbState, note: 'Derived from mongoose connection readyState. No credentials exposed.' },
       redis: { status: 'attention_required', note: 'Not probed from this surface to avoid secret exposure.' },
-      worker: { status: 'unavailable', note: 'Worker remains stopped in this modification program.' },
-      email: { status: 'not_configured', note: 'Live email/SMS/push are not sent. In-app notifications only.' },
+      worker: { status: 'unavailable', note: 'Worker remains stopped. Queued jobs are not processed.' },
+      email: {
+        status: 'configured_delivery_stopped',
+        note: 'SMTP may be configured, but delivery is not enabled and the worker is stopped. No email is sent.',
+      },
       notifications: { status: 'ready_for_internal_testing', note: 'In-app UserNotification reconciliation. Worker not required for in-app write.' },
       indexes: { status: 'attention_required', note: 'Controlled index provisioning is operational, not certified here.' },
       payments: { status: 'not_configured', note: 'No live Stripe calls from Admin in this phase.' },
