@@ -142,6 +142,13 @@ export async function assertApprovedClaim(organizationId) {
   return claim;
 }
 
+/** Official institution writes require BOTH approved verification and approved claim. */
+export async function assertOfficialInstitutionWrite(organizationId) {
+  const verification = await assertApprovedVerification(organizationId);
+  const claim = await assertApprovedClaim(organizationId);
+  return { verification, claim };
+}
+
 // ---------------------------------------------------------------------------
 // Helper: assert program belongs to the claimed canonical institution
 // ---------------------------------------------------------------------------

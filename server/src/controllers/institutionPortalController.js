@@ -245,8 +245,7 @@ export const createProgram = asyncHandler(async (req, res) => {
     return res.status(403).json({ error: 'Insufficient role to create programs' });
   }
 
-  const claim = await portalService.assertApprovedClaim(organizationId);
-  await portalService.assertApprovedVerification(organizationId);
+  const { claim } = await portalService.assertOfficialInstitutionWrite(organizationId);
 
   const program = await portalService.createProgramDraft({
     organizationId,
@@ -283,7 +282,7 @@ export const updateProgram = asyncHandler(async (req, res) => {
     return res.status(403).json({ error: 'Insufficient role to update programs' });
   }
 
-  const claim = await portalService.assertApprovedClaim(organizationId);
+  const { claim } = await portalService.assertOfficialInstitutionWrite(organizationId);
 
   const program = await portalService.updateProgram({
     programId,
@@ -305,7 +304,7 @@ export const submitProgram = asyncHandler(async (req, res) => {
     return res.status(403).json({ error: 'Insufficient role to submit programs' });
   }
 
-  const claim = await portalService.assertApprovedClaim(organizationId);
+  const { claim } = await portalService.assertOfficialInstitutionWrite(organizationId);
 
   const program = await portalService.submitProgramForReview({
     programId, organizationId,
@@ -328,8 +327,7 @@ export const createTestAcceptance = asyncHandler(async (req, res) => {
     return res.status(403).json({ error: 'Insufficient role' });
   }
 
-  const claim = await portalService.assertApprovedClaim(organizationId);
-  await portalService.assertApprovedVerification(organizationId);
+  const { claim } = await portalService.assertOfficialInstitutionWrite(organizationId);
 
   const { programId, ...testAcceptanceData } = req.body;
 
@@ -356,7 +354,7 @@ export const createRequirement = asyncHandler(async (req, res) => {
     return res.status(403).json({ error: 'Insufficient role' });
   }
 
-  const claim = await portalService.assertApprovedClaim(organizationId);
+  const { claim } = await portalService.assertOfficialInstitutionWrite(organizationId);
   await portalService.assertProgramOwnership(programId, claim.canonicalInstitutionId);
 
   const { requirementType, semantics, conditionNote, testId, minimumScore,
@@ -629,8 +627,7 @@ export const createScholarship = asyncHandler(async (req, res) => {
   const membership = await resolveMembershipOrFail(req, organizationId);
   if (!membership) return res.status(403).json({ error: 'Active membership required' });
   if (!canSubmitOfficialChanges(membership.role)) return res.status(403).json({ error: 'Insufficient role' });
-  await portalService.assertApprovedVerification(organizationId);
-  const claim = await portalService.assertApprovedClaim(organizationId);
+  const { claim } = await portalService.assertOfficialInstitutionWrite(organizationId);
   const scholarship = await portalService.createOwnedScholarship({
     organizationId,
     canonicalInstitutionId: claim.canonicalInstitutionId,
@@ -645,7 +642,7 @@ export const updateScholarship = asyncHandler(async (req, res) => {
   const membership = await resolveMembershipOrFail(req, organizationId);
   if (!membership) return res.status(403).json({ error: 'Active membership required' });
   if (!canSubmitOfficialChanges(membership.role)) return res.status(403).json({ error: 'Insufficient role' });
-  const claim = await portalService.assertApprovedClaim(organizationId);
+  const { claim } = await portalService.assertOfficialInstitutionWrite(organizationId);
   const scholarship = await portalService.updateOwnedScholarship({
     scholarshipId,
     organizationId,

@@ -344,37 +344,63 @@ export function createUserSecureAuthFlows({
    * generic response, regardless of whether a matching subject was found.
    */
   async function resetPassword({ hashedToken, newPassword }) {
-    const nowValue = new Date();
-    let preRead = null;
+    if (!(await sharedSecurityStateAvailable())) {
+      return Object.freeze({
+        code: 'STORAGE_FAILURE',
+        httpStatus: 503,
+        body: SAFE_BODIES.SERVICE_UNAVAILABLE,
+        clearCookie: false,
+      });
+    }
+
+    let subject;
     try {
-      preRead = await userModel.findOne(
+      subject = await userModel.findOne(
         {
           passwordResetToken: hashedToken,
-          passwordResetExpires: { $gt: nowValue },
+          passwordResetExpires: { $gt: new Date() },
         },
         { _id: 1 }
       );
     } catch {
-      preRead = null;
+      return Object.freeze({
+        code: 'STORAGE_FAILURE',
+        httpStatus: 503,
+        body: SAFE_BODIES.SERVICE_UNAVAILABLE,
+        clearCookie: false,
+      });
+    }
+    if (!subject?._id) {
+      return Object.freeze({
+        code: 'RESET_TOKEN_INVALID',
+        httpStatus: 400,
+        clearCookie: false,
+      });
     }
 
     const result = await accountSecurityMutation.resetPassword({
       hashedToken,
       newPassword,
     });
-
-    if (result.code === 'VERSION_INCREMENTED' && preRead && preRead._id) {
-      await familyRevocation.revokeAllFamilies({
-        realm: REALM,
-        subjectId: preRead._id,
-        reason: 'password_reset',
+    if (result.code !== 'VERSION_INCREMENTED') {
+      return Object.freeze({
+        code: result.code,
+        httpStatus: result.code === 'STORAGE_FAILURE' ? 503 : 400,
+        body:
+          result.code === 'STORAGE_FAILURE'
+            ? SAFE_BODIES.SERVICE_UNAVAILABLE
+            : undefined,
+        clearCookie: false,
       });
     }
 
-    // Uniform response regardless of the internal outcome — never reveals
-    // whether a matching subject existed.
+    await familyRevocation.revokeAllFamilies({
+      realm: REALM,
+      subjectId: subject._id,
+      reason: 'password_reset',
+    });
     return Object.freeze({
-      code: 'RESET_ATTEMPTED',
+      code: 'PASSWORD_RESET',
       httpStatus: 200,
       clearCookie: true,
     });

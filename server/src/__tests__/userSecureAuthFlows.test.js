@@ -469,7 +469,7 @@ function buildFlows(overrides = {}) {
   );
 }
 
-// --- resetPassword: uniform response regardless of internal outcome ----------------
+// --- resetPassword: success only after VERSION_INCREMENTED ----------------------
 {
   const familyRevocation = fakeFamilyRevocation();
   const userModel = fakeUserModel({ _id: SUBJECT_ID });
@@ -479,8 +479,8 @@ function buildFlows(overrides = {}) {
     newPassword: 'NewPassw0rd!',
   });
   check(
-    success.code === 'RESET_ATTEMPTED' && success.httpStatus === 200,
-    'reset returns the uniform response on success'
+    success.code === 'PASSWORD_RESET' && success.httpStatus === 200,
+    'reset reports success only after VERSION_INCREMENTED'
   );
   check(
     familyRevocation.calls[0][1].reason === 'password_reset',
@@ -490,19 +490,50 @@ function buildFlows(overrides = {}) {
   const accountSecurityMutation = fakeAccountSecurityMutation({
     resetPassword: { code: 'RESET_TOKEN_INVALID' },
   });
-  const noUserModel = fakeUserModel(null);
   const failFlows = buildFlows({
     accountSecurityMutation,
     familyRevocation: fakeFamilyRevocation(),
-    userModel: noUserModel,
+    userModel: fakeUserModel({ _id: SUBJECT_ID }),
   });
   const failure = await failFlows.resetPassword({
     hashedToken: 'x'.repeat(64),
     newPassword: 'NewPassw0rd!',
   });
   check(
-    failure.code === 'RESET_ATTEMPTED' && failure.httpStatus === 200,
-    'reset returns the identical uniform response on failure — never reveals whether a subject existed'
+    failure.code === 'RESET_TOKEN_INVALID' && failure.httpStatus === 400,
+    'mutation failure cannot return false success'
+  );
+}
+
+{
+  const familyRevocation = fakeFamilyRevocation();
+  const failFlows = buildFlows({
+    accountSecurityMutation: fakeAccountSecurityMutation({
+      resetPassword: { code: 'RESET_TOKEN_INVALID' },
+    }),
+    familyRevocation,
+    userModel: fakeUserModel({ _id: SUBJECT_ID }),
+  });
+  await failFlows.resetPassword({
+    hashedToken: 'x'.repeat(64),
+    newPassword: 'NewPassw0rd!',
+  });
+  check(
+    familyRevocation.calls.length === 0,
+    'sessions are not revoked when the password mutation did not succeed'
+  );
+
+  const missing = buildFlows({
+    familyRevocation: fakeFamilyRevocation(),
+    userModel: fakeUserModel(null),
+  });
+  const missingResult = await missing.resetPassword({
+    hashedToken: 'x'.repeat(64),
+    newPassword: 'NewPassw0rd!',
+  });
+  check(
+    missingResult.code === 'RESET_TOKEN_INVALID' && missingResult.httpStatus === 400,
+    'invalid or expired token returns a generic controlled failure'
   );
 }
 

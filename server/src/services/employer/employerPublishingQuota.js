@@ -1,6 +1,7 @@
 import { Job } from '../../models/Job.js';
 import {
   FREE_BETA_PUBLISHING_POLICY,
+  PUBLISHING_QUOTA_RESULT_CODES,
 } from '../../config/freeBetaPublishingPolicy.js';
 import { calculatePublishingQuotaUsage } from '../publishing/PublishingQuotaUsageService.js';
 import { evaluateEmployerSubmissionEligibility } from '../publishing/EmployerSubmissionEligibility.js';
@@ -129,4 +130,91 @@ export function recordChargedSubmission(job, at = new Date()) {
   if (!Array.isArray(job.chargedSubmissionAt)) job.chargedSubmissionAt = [];
   job.chargedSubmissionAt.push(at);
   job.submittedAt = at;
+}
+
+/** True when approving this job would consume a Free Beta active slot. */
+export function jobWouldConsumeFreeActiveSlot(job, snapshot) {
+  if (!job) return false;
+  if (job.status === 'active' && job.approvalStatus === 'approved') return false;
+  if (
+    snapshot?.policy?.paidPublishingEnabled === true
+    && job.planType
+    && job.planType !== 'free'
+    && FREE_BETA_PUBLISHING_POLICY.paidJobsConsumeFreeActiveCapacity !== true
+  ) {
+    return false;
+  }
+  return true;
+}
+
+export function projectAdminEntitlementSnapshot(snapshot) {
+  if (!snapshot?.policy) {
+    return {
+      type: 'not_configured',
+      paidPublishingEnabled: false,
+      payment: { state: 'not_configured' },
+    };
+  }
+  const active = snapshot.usage?.activeFreeJobs || {};
+  const daily = snapshot.usage?.daily || {};
+  const rolling = snapshot.usage?.rolling30Days || {};
+  return {
+    type: derivePublishingEntitlementType(snapshot),
+    policyCode: snapshot.policy.code,
+    policyVersion: snapshot.policy.version,
+    paidPublishingEnabled: snapshot.policy.paidPublishingEnabled === true,
+    activeFreeJobs: {
+      used: active.used ?? 0,
+      limit: active.limit ?? FREE_BETA_PUBLISHING_POLICY.maximumActiveFreeJobs,
+      remaining: active.remaining ?? 0,
+    },
+    rolling24Hours: {
+      used: daily.used ?? 0,
+      limit: daily.limit ?? 0,
+      remaining: daily.remaining ?? 0,
+      nextEligibleAt: daily.nextEligibleAt || null,
+    },
+    rolling30Days: {
+      used: rolling.used ?? 0,
+      limit: rolling.limit ?? 0,
+      remaining: rolling.remaining ?? 0,
+      nextSlotAt: rolling.nextSlotAt || null,
+    },
+    blockers: snapshot.usage?.submissionBlockers || [],
+    approvalCapacity: snapshot.usage?.approvalCapacity || null,
+    verification: snapshot.verification || null,
+    payment: { state: snapshot.policy.paidPublishingEnabled ? 'provider' : 'not_configured' },
+    nextReset: snapshot.nextReset || null,
+  };
+}
+
+export async function assertActiveFreeApprovalAllowed(
+  employerId,
+  { additionalSlots = 1, now = new Date() } = {}
+) {
+  if (!employerId) {
+    return { entitlement: { type: 'not_configured' }, usage: null };
+  }
+  const snapshot = await loadEmployerPublishingUsage(employerId, { now });
+  if (
+    snapshot.policy.paidPublishingEnabled === true
+    && FREE_BETA_PUBLISHING_POLICY.paidJobsConsumeFreeActiveCapacity !== true
+  ) {
+    return snapshot;
+  }
+  const remaining = snapshot.usage?.activeFreeJobs?.remaining ?? 0;
+  if (additionalSlots > remaining) {
+    throw quotaError(
+      409,
+      PUBLISHING_QUOTA_RESULT_CODES.ACTIVE_LIMIT_REACHED_AT_APPROVAL,
+      'Free Beta active job capacity is exhausted',
+      {
+        used: snapshot.usage?.activeFreeJobs?.used ?? 0,
+        limit: snapshot.usage?.activeFreeJobs?.limit
+          ?? FREE_BETA_PUBLISHING_POLICY.maximumActiveFreeJobs,
+        remaining,
+      }
+    );
+  }
+  return snapshot;
 }

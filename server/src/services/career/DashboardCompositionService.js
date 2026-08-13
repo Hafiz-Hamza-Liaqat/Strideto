@@ -9,6 +9,7 @@ import { UserNotification } from '../../models/UserNotification.js';
 import { Job } from '../../models/Job.js';
 import { Scholarship } from '../../models/Scholarship.js';
 import { Admission } from '../../models/Admission.js';
+import { withFixtureExclusion } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 import {
   DASHBOARD_WIDGET_DEFINITIONS,
   filterLayoutByEnabled,
@@ -149,10 +150,11 @@ async function loadSharedContext(userId, flags) {
         const targeting = flags.talentProfile
           ? await TalentProfileReadService.getCareerTargetingContext(userId)
           : { source: null };
+        const launchActive = withFixtureExclusion({ status: 'active' });
         const [jobs, scholarships, admissions] = await Promise.all([
-          Job.find({ status: 'active' }).sort({ createdAt: -1 }).limit(20).lean(),
-          Scholarship.find({ status: 'active' }).sort({ createdAt: -1 }).limit(20).lean(),
-          Admission.find({ status: 'active' }).sort({ createdAt: -1 }).limit(20).lean(),
+          Job.find(launchActive).sort({ createdAt: -1 }).limit(20).lean(),
+          Scholarship.find(launchActive).sort({ createdAt: -1 }).limit(20).lean(),
+          Admission.find(launchActive).sort({ createdAt: -1 }).limit(20).lean(),
         ]);
         ctx.recommendations = {
           jobs: jobs.slice(0, 4).map((j) => ({ _id: j._id, title: j.title, slug: j.slug, company: j.company })),

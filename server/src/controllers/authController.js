@@ -392,20 +392,19 @@ export const resetPassword = asyncHandler(async (req, res) => {
     });
   }
   const token = req.body.token.trim();
-  const user = await User.findOne({
-    passwordResetToken: hashResetToken(token),
-    passwordResetExpires: { $gt: new Date() },
-  }).select('+password +passwordResetToken +passwordResetExpires');
-  if (!user) {
+  const result = await userSecureAuthFlows.resetPassword({
+    hashedToken: hashResetToken(token),
+    newPassword: req.body.password,
+  });
+  if (result.code !== 'PASSWORD_RESET') {
+    if (result.code === 'STORAGE_FAILURE') {
+      return res.status(result.httpStatus).json(result.body);
+    }
     return res.status(400).json({
       error:
         'Invalid or expired reset link. Please request a new password reset.',
     });
   }
-  const result = await userSecureAuthFlows.resetPassword({
-    hashedToken: hashResetToken(token),
-    newPassword: req.body.password,
-  });
   if (result.clearCookie) clearUserRefreshCookie(res);
   return res.status(200).json({
     message:

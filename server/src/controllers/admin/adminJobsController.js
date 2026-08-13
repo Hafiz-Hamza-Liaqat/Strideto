@@ -17,10 +17,13 @@ import {
 } from '../../services/jobWriteBoundary.js';
 import { validateApplicationLink } from '../../utils/jobApplicationDestination.js';
 import {
-  derivePublishingEntitlementType,
   loadEmployerPublishingUsage,
+  projectAdminEntitlementSnapshot,
+  assertActiveFreeApprovalAllowed,
+  jobWouldConsumeFreeActiveSlot,
 } from '../../services/employer/employerPublishingQuota.js';
 import { assignLaunchEligibleOnAuthorityPublish } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
+import { PUBLISHING_QUOTA_RESULT_CODES } from '../../config/freeBetaPublishingPolicy.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -131,18 +134,13 @@ export const getOne = asyncHandler(async (req, res) => {
   const doc = await Job.findById(id).lean();
   if (!doc) return res.status(404).json({ error: 'Job not found' });
 
-  let employerEntitlement = { type: 'not_configured' };
+  let employerEntitlement = { type: 'not_configured', payment: { state: 'not_configured' } };
   if (doc.employerId) {
     try {
       const usage = await loadEmployerPublishingUsage(doc.employerId);
-      employerEntitlement = usage.entitlement || {
-        type: derivePublishingEntitlementType(usage),
-        policyCode: usage.policy?.code,
-        policyVersion: usage.policy?.version,
-        paidPublishingEnabled: usage.policy?.paidPublishingEnabled,
-      };
+      employerEntitlement = projectAdminEntitlementSnapshot(usage);
     } catch {
-      employerEntitlement = { type: 'not_configured' };
+      employerEntitlement = { type: 'not_configured', payment: { state: 'not_configured' } };
     }
   }
 
@@ -295,14 +293,48 @@ export const bulkAction = asyncHandler(async (req, res) => {
   }
 
   if (action === 'publish' || action === 'approve') {
-    const pending = await Job.find({ _id: { $in: validIds } }).select('isFixture demoOnly dataClass environment launchEligible').lean();
-    const eligibleIds = pending.filter((d) => assignLaunchEligibleOnAuthorityPublish(d)).map((d) => d._id);
-    const ineligibleIds = pending.filter((d) => !assignLaunchEligibleOnAuthorityPublish(d)).map((d) => d._id);
-    if (eligibleIds.length) {
-      await Job.updateMany({ _id: { $in: eligibleIds } }, { $set: { ...updates, launchEligible: true } });
+    const pending = await Job.find({ _id: { $in: validIds } }).lean();
+    const byEmployer = new Map();
+    for (const job of pending) {
+      const key = job.employerId ? String(job.employerId) : '';
+      if (!byEmployer.has(key)) byEmployer.set(key, []);
+      byEmployer.get(key).push(job);
     }
-    if (ineligibleIds.length) {
-      await Job.updateMany({ _id: { $in: ineligibleIds } }, { $set: { ...updates, launchEligible: false } });
+    const approvedIds = [];
+    const skipped = [];
+    for (const [employerId, jobs] of byEmployer.entries()) {
+      let snapshot = null;
+      if (employerId) {
+        try {
+          snapshot = await loadEmployerPublishingUsage(employerId);
+        } catch {
+          snapshot = null;
+        }
+      }
+      const sorted = [...jobs].sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0));
+      let remaining = snapshot?.usage?.activeFreeJobs?.remaining;
+      if (typeof remaining !== 'number') remaining = Number.POSITIVE_INFINITY;
+      for (const job of sorted) {
+        const consumes = employerId ? jobWouldConsumeFreeActiveSlot(job, snapshot) : false;
+        if (consumes && remaining <= 0) {
+          skipped.push({
+            id: String(job._id),
+            code: PUBLISHING_QUOTA_RESULT_CODES.ACTIVE_LIMIT_REACHED_AT_APPROVAL,
+          });
+          continue;
+        }
+        const launchEligible = assignLaunchEligibleOnAuthorityPublish(job);
+        const set = {
+          ...updates,
+          launchEligible,
+        };
+        if (consumes && snapshot && snapshot.policy?.paidPublishingEnabled !== true && !job.planType) {
+          set.planType = 'free';
+        }
+        await Job.updateOne({ _id: job._id }, { $set: set });
+        approvedIds.push(job._id);
+        if (consumes && Number.isFinite(remaining)) remaining -= 1;
+      }
     }
     onContentBulkUpdated('jobs', validIds);
     await invalidateJobCaches();
@@ -310,9 +342,9 @@ export const bulkAction = asyncHandler(async (req, res) => {
       ...auditFromRequest(req),
       action: auditAction,
       targetType: 'job',
-      metadata: { ids: validIds, modified: pending.length },
+      metadata: { ids: validIds, modified: approvedIds.length, skipped: skipped.length },
     });
-    return res.json({ action, affected: pending.length });
+    return res.json({ action, affected: approvedIds.length, skipped });
   }
   const result = await Job.updateMany({ _id: { $in: validIds } }, { $set: updates });
   await invalidateJobCaches();
@@ -330,12 +362,58 @@ export const approveJob = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
   const existing = await Job.findById(id).lean();
   if (!existing) return res.status(404).json({ error: 'Job not found' });
-  const doc = await Job.findByIdAndUpdate(id, {
+
+  let snapshot = null;
+  if (existing.employerId) {
+    try {
+      snapshot = await loadEmployerPublishingUsage(existing.employerId);
+      if (jobWouldConsumeFreeActiveSlot(existing, snapshot)) {
+        await assertActiveFreeApprovalAllowed(existing.employerId, { additionalSlots: 1 });
+      }
+    } catch (err) {
+      if (err.status === 409) {
+        return res.status(409).json(err.body || {
+          error: err.message,
+          code: err.code || PUBLISHING_QUOTA_RESULT_CODES.ACTIVE_LIMIT_REACHED_AT_APPROVAL,
+        });
+      }
+      throw err;
+    }
+  }
+
+  const set = {
     status: 'active',
     approvalStatus: 'approved',
     launchEligible: assignLaunchEligibleOnAuthorityPublish(existing),
-  }, { new: true });
+  };
+  if (snapshot && snapshot.policy?.paidPublishingEnabled !== true && !existing.planType) {
+    set.planType = 'free';
+  }
+
+  const doc = await Job.findByIdAndUpdate(id, set, { new: true });
   if (!doc) return res.status(404).json({ error: 'Job not found' });
+
+  if (existing.employerId && jobWouldConsumeFreeActiveSlot(existing, snapshot)) {
+    const after = await loadEmployerPublishingUsage(existing.employerId);
+    const limit = after.usage?.activeFreeJobs?.limit;
+    const used = after.usage?.activeFreeJobs?.used;
+    if (typeof limit === 'number' && typeof used === 'number' && used > limit) {
+      await Job.findByIdAndUpdate(id, {
+        status: existing.status,
+        approvalStatus: existing.approvalStatus,
+        launchEligible: existing.launchEligible,
+        planType: existing.planType,
+      });
+      return res.status(409).json({
+        error: 'Free Beta active job capacity is exhausted',
+        code: PUBLISHING_QUOTA_RESULT_CODES.ACTIVE_LIMIT_REACHED_AT_APPROVAL,
+        used,
+        limit,
+        remaining: after.usage?.activeFreeJobs?.remaining ?? 0,
+      });
+    }
+  }
+
   onContentSaved('jobs', doc);
   await logAudit({ ...auditFromRequest(req), action: 'job.approve', targetType: 'job', targetId: id, targetLabel: doc.title });
   await invalidateJobCaches();
