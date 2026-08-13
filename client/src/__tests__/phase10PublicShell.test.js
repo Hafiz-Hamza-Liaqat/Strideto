@@ -63,6 +63,7 @@ check(/aria-controls="mobile-drawer"/.test(navbar), 'Mobile menu wired');
 check(/to=\{ROUTES\.HOME\}/.test(navbar), 'Logo/home link present');
 
 check(/footer:discover/.test(footer), 'Footer Discover group');
+check(/footer:studyPrepare/.test(footer), 'Footer Study & Prepare group');
 check(/footer:servicesGroup/.test(footer), 'Footer Services group');
 check(/footer:organizations/.test(footer), 'Footer Organizations group');
 check(/footer:supportGroup/.test(footer), 'Footer Support group');

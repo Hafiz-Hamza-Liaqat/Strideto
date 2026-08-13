@@ -17,6 +17,7 @@ const suites = [
   'finalPreLaunchInstitution.test.js',
   'finalPreLaunchAdminAnnouncements.test.js',
   'adminConfirmDialogContract.test.js',
+  'phase15FinalManualRemediation.test.js',
 ];
 
 let failed = 0;
