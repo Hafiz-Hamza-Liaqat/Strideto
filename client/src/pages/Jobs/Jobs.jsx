@@ -23,6 +23,7 @@ import { formatDate } from '../../utils/formatDate';
 import { useAuth } from '../../context/AuthContext';
 import { AdHost } from '../../components/ads';
 import { LocationCascadeFilter } from '../../components/forms/LocationCascadeFilter';
+import { ScrollReveal } from '../../components/ui/ScrollReveal';
 
 const PER_PAGE = 10;
 
@@ -57,7 +58,9 @@ export default function Jobs() {
       return o;
     })()),
   };
-  const { data, total, totalPages, loading, error, params, setPage, setFilters } = useListings(jobsApi.list, initialParams);
+  const { data, total, totalPages, loading, error, params, setPage, setFilters, refetch } = useListings(jobsApi.list, initialParams);
+  const jobs = Array.isArray(data) ? data.filter((job) => job && job._id) : [];
+  const visibleRecommended = recommendedJobs.filter((job) => job && job._id);
 
   const countryCode = params.countryCode || '';
   const regionValue = params.region || params.province || '';
@@ -155,11 +158,11 @@ export default function Jobs() {
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('title', { ns: 'jobs' })}</h1>
         <p className="text-gray-600 dark:text-gray-400 mb-6">{t('subtitle', { ns: 'jobs' })}</p>
 
-        {isAuthenticated && recommendedJobs.length > 0 && (
+        {isAuthenticated && visibleRecommended.length > 0 && (
           <ScrollReveal as="section" className="mb-8 p-4 rounded-xl border border-primary/30 dark:border-mint/30 bg-mint/20 dark:bg-mint/10">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">{t('recommended', { ns: 'jobs' })}</h2>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">
-              {recommendedJobs.slice(0, 3).map((job) => (
+              {visibleRecommended.slice(0, 3).map((job) => (
                 <Link key={job._id} to={`${ROUTES.JOBS}/${job.slug || job._id}`} className="p-3 rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md">
                   <span className="font-medium text-gray-900 dark:text-white">{job.title}</span>
                   <p className="text-sm text-gray-500 dark:text-gray-400 truncate">{job.organization || job.company}</p>
@@ -296,7 +299,18 @@ export default function Jobs() {
 
           <div className="flex-1 min-w-0">
             {error && (
-              <Alert variant="error" className="mb-4">{error}</Alert>
+              <Alert variant="error" className="mb-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <span>{error}</span>
+                  <button
+                    type="button"
+                    onClick={() => refetch()}
+                    className="text-sm font-medium underline min-h-[44px]"
+                  >
+                    {t('retry', { ns: 'common', defaultValue: 'Try again' })}
+                  </button>
+                </div>
+              </Alert>
             )}
             {loading ? (
               <div className="grid sm:grid-cols-2 gap-4">
@@ -304,18 +318,20 @@ export default function Jobs() {
                   <ListingCardSkeleton key={i} />
                 ))}
               </div>
-            ) : data.length === 0 ? (
+            ) : jobs.length === 0 && !error ? (
               <EmptyState
-                title={t('noJobs', { ns: 'jobs' })}
-                description={t('noJobsAdjust', { ns: 'jobs' })}
+                title={t('emptyCatalogTitle', { ns: 'jobs', defaultValue: 'No public jobs yet' })}
+                description={t('emptyCatalogBody', { ns: 'jobs', defaultValue: 'Public jobs appear here when they are published and launch-eligible. You can change or reset filters. This is not sample inventory.' })}
                 actionLabel={t('resetFilters', { ns: 'jobs', defaultValue: 'Reset filters' })}
                 onAction={resetFilters}
               />
+            ) : jobs.length === 0 && error ? (
+              null
             ) : (
               <>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('jobsFound', { count: total, ns: 'jobs' })}</p>
                 <div className="grid sm:grid-cols-2 gap-4">
-                  {data.map((job, index) => (
+                  {jobs.map((job, index) => (
                     <Fragment key={job._id}>
                       {index > 0 && index % 5 === 0 && <AdHost placementId="jobs-infeed" index={index} variant="inline" className="sm:col-span-2" />}
                       <article

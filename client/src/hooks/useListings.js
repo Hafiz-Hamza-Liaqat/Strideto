@@ -1,5 +1,11 @@
 import { useState, useEffect, useCallback } from 'react';
 
+function asList(payload) {
+  if (Array.isArray(payload)) return payload.filter((row) => row && row._id);
+  if (Array.isArray(payload?.data)) return payload.data.filter((row) => row && row._id);
+  return [];
+}
+
 export function useListings(apiList, initialParams = {}) {
   const [params, setParams] = useState({ page: 1, limit: 10, ...initialParams });
   const [data, setData] = useState([]);
@@ -13,7 +19,7 @@ export function useListings(apiList, initialParams = {}) {
     setError(null);
     try {
       const { data: res } = await apiList(params);
-      setData(res.data || []);
+      setData(asList(res.data ?? res));
       const pagination = res.pagination || {};
       setTotal(pagination.total ?? res.total ?? 0);
       setTotalPages(pagination.totalPages ?? res.totalPages ?? 1);

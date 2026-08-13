@@ -6,9 +6,27 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { cacheGet, cacheSet } from '../config/redis.js';
 import { CACHE_KEYS } from '../utils/cacheKeys.js';
 import { TalentProfileReadService } from '../services/career/TalentProfileReadService.js';
+import { withFixtureExclusion } from '../../../shared/publicDiscovery/fixtureExclusion.js';
+import {
+  projectPublicJobListItem,
+  projectPublicCmsScholarship,
+  projectPublicCmsAdmission,
+} from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 
 const RECOMMEND_LIMIT = 8;
+const CANDIDATE_CAP = 80;
 const CACHE_TTL = 600; // 10 min
+
+const LAUNCH_ACTIVE = withFixtureExclusion({ status: 'active' });
+
+function safeProject(projectFn, doc) {
+  try {
+    const item = projectFn(doc);
+    return item && item._id ? item : null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Placeholder scoring: match by province, then interests (category/level), then recency.
@@ -69,9 +87,9 @@ export const getRecommendations = asyncHandler(async (req, res) => {
   const excludeAdmissions = [...(user.savedAdmissions || []), ...(user.recentlyViewedAdmissions || [])].map((id) => id.toString());
 
   const [allJobs, allScholarships, allAdmissions] = await Promise.all([
-    Job.find({ status: 'active' }).lean(),
-    Scholarship.find({ status: 'active' }).lean(),
-    Admission.find({ status: 'active' }).lean(),
+    Job.find(LAUNCH_ACTIVE).sort({ createdAt: -1 }).limit(CANDIDATE_CAP).lean(),
+    Scholarship.find(LAUNCH_ACTIVE).sort({ createdAt: -1 }).limit(CANDIDATE_CAP).lean(),
+    Admission.find(LAUNCH_ACTIVE).sort({ createdAt: -1 }).limit(CANDIDATE_CAP).lean(),
   ]);
 
   const jobs = allJobs
@@ -79,21 +97,24 @@ export const getRecommendations = asyncHandler(async (req, res) => {
     .map((j) => ({ ...j, _score: scoreJob(j, scoringUser) }))
     .sort((a, b) => b._score - a._score)
     .slice(0, RECOMMEND_LIMIT)
-    .map(({ _score, ...j }) => j);
+    .map(({ _score, ...j }) => safeProject(projectPublicJobListItem, j))
+    .filter(Boolean);
 
   const scholarships = allScholarships
     .filter((s) => !excludeScholarships.includes(s._id.toString()))
     .map((s) => ({ ...s, _score: scoreScholarship(s, scoringUser) }))
     .sort((a, b) => b._score - a._score)
     .slice(0, RECOMMEND_LIMIT)
-    .map(({ _score, ...s }) => s);
+    .map(({ _score, ...s }) => safeProject(projectPublicCmsScholarship, s))
+    .filter(Boolean);
 
   const admissions = allAdmissions
     .filter((a) => !excludeAdmissions.includes(a._id.toString()))
     .map((a) => ({ ...a, _score: scoreAdmission(a, scoringUser) }))
     .sort((a, b) => b._score - a._score)
     .slice(0, RECOMMEND_LIMIT)
-    .map(({ _score, ...a }) => a);
+    .map(({ _score, ...a }) => safeProject(projectPublicCmsAdmission, a))
+    .filter(Boolean);
 
   const payload = { jobs, scholarships, admissions, careerSource: targeting.source };
   await cacheSet(cacheKey, payload, CACHE_TTL);

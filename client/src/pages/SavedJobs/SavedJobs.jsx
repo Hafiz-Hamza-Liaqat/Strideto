@@ -66,11 +66,18 @@ export default function SavedJobs() {
                 <ul className="space-y-3">
                   {savedJobs.map((j) => (
                     <li key={j._id}>
-                      <Link to={`${ROUTES.JOBS}/${j.slug || j._id}`} className="block p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md transition">
-                        <span className="font-semibold text-gray-900 dark:text-white">{j.title}</span>
-                        <span className="text-gray-600 dark:text-gray-400"> · {j.organization || j.company}</span>
-                        {j.deadline && <span className="text-xs text-amber-600 dark:text-amber-400 ml-2">{t('dashboard:savedDeadline', { date: formatDate(j.deadline) })}</span>}
-                      </Link>
+                      {j.unavailable ? (
+                        <div className="block p-4 rounded-xl border border-dashed border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800">
+                          <span className="font-semibold text-gray-700 dark:text-gray-300">No longer available</span>
+                          <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">This saved job is not currently listed. You can remove it from Saved.</p>
+                        </div>
+                      ) : (
+                        <Link to={`${ROUTES.JOBS}/${j.slug || j._id}`} className="block p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md transition">
+                          <span className="font-semibold text-gray-900 dark:text-white">{j.title}</span>
+                          <span className="text-gray-600 dark:text-gray-400"> · {j.organization || j.company}</span>
+                          {j.deadline && <span className="text-xs text-amber-600 dark:text-amber-400 ml-2">{t('dashboard:savedDeadline', { date: formatDate(j.deadline) })}</span>}
+                        </Link>
+                      )}
                     </li>
                   ))}
                 </ul>

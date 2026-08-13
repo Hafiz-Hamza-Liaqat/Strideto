@@ -1,6 +1,7 @@
 import { User } from '../models/User.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { validateNotificationPreferences } from '../../../shared/international/notificationPreferences.js';
+import { normalizeCountryCode } from '../../../shared/international/country.js';
 
 function toSafeUser(user) {
   if (!user) return null;
@@ -16,10 +17,29 @@ export const getProfile = asyncHandler(async (req, res) => {
 });
 
 export const updateProfile = asyncHandler(async (req, res) => {
-  const { province, interests, notifications } = req.body;
+  const { province, interests, notifications, countryCode, region, city } = req.body;
   const user = await User.findById(req.user.userId);
   if (!user) return res.status(404).json({ error: 'User not found' });
-  if (province !== undefined) user.province = String(province).trim();
+  if (countryCode !== undefined) {
+    const next = countryCode ? normalizeCountryCode(countryCode) : '';
+    if (countryCode && !next) {
+      return res.status(422).json({ error: 'countryCode must be a valid ISO 3166-1 alpha-2 code' });
+    }
+    user.countryCode = next || '';
+    if (!next) {
+      user.region = '';
+      user.city = '';
+      user.province = '';
+    }
+  }
+  if (region !== undefined) {
+    user.region = String(region || '').trim().slice(0, 80);
+    user.province = user.region;
+  } else if (province !== undefined) {
+    user.province = String(province).trim();
+    if (!user.region) user.region = user.province;
+  }
+  if (city !== undefined) user.city = String(city || '').trim().slice(0, 80);
   if (Array.isArray(interests))
     user.interests = interests
       .filter((i) => typeof i === 'string')

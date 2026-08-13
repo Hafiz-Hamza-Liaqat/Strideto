@@ -6,7 +6,7 @@
  * No personalized eligibility decisions (Mission 8).
  */
 import { useState, useEffect, useCallback } from 'react';
-import { Link, useParams, useLocation } from 'react-router-dom';
+import { Link, useParams, useLocation, useNavigate } from 'react-router-dom';
 import { SeoHead } from '../../components/seo';
 import { programIntelligenceApi } from '../../services/listingsService';
 import { ROUTES } from '../../constants';
@@ -20,6 +20,7 @@ import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
 import { ProvenanceStrip } from '../../components/public/ProvenanceStrip';
 import { testsApi } from '../../services/listingsService';
 import { CountrySelect } from '../../components/forms/CountrySelect';
+import { fallbackScopeLabel, ACCEPTANCE_SCOPES } from '@shared/education/acceptanceExplorer.js';
 
 const DEGREE_LABELS = {
   high_school: 'High School',
@@ -123,58 +124,101 @@ function ProgramCard({ program }) {
 
 // ── Program List page ─────────────────────────────────────────────────────────
 
-function FilterBar({ filters, onChange }) {
+function FilterBar({ pending, onPendingChange, onApply, onReset }) {
+  const selectClass = 'text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 [color-scheme:light] dark:[color-scheme:dark]';
   return (
-    <div className="flex flex-wrap gap-3">
+    <form
+      className="flex flex-wrap gap-3 items-end"
+      onSubmit={(event) => {
+        event.preventDefault();
+        onApply();
+      }}
+    >
       <div className="w-full sm:w-64">
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="program-country">Country</label>
         <CountrySelect
+          id="program-country"
           allowAll
-          value={filters.country || ''}
-          onChange={(code) => onChange({ ...filters, country: code || undefined, page: 1 })}
+          value={pending.country || ''}
+          onChange={(code) => onPendingChange({ ...pending, country: code || undefined })}
         />
       </div>
 
-      <select
-        value={filters.degree || ''}
-        onChange={(e) => onChange({ ...filters, degree: e.target.value || undefined, page: 1 })}
-        className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-      >
-        <option value="">All Degrees</option>
-        {Object.entries(DEGREE_LABELS).map(([v, l]) => (
-          <option key={v} value={v}>{l}</option>
-        ))}
-      </select>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="program-degree">Degree</label>
+        <select
+          id="program-degree"
+          value={pending.degree || ''}
+          onChange={(e) => onPendingChange({ ...pending, degree: e.target.value || undefined })}
+          className={selectClass}
+        >
+          <option value="">All Degrees</option>
+          {Object.entries(DEGREE_LABELS).map(([v, l]) => (
+            <option key={v} value={v}>{l}</option>
+          ))}
+        </select>
+      </div>
 
-      <select
-        value={filters.field || ''}
-        onChange={(e) => onChange({ ...filters, field: e.target.value || undefined, page: 1 })}
-        className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-      >
-        <option value="">All Fields</option>
-        {Object.entries(FIELD_LABELS).map(([v, l]) => (
-          <option key={v} value={v}>{l}</option>
-        ))}
-      </select>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="program-field">Field</label>
+        <select
+          id="program-field"
+          value={pending.field || ''}
+          onChange={(e) => onPendingChange({ ...pending, field: e.target.value || undefined })}
+          className={selectClass}
+        >
+          <option value="">All Fields</option>
+          {Object.entries(FIELD_LABELS).map(([v, l]) => (
+            <option key={v} value={v}>{l}</option>
+          ))}
+        </select>
+      </div>
 
-      <select
-        value={filters.studyMode || ''}
-        onChange={(e) => onChange({ ...filters, studyMode: e.target.value || undefined, page: 1 })}
-        className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-      >
-        <option value="">All Study Modes</option>
-        {Object.entries(STUDY_MODE_LABELS).map(([v, l]) => (
-          <option key={v} value={v}>{l}</option>
-        ))}
-      </select>
-    </div>
+      <div>
+        <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1" htmlFor="program-mode">Study mode</label>
+        <select
+          id="program-mode"
+          value={pending.studyMode || ''}
+          onChange={(e) => onPendingChange({ ...pending, studyMode: e.target.value || undefined })}
+          className={selectClass}
+        >
+          <option value="">All Study Modes</option>
+          {Object.entries(STUDY_MODE_LABELS).map(([v, l]) => (
+            <option key={v} value={v}>{l}</option>
+          ))}
+        </select>
+      </div>
+
+      <div className="flex flex-wrap gap-2">
+        <button type="submit" className="min-h-[44px] rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white">
+          Apply filters
+        </button>
+        <button type="button" onClick={onReset} className="min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm text-gray-700 dark:text-gray-200">
+          Reset filters
+        </button>
+      </div>
+    </form>
   );
+}
+
+function readAppliedFromSearch(search) {
+  const params = new URLSearchParams(search || '');
+  return {
+    page: 1,
+    limit: PAGE_SIZE,
+    country: params.get('country') || undefined,
+    degree: params.get('degree') || undefined,
+    field: params.get('field') || undefined,
+    studyMode: params.get('studyMode') || undefined,
+    search: params.get('search') || undefined,
+  };
 }
 
 export function ProgramExplorerList() {
   const location = useLocation();
-  const urlCountry = typeof window !== 'undefined' ? new URLSearchParams(location.search).get('country') || undefined : undefined;
-  const urlSearch = typeof window !== 'undefined' ? new URLSearchParams(location.search).get('search') || undefined : undefined;
-  const [filters, setFilters] = useState({ page: 1, limit: PAGE_SIZE, country: urlCountry, search: urlSearch });
+  const navigate = useNavigate();
+  const [applied, setApplied] = useState(() => readAppliedFromSearch(location.search));
+  const [pending, setPending] = useState(() => readAppliedFromSearch(location.search));
   const [data, setData] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, total: 0, pages: 1 });
   const [loading, setLoading] = useState(true);
@@ -185,16 +229,34 @@ export function ProgramExplorerList() {
     setError(null);
     try {
       const res = await programIntelligenceApi.list(params);
-      setData(res.data.data || []);
+      setData(Array.isArray(res.data.data) ? res.data.data.filter((row) => row && row._id) : []);
       setPagination(res.data.pagination || { page: 1, total: 0, pages: 1 });
     } catch {
       setError('Failed to load programs.');
+      setData([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  useEffect(() => { fetchData(filters); }, [filters, fetchData]);
+  useEffect(() => { fetchData(applied); }, [applied, fetchData]);
+
+  const applyFilters = () => {
+    const next = { ...pending, page: 1, limit: PAGE_SIZE };
+    setApplied(next);
+    const params = new URLSearchParams();
+    ['country', 'degree', 'field', 'studyMode', 'search'].forEach((key) => {
+      if (next[key]) params.set(key, next[key]);
+    });
+    navigate({ pathname: location.pathname, search: params.toString() ? `?${params}` : '' }, { replace: true });
+  };
+
+  const resetFilters = () => {
+    const next = { page: 1, limit: PAGE_SIZE };
+    setPending(next);
+    setApplied(next);
+    navigate({ pathname: location.pathname, search: '' }, { replace: true });
+  };
 
   return (
     <>
@@ -213,8 +275,16 @@ export function ProgramExplorerList() {
           </div>
 
           <div className="mb-6">
-            <FilterBar filters={filters} onChange={(f) => setFilters(f)} />
+            <FilterBar
+              pending={pending}
+              onPendingChange={setPending}
+              onApply={applyFilters}
+              onReset={resetFilters}
+            />
           </div>
+          <p className="sr-only" aria-live="polite">
+            {loading ? 'Loading programs' : `${pagination.total || 0} programs found`}
+          </p>
 
           {error && (
             <div className="mb-6 rounded-lg bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-700 px-4 py-3 text-sm text-red-700 dark:text-red-300">
@@ -229,10 +299,15 @@ export function ProgramExplorerList() {
               ))}
             </div>
           ) : data.length === 0 ? (
-            <div className="py-20 text-center text-gray-500 dark:text-gray-400">
-              {filters.country
-                ? `No published programs are currently listed for ${countryDisplayName(filters.country) || filters.country}.`
-                : 'No programs found matching your filters.'}
+            <div className="py-16 text-center text-gray-600 dark:text-gray-400 max-w-lg mx-auto">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">No public programs yet</h2>
+              <p className="mt-2 text-sm">
+                No programs found matching your filters. Source-backed programs appear here after they are published and launch-eligible.
+                You can change filters and apply them, or reset to the unfiltered catalog. This is not sample inventory.
+              </p>
+              <button type="button" onClick={resetFilters} className="mt-4 text-sm text-primary underline min-h-[44px]">
+                Reset filters
+              </button>
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -245,7 +320,7 @@ export function ProgramExplorerList() {
               <Pagination
                 currentPage={pagination.page}
                 totalPages={pagination.pages}
-                onPageChange={(p) => setFilters((f) => ({ ...f, page: p }))}
+                onPageChange={(p) => setApplied((f) => ({ ...f, page: p }))}
               />
             </div>
           )}

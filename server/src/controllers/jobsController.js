@@ -9,6 +9,7 @@ import {
 } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 import { normalizeCountryCode } from '../../../shared/international/country.js';
 import { withFixtureExclusion } from '../../../shared/publicDiscovery/fixtureExclusion.js';
+import { isValidJobFamily, isValidSpecialization } from '../../../shared/career/jobTaxonomy.js';
 import {
   getRequestLocale,
   withListLocaleFilter,
@@ -180,7 +181,16 @@ export const getJobs = asyncHandler(async (req, res) => {
     Job.find(query).sort(buildJobSort(sort)).skip(skip).limit(limit).lean(),
     Job.countDocuments(query),
   ]);
-  res.json(listResponse(data.map(projectPublicJobListItem), paginate(page, limit, total), req.query));
+  const items = [];
+  for (const row of data) {
+    try {
+      const item = projectPublicJobListItem(row);
+      if (item && item._id) items.push(item);
+    } catch {
+      // One malformed record must not fail the catalog.
+    }
+  }
+  res.json(listResponse(items, paginate(page, limit, total), req.query));
 });
 
 export const getJobByIdOrSlug = asyncHandler(async (req, res) => {

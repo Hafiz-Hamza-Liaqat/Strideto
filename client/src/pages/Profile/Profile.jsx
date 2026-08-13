@@ -5,7 +5,10 @@ import { useAuth } from '../../context/AuthContext';
 import { useLanguage } from '../../context/LanguageContext';
 import { authApi } from '../../services/authService';
 import { savedApi } from '../../services/listingsService';
-import { PROVINCES, INTEREST_CATEGORIES } from '../../constants/profileOptions';
+import { INTEREST_CATEGORIES } from '../../constants/profileOptions';
+import { LocationCascadeFilter } from '../../components/forms/LocationCascadeFilter';
+import { ChangePasswordForm } from '../../components/auth/ChangePasswordForm';
+import { ConnectedAccountsPanel } from '../../components/account/ConnectedAccountsPanel';
 import { Button } from '../../components/common/Button';
 import { FormField } from '../../components/common/FormField';
 import { Alert } from '../../components/ui/Alerts';
@@ -24,7 +27,9 @@ export default function Profile() {
   const [searchParams, setSearchParams] = useSearchParams();
   const careerWizardOpenRef = useRef(false);
   const [name, setName] = useState('');
-  const [province, setProvince] = useState('');
+  const [countryCode, setCountryCode] = useState('');
+  const [region, setRegion] = useState('');
+  const [city, setCity] = useState('');
   const [interests, setInterests] = useState([]);
   const [notifications, setNotifications] = useState({
     email: true,
@@ -40,9 +45,6 @@ export default function Profile() {
   const [saving, setSaving] = useState(false);
   const [message, setMessage] = useState(null);
   const [messageSuccess, setMessageSuccess] = useState(false);
-  const [currentPassword, setCurrentPassword] = useState('');
-  const [newPassword, setNewPassword] = useState('');
-  const [confirmNewPassword, setConfirmNewPassword] = useState('');
   const [changingPassword, setChangingPassword] = useState(false);
   const [resendingVerify, setResendingVerify] = useState(false);
 
@@ -52,7 +54,9 @@ export default function Profile() {
       .then(({ data }) => {
         const u = data.user;
         setName(u.name || '');
-        setProvince(u.province || '');
+        setCountryCode(u.countryCode || '');
+        setRegion(u.region || u.province || '');
+        setCity(u.city || '');
         setInterests(Array.isArray(u.interests) ? [...u.interests] : []);
         if (u.notifications) {
           setNotifications((n) => ({
@@ -136,7 +140,10 @@ export default function Profile() {
     try {
       const { data } = await authApi.updateProfile({
         name,
-        province,
+        countryCode,
+        region,
+        city,
+        province: region,
         interests,
         notifications,
         preferredLanguage,
@@ -154,31 +161,6 @@ export default function Profile() {
   };
 
   const notifOptions = [{ key: 'email', label: t('profile:emailNotif') }];
-
-  const handleChangePassword = async (e) => {
-    e.preventDefault();
-    if (newPassword !== confirmNewPassword) {
-      setMessage(t('profile:passwordMismatch', { defaultValue: 'Passwords do not match' }));
-      setMessageSuccess(false);
-      return;
-    }
-    setChangingPassword(true);
-    setMessage(null);
-    try {
-      await authApi.changePassword({ currentPassword, newPassword });
-      setCurrentPassword('');
-      setNewPassword('');
-      setConfirmNewPassword('');
-      setMessage(t('profile:passwordChanged', { defaultValue: 'Password changed successfully' }));
-      setMessageSuccess(true);
-      updateUser({ ...user, mustChangePassword: false });
-    } catch (err) {
-      setMessage(err.response?.data?.error || t('profile:passwordChangeFailed', { defaultValue: 'Could not change password' }));
-      setMessageSuccess(false);
-    } finally {
-      setChangingPassword(false);
-    }
-  };
 
   const handleResendVerification = async () => {
     setResendingVerify(true);
@@ -258,22 +240,23 @@ export default function Profile() {
             />
           </FormField>
 
-          <FormField label={t('common:province')} id="profile-province">
-            <select
-              id="profile-province"
-              name="province"
-              value={province}
-              onChange={(e) => setProvince(e.target.value)}
-              className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
-            >
-              <option value="">{t('profile:selectProvince')}</option>
-              {PROVINCES.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          </FormField>
+          <div>
+            <p className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Location</p>
+            <LocationCascadeFilter
+              countryCode={countryCode}
+              region={region}
+              city={city}
+              allowAllCountries={false}
+              onChange={({ countryCode: nextCountry, region: nextRegion, city: nextCity }) => {
+                setCountryCode(nextCountry || '');
+                setRegion(nextRegion || '');
+                setCity(nextCity || '');
+              }}
+            />
+            <p className="mt-1 min-h-[1.25rem] text-xs text-gray-500 dark:text-gray-400">
+              Country, region/state/province, and city. Country is not assumed.
+            </p>
+          </div>
 
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
@@ -345,48 +328,26 @@ export default function Profile() {
               {t('profile:mustChangePassword', { defaultValue: 'You must change your temporary password before continuing.' })}
             </Alert>
           )}
-          <form onSubmit={handleChangePassword} className="space-y-4 max-w-md">
-            <FormField label={t('profile:currentPassword', { defaultValue: 'Current password' })} id="profile-current-password">
-              <input
-                id="profile-current-password"
-                name="currentPassword"
-                type="password"
-                autoComplete="current-password"
-                required
-                value={currentPassword}
-                onChange={(e) => setCurrentPassword(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
-              />
-            </FormField>
-            <FormField label={t('profile:newPassword', { defaultValue: 'New password' })} id="profile-new-password">
-              <input
-                id="profile-new-password"
-                name="newPassword"
-                type="password"
-                autoComplete="new-password"
-                required
-                minLength={8}
-                value={newPassword}
-                onChange={(e) => setNewPassword(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
-              />
-            </FormField>
-            <FormField label={t('profile:confirmNewPassword', { defaultValue: 'Confirm new password' })} id="profile-confirm-password">
-              <input
-                id="profile-confirm-password"
-                name="confirmNewPassword"
-                type="password"
-                autoComplete="new-password"
-                required
-                value={confirmNewPassword}
-                onChange={(e) => setConfirmNewPassword(e.target.value)}
-                className="w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary outline-none"
-              />
-            </FormField>
-            <Button type="submit" disabled={changingPassword}>
-              {changingPassword ? t('common:saving') : t('profile:updatePassword', { defaultValue: 'Update password' })}
-            </Button>
-          </form>
+          <ChangePasswordForm
+            busy={changingPassword}
+            successMessage={messageSuccess && message && changingPassword === false ? '' : ''}
+            errorMessage={!messageSuccess && message ? message : ''}
+            onSubmit={async ({ currentPassword: current, newPassword: next }) => {
+              setChangingPassword(true);
+              setMessage(null);
+              try {
+                await authApi.changePassword({ currentPassword: current, newPassword: next });
+                setMessage(t('profile:passwordChanged', { defaultValue: 'Password changed. Other sessions were signed out.' }));
+                setMessageSuccess(true);
+                if (user) updateUser({ ...user, mustChangePassword: false });
+              } catch (err) {
+                setMessage(err.response?.data?.error || t('profile:passwordChangeFailed', { defaultValue: 'Could not change password' }));
+                setMessageSuccess(false);
+              } finally {
+                setChangingPassword(false);
+              }
+            }}
+          />
           <div className="mt-6 space-y-3">
             <h3 className="text-base font-semibold text-gray-900 dark:text-white">
               {t('profile:sessionsTitle', { defaultValue: 'Sessions' })}
@@ -405,6 +366,9 @@ export default function Profile() {
               </Button>
             </div>
           </div>
+          <div className="mt-8">
+            <ConnectedAccountsPanel />
+          </div>
         </section>
 
         <section className="mt-10 pt-8 border-t border-gray-200 dark:border-gray-700">
@@ -420,8 +384,14 @@ export default function Profile() {
             <ul className="space-y-2">
               {savedJobs.map((j) => (
                 <li key={j._id}>
-                  <Link to={`${ROUTES.JOBS}/${j.slug || j._id}`} className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-mint">{j.title}</Link>
-                  {j.deadline && <span className="text-xs text-gray-500 ml-2">({formatDate(j.deadline)})</span>}
+                  {j.unavailable ? (
+                    <span className="text-gray-500 dark:text-gray-400">No longer available</span>
+                  ) : (
+                    <>
+                      <Link to={`${ROUTES.JOBS}/${j.slug || j._id}`} className="text-gray-700 dark:text-gray-300 hover:text-primary dark:hover:text-mint">{j.title}</Link>
+                      {j.deadline && <span className="text-xs text-gray-500 ml-2">({formatDate(j.deadline)})</span>}
+                    </>
+                  )}
                 </li>
               ))}
             </ul>

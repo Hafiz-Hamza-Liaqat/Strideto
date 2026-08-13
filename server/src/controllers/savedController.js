@@ -6,6 +6,13 @@ import { Internship } from '../models/Internship.js';
 import { IntlScholarship } from '../models/IntlScholarship.js';
 import mongoose from 'mongoose';
 import { asyncHandler } from '../utils/asyncHandler.js';
+import { projectSavedRecord } from '../../../shared/publicDiscovery/projectSavedListing.js';
+import {
+  projectPublicJobListItem,
+  projectPublicCmsScholarship,
+  projectPublicCmsAdmission,
+  projectPublicInternship,
+} from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 
 const COLLECTION_MAP = {
   jobs: { Model: Job, field: 'savedJobs' },
@@ -111,11 +118,28 @@ export const getSaved = asyncHandler(async (req, res) => {
     .populate('savedIntlScholarships')
     .lean();
   if (!user) return res.status(404).json({ error: 'User not found' });
+  const identityOnly = (doc) => ({
+    _id: doc?._id,
+    title: doc?.title || doc?.name || '',
+    slug: doc?.slug,
+    provider: doc?.provider,
+    organization: doc?.organization || doc?.company,
+  });
   res.json({
-    savedJobs: (user.savedJobs || []).filter((j) => j && j.status === 'active'),
-    savedScholarships: (user.savedScholarships || []).filter((s) => s && s.status === 'active'),
-    savedAdmissions: (user.savedAdmissions || []).filter((a) => a && a.status === 'active'),
-    savedInternships: (user.savedInternships || []).filter((i) => i && i.status === 'active'),
-    savedIntlScholarships: (user.savedIntlScholarships || []).filter((s) => s && s.status === 'active'),
+    savedJobs: (user.savedJobs || [])
+      .filter(Boolean)
+      .map((j) => projectSavedRecord(j, projectPublicJobListItem)),
+    savedScholarships: (user.savedScholarships || [])
+      .filter(Boolean)
+      .map((s) => projectSavedRecord(s, projectPublicCmsScholarship)),
+    savedAdmissions: (user.savedAdmissions || [])
+      .filter(Boolean)
+      .map((a) => projectSavedRecord(a, projectPublicCmsAdmission)),
+    savedInternships: (user.savedInternships || [])
+      .filter(Boolean)
+      .map((i) => projectSavedRecord(i, projectPublicInternship)),
+    savedIntlScholarships: (user.savedIntlScholarships || [])
+      .filter(Boolean)
+      .map((s) => projectSavedRecord(s, identityOnly)),
   });
 });

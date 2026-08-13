@@ -31,6 +31,33 @@
   html {
     @apply scroll-smooth;
     -webkit-text-size-adjust: 100%;
+    color-scheme: light;
+  }
+  html.dark {
+    color-scheme: dark;
+  }
+  input[type='date'],
+  input[type='datetime-local'],
+  input[type='time'],
+  input[type='month'],
+  input[type='week'],
+  input[type='search'] {
+    color-scheme: inherit;
+  }
+  html.dark input[type='date']::-webkit-calendar-picker-indicator,
+  html.dark input[type='datetime-local']::-webkit-calendar-picker-indicator,
+  html.dark input[type='time']::-webkit-calendar-picker-indicator,
+  html.dark input[type='month']::-webkit-calendar-picker-indicator,
+  html.dark input[type='week']::-webkit-calendar-picker-indicator {
+    filter: invert(1);
+    opacity: 0.88;
+    cursor: pointer;
+  }
+  input[type='date']::-webkit-calendar-picker-indicator,
+  input[type='datetime-local']::-webkit-calendar-picker-indicator,
+  input[type='time']::-webkit-calendar-picker-indicator {
+    cursor: pointer;
+    opacity: 0.75;
   }
   body {
     background-color: var(--color-bg);
@@ -163,6 +190,7 @@
   .nav-item[aria-current="page"],
   .nav-item.is-current {
     @apply bg-primary-light text-primary font-semibold dark:bg-gray-800 dark:text-mint;
+    box-shadow: inset 0 -2px 0 var(--color-accent);
   }
   .nav-item[aria-expanded="true"]:not([aria-current="page"]) {
     @apply bg-gray-100 dark:bg-gray-800;

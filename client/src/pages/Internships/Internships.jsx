@@ -188,7 +188,12 @@ export default function Internships() {
         )}
 
         {!loading && data.length === 0 && (
-          <EmptyState title={t('noInternships', { ns: 'internships' })} description="No internships match these filters." />
+          <EmptyState
+            title={t('noInternships', { ns: 'internships' })}
+            description="Internships appear here when they are published and launch-eligible. Change or reset filters if you applied any. This is not sample inventory."
+            actionLabel="Reset filters"
+            onAction={() => setFilters({ search: undefined, countryCode: undefined, region: undefined, city: undefined })}
+          />
         )}
 
         {totalPages > 1 && (

@@ -112,10 +112,10 @@ export default function Admissions() {
             ) : data.length === 0 ? (
               <EmptyState
                 icon="🏛"
-                title="Explore admissions"
-                description="Explore university admissions and upcoming deadlines."
-                actionLabel="Browse Admissions"
-                actionTo={ROUTES.ADMISSIONS}
+                title="No public admissions yet"
+                description="Admissions appear here when they are published and launch-eligible. Change or reset filters if you applied any. This is not sample inventory."
+                actionLabel="Reset filters"
+                onAction={() => setFilters({ search: undefined, deadline: undefined, province: undefined })}
               />
             ) : (
               <>

@@ -157,10 +157,10 @@ export default function Scholarships() {
             ) : data.length === 0 ? (
               <EmptyState
                 icon="🎓"
-                title="Find scholarships"
-                description="Discover scholarships that match your education and interests."
-                actionLabel="Find Scholarships"
-                actionTo={ROUTES.SCHOLARSHIPS}
+                title="No public scholarships yet"
+                description="Scholarships appear here when they are published and launch-eligible. Change or reset filters if you applied any. This is not sample inventory."
+                actionLabel="Reset filters"
+                onAction={() => setFilters({ search: undefined, deadline: undefined, level: undefined, country: undefined })}
               />
             ) : (
               <>
