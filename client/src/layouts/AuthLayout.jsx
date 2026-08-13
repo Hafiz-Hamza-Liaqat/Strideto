@@ -1,6 +1,4 @@
-import { Link } from 'react-router-dom';
-import { Logo } from '../components/brand/Logo';
-import { ROUTES } from '../constants';
+import { Helmet } from 'react-helmet-async';
 
 export function isAuthShellPath(pathname = '') {
   return (
@@ -14,25 +12,34 @@ export function isAdminShellPath(pathname = '') {
   return pathname === '/admin' || pathname.startsWith('/admin/');
 }
 
-export function AuthLayout({ realmTitle, children, showLogo = false }) {
+/**
+ * Public auth content wrapper. Navbar/footer come from MainLayout so
+ * auth ↔ Terms/Privacy does not remount public chrome.
+ */
+export function AuthLayout({ realmTitle, children }) {
   return (
-    <div className="min-h-screen flex flex-col bg-bg-main dark:bg-secondary">
-      {showLogo ? (
-        <div className="px-4 pt-8 flex justify-center">
-          <Logo height={32} />
-        </div>
-      ) : null}
+    <div className="w-full">
+      <Helmet>
+        <meta name="referrer" content="same-origin" />
+      </Helmet>
       {realmTitle ? <p className="sr-only">{realmTitle}</p> : null}
-      <div className="flex-1">{children}</div>
-      <footer className="px-4 py-6 text-center text-sm text-gray-500 dark:text-gray-400 space-x-4">
-        <Link className="hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary" to={ROUTES.TERMS}>Terms</Link>
-        <Link className="hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary" to={ROUTES.PRIVACY_POLICY}>Privacy</Link>
-        <Link className="hover:underline focus-visible:outline focus-visible:outline-2 focus-visible:outline-primary" to={ROUTES.HOME}>Back to Strideto</Link>
-      </footer>
+      {children}
     </div>
   );
 }
 
 export function withAuthLayout(element, realmTitle) {
   return <AuthLayout realmTitle={realmTitle}>{element}</AuthLayout>;
+}
+
+export function AuthCard({ title, subtitle, children }) {
+  return (
+    <div className="max-w-md mx-auto px-4 sm:px-6 py-8 md:py-12">
+      <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 sm:p-8 shadow-sm">
+        {title ? <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{title}</h1> : null}
+        {subtitle ? <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{subtitle}</p> : null}
+        <div className={title ? 'mt-6' : ''}>{children}</div>
+      </div>
+    </div>
+  );
 }

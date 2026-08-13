@@ -12,7 +12,8 @@ import { isAdminShellPath, isAuthShellPath } from './AuthLayout';
 
 export function MainLayout({ children }) {
   const { pathname } = useLocation();
-  const hidePublicChrome = isAdminShellPath(pathname) || isAuthShellPath(pathname);
+  const hidePublicChrome = isAdminShellPath(pathname);
+  const hideStudentNav = hidePublicChrome || isAuthShellPath(pathname);
   return (
     <SiteContentProvider>
       <AdSlotsProvider>
@@ -20,7 +21,7 @@ export function MainLayout({ children }) {
           <SkipLink />
           <GlobalSeo />
           {hidePublicChrome ? null : <Navbar />}
-          {hidePublicChrome ? null : <StudentPortalNav />}
+          {hideStudentNav ? null : <StudentPortalNav />}
           <main id="main-content" tabIndex={-1} className="flex-1 min-w-0 w-full max-w-full outline-none">
             {children || <Outlet />}
           </main>

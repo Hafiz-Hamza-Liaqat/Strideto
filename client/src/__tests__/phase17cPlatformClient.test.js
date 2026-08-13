@@ -24,13 +24,13 @@ function read(rel) {
 
 {
   const layout = read('layouts/MainLayout.jsx');
-  check(/hidePublicChrome/.test(layout), 'MainLayout keeps a stable shell and hides public chrome on admin/auth paths');
-  check(/isAdminShellPath\(pathname\) \|\| isAuthShellPath\(pathname\)/.test(layout), 'admin and auth shells do not remount public navbar/footer');
+  check(/hidePublicChrome/.test(layout), 'MainLayout keeps a stable shell');
+  check(/isAdminShellPath\(pathname\)/.test(layout) && /hideStudentNav/.test(layout), 'admin hides public chrome; auth keeps public navbar/footer');
 }
 
 {
   const auth = read('layouts/AuthLayout.jsx');
-  check(/ROUTES\.TERMS/.test(auth) && /ROUTES\.PRIVACY_POLICY/.test(auth) && /Back to Strideto/.test(auth), 'shared AuthLayout exposes Terms, Privacy, and Back to Strideto');
+  check(/referrer/.test(auth) && /same-origin/.test(auth), 'auth shell sets same-origin referrer policy');
   const routes = read('routes/index.jsx');
   check(/withAuthLayout\(<Login \/>/.test(routes), 'Student login uses AuthLayout');
   check(/withAuthLayout\(<EmployerLogin \/>/.test(routes), 'Employer login uses AuthLayout');

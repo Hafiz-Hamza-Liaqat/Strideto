@@ -7,8 +7,13 @@ import { ROUTES } from '../../constants';
 import { TermsConsentField } from '../../components/auth/TermsConsentField';
 import { TurnstileField } from '../../components/auth/TurnstileField';
 import { PasswordInput } from '../../components/forms/PasswordInput';
+import { PhoneInput } from '../../components/forms/PhoneInput';
 import { validatePassword } from '../../utils/validation';
 import { translateValidationError } from '../../utils/validationI18n';
+import { pendingVerifyPath } from '../../utils/authUrls.js';
+import { AuthCard } from '../../layouts/AuthLayout.jsx';
+import { inputControlClassName, textareaControlClassName } from '../../components/forms/controlClasses.js';
+import { clearAuthFormDraft, useAuthFormDraft } from '../../hooks/useAuthFormDraft.js';
 
 export default function EmployerRegister() {
   const { t } = useTranslation(['employer', 'common', 'forms', 'validation']);
@@ -25,6 +30,7 @@ export default function EmployerRegister() {
   });
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
+  useAuthFormDraft('employer', form, (safe) => setForm((f) => ({ ...f, ...safe })));
 
   const handleChange = (e) => {
     setForm((f) => ({ ...f, [e.target.name]: e.target.value }));
@@ -44,11 +50,15 @@ export default function EmployerRegister() {
     }
     setSubmitting(true);
     try {
-      const result = await register({ ...form, acceptedTerms: true });
+      const result = await register({
+        ...form,
+        phone: form.phone || '',
+        acceptedTerms: true,
+      });
       if (result?.requiresVerification || !result?._id) {
-        const params = new URLSearchParams({ pending: '1', email: form.email.trim().toLowerCase(), realm: 'employer' });
-        if (result?.emailMode === 'unavailable') params.set('smtp', '0');
-        navigate(`${ROUTES.VERIFY_EMAIL}?${params.toString()}`, { replace: true });
+        clearAuthFormDraft('employer');
+        const path = pendingVerifyPath('employer');
+        navigate(result?.emailMode === 'unavailable' ? `${path}&delivery=unavailable` : path, { replace: true });
         return;
       }
       navigate(ROUTES.EMPLOYER_DASHBOARD, { replace: true });
@@ -62,67 +72,73 @@ export default function EmployerRegister() {
   return (
     <>
       <SeoHead title={t('employer:registerTitle')} description={t('forms:employerRegister.seoDescription')} noindex />
-      <div className="min-h-screen bg-[#F8FAFC] flex items-center justify-center px-4 py-8">
-        <div className="w-full max-w-md">
-          <div className="bg-white rounded-xl border border-[#E5E7EB] shadow-sm p-4 sm:p-8">
-            <h1 className="text-2xl font-semibold tracking-tight text-[#0F172A]">{t('employer:registrationHeading')}</h1>
-            <p className="text-slate-600 mt-1 mb-6">{t('employer:registrationSubtitle')}</p>
+      <AuthCard title={t('employer:registrationHeading')} subtitle={t('employer:registrationSubtitle')}>
             {error && (
               <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>
             )}
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-[#0F172A] mb-1">{t('employer:companyName')}</label>
+                <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1" htmlFor="employer-company">{t('employer:companyName')}</label>
                 <input
+                  id="employer-company"
                   name="companyName"
+                  autoComplete="organization"
                   value={form.companyName}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 rounded-lg border border-[#E5E7EB] bg-white text-[#0F172A]"
+                  className={inputControlClassName()}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#0F172A] mb-1">{t('common:email')} *</label>
+                <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1" htmlFor="employer-email">{t('common:email')} *</label>
                 <input
+                  id="employer-email"
                   name="email"
                   type="email"
+                  autoComplete="email"
+                  inputMode="email"
                   value={form.email}
                   onChange={handleChange}
                   required
-                  className="w-full px-4 py-2 rounded-lg border border-[#E5E7EB] bg-white text-[#0F172A]"
+                  className={inputControlClassName()}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#0F172A] mb-1">{t('employer:phone')}</label>
-                <input
-                  name="phone"
+                <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1" htmlFor="employer-phone-national">{t('employer:phone')}</label>
+                <PhoneInput
+                  id="employer-phone"
+                  nationalId="employer-phone-national"
+                  countryId="employer-phone-country"
                   value={form.phone}
-                  onChange={handleChange}
-                  className="w-full px-4 py-2 rounded-lg border border-[#E5E7EB] bg-white text-[#0F172A]"
+                  onChange={(next) => setForm((f) => ({ ...f, phone: next.e164 || '' }))}
                 />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Optional. Stored in international format. Phone is not verified at launch.</p>
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#0F172A] mb-1">{t('employer:website')}</label>
+                <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1" htmlFor="employer-website">{t('employer:website')}</label>
                 <input
+                  id="employer-website"
                   name="website"
                   type="url"
+                  autoComplete="url"
                   value={form.website}
                   onChange={handleChange}
-                  className="w-full px-4 py-2 rounded-lg border border-[#E5E7EB] bg-white text-[#0F172A]"
+                  className={inputControlClassName()}
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#0F172A] mb-1">{t('employer:companyDescription')}</label>
+                <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1" htmlFor="employer-desc">{t('employer:companyDescription')}</label>
                 <textarea
+                  id="employer-desc"
                   name="companyDescription"
                   value={form.companyDescription}
                   onChange={handleChange}
                   rows={3}
-                  className="w-full px-4 py-2 rounded-lg border border-[#E5E7EB] bg-white text-[#0F172A]"
+                  className={textareaControlClassName()}
                 />
               </div>
               <div>
-                <label htmlFor="employer-register-password" className="block text-sm font-medium text-[#0F172A] mb-1">{t('common:password')} *</label>
+                <label htmlFor="employer-register-password" className="block text-sm font-medium text-gray-900 dark:text-white mb-1">{t('common:password')} *</label>
                 <PasswordInput
                   id="employer-register-password"
                   name="password"
@@ -143,25 +159,18 @@ export default function EmployerRegister() {
               <button
                 type="submit"
                 disabled={submitting}
-                className="w-full py-2.5 bg-[#635BFF] hover:bg-[#4F46E5] text-white font-medium rounded-lg disabled:opacity-50"
+                className="w-full py-2.5 bg-primary hover:bg-primary-hover text-white font-medium rounded-lg disabled:opacity-50"
               >
                 {submitting ? t('employer:creating') : t('employer:createAccount')}
               </button>
             </form>
-            <p className="mt-6 text-center text-sm text-slate-600">
+            <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
               {t('common:alreadyHaveAccount')}{' '}
-              <Link to={ROUTES.EMPLOYER_LOGIN} className="text-[#635BFF] font-medium hover:underline">
+              <Link to={ROUTES.EMPLOYER_LOGIN} className="text-primary font-medium hover:underline">
                 {t('common:signIn')}
               </Link>
             </p>
-          </div>
-          <p className="mt-4 text-center">
-            <Link to={ROUTES.HOME} className="text-sm text-slate-500 hover:text-[#635BFF]">
-              {t('employer:backToStrideto')}
-            </Link>
-          </p>
-        </div>
-      </div>
+      </AuthCard>
     </>
   );
 }

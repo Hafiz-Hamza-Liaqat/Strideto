@@ -14,6 +14,9 @@ import { isOnboardingComplete, markOnboardingPending } from '../../onboarding';
 import { TermsConsentField } from '../../components/auth/TermsConsentField';
 import { TurnstileField } from '../../components/auth/TurnstileField';
 import { PasswordInput } from '../../components/forms/PasswordInput';
+import { pendingVerifyPath } from '../../utils/authUrls.js';
+import { AuthCard } from '../../layouts/AuthLayout.jsx';
+import { clearAuthFormDraft, useAuthFormDraft } from '../../hooks/useAuthFormDraft.js';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -28,6 +31,11 @@ export default function Register() {
   const [acceptedTerms, setAcceptedTerms] = useState(false);
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
+  useAuthFormDraft('user', { name, email, acceptedTerms }, (safe) => {
+    if (typeof safe.name === 'string') setName(safe.name);
+    if (typeof safe.email === 'string') setEmail(safe.email);
+    if (typeof safe.acceptedTerms === 'boolean') setAcceptedTerms(safe.acceptedTerms);
+  });
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -48,12 +56,9 @@ export default function Register() {
     try {
       const result = await register({ name: name.trim(), email: email.trim().toLowerCase(), password, referralCode: refCode || undefined, acceptedTerms: true });
       if (result?.requiresVerification) {
-        const params = new URLSearchParams({
-          pending: '1',
-          email: email.trim().toLowerCase(),
-        });
-        if (result.emailMode === 'unavailable') params.set('smtp', '0');
-        navigate(`${ROUTES.VERIFY_EMAIL}?${params.toString()}`, { replace: true });
+        clearAuthFormDraft('user');
+        const path = pendingVerifyPath('user');
+        navigate(result.emailMode === 'unavailable' ? `${path}&delivery=unavailable` : path, { replace: true });
         return;
       }
       const user = result?.user;
@@ -85,9 +90,7 @@ export default function Register() {
   return (
     <>
       <SeoHead title={t('forms:register.signUp')} description={t('forms:register.seoDescription')} noindex />
-      <div className="max-w-md mx-auto px-4 sm:px-6 py-8 md:py-12">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('forms:register.signUp')}</h1>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">{t('forms:register.subtitle')}</p>
+      <AuthCard title={t('forms:register.signUp')} subtitle={t('forms:register.subtitle')}>
 
         {error && (
           <Alert variant="error" title={t('common:error')} className="mb-6">
@@ -158,7 +161,7 @@ export default function Register() {
             {t('common:login')}
           </Link>
         </p>
-      </div>
+      </AuthCard>
     </>
   );
 }

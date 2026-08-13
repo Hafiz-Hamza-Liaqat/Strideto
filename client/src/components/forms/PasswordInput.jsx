@@ -54,7 +54,7 @@ export const PasswordInput = forwardRef(function PasswordInput(
         type="button"
         onClick={() => setVisible((v) => !v)}
         disabled={disabled}
-        className="absolute inset-y-0 end-0 flex items-center px-3 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200 disabled:opacity-60"
+        className="absolute inset-y-0 end-0 min-h-[44px] min-w-[44px] flex items-center justify-center text-current text-gray-600 hover:text-gray-900 dark:text-gray-300 dark:hover:text-white focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-lg disabled:opacity-60"
         aria-label={visible ? hideLabel : showLabel}
         aria-pressed={visible}
       >

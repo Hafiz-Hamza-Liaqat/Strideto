@@ -13,6 +13,7 @@ import { Alert } from '../../components/ui/Alerts';
 import { SeoHead } from '../../components/seo';
 import { isOnboardingComplete, markOnboardingPending } from '../../onboarding';
 import { LOGIN_REALMS, resolveLoginReturnPath } from '../../utils/loginReturn.js';
+import { AuthCard } from '../../layouts/AuthLayout.jsx';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -86,11 +87,10 @@ export default function Login() {
   return (
     <>
       <SeoHead title={t('forms:login.title')} description={t('forms:login.seoDescription')} noindex />
-      <div className="max-w-md mx-auto px-4 sm:px-6 py-8 md:py-12">
-        <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('forms:login.title')}</h1>
-        <p className="text-gray-600 dark:text-gray-400 mb-6">
-          {isFromAdmin ? t('forms:login.adminSubtitle') : t('forms:login.subtitle')}
-        </p>
+      <AuthCard
+        title={t('forms:login.title')}
+        subtitle={isFromAdmin ? t('forms:login.adminSubtitle') : t('forms:login.subtitle')}
+      >
 
         {error && (
           <Alert variant="error" title={t('common:error')} className="mb-6">
@@ -98,7 +98,7 @@ export default function Login() {
             {verificationEmail ? (
               <p className="mt-3">
                 <Link
-                  to={`${ROUTES.VERIFY_EMAIL}?pending=1&email=${encodeURIComponent(verificationEmail)}`}
+                  to={`${ROUTES.VERIFY_EMAIL}?pending=1`}
                   className="text-primary dark:text-mint font-medium hover:underline"
                 >
                   {t('forms:login.goVerify', { defaultValue: 'Resend verification email' })}
@@ -151,7 +151,7 @@ export default function Login() {
             {t('common:register')}
           </Link>
         </p>
-      </div>
+      </AuthCard>
     </>
   );
 }

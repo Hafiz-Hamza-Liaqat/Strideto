@@ -280,11 +280,6 @@ function PageFallback() {
 }
 
 export const routes = [
-  { path: ROUTES.INSTITUTION_LOGIN, element: withAuthLayout(<InstitutionLogin />, 'Institution account') },
-  { path: ROUTES.INSTITUTION_FORGOT_PASSWORD, element: withAuthLayout(<InstitutionForgotPassword />, 'Institution account') },
-  { path: ROUTES.INSTITUTION_RESET_PASSWORD, element: withAuthLayout(<InstitutionResetPassword />, 'Institution account') },
-  { path: ROUTES.INSTITUTION_REGISTER, element: withAuthLayout(<InstitutionRegister />, 'Institution account') },
-  { path: ROUTES.INSTITUTION_ACCEPT_INVITATION, element: withAuthLayout(<InstitutionAcceptInvitation />, 'Institution account') },
   {
     path: ROUTES.INSTITUTION_DASHBOARD,
     element: <ProtectedInstitutionRoute><InstitutionLayout /></ProtectedInstitutionRoute>,
@@ -425,6 +420,11 @@ export const routes = [
       { path: ROUTES.CAREERS, element: <Careers /> },
       { path: ROUTES.SUPPORT, element: <Support /> },
       { path: `${ROUTES.SUPPORT}/tickets`, element: <SupportTickets /> },
+      { path: ROUTES.INSTITUTION_LOGIN, element: withAuthLayout(<InstitutionLogin />, 'Institution account') },
+      { path: ROUTES.INSTITUTION_FORGOT_PASSWORD, element: withAuthLayout(<InstitutionForgotPassword />, 'Institution account') },
+      { path: ROUTES.INSTITUTION_RESET_PASSWORD, element: withAuthLayout(<InstitutionResetPassword />, 'Institution account') },
+      { path: ROUTES.INSTITUTION_REGISTER, element: withAuthLayout(<InstitutionRegister />, 'Institution account') },
+      { path: ROUTES.INSTITUTION_ACCEPT_INVITATION, element: withAuthLayout(<InstitutionAcceptInvitation />, 'Institution account') },
       { path: ROUTES.LOGIN, element: withAuthLayout(<Login />, 'Student account') },
       { path: ROUTES.REGISTER, element: withAuthLayout(<Register />, 'Student account') },
       { path: ROUTES.EMPLOYER_LOGIN, element: withAuthLayout(<EmployerLogin />, 'Employer account') },

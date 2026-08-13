@@ -19,7 +19,7 @@ function read(rel) {
   const turnstile = read('components/auth/TurnstileField.jsx');
   check(/challenges\.cloudflare\.com\/turnstile\/v0\/api\.js/.test(turnstile), 'Turnstile loads official Cloudflare widget script');
   check(/VITE_TURNSTILE_SITE_KEY/.test(turnstile) && !/TURNSTILE_SECRET/.test(turnstile), 'client receives only the site key');
-  check(/not configured in this environment/.test(turnstile), 'disabled Turnstile states local/not-configured truth');
+  check(/if \(!enabled \|\| !siteKey\) \{\s*return null;/.test(turnstile), 'disabled Turnstile renders nothing instead of internal config copy');
   check(/api\.render/.test(turnstile), 'enabled Turnstile renders the official widget');
 }
 
@@ -31,7 +31,7 @@ function read(rel) {
   ]) {
     const src = read(rel);
     check(/PasswordInput/.test(src), `${name} register uses shared PasswordInput`);
-    check(/VERIFY_EMAIL/.test(src), `${name} register continues to verify-email instead of forging a session`);
+    check(/pendingVerifyPath|VERIFY_EMAIL/.test(src), `${name} register continues to verify-email instead of forging a session`);
     check(/requiresVerification/.test(src), `${name} register handles generic 201 without accessToken`);
   }
 }

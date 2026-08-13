@@ -1,11 +1,15 @@
 import { useEffect, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../seo';
 import { validateEmail, validatePassword } from '../../utils/validation';
 import { translateValidationError } from '../../utils/validationI18n';
 import { Button } from '../common/Button';
 import { Alert } from '../ui/Alerts';
+import { PasswordInput } from '../forms/PasswordInput.jsx';
+import { useSecretQueryToken } from '../../hooks/useSecretQueryToken.js';
+import { AuthCard } from '../../layouts/AuthLayout.jsx';
+import { inputControlClassName } from '../forms/controlClasses.js';
 
 export function RealmForgotPassword({ realmLabel, loginRoute, forgotApi, seoTitle, seoDescription }) {
   const { t } = useTranslation(['forms', 'common', 'validation']);
@@ -41,16 +45,12 @@ export function RealmForgotPassword({ realmLabel, loginRoute, forgotApi, seoTitl
   return (
     <>
       <SeoHead title={seoTitle} description={seoDescription} noindex />
-      <div className="min-h-screen bg-bg-main dark:bg-secondary flex items-center justify-center px-4 py-10">
-        <div className="w-full max-w-md rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 sm:p-8 shadow-sm">
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-            {t('forms:realmForgotPassword.title', { realm: realmLabel, defaultValue: `Reset ${realmLabel} password` })}
-          </h1>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
-            {t('forms:realmForgotPassword.subtitle', {
-              defaultValue: 'Enter your account email. If it exists, we will send a reset link.',
-            })}
-          </p>
+      <AuthCard
+        title={t('forms:realmForgotPassword.title', { realm: realmLabel, defaultValue: `Reset ${realmLabel} password` })}
+        subtitle={t('forms:realmForgotPassword.subtitle', {
+          defaultValue: 'Enter your account email. If a matching account exists and email delivery is available, a reset link will be sent.',
+        })}
+      >
 
           {success && (
             <Alert variant="success" title={t('forms:forgotPassword.checkEmail')} className="mt-6">
@@ -76,7 +76,7 @@ export function RealmForgotPassword({ realmLabel, loginRoute, forgotApi, seoTitl
                   autoComplete="email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
+                  className={inputControlClassName()}
                   required
                 />
                 {errors.email ? <p className="mt-1 text-sm text-red-600">{errors.email}</p> : null}
@@ -92,15 +92,13 @@ export function RealmForgotPassword({ realmLabel, loginRoute, forgotApi, seoTitl
               {t('forms:forgotPassword.backToLogin')}
             </Link>
           </p>
-        </div>
-      </div>
+      </AuthCard>
     </>
   );
 }
 
 export function RealmResetPassword({ realmLabel, loginRoute, forgotRoute, resetApi, seoTitle }) {
-  const [searchParams] = useSearchParams();
-  const token = searchParams.get('token') || '';
+  const token = useSecretQueryToken('token');
   const { t } = useTranslation(['forms', 'common', 'validation']);
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -138,8 +136,8 @@ export function RealmResetPassword({ realmLabel, loginRoute, forgotRoute, resetA
     return (
       <>
         <SeoHead title={t('forms:resetPassword.successTitle')} noindex />
-        <div className="min-h-screen bg-bg-main dark:bg-secondary flex items-center justify-center px-4 py-10">
-          <div className="w-full max-w-md text-center">
+        <AuthCard>
+          <div className="text-center">
             <Alert variant="success" title={t('forms:resetPassword.successTitle')} className="mb-6">
               {t('forms:resetPassword.success')}
             </Alert>
@@ -147,7 +145,7 @@ export function RealmResetPassword({ realmLabel, loginRoute, forgotRoute, resetA
               {t('forms:resetPassword.goToLogin', { defaultValue: `Sign in to ${realmLabel}` })}
             </Link>
           </div>
-        </div>
+        </AuthCard>
       </>
     );
   }
@@ -155,12 +153,10 @@ export function RealmResetPassword({ realmLabel, loginRoute, forgotRoute, resetA
   return (
     <>
       <SeoHead title={seoTitle} noindex />
-      <div className="min-h-screen bg-bg-main dark:bg-secondary flex items-center justify-center px-4 py-10">
-        <div className="w-full max-w-md rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 sm:p-8 shadow-sm">
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">
-            {t('forms:realmResetPassword.title', { realm: realmLabel, defaultValue: `Set new ${realmLabel} password` })}
-          </h1>
-          <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{t('forms:resetPassword.subtitle')}</p>
+      <AuthCard
+        title={t('forms:realmResetPassword.title', { realm: realmLabel, defaultValue: `Set new ${realmLabel} password` })}
+        subtitle={t('forms:resetPassword.subtitle')}
+      >
 
           {submitError && (
             <Alert variant="error" title={t('common:error')} className="mt-6">
@@ -174,14 +170,14 @@ export function RealmResetPassword({ realmLabel, loginRoute, forgotRoute, resetA
                 <label htmlFor="realm-reset-password" className="block text-sm font-medium text-gray-900 dark:text-white mb-1">
                   {t('forms:resetPassword.newPassword')}
                 </label>
-                <input
+                <PasswordInput
                   id="realm-reset-password"
-                  type="password"
                   autoComplete="new-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
                   required
+                  minLength={8}
+                  maxLength={128}
                 />
                 {errors.password ? <p className="mt-1 text-sm text-red-600">{errors.password}</p> : null}
               </div>
@@ -189,14 +185,14 @@ export function RealmResetPassword({ realmLabel, loginRoute, forgotRoute, resetA
                 <label htmlFor="realm-reset-confirm" className="block text-sm font-medium text-gray-900 dark:text-white mb-1">
                   {t('forms:resetPassword.confirmPassword')}
                 </label>
-                <input
+                <PasswordInput
                   id="realm-reset-confirm"
-                  type="password"
                   autoComplete="new-password"
                   value={confirmPassword}
                   onChange={(e) => setConfirmPassword(e.target.value)}
-                  className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100"
                   required
+                  minLength={8}
+                  maxLength={128}
                 />
                 {errors.confirmPassword ? <p className="mt-1 text-sm text-red-600">{errors.confirmPassword}</p> : null}
               </div>
@@ -217,8 +213,7 @@ export function RealmResetPassword({ realmLabel, loginRoute, forgotRoute, resetA
               ← {t('common:backToLogin')}
             </Link>
           </p>
-        </div>
-      </div>
+      </AuthCard>
     </>
   );
 }

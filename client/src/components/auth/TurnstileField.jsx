@@ -88,11 +88,7 @@ export function TurnstileField({ action = 'register', className = '', onTokenCha
   }, [action, enabled, hostId, siteKey]);
 
   if (!enabled || !siteKey) {
-    return (
-      <p className={`text-xs text-gray-500 dark:text-gray-400 ${className}`} role="status">
-        Human verification is not configured in this environment. Rate limits still apply.
-      </p>
-    );
+    return null;
   }
 
   return (

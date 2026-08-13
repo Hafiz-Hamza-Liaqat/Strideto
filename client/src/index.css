@@ -55,6 +55,12 @@
     opacity: 0.88;
     cursor: pointer;
   }
+  input[type='password']::-ms-reveal,
+  input[type='password']::-ms-clear,
+  input[type='password']::-webkit-credentials-auto-fill-button,
+  input[type='password']::-webkit-strong-password-auto-fill-button {
+    display: none;
+  }
   input[type='date']::-webkit-calendar-picker-indicator,
   input[type='datetime-local']::-webkit-calendar-picker-indicator,
   input[type='time']::-webkit-calendar-picker-indicator {

@@ -20,11 +20,11 @@ export function TermsConsentField({
         />
         <span>
           I agree to the{' '}
-          <Link to={ROUTES.TERMS} className="text-primary underline" target="_blank" rel="noopener noreferrer">
+          <Link to={ROUTES.TERMS} className="text-primary underline">
             Terms of Service
           </Link>{' '}
           and{' '}
-          <Link to={ROUTES.PRIVACY_POLICY} className="text-primary underline" target="_blank" rel="noopener noreferrer">
+          <Link to={ROUTES.PRIVACY_POLICY} className="text-primary underline">
             Privacy Policy
           </Link>
           .

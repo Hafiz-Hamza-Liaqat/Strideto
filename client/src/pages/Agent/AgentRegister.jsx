@@ -3,11 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAgentAuth } from '../../context/AgentAuthContext';
 import { getAgentRegistrationError } from '../../utils/portalRegistrationErrors';
 import { ROUTES } from '../../constants';
-import { Logo } from '../../components/brand/Logo';
 import { CountrySelect } from '../../components/forms/CountrySelect';
 import { TermsConsentField } from '../../components/auth/TermsConsentField';
 import { TurnstileField } from '../../components/auth/TurnstileField';
 import { PasswordInput } from '../../components/forms/PasswordInput';
+import { pendingVerifyPath } from '../../utils/authUrls.js';
+import { AuthCard } from '../../layouts/AuthLayout.jsx';
+import { clearAuthFormDraft, useAuthFormDraft } from '../../hooks/useAuthFormDraft.js';
+import { inputControlClassName, selectControlClassName } from '../../components/forms/controlClasses.js';
 
 export default function AgentRegister() {
   const navigate = useNavigate();
@@ -21,6 +24,7 @@ export default function AgentRegister() {
     acceptedTerms: false,
   });
   const [submitting, setSubmitting] = useState(false);
+  useAuthFormDraft('agent', form, (safe) => setForm((f) => ({ ...f, ...safe })));
 
   const set = (key) => (e) => setForm((f) => ({ ...f, [key]: e.target.value }));
 
@@ -41,9 +45,9 @@ export default function AgentRegister() {
         acceptedTerms: true,
       });
       if (result?.requiresVerification || !result?._id) {
-        const params = new URLSearchParams({ pending: '1', email: form.email.trim().toLowerCase(), realm: 'agent' });
-        if (result?.emailMode === 'unavailable') params.set('smtp', '0');
-        navigate(`${ROUTES.VERIFY_EMAIL}?${params.toString()}`, { replace: true });
+        clearAuthFormDraft('agent');
+        const path = pendingVerifyPath('agent');
+        navigate(result?.emailMode === 'unavailable' ? `${path}&delivery=unavailable` : path, { replace: true });
         return;
       }
       navigate(ROUTES.AGENT_ONBOARDING, { replace: true });
@@ -55,95 +59,92 @@ export default function AgentRegister() {
   };
 
   return (
-    <div className="min-h-screen bg-bg-main dark:bg-secondary flex items-center justify-center px-4">
-      <div className="w-full max-w-md">
-        <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 shadow-sm p-8">
-          <Logo height={32} className="mb-4" />
-          <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Create Agent Account</h1>
-          <p className="text-slate-500 mt-1 mb-6 text-sm">
-            Register as a professional agent or agency on Strideto.
-          </p>
-          {ctxError && (
-            <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">{ctxError}</div>
-          )}
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">
-                Organization / Professional Name
-              </label>
-              <input
-                type="text"
-                value={form.displayName}
-                onChange={set('displayName')}
-                required
-                className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary"
-                placeholder="Your agency or professional name"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Account Type</label>
-              <select
-                value={form.agentType}
-                onChange={set('agentType')}
-                className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary"
-              >
-                <option value="agent">Individual Agent</option>
-                <option value="agency">Agency / Organization</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Country</label>
-              <CountrySelect
-                value={form.countryCode}
-                allowAll={false}
-                placeholder="Search country"
-                onChange={(code) => setForm((f) => ({ ...f, countryCode: code || '' }))}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Email</label>
-              <input
-                type="email"
-                value={form.email}
-                onChange={set('email')}
-                required
-                className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary"
-              />
-            </div>
-            <div>
-              <label htmlFor="agent-register-password" className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Password</label>
-              <PasswordInput
-                id="agent-register-password"
-                autoComplete="new-password"
-                value={form.password}
-                onChange={set('password')}
-                required
-                minLength={8}
-                maxLength={128}
-              />
-              <p className="mt-1 text-xs text-slate-500">Use 8–128 characters with uppercase, lowercase, and a number.</p>
-            </div>
-            <TermsConsentField
-              checked={form.acceptedTerms}
-              onChange={(checked) => setForm((f) => ({ ...f, acceptedTerms: checked }))}
-            />
-            <TurnstileField action="register" />
-            <button
-              type="submit"
-              disabled={submitting}
-              className="w-full min-h-[44px] py-2 px-4 bg-primary text-white rounded-lg font-medium disabled:opacity-60 transition-colors"
-            >
-              {submitting ? 'Creating account…' : 'Create account'}
-            </button>
-          </form>
-          <p className="mt-6 text-sm text-slate-600">
-            Already registered?{' '}
-            <Link to={ROUTES.AGENT_LOGIN} className="text-[#1D4ED8] font-medium hover:underline">
-              Log in
-            </Link>
-          </p>
+    <AuthCard title="Create Agent Account" subtitle="Register as a professional agent or agency on Strideto.">
+      {ctxError && (
+        <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm">{ctxError}</div>
+      )}
+      <form onSubmit={handleSubmit} className="space-y-4">
+        <div>
+          <label htmlFor="agent-register-name" className="block text-sm font-medium text-gray-900 dark:text-white mb-1">
+            Organization / Professional Name
+          </label>
+          <input
+            id="agent-register-name"
+            type="text"
+            autoComplete="organization"
+            value={form.displayName}
+            onChange={set('displayName')}
+            required
+            className={inputControlClassName()}
+            placeholder="Your agency or professional name"
+          />
         </div>
-      </div>
-    </div>
+        <div>
+          <label htmlFor="agent-register-type" className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Account Type</label>
+          <select
+            id="agent-register-type"
+            value={form.agentType}
+            onChange={set('agentType')}
+            className={selectControlClassName()}
+          >
+            <option value="agent">Individual Agent</option>
+            <option value="agency">Agency / Organization</option>
+          </select>
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Country</label>
+          <CountrySelect
+            value={form.countryCode}
+            allowAll={false}
+            placeholder="Search country"
+            onChange={(code) => setForm((f) => ({ ...f, countryCode: code || '' }))}
+          />
+        </div>
+        <div>
+          <label htmlFor="agent-register-email" className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Email</label>
+          <input
+            id="agent-register-email"
+            type="email"
+            autoComplete="email"
+            inputMode="email"
+            value={form.email}
+            onChange={set('email')}
+            required
+            className={inputControlClassName()}
+          />
+        </div>
+        <div>
+          <label htmlFor="agent-register-password" className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Password</label>
+          <PasswordInput
+            id="agent-register-password"
+            autoComplete="new-password"
+            value={form.password}
+            onChange={set('password')}
+            required
+            minLength={8}
+            maxLength={128}
+          />
+          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Use 8–128 characters with uppercase, lowercase, and a number.</p>
+        </div>
+        <TermsConsentField
+          checked={form.acceptedTerms}
+          onChange={(checked) => setForm((f) => ({ ...f, acceptedTerms: checked }))}
+        />
+        <TurnstileField action="register" />
+        <button
+          type="submit"
+          disabled={submitting}
+          className="w-full min-h-[44px] py-2 px-4 bg-primary hover:bg-primary-hover text-white rounded-lg font-medium disabled:opacity-60 transition-colors"
+        >
+          {submitting ? 'Creating account…' : 'Create account'}
+        </button>
+      </form>
+      <p className="mt-6 text-sm text-gray-600 dark:text-gray-400">
+        Already registered?{' '}
+        <Link to={ROUTES.AGENT_LOGIN} className="text-primary font-medium hover:underline">
+          Log in
+        </Link>
+      </p>
+    </AuthCard>
   );
 }
