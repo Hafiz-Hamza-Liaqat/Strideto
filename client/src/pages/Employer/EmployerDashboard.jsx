@@ -6,6 +6,7 @@ import { employerApi } from '../../services/employerService';
 import { ROUTES } from '../../constants';
 import { VerificationBadge } from '../../components/common/VerificationBadge';
 import { PortalWelcomeBanner } from '../../components/welcome/PortalWelcomeBanner';
+import { MilestoneDelight } from '../../components/welcome/MilestoneDelight';
 import { AnnouncementFeed } from '../../components/announcements/AnnouncementFeed';
 import { useEmployerAuth } from '../../context/EmployerAuthContext';
 
@@ -111,6 +112,13 @@ export default function EmployerDashboard() {
         realm="employer"
         userId={employer?._id || employer?.employerId}
         displayName={employer?.companyName || employer?.contactName}
+      />
+      <MilestoneDelight
+        userId={employer?._id || employer?.employerId}
+        eventKey={`verification-approved:${data?.verificationStatus || data?.verificationLevel || ''}`}
+        ready={data?.verificationStatus === 'approved' || data?.verified === true}
+        title="Verification approved"
+        body="Your organization verification is approved. This congratulations appears once."
       />
       <AnnouncementFeed title="Employer announcements" className="mb-6" />
       <div className="flex flex-wrap items-center gap-3 mb-6">

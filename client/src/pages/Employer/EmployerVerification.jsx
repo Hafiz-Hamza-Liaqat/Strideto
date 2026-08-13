@@ -82,7 +82,7 @@ function toSubmitProfile(p) {
   };
 }
 
-const EDITABLE = new Set(['draft', 'needs_information', 'rejected', 'expired', 'email_verified']);
+const EDITABLE = new Set(['draft', 'needs_information', 'rejected', 'expired', 'email_verified', 'revoked']);
 
 export default function EmployerVerification() {
   const { t } = useTranslation(['employer', 'common']);

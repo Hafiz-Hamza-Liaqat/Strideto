@@ -52,8 +52,9 @@ await check('valid transitions accepted (draft → email_verified → verificati
 // ============================================================
 // 2. Invalid transition rejection
 // ============================================================
-await check('invalid transitions rejected (draft → approved, revoked → anything)', () => {
+await check('invalid transitions rejected (draft → approved, revoked does not resurrect approved)', () => {
   assert.strictEqual(ver.isValidTransition('draft', 'approved'), false, 'draft→approved must be rejected');
+  assert.strictEqual(ver.isValidTransition('revoked', 'verification_pending'), true, 'revoked may start a new attempt');
   assert.strictEqual(ver.isValidTransition('revoked', 'approved'), false, 'revoked→approved must be rejected');
   assert.strictEqual(ver.isValidTransition('revoked', 'suspended'), false, 'revoked→suspended must be rejected');
   assert.strictEqual(ver.isValidTransition('approved', 'draft'), false, 'approved→draft must be rejected');
@@ -346,9 +347,10 @@ await check('approved → suspended and approved → revoked block capability', 
   assert.strictEqual(ver.isValidTransition('approved', 'suspended'), true);
   assert.strictEqual(ver.isValidTransition('approved', 'revoked'), true);
   assert.strictEqual(ver.isValidTransition('suspended', 'revoked'), true);
-  // Revoked is terminal
+  // Revoked cannot resurrect approved/suspended; a new attempt starts at verification_pending
   assert.strictEqual(ver.isValidTransition('revoked', 'approved'), false);
   assert.strictEqual(ver.isValidTransition('revoked', 'suspended'), false);
+  assert.strictEqual(ver.isValidTransition('revoked', 'verification_pending'), true);
 });
 
 // ============================================================

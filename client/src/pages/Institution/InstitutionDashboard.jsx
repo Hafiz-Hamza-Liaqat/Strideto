@@ -6,6 +6,7 @@ import { institutionPortalApi } from '../../services/institutionPortalService';
 import { PageState, Panel, StatusBadge, humanize, primaryButton, secondaryButton } from './InstitutionUi';
 import { canSubmitOrPublish } from './InstitutionPublishingGate';
 import { PortalWelcomeBanner } from '../../components/welcome/PortalWelcomeBanner';
+import { MilestoneDelight } from '../../components/welcome/MilestoneDelight';
 import { AnnouncementFeed } from '../../components/announcements/AnnouncementFeed';
 
 function buildNextActions(data) {
@@ -130,6 +131,20 @@ export default function InstitutionDashboard() {
         realm="institution"
         userId={organizationId}
         displayName={profile?.officialDisplayName || profile?.legalName}
+      />
+      <MilestoneDelight
+        userId={organizationId}
+        eventKey={`verification-approved:${data.verificationStatus}`}
+        ready={data.verificationStatus === 'approved'}
+        title="Verification approved"
+        body="Institution verification is approved. This congratulations appears once."
+      />
+      <MilestoneDelight
+        userId={organizationId}
+        eventKey={`canonical-claim-approved:${data.claimState}`}
+        ready={data.claimState === 'approved'}
+        title="Canonical claim approved"
+        body="Your canonical claim is approved. This congratulations appears once."
       />
       <AnnouncementFeed title="Institution announcements" />
       <div className="min-w-0">

@@ -50,7 +50,7 @@ export default function InstitutionVerification() {
   }, [organizationId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const set = (key) => (event) => setProfile((current) => ({ ...current, [key]: event.target.value }));
-  const canEdit = ['draft', 'email_verified', 'needs_information', 'rejected', 'expired'].includes(details?.status);
+  const canEdit = ['draft', 'email_verified', 'needs_information', 'rejected', 'expired', 'revoked'].includes(details?.status);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -77,7 +77,9 @@ export default function InstitutionVerification() {
       {message ? <PageState tone="success">{message}</PageState> : null}
       <Panel>
         <StatusBadge label="Organization verification" value={details?.status || 'draft'} />
-        <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">Credential policy: {policy}</p>
+        {details?.status === 'revoked' ? (
+          <p className="mt-2 text-sm text-amber-800 dark:text-amber-200">Previous verification was revoked and remains on record. Request re-verification to start a new attempt. Revoked badges are not current.</p>
+        ) : null}
         {details?.informationRequestReason ? <p className="mt-2 text-sm text-amber-800 dark:text-amber-200">Information requested: {details.informationRequestReason}</p> : null}
         {details?.rejectionReason ? <p className="mt-2 text-sm text-red-700 dark:text-red-300">Outcome: {details.rejectionReason}</p> : null}
         <p className="mt-3 text-xs text-gray-500">Self-approval is denied. You cannot set status, verifiedBy, or verifiedAt.</p>

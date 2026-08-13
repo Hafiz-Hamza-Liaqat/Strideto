@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { INSTITUTION_TYPES } from '@shared/education/taxonomy.js';
 import { FormField } from '../../components/common/FormField';
-import { CountrySelect } from '../../components/forms/CountrySelect';
 import { PhoneInput } from '../../components/forms/PhoneInput';
+import { LocationCascadeFilter } from '../../components/forms/LocationCascadeFilter';
 import { inputControlClassName, selectControlClassName, textareaControlClassName } from '../../components/forms/controlClasses';
 import { useInstitutionAuth } from '../../context/InstitutionAuthContext';
 import { institutionPortalApi } from '../../services/institutionPortalService';
@@ -85,12 +85,16 @@ export default function InstitutionProfile() {
       document.getElementById('institution-organization-type-other')?.focus();
       return;
     }
+    const officialPhone = typeof phoneValue === 'object'
+      ? (phoneValue.e164 || '')
+      : String(phoneValue || '');
+    if (phoneValue?.nationalNumber && !/^\+[1-9][0-9]{6,14}$/.test(officialPhone)) {
+      setFieldError('Enter a valid phone number. Letters are not accepted.');
+      return;
+    }
     setFieldError('');
     setBusy(true);
     try {
-      const officialPhone = typeof phoneValue === 'object'
-        ? (phoneValue.e164 || phoneValue.nationalNumber || '')
-        : phoneValue;
       const resolvedOrganizationType = serializeOrganizationType(form.organizationType, form.organizationTypeOther);
       const payload = {
         ...form,
@@ -191,26 +195,22 @@ export default function InstitutionProfile() {
           ) : null}
 
           <div className="sm:col-span-2">
-            <label htmlFor="institution-country" className="text-sm font-medium text-gray-800 dark:text-gray-200">
-              Country
-              <div className="mt-1">
-                <CountrySelect
-                  id="institution-country"
-                  value={form.countryCode || ''}
-                  onChange={(code) => setForm((current) => ({ ...current, countryCode: code }))}
-                />
-              </div>
-            </label>
+            <span className="text-sm font-medium text-gray-800 dark:text-gray-200">Country, region, city</span>
+            <LocationCascadeFilter
+              className="mt-1"
+              idPrefix="institution-geo"
+              allowAllCountries={false}
+              countryCode={form.countryCode || ''}
+              region={form.region || ''}
+              city={form.city || ''}
+              onChange={(next) => setForm((current) => ({
+                ...current,
+                countryCode: next.countryCode || '',
+                region: next.region || '',
+                city: next.city || '',
+              }))}
+            />
           </div>
-
-          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
-            Region / state / province
-            <input className={`${inputControlClassName()} mt-1`} value={form.region || ''} onChange={set('region')} />
-          </label>
-          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">
-            City
-            <input className={`${inputControlClassName()} mt-1`} value={form.city || ''} onChange={set('city')} />
-          </label>
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200 sm:col-span-2">
             Registered address
             <input className={`${inputControlClassName()} mt-1`} value={form.addressLine1 || ''} onChange={set('addressLine1')} />

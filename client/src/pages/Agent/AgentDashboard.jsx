@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { agentApi } from '../../services/agentService';
 import { ROUTES } from '../../constants';
 import { PortalWelcomeBanner } from '../../components/welcome/PortalWelcomeBanner';
+import { MilestoneDelight } from '../../components/welcome/MilestoneDelight';
 import { AnnouncementFeed } from '../../components/announcements/AnnouncementFeed';
 import { useAgentAuth } from '../../context/AgentAuthContext';
 
@@ -76,6 +77,13 @@ export default function AgentDashboard() {
         realm="agent"
         userId={agent?._id || agent?.agentProfileId}
         displayName={agent?.professionalName || agent?.displayName}
+      />
+      <MilestoneDelight
+        userId={agent?._id || agent?.agentProfileId}
+        eventKey={`verification-approved:${vs}`}
+        ready={vs === 'approved'}
+        title="Verification approved"
+        body="Your agent verification is approved. This congratulations appears once."
       />
       <AnnouncementFeed title="Agent announcements" />
       <div>

@@ -220,9 +220,13 @@ export async function submitVerification(organizationId, profile, actor) {
 
   const now = new Date();
   const slaDeadlineAt = computeSlaDeadline(now);
+  const isNewAttempt = fromStatus === VS.REVOKED;
+  const nextVersion = isNewAttempt ? (record.verificationVersion || 1) + 1 : record.verificationVersion;
 
-  const transition = await recordTransition(organizationId, fromStatus, VS.VERIFICATION_PENDING, actor, 'Profile submitted for verification', {
+  const transition = await recordTransition(organizationId, fromStatus, VS.VERIFICATION_PENDING, actor, isNewAttempt ? 'Re-verification attempt submitted' : 'Profile submitted for verification', {
     organizationType: record.organizationType,
+    verificationVersion: nextVersion,
+    previousAttemptVersion: isNewAttempt ? record.verificationVersion : undefined,
     profileSummary: {
       legalName: profile.legalName,
       countryCode: profile.countryCode,
@@ -240,6 +244,8 @@ export async function submitVerification(organizationId, profile, actor) {
         submittedAt: now,
         slaDeadlineAt,
         informationRequestReason: '',
+        verificationVersion: nextVersion,
+        ...(isNewAttempt ? { earnedBadges: [], verifiedAt: null, verifiedBy: null } : {}),
       },
     },
     { new: true }
@@ -315,6 +321,24 @@ export async function requestInformation(organizationId, reason, actor) {
       new Error('A reason is required when requesting more information'),
       { code: 'REASON_REQUIRED', status: 422 }
     );
+  }
+  const { record } = await resolveRecord(organizationId);
+  if (record.status === VS.NEEDS_INFORMATION) {
+    const trimmed = reason.trim();
+    await recordTransition(
+      organizationId,
+      VS.NEEDS_INFORMATION,
+      VS.NEEDS_INFORMATION,
+      actor,
+      trimmed,
+      { informationRequestUpdate: true, noStatusChange: true }
+    );
+    const updated = await OrganizationVerification.findOneAndUpdate(
+      { organizationId, status: VS.NEEDS_INFORMATION },
+      { $set: { informationRequestReason: trimmed, lastReviewedAt: new Date() } },
+      { new: true }
+    );
+    return updated;
   }
   return applyTransition(organizationId, VS.NEEDS_INFORMATION, actor, reason, {
     informationRequestReason: reason.trim(),
@@ -472,7 +496,8 @@ export async function suspend(organizationId, actor, reason) {
 /**
  * SuperAdmin: permanently revoke.
  * Highest-risk action; clears badges and cannot be undone except by
- * SuperAdmin returning to a different status (ALLOWED_TRANSITIONS[REVOKED] = []).
+ * SuperAdmin returning to a different status. Revoked records stay immutable;
+ * a new attempt may start at verification_pending (ALLOWED_TRANSITIONS[REVOKED]).
  */
 export async function revoke(organizationId, actor, reason) {
   if (!reason?.trim()) {

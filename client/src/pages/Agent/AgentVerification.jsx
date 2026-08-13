@@ -42,7 +42,7 @@ export default function AgentVerification() {
   }, []);
 
   const set = (key) => (event) => setProfile((current) => ({ ...current, [key]: event.target.value }));
-  const canEdit = ['draft', 'email_verified', 'needs_information', 'rejected', 'expired'].includes(details?.status || summary?.verificationStatus);
+  const canEdit = ['draft', 'email_verified', 'needs_information', 'rejected', 'expired', 'revoked'].includes(details?.status || summary?.verificationStatus);
   const isAgency = summary?.accountType === 'agency';
   const policy = summary?.credentialPolicy || details?.credentialPolicyHint || 'optional';
 
@@ -74,8 +74,11 @@ export default function AgentVerification() {
         <p className="text-sm mt-1">Account type: {summary?.accountType || 'professional'} · Credential policy: {policy}</p>
         {details?.informationRequestReason && <p className="mt-2 text-sm text-amber-800 dark:text-amber-200">Information requested: {details.informationRequestReason}</p>}
         {details?.rejectionReason && <p className="mt-2 text-sm text-red-700 dark:text-red-300">Outcome: {details.rejectionReason}</p>}
+        {details?.status === 'revoked' ? (
+          <p className="mt-2 text-sm text-amber-800 dark:text-amber-200">Previous verification was revoked and remains on record. Submit a new re-verification attempt to start Attempt #{(details?.verificationVersion || 1) + 1}. Revoked badges are not current.</p>
+        ) : null}
         <div className="mt-3 flex flex-wrap gap-2">
-          {(details?.earnedBadges || summary?.trustBadges || []).map((badge) => (
+          {details?.status !== 'revoked' && (details?.earnedBadges || summary?.trustBadges || []).map((badge) => (
             <span key={badge} className="rounded-full bg-green-50 dark:bg-green-950 px-2 py-1 text-xs text-green-800 dark:text-green-200">{badge.replaceAll('_', ' ')}</span>
           ))}
         </div>
