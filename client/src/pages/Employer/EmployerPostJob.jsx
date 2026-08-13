@@ -87,6 +87,7 @@ export default function EmployerPostJob() {
 
   const [form, setForm] = useState(defaultForm);
   const [plans, setPlans] = useState([]);
+  const [paidPublishingEnabled, setPaidPublishingEnabled] = useState(false);
   const [step, setStep] = useState('form');
   const [createdJob, setCreatedJob] = useState(null);
   const [submitting, setSubmitting] = useState(false);
@@ -118,6 +119,9 @@ export default function EmployerPostJob() {
 
   useEffect(() => {
     if (isEdit) return;
+    employerApi.plansUsage()
+      .then(({ data }) => setPaidPublishingEnabled(data?.entitlement?.paidPublishingEnabled === true))
+      .catch(() => setPaidPublishingEnabled(false));
     employerApi.plans().then(({ data }) => setPlans(data.data || [])).catch(() => setPlans([]));
   }, [isEdit]);
 
@@ -241,7 +245,7 @@ export default function EmployerPostJob() {
       <>
         <SeoHead title={t('employer:choosePlanSeoTitle')} description={t('employer:choosePlanSeoDesc')} noindex />
         <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white mb-2">
-          {t('employer:choosePlan')}
+          {paidPublishingEnabled ? t('employer:choosePlan') : 'Submit for review'}
         </h1>
         <p className="text-gray-600 dark:text-gray-300 mb-6">
           {t('employer:draftSavedPlan', { title: createdJob.title })}
@@ -254,21 +258,19 @@ export default function EmployerPostJob() {
           </div>
         )}
         <div className="grid gap-4 max-w-2xl w-full min-w-0">
-          {createdJob.planType === 'free' && (
-            <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
-              <h3 className="font-semibold text-gray-900 dark:text-white">{t('employer:firstJobFree')}</h3>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{t('employer:firstJobFreeDesc')}</p>
-              <button
-                type="button"
-                disabled={submitting}
-                onClick={() => handleActivate(null, true)}
-                className="mt-4 min-h-[44px] px-4 py-2 bg-primary hover:opacity-90 text-white text-sm font-medium rounded-lg disabled:opacity-50"
-              >
-                {t('employer:activateFree')}
-              </button>
-            </div>
-          )}
-          {plans.map((plan) => (
+          <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
+            <h3 className="font-semibold text-gray-900 dark:text-white">{t('employer:firstJobFree')}</h3>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{t('employer:firstJobFreeDesc')}</p>
+            <button
+              type="button"
+              disabled={submitting}
+              onClick={() => handleActivate(null, true)}
+              className="mt-4 min-h-[44px] px-4 py-2 bg-primary hover:opacity-90 text-white text-sm font-medium rounded-lg disabled:opacity-50"
+            >
+              {t('employer:activateFree')}
+            </button>
+          </div>
+          {paidPublishingEnabled ? plans.map((plan) => (
             <div key={plan._id} className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
               <h3 className="font-semibold text-gray-900 dark:text-white">{plan.name}</h3>
               <p className="text-2xl font-semibold text-primary mt-1">${plan.price}</p>
@@ -289,7 +291,7 @@ export default function EmployerPostJob() {
                 {t('employer:payAndPublish')}
               </button>
             </div>
-          ))}
+          )) : null}
           <button
             type="button"
             disabled={submitting}

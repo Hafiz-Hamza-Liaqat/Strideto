@@ -10,11 +10,6 @@ import { formatOpeningsCount } from '@shared/employer/openingsCount.js';
 const STATUS_FILTERS = ['', 'draft', 'active', 'closed'];
 const REVIEW_FILTERS = ['pending'];
 
-/** A draft that is not on the complimentary first-job plan needs a paid plan. */
-function isPaidDraft(j) {
-  return j?.status === 'draft' && j?.planType !== 'free';
-}
-
 function isExternalJob(j) {
   return j?.applyType === 'external' || j?.applicationsTracked === false;
 }
@@ -43,12 +38,7 @@ export default function EmployerJobs() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [actionJobId, setActionJobId] = useState('');
-  // Paid-activation plan/checkout flow state.
-  const [planJob, setPlanJob] = useState(null);
-  const [plans, setPlans] = useState([]);
-  const [plansLoading, setPlansLoading] = useState(false);
-  const [checkoutBusy, setCheckoutBusy] = useState(false);
-  const [checkoutError, setCheckoutError] = useState('');
+  const [usage, setUsage] = useState(null);
 
   const loadJobs = useCallback(() => {
     setLoading(true);
@@ -67,6 +57,12 @@ export default function EmployerJobs() {
     loadJobs();
   }, [loadJobs]);
 
+  useEffect(() => {
+    employerApi.plansUsage()
+      .then(({ data }) => setUsage(data))
+      .catch(() => setUsage(null));
+  }, []);
+
   // Surface the outcome of a returning Stripe checkout redirect truthfully.
   useEffect(() => {
     const payment = searchParams.get('payment');
@@ -80,48 +76,6 @@ export default function EmployerJobs() {
   }, [searchParams, setSearchParams, t]);
 
   const editPath = (id) => `/employer/jobs/${id}/edit`;
-
-  const openPlanModal = useCallback(async (job) => {
-    setPlanJob(job);
-    setCheckoutError('');
-    setPlansLoading(true);
-    try {
-      const { data } = await employerApi.plans();
-      // Free plans are not part of the paid-activation path; a paid draft needs
-      // a priced plan.
-      setPlans((data.data || []).filter((p) => (p.price ?? 0) > 0));
-    } catch {
-      setCheckoutError(t('employer:plansLoadFailed'));
-      setPlans([]);
-    } finally {
-      setPlansLoading(false);
-    }
-  }, [t]);
-
-  const closePlanModal = () => {
-    if (checkoutBusy) return;
-    setPlanJob(null);
-    setPlans([]);
-    setCheckoutError('');
-  };
-
-  const startCheckout = async (planId) => {
-    if (!planJob || checkoutBusy) return;
-    setCheckoutBusy(true);
-    setCheckoutError('');
-    try {
-      const { data } = await employerApi.createCheckout(planJob._id, { planId });
-      if (data?.url) {
-        window.location.assign(data.url);
-        return;
-      }
-      setCheckoutError(t('employer:checkoutUnavailable'));
-    } catch (err) {
-      setCheckoutError(err.response?.data?.error || t('employer:checkoutUnavailable'));
-    } finally {
-      setCheckoutBusy(false);
-    }
-  };
 
   const runJobAction = async (id, action) => {
     if (actionJobId) return;
@@ -138,11 +92,8 @@ export default function EmployerJobs() {
     }
   };
 
-  // Free drafts activate directly; paid drafts route into the plan/checkout
-  // workflow instead of dead-ending on the server's "planId is required" error.
   const handleActivate = (job) => {
-    if (isPaidDraft(job)) openPlanModal(job);
-    else runJobAction(job._id, 'activate');
+    runJobAction(job._id, 'activate');
   };
 
   const JobActions = ({ j }) => (
@@ -168,7 +119,7 @@ export default function EmployerJobs() {
           onClick={() => handleActivate(j)}
           className="text-sm text-slate-700 dark:text-gray-300 hover:underline min-h-[44px]"
         >
-          {isPaidDraft(j) ? t('employer:activatePaidJob') : t('employer:activateJob')}
+          {t('employer:activateJob')}
         </button>
       ) : null}
       {j.status !== 'closed' ? (
@@ -196,9 +147,19 @@ export default function EmployerJobs() {
     <>
       <SeoHead title={t('employer:myJobsSeoTitle')} description={t('employer:myJobsSeoDesc')} noindex />
       <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-        <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
-          {t('employer:myJobPosts')}
-        </h1>
+        <div>
+          <h1 className="text-xl sm:text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">
+            {t('employer:myJobPosts')}
+          </h1>
+          {usage?.entitlement ? (
+            <p className="mt-2 inline-flex items-center gap-2 text-xs rounded-full border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/40 px-3 py-1 text-amber-900 dark:text-amber-100">
+              {usage.entitlement.paidPublishingEnabled ? 'Paid publishing' : 'Free Beta'}
+              {usage.usage?.activeFreeJobs
+                ? ` · ${usage.usage.activeFreeJobs.used}/${usage.usage.activeFreeJobs.limit} active · ${usage.usage.activeFreeJobs.remaining} remaining`
+                : ''}
+            </p>
+          ) : null}
+        </div>
         <Link
           to={ROUTES.EMPLOYER_POST_JOB}
           className="px-4 py-2.5 bg-primary hover:opacity-90 text-white text-sm font-medium rounded-lg min-h-[44px] inline-flex items-center shrink-0"
@@ -240,68 +201,6 @@ export default function EmployerJobs() {
       {error ? (
         <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm" role="alert">
           {error}
-        </div>
-      ) : null}
-      {planJob ? (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-          <button
-            type="button"
-            aria-label={t('common:close')}
-            className="absolute inset-0 bg-black/40"
-            onClick={closePlanModal}
-          />
-          <div
-            role="dialog"
-            aria-modal="true"
-            aria-label={t('employer:choosePlanTitle')}
-            className="relative w-full max-w-md bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5 space-y-4"
-          >
-            <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('employer:choosePlanTitle')}</h2>
-              <p className="text-sm text-slate-600 dark:text-gray-300 mt-1 break-words-safe">
-                {t('employer:choosePlanForJob', { title: planJob.title })}
-              </p>
-            </div>
-            {checkoutError ? (
-              <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm" role="alert">
-                {checkoutError}
-              </div>
-            ) : null}
-            {plansLoading ? (
-              <p className="text-sm text-slate-600 dark:text-gray-300">{t('common:loading')}</p>
-            ) : plans.length === 0 ? (
-              <p className="text-sm text-slate-600 dark:text-gray-300">{t('employer:noPaidPlansAvailable')}</p>
-            ) : (
-              <ul className="space-y-2">
-                {plans.map((p) => (
-                  <li key={p._id}>
-                    <button
-                      type="button"
-                      disabled={checkoutBusy}
-                      onClick={() => startCheckout(p._id)}
-                      className="w-full text-left p-3 rounded-lg border border-gray-200 dark:border-gray-600 hover:border-primary disabled:opacity-50 min-h-[44px]"
-                    >
-                      <span className="font-medium text-gray-900 dark:text-white">{p.name || p.slug}</span>
-                      <span className="block text-sm text-slate-600 dark:text-gray-300">
-                        {p.currency || 'USD'} {p.price}
-                        {p.durationDays ? ` · ${t('employer:planDurationDays', { count: p.durationDays })}` : ''}
-                      </span>
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                disabled={checkoutBusy}
-                onClick={closePlanModal}
-                className="px-4 py-2 text-sm rounded-lg border border-gray-200 dark:border-gray-600 min-h-[44px] disabled:opacity-50"
-              >
-                {t('common:cancel')}
-              </button>
-            </div>
-          </div>
         </div>
       ) : null}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden min-w-0">

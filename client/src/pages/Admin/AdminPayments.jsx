@@ -35,7 +35,11 @@ export default function AdminPayments() {
     {
       key: 'amount',
       label: t('admin:colAmount'),
-      render: (row) => `${row.amount} ${(row.currency || 'usd').toUpperCase()}`,
+      render: (row) => {
+        const currency = typeof row.currency === 'string' && row.currency.length === 3 ? row.currency.toUpperCase() : '';
+        if (!currency) return `${row.amount ?? '—'} (currency unknown)`;
+        return `${row.amount} ${currency}`;
+      },
     },
     {
       key: 'status',
@@ -53,11 +57,14 @@ export default function AdminPayments() {
   return (
     <AdminRouteGuard permission={PERMISSIONS.PAYMENTS_READ}>
       <div>
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{t('admin:managePayments')}</h2>
+        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Legacy Payments</h2>
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+          Historical Payment records only. This is not the live Commerce ledger and does not prove collected revenue.
+        </p>
 
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-6">
           {[
-            { label: t('revenue'), value: `$${summary.revenue?.toFixed?.(2) ?? summary.revenue ?? 0}` },
+            { label: `${t('revenue')} (legacy sum)`, value: summary.revenue ?? 0 },
             { label: t('pendingPayments'), value: summary.pending },
             { label: t('statusFailed'), value: summary.failed },
             { label: t('statusRefunded'), value: summary.refunded },

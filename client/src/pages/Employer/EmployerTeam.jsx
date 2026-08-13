@@ -46,7 +46,11 @@ export default function EmployerTeam() {
     setInviteLink('');
     try {
       const { data } = await employerApi.createInvite({ email, role });
-      setNotice(t('employer:inviteCreated'));
+      setNotice(
+        data.emailDelivery && data.emailDelivery !== 'accepted'
+          ? 'Invitation created. Email delivery is not configured — copy and share the link below.'
+          : t('employer:inviteCreated')
+      );
       setInviteLink(data.acceptPath ? `${window.location.origin}${data.acceptPath}` : '');
       setEmail('');
       await load();
@@ -103,7 +107,10 @@ export default function EmployerTeam() {
       <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white mb-2">
         {t('employer:navTeam')}
       </h1>
-      <p className="text-sm text-slate-600 dark:text-gray-400 mb-6 max-w-2xl">{t('employer:teamIntro')}</p>
+      <p className="text-sm text-slate-600 dark:text-gray-400 mb-2 max-w-2xl">{t('employer:teamIntro')}</p>
+      <p className="text-sm text-slate-700 dark:text-gray-300 mb-6">
+        {members.length} member{members.length === 1 ? '' : 's'} · {invites.length} pending invite{invites.length === 1 ? '' : 's'}
+      </p>
       {error ? <p className="mb-4 text-sm text-red-700 dark:text-red-300" role="alert">{error}</p> : null}
       {notice ? <p className="mb-4 text-sm text-green-800 dark:text-green-200" role="status">{notice}</p> : null}
       {inviteLink ? (
@@ -140,7 +147,7 @@ export default function EmployerTeam() {
                 <tr key={m.membershipId} className="border-t border-gray-200 dark:border-gray-700">
                   <td className="p-3 break-all">{m.email}</td>
                   <td className="p-3">
-                    {canManage ? (
+                    {canManage && m.role !== EMPLOYER_ROLES.OWNER ? (
                       <select
                         aria-label={t('employer:teamRole')}
                         value={m.role}
@@ -148,7 +155,7 @@ export default function EmployerTeam() {
                         onChange={(e) => changeRole(m.membershipId, e.target.value)}
                         className="min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-2"
                       >
-                        {Object.values(EMPLOYER_ROLES).map((r) => (
+                        {INVITE_ROLES.map((r) => (
                           <option key={r} value={r}>{r}</option>
                         ))}
                       </select>

@@ -34,6 +34,9 @@ export default function EmployerApplications() {
   const [jobsLoading, setJobsLoading] = useState(true);
   const [error, setError] = useState('');
   const [statusError, setStatusError] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
+  const [fromDate, setFromDate] = useState('');
+  const [toDate, setToDate] = useState('');
 
   const statusLabel = (s) => t(`employer:status${s.charAt(0).toUpperCase()}${s.slice(1)}`, { defaultValue: s });
 
@@ -167,6 +170,14 @@ export default function EmployerApplications() {
     return apiMessage || t('employer:externalAppsNotVisible');
   };
 
+  const visibleApplications = applications.filter((app) => {
+    if (statusFilter && app.status !== statusFilter && app.hiringStage !== statusFilter) return false;
+    const applied = app.appliedDate || app.createdAt;
+    if (fromDate && applied && new Date(applied) < new Date(`${fromDate}T00:00:00`)) return false;
+    if (toDate && applied && new Date(applied) > new Date(`${toDate}T23:59:59`)) return false;
+    return true;
+  });
+
   const emptyMessage = () => {
     if (!selectedJobId) return t('employer:selectJobToViewApplications');
     if (isExternal) return externalDisclosureMessage();
@@ -200,6 +211,29 @@ export default function EmployerApplications() {
             </option>
           ))}
         </select>
+      </div>
+      <div className="mb-4 flex flex-wrap gap-3">
+        <label className="text-sm">
+          {t('employer:status', { defaultValue: 'Status' })}
+          <select
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
+            className="mt-1 block min-h-[44px] px-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900"
+          >
+            <option value="">{t('common:all')}</option>
+            {STATUS_OPTIONS.map((s) => (
+              <option key={s} value={s}>{statusLabel(s)}</option>
+            ))}
+          </select>
+        </label>
+        <label className="text-sm">
+          From
+          <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="mt-1 block min-h-[44px] px-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900" />
+        </label>
+        <label className="text-sm">
+          To
+          <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="mt-1 block min-h-[44px] px-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900" />
+        </label>
       </div>
 
       {jobs.length === 0 && !jobsLoading ? (
@@ -250,7 +284,7 @@ export default function EmployerApplications() {
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden min-w-0">
         {loading ? (
           <div className="p-8 text-center text-slate-600 dark:text-gray-300">{t('common:loading')}</div>
-        ) : applications.length === 0 ? (
+        ) : visibleApplications.length === 0 ? (
           <div className="p-8 text-center text-slate-600 dark:text-gray-300 space-y-2">
             <p>{emptyMessage()}</p>
             {!selectedJobId || isExternal ? null : (
@@ -259,7 +293,7 @@ export default function EmployerApplications() {
           </div>
         ) : (
           <div className="divide-y divide-gray-200 dark:divide-gray-700">
-            {applications.map((app) => (
+            {visibleApplications.map((app) => (
               <div key={app._id} className="p-4 flex flex-wrap items-start justify-between gap-4 min-w-0">
                 <div className="min-w-0 flex-1">
                   <p className="font-medium text-gray-900 dark:text-white break-words-safe">

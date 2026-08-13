@@ -125,7 +125,33 @@ export const list = asyncHandler(async (req, res) => {
     Job.find(query).sort({ [sortField]: sortDir }).skip(skip).limit(limit).lean(),
     Job.countDocuments(query),
   ]);
-  res.json(listResponse(data, paginate(page, limit, total), req.query));
+  const employerIds = [...new Set(data.map((row) => (row.employerId ? String(row.employerId) : '')).filter(Boolean))];
+  const snapshots = {};
+  await Promise.all(employerIds.map(async (employerId) => {
+    try {
+      snapshots[employerId] = projectAdminEntitlementSnapshot(await loadEmployerPublishingUsage(employerId));
+    } catch {
+      snapshots[employerId] = { type: 'not_configured', paidPublishingEnabled: false, payment: { state: 'not_configured' } };
+    }
+  }));
+  const rows = data.map((row) => {
+    const snap = row.employerId ? snapshots[String(row.employerId)] : null;
+    return {
+      ...row,
+      employerEntitlement: snap
+        ? {
+          type: snap.type,
+          paidPublishingEnabled: snap.paidPublishingEnabled === true,
+          activeFreeJobs: snap.activeFreeJobs || null,
+          verification: snap.verification
+            ? { eligible: snap.verification.eligible === true, verified: snap.verification.verified === true }
+            : null,
+          payment: snap.payment || { state: 'not_configured' },
+        }
+        : null,
+    };
+  });
+  res.json(listResponse(rows, paginate(page, limit, total), req.query));
 });
 
 export const getOne = asyncHandler(async (req, res) => {

@@ -188,6 +188,31 @@ export default function AdminContentJobs() {
       render: (row) => <AdminStatusBadge value={row.approvalStatus} />,
     },
     {
+      key: 'employerEntitlement',
+      label: 'Publishing',
+      render: (row) => {
+        const ent = row.employerEntitlement;
+        if (!ent) return '—';
+        const paid = ent.paidPublishingEnabled === true;
+        const remaining = ent.activeFreeJobs?.remaining;
+        const used = ent.activeFreeJobs?.used;
+        const limit = ent.activeFreeJobs?.limit;
+        return (
+          <span
+            className="inline-flex flex-col gap-0.5 text-[11px] leading-tight"
+            title={`Verification ${ent.verification?.eligible ? 'eligible' : 'blocked'} · payment ${ent.payment?.state || 'not_configured'}`}
+          >
+            <span className={`font-semibold ${paid ? 'text-emerald-700 dark:text-emerald-300' : 'text-amber-700 dark:text-amber-300'}`}>
+              {paid ? 'PAID' : 'FREE BETA'}
+            </span>
+            {typeof remaining === 'number' ? (
+              <span className="text-gray-500">{used}/{limit} active · {remaining} left</span>
+            ) : null}
+          </span>
+        );
+      },
+    },
+    {
       key: 'actions',
       label: t('admin:colActions'),
       render: (row) => (
@@ -282,10 +307,33 @@ export default function AdminContentJobs() {
                     onOpenTranslation={(doc) => openEdit(doc._id)}
                   />
                   {employerEntitlement ? (
-                    <p className="mt-3 text-xs rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-gray-600 dark:text-gray-300">
-                      Employer entitlement: <strong className="capitalize">{String(employerEntitlement.type || 'not_configured').replaceAll('_', ' ')}</strong>
-                      {employerEntitlement.policyCode ? ` · ${employerEntitlement.policyCode}` : ''}
-                    </p>
+                    <div className="mt-3 text-xs rounded-lg border border-gray-200 dark:border-gray-700 px-3 py-2 text-gray-600 dark:text-gray-300 space-y-1">
+                      <p>
+                        Employer entitlement: <strong className="capitalize">{String(employerEntitlement.type || 'not_configured').replaceAll('_', ' ')}</strong>
+                        {employerEntitlement.policyCode ? ` · ${employerEntitlement.policyCode} v${employerEntitlement.policyVersion || ''}` : ''}
+                      </p>
+                      <p>
+                        Publishing: {employerEntitlement.paidPublishingEnabled ? 'PAID' : 'FREE BETA'}
+                        {employerEntitlement.activeFreeJobs
+                          ? ` · ${employerEntitlement.activeFreeJobs.used}/${employerEntitlement.activeFreeJobs.limit} active (${employerEntitlement.activeFreeJobs.remaining} remaining)`
+                          : ''}
+                      </p>
+                      {employerEntitlement.rolling30Days ? (
+                        <p>
+                          Rolling 30-day submissions: {employerEntitlement.rolling30Days.used}/{employerEntitlement.rolling30Days.limit}
+                          {employerEntitlement.nextReset ? ` · next window ${new Date(employerEntitlement.nextReset).toLocaleDateString()}` : ''}
+                        </p>
+                      ) : null}
+                      <p>
+                        Payment: {employerEntitlement.payment?.state || 'not_configured'}
+                        {employerEntitlement.verification
+                          ? ` · verification ${employerEntitlement.verification.eligible ? 'eligible' : 'blocked'}`
+                          : ''}
+                      </p>
+                      {employerEntitlement.blockers?.length ? (
+                        <p>Blockers: {employerEntitlement.blockers.join(', ')}</p>
+                      ) : null}
+                    </div>
                   ) : null}
                 </>
               ) : null}
