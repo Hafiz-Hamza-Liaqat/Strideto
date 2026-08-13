@@ -29,11 +29,16 @@ export default function ConsultationRequest() {
     setBusy(true);
     setError('');
     try {
-      const requestedStart = new Date(form.requestedStart).toISOString();
-      const response = await studentConsultationApi.request({ ...form, agentServiceId: serviceId, marketplacePostId: marketplacePostId || undefined, requestedStart, timezone: selected.timezone });
+      const requestedStart = new Date(form.requestedStart);
+      if (Number.isNaN(requestedStart.getTime())) {
+        setError('Enter a valid date and time.');
+        return;
+      }
+      const response = await studentConsultationApi.request({ ...form, agentServiceId: serviceId, marketplacePostId: marketplacePostId || undefined, requestedStart: requestedStart.toISOString(), timezone: selected.timezone });
       navigate(`/consultations/${response.data.consultation.id}`);
     } catch (e) {
-      setError(e.response?.data?.error || 'Consultation request failed.');
+      const payload = e.response?.data || {};
+      setError(payload.error || payload.message || 'Consultation request failed.');
     } finally {
       setBusy(false);
     }

@@ -29,7 +29,12 @@ const CLOSED_STATUSES = ['cancelled', 'completed', 'declined', 'no_show'];
 const MAX_PAGE_SIZE = 50;
 const POST_CONSULTATION_MESSAGE_HOURS = 72;
 
-function fail(message, status = 400) { const error = new Error(message); error.status = status; throw error; }
+function fail(message, status = 400, code) {
+  const error = new Error(message);
+  error.status = status;
+  if (code) error.code = code;
+  throw error;
+}
 function clean(value, max) { return sanitizeMessageText(value, max); }
 function id(value, label = 'id') { if (!mongoose.isValidObjectId(value)) fail(`Invalid ${label}`); return value; }
 
@@ -123,11 +128,11 @@ async function prepareNotification(record, recipientActorType, recipientId, even
 
 async function assertSlotAvailable({ availability, start, durationMinutes, excludeConsultationId }) {
   const instant = new Date(start);
-  if (Number.isNaN(instant.getTime())) fail('A valid future requestedStart is required');
+  if (Number.isNaN(instant.getTime())) fail('A valid future requestedStart is required', 422, 'INVALID_START');
   const now = new Date();
-  if (instant.getTime() < now.getTime() + availability.minNoticeMinutes * 60000) fail('Slot does not satisfy minimum notice');
-  if (instant.getTime() > now.getTime() + availability.bookingHorizonDays * 86400000) fail('Slot exceeds the booking horizon');
-  if (!isSlotInsideAvailability({ start: instant, durationMinutes, timeZone: availability.timezone, windows: availability.windows, blockedDates: availability.blockedDates })) fail('Requested slot is unavailable', 409);
+  if (instant.getTime() < now.getTime() + availability.minNoticeMinutes * 60000) fail('Slot does not satisfy minimum notice', 422, 'MIN_NOTICE');
+  if (instant.getTime() > now.getTime() + availability.bookingHorizonDays * 86400000) fail('Slot exceeds the booking horizon', 422, 'HORIZON');
+  if (!isSlotInsideAvailability({ start: instant, durationMinutes, timeZone: availability.timezone, windows: availability.windows, blockedDates: availability.blockedDates })) fail('Requested slot is unavailable', 409, 'SLOT_UNAVAILABLE');
   const bufferMs = availability.bufferMinutes * 60000;
   const end = new Date(instant.getTime() + durationMinutes * 60000);
   const conflict = await Consultation.exists({
@@ -136,14 +141,14 @@ async function assertSlotAvailable({ availability, start, durationMinutes, exclu
     'requestedWindow.start': { $lt: new Date(end.getTime() + bufferMs) },
     'requestedWindow.end': { $gt: new Date(instant.getTime() - bufferMs) },
   });
-  if (conflict) fail('Requested slot conflicts with another consultation', 409);
+  if (conflict) fail('Requested slot conflicts with another consultation', 409, 'SLOT_CONFLICT');
   return { start: instant, end };
 }
 
 export async function upsertAvailability(agentAccountId, input = {}) {
   const scope = await agentScope(agentAccountId);
   const zone = normalizeTimeZone(input.timezone);
-  if (!zone) fail('A valid IANA timezone is required', 422);
+  if (!zone) fail('A valid IANA timezone is required', 422, 'INVALID_TIMEZONE');
   const validation = validateAvailabilityWindows(input.windows);
   if (!validation.ok) fail(validation.error, 422);
   const effectiveFrom = input.effectiveFrom ? new Date(input.effectiveFrom) : null;
@@ -195,10 +200,10 @@ export async function requestConsultation(userId, input = {}) {
   const current = new Date();
   if ((availability.effectiveFrom && availability.effectiveFrom > current) || (availability.effectiveTo && availability.effectiveTo < current)) fail('Selected availability is not currently effective', 409);
   const zone = normalizeTimeZone(input.timezone);
-  if (!zone || zone !== availability.timezone) fail('Booking timezone must match the selected availability timezone', 422);
+  if (!zone || zone !== availability.timezone) fail('Booking timezone must match the selected availability timezone', 422, 'TIMEZONE_MISMATCH');
   const durationMinutes = Math.min(480, Math.max(15, Number(input.durationMinutes) || 30));
-  if (!Object.values(MEETING_MODES).includes(input.meetingMode)) fail('A valid meetingMode is required', 422);
-  if (!clean(input.purpose, 300)) fail('Purpose is required', 422);
+  if (!Object.values(MEETING_MODES).includes(input.meetingMode)) fail('A valid meetingMode is required', 422, 'INVALID_MEETING_MODE');
+  if (!clean(input.purpose, 300)) fail('Purpose is required', 422, 'PURPOSE_REQUIRED');
   const requestedWindow = await assertSlotAvailable({ availability, start: input.requestedStart, durationMinutes });
   let marketplacePostId = null;
   if (input.marketplacePostId) {

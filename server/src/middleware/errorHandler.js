@@ -23,12 +23,15 @@ export function errorHandler(err, req, res, _next) {
   let message = err.message || 'Internal Server Error';
   if (isProd && status >= 500) {
     message = 'Internal Server Error';
-  } else if (isProd && !SAFE_MESSAGES.has(message) && status >= 400) {
-    message = status === 404 ? 'Not found' : 'Request failed';
+  } else if (isProd && status === 404 && !SAFE_MESSAGES.has(message)) {
+    message = 'Not found';
+  } else if (isProd && status >= 400 && status !== 422 && status !== 409 && !SAFE_MESSAGES.has(message) && !err.code) {
+    message = 'Request failed';
   }
   res.status(status).json({
     error: message,
     requestId,
+    ...(err.code ? { code: err.code } : {}),
     ...(err.applicationId ? { applicationId: err.applicationId } : {}),
     ...(!isProd && process.env.NODE_ENV === 'development' ? { stack: err.stack } : {}),
   });
