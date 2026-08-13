@@ -16,6 +16,8 @@ import { requireStaff, requirePermission } from '../middleware/rbac.js';
 import { PERMISSIONS } from '../config/rbac.js';
 import { secureTrustedOrigin } from '../middleware/secureTrustedOrigin.js';
 import { employerAuthLimiter, refreshLimiter, searchLimiter, forgotPasswordLimiter, authLimiter } from '../middleware/rateLimit.js';
+import { requireTurnstileWhenEnabled } from '../middleware/turnstile.js';
+import { requireInstitutionEmailVerified } from '../middleware/requireEmailVerified.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { INSTITUTION_TYPES } from '../../../shared/education/taxonomy.js';
 import * as authCtrl from '../controllers/institutionAuthController.js';
@@ -31,6 +33,7 @@ institutionPortalRouter.post(
   '/auth/institution/register',
   employerAuthLimiter,
   secureTrustedOrigin,
+  requireTurnstileWhenEnabled('register'),
   authCtrl.institutionRegister
 );
 
@@ -83,6 +86,7 @@ institutionPortalRouter.post(
   '/auth/institution/forgot-password',
   secureTrustedOrigin,
   forgotPasswordLimiter,
+  requireTurnstileWhenEnabled('password_recovery'),
   authCtrl.institutionForgotPassword
 );
 
@@ -140,26 +144,26 @@ portal.patch('/:organizationId/profile', portalCtrl.updateProfile);
 
 // Canonical institution claim
 portal.get('/:organizationId/claim', portalCtrl.getClaim);
-portal.post('/:organizationId/claim', portalCtrl.startClaim);
-portal.post('/:organizationId/claim/:claimId/submit', portalCtrl.submitClaim);
+portal.post('/:organizationId/claim', requireInstitutionEmailVerified(), portalCtrl.startClaim);
+portal.post('/:organizationId/claim/:claimId/submit', requireInstitutionEmailVerified(), portalCtrl.submitClaim);
 
 // Program management (ownership enforced — approved claim required)
 portal.get('/:organizationId/programs', portalCtrl.listPrograms);
-portal.post('/:organizationId/programs', portalCtrl.createProgram);
+portal.post('/:organizationId/programs', requireInstitutionEmailVerified(), portalCtrl.createProgram);
 portal.get('/:organizationId/programs/:programId', portalCtrl.getProgram);
-portal.patch('/:organizationId/programs/:programId', portalCtrl.updateProgram);
-portal.post('/:organizationId/programs/:programId/submit', portalCtrl.submitProgram);
+portal.patch('/:organizationId/programs/:programId', requireInstitutionEmailVerified(), portalCtrl.updateProgram);
+portal.post('/:organizationId/programs/:programId/submit', requireInstitutionEmailVerified(), portalCtrl.submitProgram);
 
 // Requirements (program-scoped, ownership enforced)
-portal.post('/:organizationId/programs/:programId/requirements', portalCtrl.createRequirement);
+portal.post('/:organizationId/programs/:programId/requirements', requireInstitutionEmailVerified(), portalCtrl.createRequirement);
 
 // Test acceptance (institution/program scope — country-level protected)
 portal.get('/:organizationId/test-acceptance', portalCtrl.listTestAcceptance);
-portal.post('/:organizationId/test-acceptance', portalCtrl.createTestAcceptance);
+portal.post('/:organizationId/test-acceptance', requireInstitutionEmailVerified(), portalCtrl.createTestAcceptance);
 
 portal.get('/:organizationId/scholarships', portalCtrl.listScholarships);
-portal.post('/:organizationId/scholarships', portalCtrl.createScholarship);
-portal.patch('/:organizationId/scholarships/:scholarshipId', portalCtrl.updateScholarship);
+portal.post('/:organizationId/scholarships', requireInstitutionEmailVerified(), portalCtrl.createScholarship);
+portal.patch('/:organizationId/scholarships/:scholarshipId', requireInstitutionEmailVerified(), portalCtrl.updateScholarship);
 
 portal.get('/:organizationId/applications', portalCtrl.listApplications);
 portal.get('/:organizationId/applications/:applicationId', portalCtrl.getApplication);

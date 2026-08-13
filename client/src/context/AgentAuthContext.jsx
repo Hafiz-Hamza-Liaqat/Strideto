@@ -61,6 +61,13 @@ export function AgentAuthProvider({ children }) {
   const register = useCallback(
     async (payload) => {
       const { data } = await agentAuthApi.register(payload);
+      if (data.requiresVerification || !data.accessToken) {
+        return {
+          requiresVerification: true,
+          message: data.message,
+          emailMode: data.emailMode,
+        };
+      }
       setAgentAccessToken(data.accessToken);
       persistAgent(data.account);
       return data.account;

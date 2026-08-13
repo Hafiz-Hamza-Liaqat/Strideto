@@ -74,7 +74,9 @@ test('valid Agent registration succeeds beside a same-email Student in restricte
   }, res);
 
   assert.equal(res.statusCode, 201);
-  assert.equal(res.body.account.email, email);
+  assert.equal(res.body.accepted, true);
+  assert.equal(res.body.requiresVerification, true);
+  assert.equal(res.body.accessToken, undefined);
   const [account, organization, profile, membership, verification] = await Promise.all([
     AgentAccount.findOne({ email }).lean(),
     Organization.findOne({ displayName: 'Disposable Agent Practice' }).lean(),
@@ -91,7 +93,7 @@ test('valid Agent registration succeeds beside a same-email Student in restricte
   assert.equal(await mongoose.connection.collection('users').countDocuments({ email }), 1);
 });
 
-test('same-realm duplicate is a truthful 409 and creates no second organization', async () => {
+test('same-realm duplicate is a non-enumerating 201 and creates no second organization', async () => {
   const beforeCount = await Organization.countDocuments();
   const res = responseDouble();
   await handler({
@@ -104,8 +106,10 @@ test('same-realm duplicate is a truthful 409 and creates no second organization'
       acceptedTerms: true,
     },
   }, res);
-  assert.equal(res.statusCode, 409);
-  assert.match(res.body.error, /Agent account with this email already exists/);
+  assert.equal(res.statusCode, 201);
+  assert.equal(res.body.accepted, true);
+  assert.equal(res.body.requiresVerification, true);
+  assert.doesNotMatch(JSON.stringify(res.body), /already exists|already registered/i);
   assert.equal(await Organization.countDocuments(), beforeCount);
 });
 

@@ -104,7 +104,8 @@ export const register = asyncHandler(async (req, res) => {
   const referralCode = (req.body.referralCode || req.query.ref || '').trim();
   const existing = await User.findOne({ email });
   if (existing) {
-    return res.status(409).json({ error: 'Email already registered' });
+    const { genericRegistrationResponse } = await import('../services/auth/realmEmailVerification.js');
+    return res.status(201).json(await genericRegistrationResponse());
   }
   let referredBy = null;
   if (referralCode) {
@@ -143,30 +144,9 @@ export const register = asyncHandler(async (req, res) => {
     );
   }
 
-  const { smtpOk } = await issueAndQueueVerification(user);
-  const safe = toSafeUser(await User.findById(user._id));
-
-  if (!smtpOk) {
-    return res.status(201).json({
-      user: safe,
-      requiresVerification: true,
-      emailQueued: false,
-      emailMode: 'unavailable',
-      message:
-        'Account created, but email delivery is not configured yet. Verification email could not be sent — try Resend later once SMTP is available.',
-      expiresInMinutes: Math.round(VERIFY_TOKEN_TTL_MS / 60000),
-    });
-  }
-
-  return res.status(201).json({
-    user: safe,
-    requiresVerification: true,
-    emailQueued: true,
-    emailMode: 'live',
-    message:
-      'Account created. Check your email for a verification link before signing in.',
-    expiresInMinutes: Math.round(VERIFY_TOKEN_TTL_MS / 60000),
-  });
+  await issueAndQueueVerification(user);
+  const { genericRegistrationResponse } = await import('../services/auth/realmEmailVerification.js');
+  return res.status(201).json(await genericRegistrationResponse());
 });
 
 export const login = asyncHandler(async (req, res) => {
@@ -330,32 +310,39 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   const user = await User.findOne({ email }).select(
     '+passwordResetToken +passwordResetExpires'
   );
-  const message =
-    'If an account exists with this email, you will receive a password reset link shortly.';
-  if (!user) {
-    return res.status(200).json({ message });
+  const { genericRecoveryResponse, authDeliveryMode } = await import('../services/auth/realmEmailVerification.js');
+  if (user) {
+    const token = crypto.randomBytes(32).toString('hex');
+    user.passwordResetToken = hashResetToken(token);
+    user.passwordResetExpires = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
+    await user.save({ validateBeforeSave: false });
+    const resetUrl = `${FRONTEND_BASE}/auth/reset-password?token=${encodeURIComponent(token)}`;
+    if ((await authDeliveryMode()) === 'accepted') {
+      await queueEmail({
+        to: user.email,
+        templateKey: 'passwordReset',
+        vars: { url: resetUrl, expiresMinutes: 60 },
+        dedupKey: `password_reset:${user._id}:${Date.now()}`,
+      });
+    }
   }
-  const token = crypto.randomBytes(32).toString('hex');
-  user.passwordResetToken = hashResetToken(token);
-  user.passwordResetExpires = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
-  await user.save({ validateBeforeSave: false });
-  const resetUrl = `${FRONTEND_BASE}/auth/reset-password?token=${encodeURIComponent(token)}`;
-  if (isSmtpConfigured()) {
-    await queueEmail({
-      to: user.email,
-      templateKey: 'passwordReset',
-      vars: { url: resetUrl, expiresMinutes: 60 },
-      dedupKey: `password_reset:${user._id}:${Date.now()}`,
-    });
-  }
-  // Always generic — do not reveal account existence or SMTP status
-  return res.status(200).json({ message });
+  return res.status(200).json(await genericRecoveryResponse());
 });
 
 export const verifyEmail = asyncHandler(async (req, res) => {
   const token = (req.query.token || req.body?.token || '').trim();
+  const realm = String(req.query.realm || req.body?.realm || 'user').trim();
   if (!token)
     return res.status(400).json({ error: 'Verification token is required' });
+
+  if (realm && realm !== 'user') {
+    const { consumeRealmVerificationToken } = await import('../services/auth/realmEmailVerification.js');
+    const result = await consumeRealmVerificationToken(realm, token);
+    if (!result.ok) {
+      return res.status(400).json({ error: 'Invalid or expired verification link' });
+    }
+    return res.json({ message: 'Email verified successfully', emailVerified: true, realm: result.realm });
+  }
 
   const user = await User.findOne({
     emailVerificationToken: hashVerificationToken(token),
@@ -380,7 +367,7 @@ export const verifyEmail = asyncHandler(async (req, res) => {
     });
   }
 
-  res.json({ message: 'Email verified successfully', emailVerified: true });
+  res.json({ message: 'Email verified successfully', emailVerified: true, realm: 'user' });
 });
 
 export const resetPassword = asyncHandler(async (req, res) => {
@@ -454,6 +441,12 @@ export const changePassword = asyncHandler(async (req, res) => {
 
 export const resendVerification = asyncHandler(async (req, res) => {
   const emailFromBody = (req.body?.email || '').trim().toLowerCase();
+  const realm = String(req.body?.realm || req.query?.realm || 'user').trim();
+  if (realm && realm !== 'user') {
+    const { resendRealmVerification } = await import('../services/auth/realmEmailVerification.js');
+    const result = await resendRealmVerification(realm, emailFromBody, req);
+    return res.status(result.status).json(result.body);
+  }
   let user = null;
 
   if (req.user?.userId) {

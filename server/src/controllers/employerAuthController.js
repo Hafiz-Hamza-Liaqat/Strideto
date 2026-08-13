@@ -11,10 +11,16 @@ import {
   validateResetPassword,
 } from '../validators/authValidator.js';
 import { queueEmail } from '../services/automationService.js';
-import { isSmtpConfigured } from '../services/emailService.js';
 import { frontendBaseUrl } from '../utils/emailVerification.js';
 import { ensureUniqueEmployerSlug } from '../utils/employerSlug.js';
 import { legalAcceptanceMetadata, requireAcceptedTerms } from '../../../shared/legal/policyVersions.js';
+import { validatePassword } from '../validators/authValidator.js';
+import {
+  genericRegistrationResponse,
+  genericRecoveryResponse,
+  authDeliveryMode,
+  issueRealmVerification,
+} from '../services/auth/realmEmailVerification.js';
 
 /**
  * SEC-3E.1 — trusted-origin enforcement is composed at the route level
@@ -44,13 +50,13 @@ function toSafeEmployer(employer) {
   delete e.password;
   delete e.passwordResetToken;
   delete e.passwordResetExpires;
+  delete e.emailVerificationToken;
+  delete e.emailVerificationExpires;
   return e;
 }
 
 const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000;
 const FRONTEND_BASE = frontendBaseUrl();
-const GENERIC_RESET_MESSAGE =
-  'If an account exists with this email, you will receive a password reset link shortly.';
 
 /**
  * Canonical session issuance. Returns a safe failure result on issuance
@@ -91,12 +97,14 @@ export const employerRegister = asyncHandler(async (req, res) => {
   if (!requireAcceptedTerms(req.body)) {
     return res.status(400).json({ error: 'You must agree to the Terms of Service and Privacy Policy' });
   }
+  const passwordError = validatePassword(password, true);
+  if (passwordError) {
+    return res.status(400).json({ error: 'Validation failed', details: { password: passwordError } });
+  }
   const emailNorm = email.trim().toLowerCase();
   const existing = await Employer.findOne({ email: emailNorm });
   if (existing) {
-    return res
-      .status(409)
-      .json({ error: 'Email already registered as employer' });
+    return res.status(201).json(await genericRegistrationResponse());
   }
   const companyNameTrimmed = (companyName || '').trim();
   // Deterministic, collision-safe public-profile slug generated at creation
@@ -115,6 +123,7 @@ export const employerRegister = asyncHandler(async (req, res) => {
         website: (website || '').trim(),
         companyDescription: (companyDescription || '').trim(),
         password,
+        emailVerified: false,
         ...legalAcceptanceMetadata(),
       });
     } catch (err) {
@@ -125,10 +134,8 @@ export const employerRegister = asyncHandler(async (req, res) => {
     }
   }
   const freshEmployer = await Employer.findById(employer._id);
-
-  const result = await issueSecureEmployerSession(res, freshEmployer);
-  if (!result.ok) return res.status(result.status).json(result.body);
-  return res.status(201).json(result.body);
+  await issueRealmVerification(freshEmployer, 'employer', freshEmployer.companyName);
+  return res.status(201).json(await genericRegistrationResponse());
 });
 
 export const employerLogin = asyncHandler(async (req, res) => {
@@ -142,6 +149,9 @@ export const employerLogin = asyncHandler(async (req, res) => {
   );
   if (!employer || !(await employer.comparePassword(password))) {
     return res.status(401).json({ error: 'Invalid email or password' });
+  }
+  if (employer.accountStatus === 'suspended') {
+    return res.status(403).json({ error: 'Account suspended' });
   }
   const freshEmployer = await Employer.findById(employer._id);
 
@@ -230,25 +240,24 @@ export const employerForgotPassword = asyncHandler(async (req, res) => {
   const employer = await Employer.findOne({ email }).select(
     '+passwordResetToken +passwordResetExpires'
   );
-  if (!employer)
-    return res.status(200).json({ message: GENERIC_RESET_MESSAGE });
-
-  const token = crypto.randomBytes(32).toString('hex');
-  employer.passwordResetToken = hashResetToken(token);
-  employer.passwordResetExpires = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
-  await employer.save({ validateBeforeSave: false });
-  if (isSmtpConfigured()) {
-    await queueEmail({
-      to: employer.email,
-      templateKey: 'passwordReset',
-      vars: {
-        url: `${FRONTEND_BASE}/employer/reset-password?token=${encodeURIComponent(token)}`,
-        expiresMinutes: 60,
-      },
-      dedupKey: `employer_password_reset:${employer._id}:${Date.now()}`,
-    });
+  if (employer) {
+    const token = crypto.randomBytes(32).toString('hex');
+    employer.passwordResetToken = hashResetToken(token);
+    employer.passwordResetExpires = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
+    await employer.save({ validateBeforeSave: false });
+    if ((await authDeliveryMode()) === 'accepted') {
+      await queueEmail({
+        to: employer.email,
+        templateKey: 'passwordReset',
+        vars: {
+          url: `${FRONTEND_BASE}/employer/reset-password?token=${encodeURIComponent(token)}`,
+          expiresMinutes: 60,
+        },
+        dedupKey: `employer_password_reset:${employer._id}:${Date.now()}`,
+      });
+    }
   }
-  return res.status(200).json({ message: GENERIC_RESET_MESSAGE });
+  return res.status(200).json(await genericRecoveryResponse());
 });
 
 export const employerResetPassword = asyncHandler(async (req, res) => {

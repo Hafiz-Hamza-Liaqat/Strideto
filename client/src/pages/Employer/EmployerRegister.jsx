@@ -6,9 +6,12 @@ import { useEmployerAuth } from '../../context/EmployerAuthContext';
 import { ROUTES } from '../../constants';
 import { TermsConsentField } from '../../components/auth/TermsConsentField';
 import { TurnstileField } from '../../components/auth/TurnstileField';
+import { PasswordInput } from '../../components/forms/PasswordInput';
+import { validatePassword } from '../../utils/validation';
+import { translateValidationError } from '../../utils/validationI18n';
 
 export default function EmployerRegister() {
-  const { t } = useTranslation(['employer', 'common', 'forms']);
+  const { t } = useTranslation(['employer', 'common', 'forms', 'validation']);
   const navigate = useNavigate();
   const { register } = useEmployerAuth();
   const [form, setForm] = useState({
@@ -34,9 +37,20 @@ export default function EmployerRegister() {
       setError('You must agree to the Terms of Service and Privacy Policy');
       return;
     }
+    const passwordErr = translateValidationError(validatePassword(form.password, true), t);
+    if (passwordErr) {
+      setError(passwordErr);
+      return;
+    }
     setSubmitting(true);
     try {
-      await register({ ...form, acceptedTerms: true });
+      const result = await register({ ...form, acceptedTerms: true });
+      if (result?.requiresVerification || !result?._id) {
+        const params = new URLSearchParams({ pending: '1', email: form.email.trim().toLowerCase(), realm: 'employer' });
+        if (result?.emailMode === 'unavailable') params.set('smtp', '0');
+        navigate(`${ROUTES.VERIFY_EMAIL}?${params.toString()}`, { replace: true });
+        return;
+      }
       navigate(ROUTES.EMPLOYER_DASHBOARD, { replace: true });
     } catch (err) {
       setError(err.response?.data?.error || t('employer:registrationFailed'));
@@ -108,16 +122,18 @@ export default function EmployerRegister() {
                 />
               </div>
               <div>
-                <label className="block text-sm font-medium text-[#0F172A] mb-1">{t('common:password')} *</label>
-                <input
+                <label htmlFor="employer-register-password" className="block text-sm font-medium text-[#0F172A] mb-1">{t('common:password')} *</label>
+                <PasswordInput
+                  id="employer-register-password"
                   name="password"
-                  type="password"
+                  autoComplete="new-password"
                   value={form.password}
                   onChange={handleChange}
                   required
-                  minLength={6}
-                  className="w-full px-4 py-2 rounded-lg border border-[#E5E7EB] bg-white text-[#0F172A]"
+                  minLength={8}
+                  maxLength={128}
                 />
+                <p className="mt-1 text-xs text-slate-500">Use 8–128 characters with uppercase, lowercase, and a number.</p>
               </div>
               <TermsConsentField
                 checked={form.acceptedTerms}

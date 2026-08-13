@@ -64,6 +64,13 @@ export const forgotPasswordLimiter = limiter('forgot', {
   message: { error: 'Too many password reset requests. Try again in an hour.' },
 });
 
+/** Verify-email attempts — bound guessing even with high-entropy tokens */
+export const verifyEmailLimiter = limiter('verify-email', {
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 60 : 20,
+  message: { error: 'Too many verification attempts. Try again later.' },
+});
+
 /** Resend verification — 5 / hour per IP in production */
 export const resendVerificationLimiter = limiter('resend', {
   windowMs: 60 * 60 * 1000,

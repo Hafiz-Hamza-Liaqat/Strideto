@@ -19,6 +19,8 @@ import {
   forgotPasswordLimiter,
   authLimiter,
 } from '../middleware/rateLimit.js';
+import { requireTurnstileWhenEnabled } from '../middleware/turnstile.js';
+import { requireAgentEmailVerified } from '../middleware/requireEmailVerified.js';
 import * as agentAuth from '../controllers/agentAuthController.js';
 import * as agent from '../controllers/agentController.js';
 import * as marketplace from '../controllers/agentMarketplaceController.js';
@@ -33,6 +35,7 @@ agentRouter.post(
   '/auth/agent/register',
   employerAuthLimiter,
   secureTrustedOrigin,
+  requireTurnstileWhenEnabled('register'),
   agentAuth.agentRegister
 );
 agentRouter.post(
@@ -72,6 +75,7 @@ agentRouter.post(
   '/auth/agent/forgot-password',
   secureTrustedOrigin,
   forgotPasswordLimiter,
+  requireTurnstileWhenEnabled('password_recovery'),
   agentAuth.agentForgotPassword
 );
 agentRouter.post(
@@ -275,10 +279,10 @@ agentRouter.get(
 // Structured Agent marketplace authoring
 agentRouter.get('/agent/marketplace/counts', requireAuth, requireAgentAuth, marketplace.counts);
 agentRouter.get('/agent/marketplace', requireAuth, requireAgentAuth, marketplace.listOwn);
-agentRouter.post('/agent/marketplace', requireAuth, requireAgentAuth, marketplace.create);
+agentRouter.post('/agent/marketplace', requireAuth, requireAgentAuth, requireAgentEmailVerified(), marketplace.create);
 agentRouter.get('/agent/marketplace/:postId', requireAuth, requireAgentAuth, marketplace.getOwn);
 agentRouter.patch('/agent/marketplace/:postId', requireAuth, requireAgentAuth, marketplace.update);
-agentRouter.post('/agent/marketplace/:postId/submit', requireAuth, requireAgentAuth, marketplace.submit);
+agentRouter.post('/agent/marketplace/:postId/submit', requireAuth, requireAgentAuth, requireAgentEmailVerified(), marketplace.submit);
 agentRouter.post('/agent/marketplace/:postId/archive', requireAuth, requireAgentAuth, marketplace.archive);
 
 // ---------------------------------------------------------------------------

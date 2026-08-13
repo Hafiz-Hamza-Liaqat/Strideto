@@ -1,37 +1,43 @@
 import { isStepUpPurpose } from '../../../../shared/auth/stepUpPurposes.js';
+import { cacheDel, cacheGet, cacheSet } from '../../config/redis.js';
 
 const DEFAULT_TTL_MS = 5 * 60 * 1000;
-const grants = new Map();
+const KEY_PREFIX = 'stepup:';
 
 function keyOf({ realm, subjectId, purpose }) {
-  return `${realm}:${subjectId}:${purpose}`;
+  return `${KEY_PREFIX}${realm}:${subjectId}:${purpose}`;
 }
 
 /**
- * Generic step-up grant store. Initial factor is current-password proof
- * performed by the caller. Stronger factors can issue the same grant later.
+ * Multi-instance step-up grant store. Redis TTL is preferred; the shared
+ * cache helper falls back to process memory when Redis is unavailable.
+ * Never stores passwords, raw tokens, or secrets.
  */
-export function createStepUpGrant({ realm, subjectId, purpose, ttlMs = DEFAULT_TTL_MS }) {
+export async function createStepUpGrant({ realm, subjectId, purpose, ttlMs = DEFAULT_TTL_MS }) {
   if (!isStepUpPurpose(purpose) || !realm || !subjectId) {
     return { ok: false, code: 'INVALID_INPUT' };
   }
   const expiresAt = Date.now() + ttlMs;
-  grants.set(keyOf({ realm, subjectId, purpose }), { expiresAt, used: false });
+  await cacheSet(keyOf({ realm, subjectId, purpose }), { expiresAt }, Math.ceil(ttlMs / 1000));
   return { ok: true, expiresAt };
 }
 
-export function consumeStepUpGrant({ realm, subjectId, purpose }) {
+export async function consumeStepUpGrant({ realm, subjectId, purpose }) {
   const key = keyOf({ realm, subjectId, purpose });
-  const grant = grants.get(key);
-  if (!grant || grant.used || grant.expiresAt < Date.now()) {
-    grants.delete(key);
+  const grant = await cacheGet(key);
+  if (!grant || grant.expiresAt < Date.now()) {
+    await cacheDel(key);
     return { ok: false, code: 'STEP_UP_REQUIRED' };
   }
-  grant.used = true;
-  grants.delete(key);
+  await cacheDel(key);
   return { ok: true };
 }
 
-export function resetStepUpGrantsForTests() {
-  grants.clear();
+export async function resetStepUpGrantsForTests() {
+  await cacheDelPatternSafe();
+}
+
+async function cacheDelPatternSafe() {
+  const { cacheDelPattern } = await import('../../config/redis.js');
+  await cacheDelPattern(KEY_PREFIX);
 }

@@ -28,6 +28,8 @@ const institutionAccountSchema = new mongoose.Schema(
     },
     emailVerified: { type: Boolean, default: false },
     emailVerifiedAt: { type: Date, default: null },
+    emailVerificationToken: { type: String, select: false },
+    emailVerificationExpires: { type: Date, select: false },
     passwordResetToken: { type: String, select: false },
     passwordResetExpires: { type: Date, select: false },
     lastLoginAt: { type: Date, default: null },

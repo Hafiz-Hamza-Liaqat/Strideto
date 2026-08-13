@@ -7,6 +7,7 @@ import { Logo } from '../../components/brand/Logo';
 import { CountrySelect } from '../../components/forms/CountrySelect';
 import { TermsConsentField } from '../../components/auth/TermsConsentField';
 import { TurnstileField } from '../../components/auth/TurnstileField';
+import { PasswordInput } from '../../components/forms/PasswordInput';
 
 export default function AgentRegister() {
   const navigate = useNavigate();
@@ -32,13 +33,19 @@ export default function AgentRegister() {
     }
     setSubmitting(true);
     try {
-      await register({
+      const result = await register({
         ...form,
         email: form.email.trim().toLowerCase(),
         displayName: form.displayName.trim(),
         countryCode: form.countryCode.trim().toUpperCase(),
         acceptedTerms: true,
       });
+      if (result?.requiresVerification || !result?._id) {
+        const params = new URLSearchParams({ pending: '1', email: form.email.trim().toLowerCase(), realm: 'agent' });
+        if (result?.emailMode === 'unavailable') params.set('smtp', '0');
+        navigate(`${ROUTES.VERIFY_EMAIL}?${params.toString()}`, { replace: true });
+        return;
+      }
       navigate(ROUTES.AGENT_ONBOARDING, { replace: true });
     } catch (err) {
       setCtxError?.(getAgentRegistrationError(err));
@@ -104,14 +111,15 @@ export default function AgentRegister() {
               />
             </div>
             <div>
-              <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Password</label>
-              <input
-                type="password"
+              <label htmlFor="agent-register-password" className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Password</label>
+              <PasswordInput
+                id="agent-register-password"
+                autoComplete="new-password"
                 value={form.password}
                 onChange={set('password')}
                 required
                 minLength={8}
-                className="w-full px-4 py-2 rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 focus:outline-none focus:ring-2 focus:ring-primary"
+                maxLength={128}
               />
               <p className="mt-1 text-xs text-slate-500">Use 8–128 characters with uppercase, lowercase, and a number.</p>
             </div>

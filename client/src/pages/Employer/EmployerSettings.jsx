@@ -7,6 +7,8 @@ import { employerApi, employerAuthApi } from '../../services/employerService';
 import { VerificationBadge } from '../../components/common/VerificationBadge';
 import { isValidHttpUrl } from './employerPostJobValidation';
 import { ROUTES } from '../../constants';
+import { ConnectedAccountsPanel } from '../../components/account/ConnectedAccountsPanel';
+import { PasswordInput } from '../../components/forms/PasswordInput';
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -282,6 +284,10 @@ export default function EmployerSettings() {
         </button>
       </form>
 
+      <div className="max-w-xl mt-8">
+        <ConnectedAccountsPanel />
+      </div>
+
       <section className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-4 sm:p-6 max-w-xl space-y-4 mt-8">
         <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('employer:accountSecurity')}</h2>
 
@@ -301,30 +307,28 @@ export default function EmployerSettings() {
             <label htmlFor="settings-current-password" className="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">
               {t('employer:currentPassword')}
             </label>
-            <input
+            <PasswordInput
               id="settings-current-password"
               name="currentPassword"
-              type="password"
               autoComplete="current-password"
               value={pwd.currentPassword}
               onChange={onPwdChange}
               required
-              className={inputClass}
             />
           </div>
           <div>
             <label htmlFor="settings-new-password" className="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">
               {t('employer:newPassword')}
             </label>
-            <input
+            <PasswordInput
               id="settings-new-password"
               name="newPassword"
-              type="password"
               autoComplete="new-password"
               value={pwd.newPassword}
               onChange={onPwdChange}
               required
-              className={inputClass}
+              minLength={8}
+              maxLength={128}
             />
             <p className="mt-1 text-xs text-slate-500 dark:text-gray-400">{t('employer:passwordRule', { count: MIN_PASSWORD_LENGTH })}</p>
           </div>
@@ -332,15 +336,13 @@ export default function EmployerSettings() {
             <label htmlFor="settings-confirm-password" className="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">
               {t('employer:confirmNewPassword')}
             </label>
-            <input
+            <PasswordInput
               id="settings-confirm-password"
               name="confirmNewPassword"
-              type="password"
               autoComplete="new-password"
               value={pwd.confirmNewPassword}
               onChange={onPwdChange}
               required
-              className={inputClass}
             />
           </div>
           <button

@@ -37,6 +37,13 @@ export function requireTurnstileWhenEnabled(action) {
       if (!payload?.success) {
         return res.status(403).json({ error: 'Human verification failed' });
       }
+      const expectedHost = String(process.env.TURNSTILE_EXPECTED_HOSTNAME || '').trim();
+      if (expectedHost && payload.hostname && payload.hostname !== expectedHost) {
+        return res.status(403).json({ error: 'Human verification failed' });
+      }
+      if (payload.action && payload.action !== action) {
+        return res.status(403).json({ error: 'Human verification failed' });
+      }
       req.turnstile = { state: 'verified', action };
       return next();
     } catch {

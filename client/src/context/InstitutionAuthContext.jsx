@@ -54,6 +54,13 @@ export function InstitutionAuthProvider({ children }) {
   const register = useCallback(async (payload) => {
     setError('');
     const { data } = await institutionAuthApi.register(payload);
+    if (data.requiresVerification || !data.accessToken) {
+      return {
+        requiresVerification: true,
+        message: data.message,
+        emailMode: data.emailMode,
+      };
+    }
     setInstitutionAccessToken(data.accessToken);
     return loadMe();
   }, [loadMe]);

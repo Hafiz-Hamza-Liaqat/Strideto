@@ -30,6 +30,10 @@ const employerSchema = new mongoose.Schema(
     password: { type: String, required: true, select: false },
     passwordResetToken: { type: String, select: false },
     passwordResetExpires: { type: Date, select: false },
+    emailVerified: { type: Boolean, default: false },
+    emailVerifiedAt: { type: Date, default: null },
+    emailVerificationToken: { type: String, select: false },
+    emailVerificationExpires: { type: Date, select: false },
     verified: { type: Boolean, default: false },
     accountStatus: {
       type: String,

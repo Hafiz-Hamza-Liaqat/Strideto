@@ -16,6 +16,7 @@ export default function ForgotPassword() {
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const [submitError, setSubmitError] = useState(null);
 
   const handleSubmit = async (e) => {
@@ -29,7 +30,8 @@ export default function ForgotPassword() {
     setErrors({});
     setSubmitting(true);
     try {
-      await authApi.forgotPassword(email.trim().toLowerCase());
+      const { data } = await authApi.forgotPassword(email.trim().toLowerCase());
+      setSuccessMessage(data?.message || t('forms:forgotPassword.sentExtended'));
       setSuccess(true);
     } catch (err) {
       setSubmitError(err.response?.data?.error || t('forms:forgotPassword.failed'));
@@ -56,7 +58,7 @@ export default function ForgotPassword() {
 
         {success && (
           <Alert variant="success" title={t('forms:forgotPassword.checkEmail')} className="mb-6">
-            {t('forms:forgotPassword.sentExtended')}
+            {successMessage}
           </Alert>
         )}
 

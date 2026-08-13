@@ -22,7 +22,7 @@ import { registerFcmToken } from '../controllers/fcmController.js';
 import { getMyReferrals } from '../controllers/referralsController.js';
 import { requireAuth, requireUserAuth, optionalAuth } from '../middleware/auth.js';
 import { secureTrustedOrigin } from '../middleware/secureTrustedOrigin.js';
-import { authLimiter, forgotPasswordLimiter, refreshLimiter, resendVerificationLimiter } from '../middleware/rateLimit.js';
+import { authLimiter, forgotPasswordLimiter, refreshLimiter, resendVerificationLimiter, verifyEmailLimiter } from '../middleware/rateLimit.js';
 import { requireTurnstileWhenEnabled } from '../middleware/turnstile.js';
 
 export const authRouter = Router();
@@ -32,8 +32,8 @@ authRouter.post('/auth/register', authLimiter, requireTurnstileWhenEnabled('regi
 authRouter.post('/auth/login', authLimiter, secureTrustedOrigin, login);
 authRouter.post('/auth/forgot-password', forgotPasswordLimiter, requireTurnstileWhenEnabled('password_recovery'), forgotPassword);
 authRouter.post('/auth/reset-password', authLimiter, secureTrustedOrigin, resetPassword);
-authRouter.get('/auth/verify-email', verifyEmail);
-authRouter.post('/auth/verify-email', verifyEmail);
+authRouter.get('/auth/verify-email', verifyEmailLimiter, verifyEmail);
+authRouter.post('/auth/verify-email', verifyEmailLimiter, verifyEmail);
 authRouter.get('/auth/accept-invitation', getInvitationByToken);
 authRouter.post('/auth/accept-invitation', acceptInvitation);
 authRouter.post('/auth/change-password', secureTrustedOrigin, requireAuth, requireUserAuth, changePassword);

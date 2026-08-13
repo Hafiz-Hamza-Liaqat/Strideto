@@ -11,6 +11,7 @@ import { Alert } from '../../components/ui/Alerts';
 export default function VerifyEmail() {
   const [searchParams] = useSearchParams();
   const token = searchParams.get('token') || '';
+  const realm = searchParams.get('realm') || 'user';
   const pending = searchParams.get('pending') === '1';
   const smtpUnavailable = searchParams.get('smtp') === '0';
   const emailFromQuery = searchParams.get('email') || '';
@@ -33,7 +34,7 @@ export default function VerifyEmail() {
     let cancelled = false;
     (async () => {
       try {
-        const res = await authApi.verifyEmail({ token });
+        const res = await authApi.verifyEmail({ token, realm });
         if (cancelled) return;
         setStatus('success');
         setMessage(res.data?.message || t('forms:verifyEmail.success', { defaultValue: 'Email verified successfully.' }));
@@ -44,7 +45,7 @@ export default function VerifyEmail() {
       }
     })();
     return () => { cancelled = true; };
-  }, [token, pending, t]);
+  }, [token, realm, pending, t]);
 
   const handleResend = async (e) => {
     e?.preventDefault?.();
@@ -57,7 +58,7 @@ export default function VerifyEmail() {
     setResending(true);
     setResendMsg('');
     try {
-      const { data } = await authApi.resendVerification(target);
+      const { data } = await authApi.resendVerification(target, realm);
       setResendOk(true);
       if (data.emailMode === 'unavailable' || data.emailQueued === false) {
         setResendMsg(t('forms:verifyEmail.resendSmtpUnavailable', {

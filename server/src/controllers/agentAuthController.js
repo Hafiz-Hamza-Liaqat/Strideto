@@ -23,13 +23,16 @@ import { legalAcceptanceMetadata, requireAcceptedTerms } from '../../../shared/l
 import crypto from 'crypto';
 import { hashResetToken } from '../utils/tokenStore.js';
 import { queueEmail } from '../services/automationService.js';
-import { isSmtpConfigured } from '../services/emailService.js';
 import { frontendBaseUrl } from '../utils/emailVerification.js';
+import {
+  genericRegistrationResponse,
+  genericRecoveryResponse,
+  authDeliveryMode,
+  issueRealmVerification,
+} from '../services/auth/realmEmailVerification.js';
 
 const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000;
 const FRONTEND_BASE = frontendBaseUrl();
-const GENERIC_RESET_MESSAGE =
-  'If an account exists with this email, you will receive a password reset link shortly.';
 
 function writeAgentRefreshCookie(res, token) {
   secureAuthConfig.cookiePolicy.writeRefreshCookie({ res, realm: 'agent', token });
@@ -45,6 +48,8 @@ function toSafeAccount(account) {
   delete a.password;
   delete a.passwordResetToken;
   delete a.passwordResetExpires;
+  delete a.emailVerificationToken;
+  delete a.emailVerificationExpires;
   return a;
 }
 
@@ -116,7 +121,7 @@ export function createAgentRegisterHandler({
 
   const existing = await agentAccountModel.findOne({ email: normalizedEmail });
   if (existing) {
-    return res.status(409).json({ error: 'An Agent account with this email already exists' });
+    return res.status(201).json(await genericRegistrationResponse());
   }
 
   // Create the shared Organization identity first.
@@ -164,9 +169,8 @@ export function createAgentRegisterHandler({
     metadata: { organizationId: org._id, agentType },
   });
 
-  const result = await issueSession(res, account);
-  if (!result.ok) return res.status(result.status).json(result.body);
-  return res.status(201).json(result.body);
+  await issueRealmVerification(account, 'agent', normalizedDisplayName);
+  return res.status(201).json(await genericRegistrationResponse());
   };
 }
 
@@ -322,24 +326,24 @@ export const agentForgotPassword = asyncHandler(async (req, res) => {
   }
   const email = req.body.email.trim().toLowerCase();
   const account = await AgentAccount.findOne({ email }).select('+passwordResetToken +passwordResetExpires');
-  if (!account) return res.status(200).json({ message: GENERIC_RESET_MESSAGE });
-
-  const token = crypto.randomBytes(32).toString('hex');
-  account.passwordResetToken = hashResetToken(token);
-  account.passwordResetExpires = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
-  await account.save({ validateBeforeSave: false });
-  if (isSmtpConfigured()) {
-    await queueEmail({
-      to: account.email,
-      templateKey: 'passwordReset',
-      vars: {
-        url: `${FRONTEND_BASE}/agent/reset-password?token=${encodeURIComponent(token)}`,
-        expiresMinutes: 60,
-      },
-      dedupKey: `agent_password_reset:${account._id}:${Date.now()}`,
-    });
+  if (account) {
+    const token = crypto.randomBytes(32).toString('hex');
+    account.passwordResetToken = hashResetToken(token);
+    account.passwordResetExpires = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
+    await account.save({ validateBeforeSave: false });
+    if ((await authDeliveryMode()) === 'accepted') {
+      await queueEmail({
+        to: account.email,
+        templateKey: 'passwordReset',
+        vars: {
+          url: `${FRONTEND_BASE}/agent/reset-password?token=${encodeURIComponent(token)}`,
+          expiresMinutes: 60,
+        },
+        dedupKey: `agent_password_reset:${account._id}:${Date.now()}`,
+      });
+    }
   }
-  return res.status(200).json({ message: GENERIC_RESET_MESSAGE });
+  return res.status(200).json(await genericRecoveryResponse());
 });
 
 export const agentResetPassword = asyncHandler(async (req, res) => {

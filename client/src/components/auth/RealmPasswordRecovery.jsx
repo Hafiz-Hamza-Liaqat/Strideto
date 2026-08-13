@@ -13,6 +13,7 @@ export function RealmForgotPassword({ realmLabel, loginRoute, forgotApi, seoTitl
   const [errors, setErrors] = useState({});
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [successMessage, setSuccessMessage] = useState('');
   const [submitError, setSubmitError] = useState(null);
 
   const handleSubmit = async (e) => {
@@ -26,7 +27,8 @@ export function RealmForgotPassword({ realmLabel, loginRoute, forgotApi, seoTitl
     setErrors({});
     setSubmitting(true);
     try {
-      await forgotApi(email.trim().toLowerCase());
+      const { data } = await forgotApi(email.trim().toLowerCase());
+      setSuccessMessage(data?.message || t('forms:forgotPassword.sentExtended'));
       setSuccess(true);
     } catch (err) {
       setSubmitError(err.response?.data?.error || t('forms:forgotPassword.failed'));
@@ -52,7 +54,7 @@ export function RealmForgotPassword({ realmLabel, loginRoute, forgotApi, seoTitl
 
           {success && (
             <Alert variant="success" title={t('forms:forgotPassword.checkEmail')} className="mt-6">
-              {t('forms:forgotPassword.sentExtended')}
+              {successMessage}
             </Alert>
           )}
 

@@ -6,7 +6,11 @@ import {
   employerAuthLimiter,
   forgotPasswordLimiter,
   refreshLimiter,
+  verifyEmailLimiter,
 } from '../middleware/rateLimit.js';
+import { requireTurnstileWhenEnabled } from '../middleware/turnstile.js';
+import { requireEmployerEmailVerified } from '../middleware/requireEmailVerified.js';
+import { verifyRealmEmail } from '../controllers/realmVerifyEmailController.js';
 import * as employerAuth from '../controllers/employerAuthController.js';
 import * as employer from '../controllers/employerController.js';
 import * as employerTeam from '../controllers/employerTeamController.js';
@@ -21,6 +25,7 @@ employerRouter.post(
   '/auth/employer/register',
   employerAuthLimiter,
   secureTrustedOrigin,
+  requireTurnstileWhenEnabled('register'),
   employerAuth.employerRegister
 );
 employerRouter.post(
@@ -60,7 +65,13 @@ employerRouter.post(
   '/auth/employer/forgot-password',
   secureTrustedOrigin,
   forgotPasswordLimiter,
+  requireTurnstileWhenEnabled('password_recovery'),
   employerAuth.employerForgotPassword
+);
+employerRouter.post(
+  '/auth/employer/verify-email',
+  verifyEmailLimiter,
+  verifyRealmEmail
 );
 employerRouter.post(
   '/auth/employer/reset-password',
@@ -218,6 +229,7 @@ employerRouter.post(
   '/employer/jobs/:id/activate',
   requireAuth,
   requireEmployerAuth,
+  requireEmployerEmailVerified(),
   requireEmployerCapability(C.JOBS_WRITE),
   employer.activateJob
 );
@@ -225,6 +237,7 @@ employerRouter.post(
   '/employer/jobs/:id/checkout',
   requireAuth,
   requireEmployerAuth,
+  requireEmployerEmailVerified(),
   createJobCheckout
 );
 employerRouter.get(

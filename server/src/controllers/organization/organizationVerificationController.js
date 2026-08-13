@@ -19,6 +19,10 @@ import { AgentMembership } from '../../models/agent/AgentMembership.js';
 import { EmployerMembership } from '../../models/employer/EmployerMembership.js';
 import { InstitutionMembership } from '../../models/institution/InstitutionMembership.js';
 import { employerRoleHasCapability, EMPLOYER_CAPABILITIES } from '../../../../shared/employer/team.js';
+import { Employer } from '../../models/Employer.js';
+import { AgentAccount } from '../../models/agent/AgentAccount.js';
+import { InstitutionAccount } from '../../models/institution/InstitutionAccount.js';
+import { isB2bEmailVerificationRequired } from '../../services/auth/realmEmailVerification.js';
 
 async function prepareAgentSubmission(req, organizationId) {
   if (!req.agent?.agentAccountId) return;
@@ -61,6 +65,24 @@ function actor(req, _organizationId) {
  *   - Employer may only access the Organization linked to their employerId.
  */
 const STAFF_VERIFICATION_ROLES = new Set(['Admin', 'SuperAdmin', 'Editor', 'Moderator']);
+
+async function assertAccountEmailVerified(req) {
+  if (STAFF_VERIFICATION_ROLES.has(req.user?.role)) return;
+  let account = null;
+  if (req.employer?.employerId) {
+    account = await Employer.findById(req.employer.employerId).select('emailVerified createdAt').lean();
+  } else if (req.agent?.agentAccountId) {
+    account = await AgentAccount.findById(req.agent.agentAccountId).select('emailVerified createdAt').lean();
+  } else if (req.institution?.institutionAccountId) {
+    account = await InstitutionAccount.findById(req.institution.institutionAccountId).select('emailVerified createdAt').lean();
+  }
+  if (isB2bEmailVerificationRequired(account)) {
+    throw Object.assign(new Error('Verify your email before this action'), {
+      status: 403,
+      code: 'email_verification_required',
+    });
+  }
+}
 
 async function assertOwnership(req, organizationId) {
   // Staff support bypass only — ordinary User/Student tokens must not read
@@ -179,6 +201,7 @@ export async function submitVerification(req, res) {
   try {
     const { organizationId } = req.params;
     await assertOwnership(req, organizationId);
+    await assertAccountEmailVerified(req);
     if (req.employer?.employerId) {
       const membership = await EmployerMembership.findOne({
         organizationId,
@@ -233,6 +256,7 @@ export async function addEvidence(req, res) {
   try {
     const { organizationId } = req.params;
     await assertOwnership(req, organizationId);
+    await assertAccountEmailVerified(req);
 
     const evidence = await verificationService.addEvidence(
       organizationId,
@@ -259,6 +283,7 @@ export async function respondToInformationRequest(req, res) {
   try {
     const { organizationId } = req.params;
     await assertOwnership(req, organizationId);
+    await assertAccountEmailVerified(req);
 
     const { profile: rawProfile } = req.body;
     if (!rawProfile || typeof rawProfile !== 'object') {

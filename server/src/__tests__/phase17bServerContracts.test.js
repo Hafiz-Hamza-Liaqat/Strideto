@@ -62,11 +62,11 @@ function check(cond, msg) {
 }
 
 {
-  resetStepUpGrantsForTests();
-  const created = createStepUpGrant({ realm: 'user', subjectId: '507f1f77bcf86cd799439011', purpose: 'password_change' });
+  await resetStepUpGrantsForTests();
+  const created = await createStepUpGrant({ realm: 'user', subjectId: '507f1f77bcf86cd799439011', purpose: 'password_change' });
   check(created.ok === true, 'step-up grant can be issued after current-password proof');
-  check(consumeStepUpGrant({ realm: 'user', subjectId: '507f1f77bcf86cd799439011', purpose: 'password_change' }).ok === true, 'step-up grant is single use');
-  check(consumeStepUpGrant({ realm: 'user', subjectId: '507f1f77bcf86cd799439011', purpose: 'password_change' }).ok === false, 'used step-up grant cannot be reused');
+  check((await consumeStepUpGrant({ realm: 'user', subjectId: '507f1f77bcf86cd799439011', purpose: 'password_change' })).ok === true, 'step-up grant is single use');
+  check((await consumeStepUpGrant({ realm: 'user', subjectId: '507f1f77bcf86cd799439011', purpose: 'password_change' })).ok === false, 'used step-up grant cannot be reused');
 }
 
 console.log(`phase17bServerContracts.test.js: ${count} assertions passed`);

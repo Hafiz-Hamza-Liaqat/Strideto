@@ -10,6 +10,7 @@ import { getInstitutionRegistrationError } from '../../utils/portalRegistrationE
 import { PageState, fieldClass, primaryButton } from './InstitutionUi';
 import { TermsConsentField } from '../../components/auth/TermsConsentField';
 import { TurnstileField } from '../../components/auth/TurnstileField';
+import { PasswordInput } from '../../components/forms/PasswordInput';
 
 const TYPE_LABELS = Object.freeze({
   university: 'University',
@@ -46,13 +47,19 @@ export default function InstitutionRegister() {
     setBusy(true);
     setError('');
     try {
-      await register({
+      const result = await register({
         ...form,
         displayName: form.displayName.trim(),
         countryCode: form.countryCode.trim().toUpperCase(),
         email: form.email.trim().toLowerCase(),
         acceptedTerms: true,
       });
+      if (result?.requiresVerification || !result?._id) {
+        const params = new URLSearchParams({ pending: '1', email: form.email.trim().toLowerCase(), realm: 'institution' });
+        if (result?.emailMode === 'unavailable') params.set('smtp', '0');
+        navigate(`${ROUTES.VERIFY_EMAIL}?${params.toString()}`, { replace: true });
+        return;
+      }
       navigate(ROUTES.INSTITUTION_ONBOARDING, { replace: true });
     } catch (registrationError) {
       setError(getInstitutionRegistrationError(registrationError));
@@ -93,7 +100,7 @@ export default function InstitutionRegister() {
             <input id="institution-register-email" required type="email" value={form.email} onChange={set('email')} className={fieldClass} autoComplete="username" placeholder="you@institution.edu" />
           </FormField>
           <FormField id="institution-register-password" label="Password">
-            <input id="institution-register-password" required type="password" minLength={8} maxLength={128} value={form.password} onChange={set('password')} className={fieldClass} autoComplete="new-password" placeholder="8–128 characters" />
+            <PasswordInput id="institution-register-password" required minLength={8} maxLength={128} value={form.password} onChange={set('password')} autoComplete="new-password" placeholder="8–128 characters" />
           </FormField>
           <p className="text-xs text-gray-500 dark:text-gray-400">Use 8–128 characters with uppercase, lowercase, and a number.</p>
           <TermsConsentField
