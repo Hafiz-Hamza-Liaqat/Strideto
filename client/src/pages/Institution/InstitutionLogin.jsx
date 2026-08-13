@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Link, Navigate, useLocation, useNavigate } from 'react-router-dom';
 import { FormField } from '../../components/common/FormField';
+import { PasswordInput } from '../../components/forms/PasswordInput';
 import { Logo } from '../../components/brand/Logo';
 import { useInstitutionAuth } from '../../context/InstitutionAuthContext';
 import { ROUTES } from '../../constants';
@@ -61,7 +62,7 @@ export default function InstitutionLogin() {
             <input id="institution-email" type="email" autoComplete="username" value={email} onChange={(event) => setEmail(event.target.value)} className={fieldClass} placeholder="you@institution.edu" />
           </FormField>
           <FormField id="institution-password" label="Password" error={errors.password}>
-            <input id="institution-password" type="password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} className={fieldClass} placeholder="Enter password" />
+            <PasswordInput id="institution-password" autoComplete="current-password" value={password} onChange={(event) => setPassword(event.target.value)} placeholder="Enter password" error={Boolean(errors.password)} />
           </FormField>
           <p className="text-right text-sm">
             <Link className="font-semibold text-primary underline" to={ROUTES.INSTITUTION_FORGOT_PASSWORD}>

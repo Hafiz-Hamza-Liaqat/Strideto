@@ -28,7 +28,12 @@ function companyOrgSchema(profile, canonical) {
     url: profile.website || canonical,
     description: profile.companyDescription,
     logo: profile.logoUrl || undefined,
-    address: profile.location ? { '@type': 'PostalAddress', addressLocality: profile.city, addressRegion: profile.province, addressCountry: 'PK' } : undefined,
+    address: profile.location || profile.city || profile.countryCode ? {
+      '@type': 'PostalAddress',
+      addressLocality: profile.city || undefined,
+      addressRegion: profile.province || undefined,
+      ...(profile.countryCode ? { addressCountry: String(profile.countryCode).toUpperCase() } : {}),
+    } : undefined,
   };
 }
 

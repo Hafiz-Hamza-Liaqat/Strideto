@@ -18,6 +18,7 @@ import { OrganizationVerification } from '../models/OrganizationVerification.js'
 import { Organization } from '../models/Organization.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { logAudit } from '../services/auditService.js';
+import { notifyPasswordChanged, notifyLogoutAllCompleted } from '../services/auth/securityNotifications.js';
 import { secureAuthConfig } from '../services/auth/secureAuthConfig.js';
 import { institutionSecureAuthFlows } from '../services/auth/institutionSecureAuthFlows.js';
 import {
@@ -260,6 +261,13 @@ export const institutionLogoutAll = asyncHandler(async (req, res) => {
     referer: req.headers.referer,
   });
   if (result.clearCookie) clearInstitutionRefreshCookie(res);
+  if (result.code !== 'LOGGED_OUT_ALL') {
+    return res.status(result.httpStatus).json(result.body);
+  }
+  await notifyLogoutAllCompleted(
+    'institution',
+    req.institution.subjectId || req.institution.institutionAccountId
+  );
   return res.status(200).json({ message: 'All sessions revoked' });
 });
 
@@ -285,6 +293,7 @@ export const institutionChangePassword = asyncHandler(async (req, res) => {
   if (result.code !== 'PASSWORD_CHANGED') {
     return res.status(result.httpStatus).json(result.body || { error: 'Failed to change password' });
   }
+  await notifyPasswordChanged('institution', account._id);
   return res.status(200).json({ message: 'Password changed. Please log in again.' });
 });
 

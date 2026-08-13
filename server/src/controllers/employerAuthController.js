@@ -3,6 +3,7 @@ import { Employer } from '../models/Employer.js';
 import { hashResetToken } from '../utils/tokenStore.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { logAudit, auditFromRequest } from '../services/auditService.js';
+import { notifyPasswordChanged, notifyLogoutAllCompleted } from '../services/auth/securityNotifications.js';
 import { secureAuthConfig } from '../services/auth/secureAuthConfig.js';
 import { employerSecureAuthFlows } from '../services/auth/employerSecureAuthFlows.js';
 import {
@@ -226,6 +227,7 @@ export const employerLogoutAll = asyncHandler(async (req, res) => {
     targetType: 'employer',
     targetId: principal.employerId,
   });
+  await notifyLogoutAllCompleted('employer', principal.employerId);
   res.json({ message: 'Logged out of all sessions' });
 });
 
@@ -325,6 +327,7 @@ export const employerChangePassword = asyncHandler(async (req, res) => {
     targetType: 'employer',
     targetId: employer._id,
   });
+  await notifyPasswordChanged('employer', employer._id);
   return res.json({ message: 'Password changed successfully' });
 });
 

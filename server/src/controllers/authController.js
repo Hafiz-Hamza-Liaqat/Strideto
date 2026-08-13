@@ -13,6 +13,7 @@ import { awardBadge } from './badgesController.js';
 import { queueEmail } from '../services/automationService.js';
 import { isSmtpConfigured } from '../services/emailService.js';
 import { logAudit, auditFromRequest } from '../services/auditService.js';
+import { notifyPasswordChanged, notifyLogoutAllCompleted } from '../services/auth/securityNotifications.js';
 import { getPermissionsForRole } from '../config/rbac.js';
 import { hashResetToken } from '../utils/tokenStore.js';
 import { legalAcceptanceMetadata } from '../../../shared/legal/policyVersions.js';
@@ -270,6 +271,7 @@ export const logoutAll = asyncHandler(async (req, res) => {
     targetType: 'user',
     targetId: principal.userId,
   });
+  await notifyLogoutAllCompleted('user', principal.userId);
   res.json({ message: 'Logged out of all sessions' });
 });
 
@@ -436,6 +438,7 @@ export const changePassword = asyncHandler(async (req, res) => {
     targetId: user._id,
     targetLabel: user.email,
   });
+  await notifyPasswordChanged('user', user._id);
   return res.json({ message: 'Password changed successfully' });
 });
 

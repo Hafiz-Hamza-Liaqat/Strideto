@@ -212,10 +212,18 @@ connectDB()
       logger.info('admin_ensure_skipped', { reason: 'ADMIN_EMAIL/ADMIN_PASSWORD not set' });
     }
 
-    if (process.env.WORKER_ONLY !== '1') {
+    const scraperExplicit = process.env.ENABLE_SCRAPER_CRON === '1';
+    const scraperDisabled = process.env.DISABLE_SCRAPER_CRON === '1' || process.env.DISABLE_SCRAPER_CRON === 'true';
+    if (process.env.WORKER_ONLY !== '1' && scraperExplicit && !scraperDisabled) {
       startScraperCron();
     } else {
-      logger.info('api_cron_skipped', { reason: 'WORKER_ONLY container handles queue' });
+      logger.info('scraper_cron_skipped', {
+        reason: scraperDisabled
+          ? 'DISABLE_SCRAPER_CRON'
+          : scraperExplicit
+            ? 'WORKER_ONLY'
+            : 'ENABLE_SCRAPER_CRON not set — API replicas do not start scraping',
+      });
     }
     const PORT_NUM = Number(PORT);
     const server = app.listen(PORT_NUM, () => {

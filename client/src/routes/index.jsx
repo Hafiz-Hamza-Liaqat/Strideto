@@ -1,6 +1,7 @@
 import { lazy, Suspense } from 'react';
 import { useTranslation } from 'react-i18next';
 import { MainLayout, MainLayoutWrapper } from '../layouts/MainLayout';
+import { withAuthLayout } from '../layouts/AuthLayout';
 import { LocaleMainLayout } from '../layouts/LocaleMainLayout';
 import { DEFAULT_LOCALE, ENABLED_CONTENT_LOCALES } from '@shared/localization/localeConfig.js';
 import { ProtectedRoute } from '../components/auth/ProtectedRoute';
@@ -279,11 +280,11 @@ function PageFallback() {
 }
 
 export const routes = [
-  { path: ROUTES.INSTITUTION_LOGIN, element: <InstitutionLogin /> },
-  { path: ROUTES.INSTITUTION_FORGOT_PASSWORD, element: <InstitutionForgotPassword /> },
-  { path: ROUTES.INSTITUTION_RESET_PASSWORD, element: <InstitutionResetPassword /> },
-  { path: ROUTES.INSTITUTION_REGISTER, element: <InstitutionRegister /> },
-  { path: ROUTES.INSTITUTION_ACCEPT_INVITATION, element: <InstitutionAcceptInvitation /> },
+  { path: ROUTES.INSTITUTION_LOGIN, element: withAuthLayout(<InstitutionLogin />, 'Institution account') },
+  { path: ROUTES.INSTITUTION_FORGOT_PASSWORD, element: withAuthLayout(<InstitutionForgotPassword />, 'Institution account') },
+  { path: ROUTES.INSTITUTION_RESET_PASSWORD, element: withAuthLayout(<InstitutionResetPassword />, 'Institution account') },
+  { path: ROUTES.INSTITUTION_REGISTER, element: withAuthLayout(<InstitutionRegister />, 'Institution account') },
+  { path: ROUTES.INSTITUTION_ACCEPT_INVITATION, element: withAuthLayout(<InstitutionAcceptInvitation />, 'Institution account') },
   {
     path: ROUTES.INSTITUTION_DASHBOARD,
     element: <ProtectedInstitutionRoute><InstitutionLayout /></ProtectedInstitutionRoute>,
@@ -424,17 +425,17 @@ export const routes = [
       { path: ROUTES.CAREERS, element: <Careers /> },
       { path: ROUTES.SUPPORT, element: <Support /> },
       { path: `${ROUTES.SUPPORT}/tickets`, element: <SupportTickets /> },
-      { path: ROUTES.LOGIN, element: <Login /> },
-      { path: ROUTES.REGISTER, element: <Register /> },
-      { path: ROUTES.EMPLOYER_LOGIN, element: <EmployerLogin /> },
-      { path: ROUTES.EMPLOYER_FORGOT_PASSWORD, element: <EmployerForgotPassword /> },
-      { path: ROUTES.EMPLOYER_RESET_PASSWORD, element: <EmployerResetPassword /> },
-      { path: ROUTES.EMPLOYER_REGISTER, element: <EmployerRegister /> },
-      { path: ROUTES.EMPLOYER_ACCEPT_INVITATION, element: <EmployerAcceptInvitation /> },
-      { path: ROUTES.AGENT_LOGIN, element: <AgentLogin /> },
-      { path: ROUTES.AGENT_FORGOT_PASSWORD, element: <AgentForgotPassword /> },
-      { path: ROUTES.AGENT_RESET_PASSWORD, element: <AgentResetPassword /> },
-      { path: ROUTES.AGENT_REGISTER, element: <AgentRegister /> },
+      { path: ROUTES.LOGIN, element: withAuthLayout(<Login />, 'Student account') },
+      { path: ROUTES.REGISTER, element: withAuthLayout(<Register />, 'Student account') },
+      { path: ROUTES.EMPLOYER_LOGIN, element: withAuthLayout(<EmployerLogin />, 'Employer account') },
+      { path: ROUTES.EMPLOYER_FORGOT_PASSWORD, element: withAuthLayout(<EmployerForgotPassword />, 'Employer account') },
+      { path: ROUTES.EMPLOYER_RESET_PASSWORD, element: withAuthLayout(<EmployerResetPassword />, 'Employer account') },
+      { path: ROUTES.EMPLOYER_REGISTER, element: withAuthLayout(<EmployerRegister />, 'Employer account') },
+      { path: ROUTES.EMPLOYER_ACCEPT_INVITATION, element: withAuthLayout(<EmployerAcceptInvitation />, 'Employer account') },
+      { path: ROUTES.AGENT_LOGIN, element: withAuthLayout(<AgentLogin />, 'Agent account') },
+      { path: ROUTES.AGENT_FORGOT_PASSWORD, element: withAuthLayout(<AgentForgotPassword />, 'Agent account') },
+      { path: ROUTES.AGENT_RESET_PASSWORD, element: withAuthLayout(<AgentResetPassword />, 'Agent account') },
+      { path: ROUTES.AGENT_REGISTER, element: withAuthLayout(<AgentRegister />, 'Agent account') },
       { path: ROUTES.AGENT_ACCEPT_INVITATION, element: <AgentAcceptInvitation /> },
       { path: ROUTES.AGENT_PUBLIC_DIRECTORY, element: <AgentDirectory /> },
       { path: ROUTES.AGENT_PUBLIC_MARKETPLACE, element: <AgentMarketplacePublic /> },
@@ -443,9 +444,9 @@ export const routes = [
       { path: 'employer/:slug', element: <EmployerPublicGate /> },
       { path: `${ROUTES.COMPANY}/:slug`, element: <CompanyProfile /> },
       { path: `${ROUTES.UNIVERSITY}/:slug`, element: <UniversityProfile /> },
-      { path: ROUTES.FORGOT_PASSWORD, element: <ForgotPassword /> },
-      { path: ROUTES.RESET_PASSWORD, element: <ResetPassword /> },
-      { path: ROUTES.VERIFY_EMAIL, element: <VerifyEmail /> },
+      { path: ROUTES.FORGOT_PASSWORD, element: withAuthLayout(<ForgotPassword />, 'Student account') },
+      { path: ROUTES.RESET_PASSWORD, element: withAuthLayout(<ResetPassword />, 'Student account') },
+      { path: ROUTES.VERIFY_EMAIL, element: withAuthLayout(<VerifyEmail />, 'Verify email') },
       { path: ROUTES.ACCEPT_INVITATION, element: <AcceptInvitation /> },
       {
         path: ROUTES.PROFILE,

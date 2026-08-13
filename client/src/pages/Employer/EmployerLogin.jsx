@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
+import { PasswordInput } from '../../components/forms/PasswordInput.jsx';
 import { useEmployerAuth } from '../../context/EmployerAuthContext';
 import { ROUTES } from '../../constants';
 import { LOGIN_REALMS, resolveLoginReturnPath } from '../../utils/loginReturn.js';
@@ -72,14 +73,12 @@ export default function EmployerLogin() {
               </div>
               <div>
                 <label htmlFor="employer-login-password" className="block text-sm font-medium text-[#0F172A] mb-1">{t('common:password')}</label>
-                <input
+                <PasswordInput
                   id="employer-login-password"
-                  type="password"
                   autoComplete="current-password"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
                   required
-                  className="w-full px-4 py-2 rounded-lg border border-[#E5E7EB] bg-white text-[#0F172A]"
                 />
                 <p className="mt-2 text-right">
                   <Link to={ROUTES.EMPLOYER_FORGOT_PASSWORD} className="text-sm text-[#635BFF] hover:underline">

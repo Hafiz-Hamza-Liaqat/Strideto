@@ -9,6 +9,21 @@ const SAFE_MESSAGES = new Set([
   'Insufficient permissions',
 ]);
 
+const SAFE_CODES = new Set([
+  'email_verification_required',
+  'ACTIVE_LIMIT_REACHED_AT_APPROVAL',
+  'EMPLOYER_NOT_ELIGIBLE',
+  'QUOTA_EXCEEDED',
+  'smtp_not_configured',
+  'STEP_UP_REQUIRED',
+  'FORBIDDEN',
+  'CONFLICT',
+]);
+
+function looksInternal(message = '') {
+  return /mongo|econnrefused|stack trace|\/src\/|JWT_SECRET|REFRESH_SECRET|at Object\.|ValidationError/i.test(String(message));
+}
+
 export function errorHandler(err, req, res, _next) {
   const status = err.statusCode || err.status || 500;
   const isProd = process.env.NODE_ENV === 'production';
@@ -21,18 +36,18 @@ export function errorHandler(err, req, res, _next) {
     ...(isProd ? {} : { stack: err.stack }),
   });
   let message = err.message || 'Internal Server Error';
-  if (isProd && status >= 500) {
-    message = 'Internal Server Error';
-  } else if (isProd && status === 404 && !SAFE_MESSAGES.has(message)) {
+  const safeCode = typeof err.code === 'string' && SAFE_CODES.has(err.code) ? err.code : undefined;
+  if (status >= 500 || looksInternal(message)) {
+    message = status >= 500 ? 'Internal Server Error' : 'Request failed';
+  } else if (status === 404 && !SAFE_MESSAGES.has(message)) {
     message = 'Not found';
-  } else if (isProd && status >= 400 && status !== 422 && status !== 409 && !SAFE_MESSAGES.has(message) && !err.code) {
+  } else if (status >= 400 && status !== 422 && status !== 409 && !SAFE_MESSAGES.has(message) && !safeCode) {
     message = 'Request failed';
   }
   res.status(status).json({
     error: message,
     requestId,
-    ...(err.code ? { code: err.code } : {}),
+    ...(safeCode ? { code: safeCode } : {}),
     ...(err.applicationId ? { applicationId: err.applicationId } : {}),
-    ...(!isProd && process.env.NODE_ENV === 'development' ? { stack: err.stack } : {}),
   });
 }

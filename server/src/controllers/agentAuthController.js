@@ -11,6 +11,7 @@ import { Organization } from '../models/Organization.js';
 import { OrganizationVerification } from '../models/OrganizationVerification.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { logAudit } from '../services/auditService.js';
+import { notifyPasswordChanged, notifyLogoutAllCompleted } from '../services/auth/securityNotifications.js';
 import { secureAuthConfig } from '../services/auth/secureAuthConfig.js';
 import { agentSecureAuthFlows } from '../services/auth/agentSecureAuthFlows.js';
 import { getOrCreateProfile } from '../services/agentProfileService.js';
@@ -285,6 +286,7 @@ export const agentLogoutAll = asyncHandler(async (req, res) => {
   if (result.code !== 'LOGGED_OUT_ALL') {
     return res.status(result.httpStatus).json(result.body);
   }
+  await notifyLogoutAllCompleted('agent', req.agent.subjectId || req.agent.agentAccountId);
   return res.status(200).json({ message: 'Logged out from all devices' });
 });
 
@@ -316,6 +318,7 @@ export const agentChangePassword = asyncHandler(async (req, res) => {
   if (result.code !== 'PASSWORD_CHANGED') {
     return res.status(result.httpStatus).json(result.body || { error: 'Failed to change password' });
   }
+  await notifyPasswordChanged('agent', account._id);
   return res.status(200).json({ message: 'Password changed. Please log in again.' });
 });
 

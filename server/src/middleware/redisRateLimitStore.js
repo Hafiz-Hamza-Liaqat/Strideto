@@ -1,4 +1,16 @@
 import { getRedisClient } from '../config/redis.js';
+import { logger } from '../utils/logger.js';
+
+let degradedLogged = false;
+
+function noteDegradedFallback() {
+  if (process.env.NODE_ENV !== 'production' || degradedLogged) return;
+  degradedLogged = true;
+  logger.warn('rate_limit_degraded', {
+    reason: 'redis_unavailable',
+    fallback: 'process_local_memory',
+  });
+}
 
 /**
  * Shared Redis hit-counter for express-rate-limit v7.
@@ -16,7 +28,10 @@ export function createRedisRateLimitStore(prefix) {
     },
     async increment(key) {
       const redis = await getRedisClient().catch(() => null);
-      if (!redis) return memoryIncrement(memory, key, store.windowMs);
+      if (!redis) {
+        noteDegradedFallback();
+        return memoryIncrement(memory, key, store.windowMs);
+      }
       const full = store.prefix + key;
       const hits = await redis.incr(full);
       if (hits === 1) await redis.pexpire(full, store.windowMs);
@@ -29,7 +44,10 @@ export function createRedisRateLimitStore(prefix) {
     },
     async decrement(key) {
       const redis = await getRedisClient().catch(() => null);
-      if (!redis) return memoryDecrement(memory, key);
+      if (!redis) {
+        noteDegradedFallback();
+        return memoryDecrement(memory, key);
+      }
       const full = store.prefix + key;
       const next = await redis.decr(full);
       if (next < 0) await redis.set(full, 0, 'PX', store.windowMs, 'XX');
