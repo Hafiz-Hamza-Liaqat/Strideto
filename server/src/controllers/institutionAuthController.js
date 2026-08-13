@@ -39,8 +39,9 @@ import { frontendBaseUrl } from '../utils/emailVerification.js';
 import {
   genericRegistrationResponse,
   genericRecoveryResponse,
-  authDeliveryMode,
+  sensitiveTransactionalDeliveryMode,
   issueRealmVerification,
+  reissueUnverifiedIfAllowed,
 } from '../services/auth/realmEmailVerification.js';
 
 const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000;
@@ -119,8 +120,13 @@ export const institutionRegister = asyncHandler(async (req, res) => {
     });
   }
 
-  const existing = await InstitutionAccount.findOne({ email: normalizedEmail });
+  const existing = await InstitutionAccount.findOne({ email: normalizedEmail }).select(
+    '+emailVerificationToken +emailVerificationExpires'
+  );
   if (existing) {
+    if (!existing.emailVerified) {
+      await reissueUnverifiedIfAllowed(existing, 'institution', existing.email);
+    }
     return res.status(201).json(await genericRegistrationResponse());
   }
 
@@ -309,7 +315,7 @@ export const institutionForgotPassword = asyncHandler(async (req, res) => {
     account.passwordResetToken = hashResetToken(token);
     account.passwordResetExpires = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
     await account.save({ validateBeforeSave: false });
-    if ((await authDeliveryMode()) === 'accepted') {
+    if ((await sensitiveTransactionalDeliveryMode()) === 'accepted') {
       await queueEmail({
         to: account.email,
         templateKey: 'passwordReset',

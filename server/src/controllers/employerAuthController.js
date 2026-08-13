@@ -16,11 +16,13 @@ import { frontendBaseUrl } from '../utils/emailVerification.js';
 import { ensureUniqueEmployerSlug } from '../utils/employerSlug.js';
 import { legalAcceptanceMetadata, requireAcceptedTerms } from '../../../shared/legal/policyVersions.js';
 import { validatePassword } from '../validators/authValidator.js';
+import { isE164, normalizePhone } from '../../../shared/international/phone.js';
 import {
   genericRegistrationResponse,
   genericRecoveryResponse,
-  authDeliveryMode,
+  sensitiveTransactionalDeliveryMode,
   issueRealmVerification,
+  reissueUnverifiedIfAllowed,
 } from '../services/auth/realmEmailVerification.js';
 
 /**
@@ -103,8 +105,13 @@ export const employerRegister = asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'Validation failed', details: { password: passwordError } });
   }
   const emailNorm = email.trim().toLowerCase();
-  const existing = await Employer.findOne({ email: emailNorm });
+  const existing = await Employer.findOne({ email: emailNorm }).select(
+    '+emailVerificationToken +emailVerificationExpires'
+  );
   if (existing) {
+    if (!existing.emailVerified) {
+      await reissueUnverifiedIfAllowed(existing, 'employer', existing.companyName);
+    }
     return res.status(201).json(await genericRegistrationResponse());
   }
   const companyNameTrimmed = (companyName || '').trim();
@@ -120,7 +127,12 @@ export const employerRegister = asyncHandler(async (req, res) => {
         companyName: companyNameTrimmed,
         slug,
         email: emailNorm,
-        phone: (phone || '').trim(),
+        phone: (() => {
+          const raw = typeof phone === 'string' ? phone.trim() : '';
+          if (!raw) return '';
+          if (isE164(raw)) return raw;
+          return normalizePhone(raw) || raw;
+        })(),
         website: (website || '').trim(),
         companyDescription: (companyDescription || '').trim(),
         password,
@@ -247,7 +259,7 @@ export const employerForgotPassword = asyncHandler(async (req, res) => {
     employer.passwordResetToken = hashResetToken(token);
     employer.passwordResetExpires = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
     await employer.save({ validateBeforeSave: false });
-    if ((await authDeliveryMode()) === 'accepted') {
+    if ((await sensitiveTransactionalDeliveryMode()) === 'accepted') {
       await queueEmail({
         to: employer.email,
         templateKey: 'passwordReset',

@@ -28,8 +28,9 @@ import { frontendBaseUrl } from '../utils/emailVerification.js';
 import {
   genericRegistrationResponse,
   genericRecoveryResponse,
-  authDeliveryMode,
+  sensitiveTransactionalDeliveryMode,
   issueRealmVerification,
+  reissueUnverifiedIfAllowed,
 } from '../services/auth/realmEmailVerification.js';
 
 const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000;
@@ -91,7 +92,7 @@ export function createAgentRegisterHandler({
   organizationVerificationModel = OrganizationVerification,
   createProfile = getOrCreateProfile,
   writeAudit = logAudit,
-  issueSession = issueSecureAgentSession,
+  issueSession: _issueSession = issueSecureAgentSession,
 } = {}) {
   return async (req, res) => {
   const { email, password, displayName, agentType, countryCode } = req.body || {};
@@ -120,8 +121,13 @@ export function createAgentRegisterHandler({
     return res.status(400).json({ error: 'agentType must be agent or agency' });
   }
 
-  const existing = await agentAccountModel.findOne({ email: normalizedEmail });
+  const existing = await agentAccountModel.findOne({ email: normalizedEmail }).select(
+    '+emailVerificationToken +emailVerificationExpires'
+  );
   if (existing) {
+    if (!existing.emailVerified) {
+      await reissueUnverifiedIfAllowed(existing, 'agent', existing.email);
+    }
     return res.status(201).json(await genericRegistrationResponse());
   }
 
@@ -334,7 +340,7 @@ export const agentForgotPassword = asyncHandler(async (req, res) => {
     account.passwordResetToken = hashResetToken(token);
     account.passwordResetExpires = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
     await account.save({ validateBeforeSave: false });
-    if ((await authDeliveryMode()) === 'accepted') {
+    if ((await sensitiveTransactionalDeliveryMode()) === 'accepted') {
       await queueEmail({
         to: account.email,
         templateKey: 'passwordReset',

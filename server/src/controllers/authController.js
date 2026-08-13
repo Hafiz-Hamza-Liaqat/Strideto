@@ -18,13 +18,10 @@ import { getPermissionsForRole } from '../config/rbac.js';
 import { hashResetToken } from '../utils/tokenStore.js';
 import { legalAcceptanceMetadata } from '../../../shared/legal/policyVersions.js';
 import {
-  applyVerificationTokenFields,
-  buildVerifyEmailUrl,
   clearVerificationTokenFields,
   frontendBaseUrl,
   hashVerificationToken,
   isEmailVerificationRequired,
-  VERIFY_TOKEN_TTL_MS,
 } from '../utils/emailVerification.js';
 import { secureAuthConfig } from '../services/auth/secureAuthConfig.js';
 import { userSecureAuthFlows } from '../services/auth/userSecureAuthFlows.js';
@@ -67,31 +64,6 @@ function toSafeUser(user) {
 
 const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 const FRONTEND_BASE = frontendBaseUrl();
-const GENERIC_RESEND_MESSAGE =
-  'If an unverified account exists for this email, a new verification link has been sent.';
-
-async function issueAndQueueVerification(user) {
-  const rawToken = applyVerificationTokenFields(user);
-  await user.save({ validateBeforeSave: false });
-  const smtpOk = isSmtpConfigured();
-  if (smtpOk) {
-    const result = await queueEmail({
-      to: user.email,
-      templateKey: 'emailVerification',
-      vars: {
-        name: user.name,
-        url: buildVerifyEmailUrl(rawToken),
-        expiresMinutes: Math.round(VERIFY_TOKEN_TTL_MS / 60000),
-      },
-      dedupKey: `verify:${user._id}:${Date.now()}`,
-    });
-    // Direct send: treat hard SMTP errors as delivery unavailable for truthful client messaging.
-    if (result?.error && result?.sent === false) {
-      return { rawToken, smtpOk: false, sendError: result.error };
-    }
-  }
-  return { rawToken, smtpOk };
-}
 
 export const register = asyncHandler(async (req, res) => {
   const { emailError, passwordError, name, termsError } = validateAuthRegister(req.body);
@@ -103,9 +75,12 @@ export const register = asyncHandler(async (req, res) => {
   }
   const email = req.body.email.trim().toLowerCase();
   const referralCode = (req.body.referralCode || req.query.ref || '').trim();
-  const existing = await User.findOne({ email });
+  const existing = await User.findOne({ email }).select('+emailVerificationToken +emailVerificationExpires');
   if (existing) {
-    const { genericRegistrationResponse } = await import('../services/auth/realmEmailVerification.js');
+    const { genericRegistrationResponse, reissueUnverifiedIfAllowed } = await import('../services/auth/realmEmailVerification.js');
+    if (!existing.emailVerified) {
+      await reissueUnverifiedIfAllowed(existing, 'user', existing.name);
+    }
     return res.status(201).json(await genericRegistrationResponse());
   }
   let referredBy = null;
@@ -145,8 +120,8 @@ export const register = asyncHandler(async (req, res) => {
     );
   }
 
-  await issueAndQueueVerification(user);
-  const { genericRegistrationResponse } = await import('../services/auth/realmEmailVerification.js');
+  const { genericRegistrationResponse, issueRealmVerification } = await import('../services/auth/realmEmailVerification.js');
+  await issueRealmVerification(user, 'user', user.name);
   return res.status(201).json(await genericRegistrationResponse());
 });
 
@@ -312,14 +287,14 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   const user = await User.findOne({ email }).select(
     '+passwordResetToken +passwordResetExpires'
   );
-  const { genericRecoveryResponse, authDeliveryMode } = await import('../services/auth/realmEmailVerification.js');
+  const { genericRecoveryResponse, sensitiveTransactionalDeliveryMode } = await import('../services/auth/realmEmailVerification.js');
   if (user) {
     const token = crypto.randomBytes(32).toString('hex');
     user.passwordResetToken = hashResetToken(token);
     user.passwordResetExpires = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
     await user.save({ validateBeforeSave: false });
     const resetUrl = `${FRONTEND_BASE}/auth/reset-password?token=${encodeURIComponent(token)}`;
-    if ((await authDeliveryMode()) === 'accepted') {
+    if ((await sensitiveTransactionalDeliveryMode()) === 'accepted') {
       await queueEmail({
         to: user.email,
         templateKey: 'passwordReset',
@@ -471,40 +446,12 @@ export const resendVerification = asyncHandler(async (req, res) => {
       '+emailVerificationToken +emailVerificationExpires'
     );
     if (!user || user.emailVerified) {
-      return res.json({ message: GENERIC_RESEND_MESSAGE });
+      const { genericRegistrationResponse } = await import('../services/auth/realmEmailVerification.js');
+      return res.json(await genericRegistrationResponse());
     }
   }
 
-  const { smtpOk } = await issueAndQueueVerification(user);
-
-  if (!smtpOk) {
-    if (req.user?.userId) {
-      return res.status(503).json({
-        error: 'Email delivery is not configured. Try again later.',
-        code: 'smtp_not_configured',
-        emailQueued: false,
-        emailMode: 'unavailable',
-      });
-    }
-    return res.json({
-      message: GENERIC_RESEND_MESSAGE,
-      emailQueued: false,
-      emailMode: 'unavailable',
-    });
-  }
-
-  if (req.user?.userId) {
-    return res.json({
-      message: 'Verification email sent',
-      emailQueued: true,
-      emailMode: 'live',
-      expiresInMinutes: Math.round(VERIFY_TOKEN_TTL_MS / 60000),
-    });
-  }
-
-  return res.json({
-    message: GENERIC_RESEND_MESSAGE,
-    emailQueued: true,
-    emailMode: 'live',
-  });
+  const { reissueUnverifiedIfAllowed, genericRegistrationResponse } = await import('../services/auth/realmEmailVerification.js');
+  await reissueUnverifiedIfAllowed(user, 'user', user.name);
+  return res.json(await genericRegistrationResponse());
 });

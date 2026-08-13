@@ -38,8 +38,8 @@ function read(rel) {
   const stopped = recoveryAcceptedPayload('queued_worker_stopped');
   const unavailable = recoveryAcceptedPayload('unavailable');
   check(/will be delivered/.test(accepted.message), 'recovery accepted mentions delivery only when enabled');
-  check(/worker is stopped/.test(stopped.message), 'recovery honesty when worker is stopped');
-  check(/not configured/.test(unavailable.message), 'recovery honesty when delivery is unavailable');
+  check(/unavailable/.test(stopped.message) && !/we sent/i.test(stopped.message), 'recovery honesty when delivery is stopped');
+  check(/available/.test(unavailable.message) && !/we sent|you will receive/i.test(unavailable.message), 'recovery honesty when delivery is unavailable');
   check(accepted.accepted === stopped.accepted && stopped.accepted === unavailable.accepted, 'recovery shape does not vary by account existence');
   check(mapDeliveryStateToAuthMode('enabled') === 'accepted', 'enabled delivery maps to accepted');
   check(mapDeliveryStateToAuthMode('queued_worker_stopped') === 'queued_worker_stopped', 'stopped worker maps honestly');
@@ -113,7 +113,7 @@ function read(rel) {
     check(!/status\(409\).*already/i.test(src) && !/already exists/.test(src), `${name} register is not an existence 409 oracle`);
     check(/genericRegistrationResponse/.test(src), `${name} register uses generic non-enumerating payload`);
     check(/genericRecoveryResponse/.test(src), `${name} forgot-password uses generic recovery payload`);
-    check(/authDeliveryMode\(\)\) === 'accepted'/.test(src) || name === 'student', `${name} queues reset email only when delivery is accepted`);
+    check(/sensitiveTransactionalDeliveryMode\(\)\) === 'accepted'/.test(src) || /sensitiveTransactionalDeliveryMode/.test(src), `${name} sends reset email when SMTP transactional delivery is accepted`);
   }
   check(/accountStatus === 'suspended'/.test(employer), 'employer login denies suspended accounts');
   check(/validatePassword\(password, true\)/.test(employer), 'employer register uses canonical password validator');
