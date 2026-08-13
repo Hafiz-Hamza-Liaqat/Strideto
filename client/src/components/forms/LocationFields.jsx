@@ -1,6 +1,7 @@
 import { FormField } from '../common/FormField.jsx';
 import { CountrySelect } from './CountrySelect.jsx';
 import { inputControlClassName, selectControlClassName } from './controlClasses.js';
+import { regionsForCountry } from '@shared/international/regions.js';
 
 function RegionControl({ id, value, onChange, disabled, error, regionOptions, label }) {
   if (Array.isArray(regionOptions) && regionOptions.length > 0) {
@@ -93,6 +94,10 @@ export function LocationFields({
   const countryCode = value.countryCode || '';
   const region = value.region || '';
   const city = value.city || '';
+  const catalogRegions = regionsForCountry(countryCode);
+  const resolvedRegionOptions = Array.isArray(regionOptions) && regionOptions.length
+    ? regionOptions
+    : catalogRegions;
 
   const patch = (partial) => onChange?.({ countryCode, region, city, ...partial });
 
@@ -104,7 +109,7 @@ export function LocationFields({
           value={countryCode}
           disabled={disabled}
           error={Boolean(errors.countryCode)}
-          onChange={(code) => patch({ countryCode: code })}
+          onChange={(code) => patch({ countryCode: code, region: '', city: '' })}
         />
       </FormField>
 
@@ -115,8 +120,8 @@ export function LocationFields({
           value={region}
           disabled={disabled}
           error={Boolean(errors.region)}
-          regionOptions={regionOptions}
-          onChange={(next) => patch({ region: next })}
+          regionOptions={resolvedRegionOptions}
+          onChange={(next) => patch({ region: next, city: '' })}
         />
       </FormField>
 

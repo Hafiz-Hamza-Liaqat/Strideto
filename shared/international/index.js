@@ -26,3 +26,4 @@ export * from './verification.js';
 export * from './jurisdiction.js';
 export * from './countryReadiness.js';
 export * from './location.js';
+export * from './regions.js';

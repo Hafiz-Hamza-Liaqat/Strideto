@@ -7,20 +7,37 @@ import { sanitizeString } from '../utils/sanitize.js';
 import { awardBadge } from './badgesController.js';
 import { ApplicationMigrationService } from '../services/career/migration/ApplicationMigrationService.js';
 import { projectPublicInternship } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
+import { withFixtureExclusion } from '../../../shared/publicDiscovery/fixtureExclusion.js';
+import { normalizeCountryCode } from '../../../shared/international/country.js';
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
 
 function buildQuery(q) {
-  const filter = { status: 'active' };
+  const filter = withFixtureExclusion({ status: 'active' });
+  const extraAnd = [];
+  const countryCode = normalizeCountryCode(q.countryCode);
+  if (countryCode) extraAnd.push({ countryCode });
+  if (q.region || q.province) {
+    const re = new RegExp(sanitizeString(q.region || q.province), 'i');
+    extraAnd.push({ $or: [{ region: re }, { province: re }] });
+  }
+  if (q.city) extraAnd.push({ city: new RegExp(sanitizeString(q.city), 'i') });
   if (q.location) {
     const loc = new RegExp(sanitizeString(q.location), 'i');
-    filter.$or = [{ location: loc }, { province: loc }];
+    extraAnd.push({ $or: [{ location: loc }, { province: loc }, { region: loc }, { city: loc }] });
   }
-  if (q.province) filter.province = new RegExp(sanitizeString(q.province), 'i');
   if (q.duration) filter.duration = new RegExp(sanitizeString(q.duration), 'i');
   if (q.organization) filter.organization = new RegExp(sanitizeString(q.organization), 'i');
-  if (q.isPaid !== undefined && q.isPaid !== '') {
+  if (q.field) extraAnd.push({ $or: [{ field: new RegExp(sanitizeString(q.field), 'i') }, { skillset: new RegExp(sanitizeString(q.field), 'i') }] });
+  if (q.specialization) filter.specialization = new RegExp(sanitizeString(q.specialization), 'i');
+  if (q.workMode && ['remote', 'hybrid', 'on_site'].includes(q.workMode)) filter.workMode = q.workMode;
+  if (q.applyMethod && ['internal', 'external'].includes(q.applyMethod)) {
+    if (q.applyMethod === 'internal') extraAnd.push({ $or: [{ applyMethod: 'internal' }, { applyInPlatform: true }] });
+    else extraAnd.push({ $or: [{ applyMethod: 'external' }, { applyInPlatform: { $ne: true } }] });
+  }
+  if (q.isPaid === 'unknown' || q.compensation === 'unknown') extraAnd.push({ compensationUnknown: true });
+  else if (q.isPaid !== undefined && q.isPaid !== '') {
     filter.isPaid = q.isPaid === 'true' || q.isPaid === true;
   }
   if (q.skillset && (Array.isArray(q.skillset) ? q.skillset.length : q.skillset)) {
@@ -29,8 +46,9 @@ function buildQuery(q) {
   }
   if (q.search && sanitizeString(q.search)) {
     const re = new RegExp(sanitizeString(q.search), 'i');
-    filter.$and = [{ $or: [{ title: re }, { organization: re }, { description: re }] }];
+    extraAnd.push({ $or: [{ title: re }, { organization: re }, { description: re }] });
   }
+  if (extraAnd.length) filter.$and = [...(filter.$and || []), ...extraAnd];
   return filter;
 }
 

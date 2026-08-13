@@ -1,6 +1,7 @@
 import { Scholarship } from '../models/Scholarship.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { listResponse, paginate } from '../utils/apiResponse.js';
+import { withFixtureExclusion } from '../../../shared/publicDiscovery/fixtureExclusion.js';
 import {
   getRequestLocale,
   withListLocaleFilter,
@@ -14,7 +15,7 @@ const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
 
 function buildScholarshipQuery(q) {
-  const filter = { status: 'active' };
+  const filter = withFixtureExclusion({ status: 'active' });
   if (q.level) filter.level = q.level;
   if (q.country) filter.country = new RegExp(q.country.trim(), 'i');
   if (q.deadline) {
@@ -49,7 +50,7 @@ export const getScholarships = asyncHandler(async (req, res) => {
 export const getScholarshipByIdOrSlug = asyncHandler(async (req, res) => {
   const { idOrSlug } = req.params;
   const locale = getRequestLocale(req);
-  const baseFilter = { status: 'active' };
+  const baseFilter = withFixtureExclusion({ status: 'active' });
   const scholarship = isObjectIdParam(idOrSlug)
     ? await findLocalizedById(Scholarship, idOrSlug, baseFilter, locale)
     : await findLocalizedBySlug(Scholarship, idOrSlug, baseFilter, locale);

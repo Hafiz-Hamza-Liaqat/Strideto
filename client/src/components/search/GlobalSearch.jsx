@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { searchApi } from '../../services/searchApi';
 import { entityTypeLabel } from '@shared/search/entityTypes.js';
 import { SEARCH_DEBOUNCE_MS } from '@shared/search/rankingWeights.js';
+import { CountrySelect } from '../forms/CountrySelect';
 import { ROUTES } from '../../constants';
 
 /**
@@ -21,6 +22,9 @@ export function GlobalSearch({
   provinces = [],
   province = '',
   onProvinceChange,
+  showCountryFilter = false,
+  countryCode = '',
+  onCountryChange,
   onNavigate,
   inputClassName = '',
   selectClassName = '',
@@ -49,6 +53,7 @@ export function GlobalSearch({
     }
     setLoading(true);
     const params = {};
+    if (countryCode) params.countryCode = countryCode;
     if (province) params.province = province;
     if (category) params.type = category;
     searchApi.suggestions(q, params)
@@ -63,7 +68,7 @@ export function GlobalSearch({
         setAnnounce('Search unavailable');
       })
       .finally(() => setLoading(false));
-  }, [province, category]);
+  }, [province, category, countryCode]);
 
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
@@ -76,6 +81,7 @@ export function GlobalSearch({
     if (!term) return;
     setOpen(false);
     const params = new URLSearchParams({ q: term });
+    if (countryCode) params.set('countryCode', countryCode);
     if (province) params.set('province', province);
     if (category) params.set('type', category);
     const path = `${ROUTES.SEARCH}?${params.toString()}`;
@@ -133,7 +139,7 @@ export function GlobalSearch({
               onCategoryChange?.(match);
             }}
             className={baseSelect}
-            aria-label={t('category', { defaultValue: 'Category' })}
+            aria-label={t('opportunityType', { defaultValue: 'Opportunity type' })}
           >
             {categories.map((c) => (
               <option key={c.value} value={c.value} className="text-gray-900">
@@ -228,6 +234,20 @@ export function GlobalSearch({
             </ul>
           )}
         </div>
+
+        {showCountryFilter ? (
+          <div className="w-full sm:w-52 shrink-0">
+            <CountrySelect
+              allowAll
+              value={countryCode}
+              onChange={(code) => onCountryChange?.(code || '')}
+              placeholder={t('searchCountry', { defaultValue: 'Search country...' })}
+              allLabel={t('allCountries', { defaultValue: 'All countries' })}
+              inputClassName={baseSelect}
+              listClassName="absolute z-40 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800"
+            />
+          </div>
+        ) : null}
 
         {showProvinceFilter && provinces?.length ? (
           <select

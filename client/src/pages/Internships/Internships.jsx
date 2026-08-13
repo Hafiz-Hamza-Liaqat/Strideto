@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
 import { breadcrumbSchema, collectionPageSchema, combineSchemas } from '../../seo/schemas';
@@ -15,19 +15,34 @@ import { formatDate } from '../../utils/formatDate';
 import { EmptyState } from '../../components/common/EmptyState';
 import { Alert } from '../../components/ui/Alerts';
 import { NO_GUARANTEE_DISCLAIMER } from '@shared/publicDiscovery/publicTruth.js';
+import { LocationCascadeFilter } from '../../components/forms/LocationCascadeFilter';
+import { countryDisplayName } from '@shared/international/country.js';
 
 const PER_PAGE = 10;
 const DURATIONS = ['2 months', '3 months', '4 months', '6 months'];
-const PROVINCES = ['Punjab', 'Sindh', 'KPK', 'Islamabad', 'Balochistan'];
-const CITIES = ['Lahore', 'Karachi', 'Islamabad', 'Rawalpindi', 'Faisalabad', 'Multan', 'Peshawar', 'Quetta'];
 const FIELDS = ['Software', 'Marketing', 'Finance', 'HR', 'Design', 'Data', 'Engineering', 'Content'];
+const selectClass =
+  'rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm [color-scheme:light] dark:[color-scheme:dark]';
 
 export default function Internships() {
   const { t } = useTranslation(['internships', 'common', 'navbar']);
   const { isAuthenticated } = useAuth();
   const [savedIds, setSavedIds] = useState(new Set());
 
-  const initialParams = { limit: PER_PAGE, page: 1 };
+  const location = useLocation();
+  const initialParams = {
+    limit: PER_PAGE,
+    page: 1,
+    ...(typeof window !== 'undefined' && (() => {
+      const p = new URLSearchParams(location.search);
+      const o = {};
+      ['countryCode', 'region', 'city', 'field', 'specialization', 'workMode', 'isPaid', 'duration', 'applyMethod', 'search'].forEach((key) => {
+        const val = p.get(key);
+        if (val) o[key] = val;
+      });
+      return o;
+    })()),
+  };
   const { data, totalPages, loading, error, params, setPage, setFilters } = useListings(internshipsApi.list, initialParams);
 
   useEffect(() => {
@@ -76,59 +91,44 @@ export default function Internships() {
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('title', { ns: 'internships' })}</h1>
         <p className="text-gray-600 dark:text-gray-400 mb-6">{t('subtitle', { ns: 'internships' })}</p>
 
-        <div className="flex flex-col lg:flex-row gap-4 mb-6">
-          <div className="flex-1">
-            <SearchBar placeholder={t('searchPlaceholder', { ns: 'internships' })} onSearch={(q) => setFilters({ search: q || undefined })} />
-          </div>
+        <div className="flex flex-col gap-4 mb-6">
+          <SearchBar placeholder={t('searchPlaceholder', { ns: 'internships' })} onSearch={(q) => setFilters({ search: q || undefined })} />
+          <LocationCascadeFilter
+            countryCode={params.countryCode || ''}
+            region={params.region || ''}
+            city={params.city || ''}
+            selectClassName={selectClass}
+            onChange={({ countryCode, region, city }) => setFilters({
+              countryCode: countryCode || undefined,
+              region: region || undefined,
+              city: city || undefined,
+            })}
+          />
           <div className="flex flex-wrap gap-2 items-center">
-            <select
-              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
-              value={params.province || ''}
-              onChange={(e) => setFilters({ province: e.target.value || undefined })}
-            >
-              <option value="">{t('allProvinces', { ns: 'internships' })}</option>
-              {PROVINCES.map((p) => (
-                <option key={p} value={p}>{p}</option>
-              ))}
-            </select>
-            <select
-              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
-              value={params.location || ''}
-              onChange={(e) => setFilters({ location: e.target.value || undefined })}
-            >
-              <option value="">{t('allCities', { ns: 'internships' })}</option>
-              {CITIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-            <select
-              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
-              value={params.skillset || ''}
-              onChange={(e) => setFilters({ skillset: e.target.value || undefined })}
-            >
+            <select className={selectClass} value={params.field || ''} onChange={(e) => setFilters({ field: e.target.value || undefined })}>
               <option value="">{t('anyField', { ns: 'internships' })}</option>
-              {FIELDS.map((f) => (
-                <option key={f} value={f}>{f}</option>
-              ))}
+              {FIELDS.map((f) => <option key={f} value={f}>{f}</option>)}
             </select>
-            <select
-              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
-              value={params.isPaid ?? ''}
-              onChange={(e) => setFilters({ isPaid: e.target.value === '' ? undefined : e.target.value })}
-            >
-              <option value="">{t('paidUnpaid', { ns: 'internships' })}</option>
+            <select className={selectClass} value={params.workMode || ''} onChange={(e) => setFilters({ workMode: e.target.value || undefined })}>
+              <option value="">Work mode</option>
+              <option value="remote">Remote</option>
+              <option value="hybrid">Hybrid</option>
+              <option value="on_site">On-site</option>
+            </select>
+            <select className={selectClass} value={params.isPaid ?? ''} onChange={(e) => setFilters({ isPaid: e.target.value === '' ? undefined : e.target.value })}>
+              <option value="">Compensation</option>
               <option value="true">{t('paid', { ns: 'internships' })}</option>
               <option value="false">{t('unpaid', { ns: 'internships' })}</option>
+              <option value="unknown">Unknown</option>
             </select>
-            <select
-              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
-              value={params.duration || ''}
-              onChange={(e) => setFilters({ duration: e.target.value || undefined })}
-            >
+            <select className={selectClass} value={params.duration || ''} onChange={(e) => setFilters({ duration: e.target.value || undefined })}>
               <option value="">{t('anyDuration', { ns: 'internships' })}</option>
-              {DURATIONS.map((d) => (
-                <option key={d} value={d}>{d}</option>
-              ))}
+              {DURATIONS.map((d) => <option key={d} value={d}>{d}</option>)}
+            </select>
+            <select className={selectClass} value={params.applyMethod || ''} onChange={(e) => setFilters({ applyMethod: e.target.value || undefined })}>
+              <option value="">Application method</option>
+              <option value="internal">On Strideto</option>
+              <option value="external">Official website</option>
             </select>
           </div>
         </div>
@@ -153,10 +153,13 @@ export default function Internships() {
                       </Link>
                       <p className="text-gray-600 dark:text-gray-400 mt-1 break-words-safe">{item.organization}</p>
                       {item.internshipType ? <p className="text-xs text-gray-500 mt-1">{item.internshipType}</p> : null}
-                      <p className="text-xs text-gray-500 mt-1">{item.applyInPlatform ? 'Apply on Strideto' : 'Apply on official website'}</p>
+                      <p className="text-xs text-gray-500 mt-1">{item.applyInPlatform || item.applyMethod === 'internal' ? 'Apply on Strideto' : 'Apply on official website'}</p>
                       <div className="flex flex-wrap gap-2 mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        {item.location && <span>{item.location}</span>}
-                        {item.province && <span> · {item.province}</span>}
+                        {(item.countryCode || item.location || item.region || item.province) && (
+                          <span>
+                            {[item.city, item.region || item.province, item.countryCode ? countryDisplayName(item.countryCode) : null].filter(Boolean).join(', ') || item.location}
+                          </span>
+                        )}
                         {item.duration && <span> · {item.duration}</span>}
                         {item.deadline && <span> · {t('deadlinePrefix', { ns: 'internships' })} {formatDate(item.deadline)}</span>}
                       </div>

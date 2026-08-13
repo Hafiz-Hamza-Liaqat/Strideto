@@ -10,7 +10,6 @@ import { ROUTES } from '../../constants';
 import {
   JOB_FAMILIES,
   SPECIALIZATIONS_BY_FAMILY,
-  PROVINCES,
   SORT_OPTIONS,
   countryDisplayName,
 } from '../../constants/listings';
@@ -23,7 +22,7 @@ import { EmptyState } from '../../components/common/EmptyState';
 import { formatDate } from '../../utils/formatDate';
 import { useAuth } from '../../context/AuthContext';
 import { AdHost } from '../../components/ads';
-import { ScrollReveal } from '../../components/ui/ScrollReveal';
+import { LocationCascadeFilter } from '../../components/forms/LocationCascadeFilter';
 
 const PER_PAGE = 10;
 
@@ -33,15 +32,7 @@ const JOB_SORT_KEYS = {
 };
 
 const selectClass =
-  'w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm';
-
-function mergeRegionOptions(facetRegions, countryCode) {
-  const set = new Set(facetRegions || []);
-  if (countryCode === 'PK') {
-    PROVINCES.forEach((p) => set.add(p));
-  }
-  return [...set].sort((a, b) => a.localeCompare(b));
-}
+  'w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm [color-scheme:light] dark:[color-scheme:dark]';
 
 export default function Jobs() {
   const { t } = useTranslation(['jobs', 'common', 'navbar']);
@@ -58,7 +49,7 @@ export default function Jobs() {
     ...(typeof window !== 'undefined' && (() => {
       const p = new URLSearchParams(location.search);
       const o = {};
-      ['countryCode', 'region', 'province', 'city', 'jobFamily', 'specialization', 'category', 'organization', 'deadline', 'type', 'applyType', 'search'].forEach((key) => {
+      ['countryCode', 'region', 'province', 'city', 'jobFamily', 'specialization', 'category', 'organization', 'deadline', 'type', 'applyType', 'workMode', 'search'].forEach((key) => {
         const val = p.get(key);
         if (val) o[key] = val;
       });
@@ -101,23 +92,6 @@ export default function Jobs() {
     setFilters({ search: q || undefined });
   };
 
-  const handleCountryChange = (value) => {
-    setFilters({
-      countryCode: value || undefined,
-      region: undefined,
-      province: undefined,
-      city: undefined,
-    });
-  };
-
-  const handleRegionChange = (value) => {
-    setFilters({
-      region: value || undefined,
-      province: value || undefined,
-      city: undefined,
-    });
-  };
-
   const handleJobFamilyChange = (value) => {
     setFilters({
       jobFamily: value || undefined,
@@ -138,6 +112,7 @@ export default function Jobs() {
     deadline: undefined,
     type: undefined,
     applyType: undefined,
+    workMode: undefined,
     search: undefined,
   });
 
@@ -152,7 +127,6 @@ export default function Jobs() {
     });
   };
 
-  const regionOptions = mergeRegionOptions(geoFacets.regions, countryCode);
   const seoTitle = t('seoTitle', { ns: 'jobs' });
   const seoDescription = t('seoDescription', { ns: 'jobs' });
 
@@ -223,44 +197,23 @@ export default function Jobs() {
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                 {t('countryLabel', { ns: 'jobs', defaultValue: 'Country' })}
               </label>
-              <select value={countryCode} onChange={(e) => handleCountryChange(e.target.value)} className={selectClass}>
-                <option value="">{t('all', { ns: 'common' })}</option>
-                {geoFacets.countries.map((code) => (
-                  <option key={code} value={code}>{countryDisplayName(code) || code}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                {t('regionLabel', { ns: 'jobs', defaultValue: 'State / Province / Region' })}
-              </label>
-              <select
-                value={regionValue}
-                onChange={(e) => handleRegionChange(e.target.value)}
-                className={selectClass}
-                disabled={!countryCode}
-              >
-                <option value="">{t('all', { ns: 'common' })}</option>
-                {regionOptions.map((p) => (
-                  <option key={p} value={p}>{p}</option>
-                ))}
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                {t('cityLabel', { ns: 'jobs', defaultValue: 'City' })}
-              </label>
-              <select
-                value={params.city || ''}
-                onChange={(e) => setFilters({ city: e.target.value || undefined })}
-                className={selectClass}
-                disabled={!countryCode}
-              >
-                <option value="">{t('all', { ns: 'common' })}</option>
-                {geoFacets.cities.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+              <LocationCascadeFilter
+                className="flex flex-col gap-2"
+                countryCode={countryCode}
+                region={regionValue}
+                city={params.city || ''}
+                facetRegions={geoFacets.regions}
+                facetCities={geoFacets.cities}
+                selectClassName={selectClass}
+                onChange={({ countryCode: nextCountry, region: nextRegion, city: nextCity }) => {
+                  setFilters({
+                    countryCode: nextCountry || undefined,
+                    region: nextRegion || undefined,
+                    province: nextRegion || undefined,
+                    city: nextCity || undefined,
+                  });
+                }}
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
@@ -316,6 +269,15 @@ export default function Jobs() {
                 <option value="part-time">Part-time</option>
                 <option value="contract">Contract</option>
                 <option value="internship">Internship</option>
+              </select>
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('workModeLabel', { ns: 'jobs', defaultValue: 'Work mode' })}</label>
+              <select value={params.workMode || ''} onChange={(e) => setFilters({ workMode: e.target.value || undefined })} className={selectClass}>
+                <option value="">{t('all', { ns: 'common' })}</option>
+                <option value="remote">Remote</option>
+                <option value="hybrid">Hybrid</option>
+                <option value="on_site">On-site</option>
               </select>
             </div>
             <div>

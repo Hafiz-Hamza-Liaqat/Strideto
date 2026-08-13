@@ -26,6 +26,7 @@
     "seed:exam-prep": "node src/scripts/archive/seed-legacy/seedExamPrep.js",
     "seed:phase9": "node src/scripts/archive/seed-legacy/seedPhase9.js",
     "seed:launch": "node src/scripts/seedLaunchContent.js",
+    "seed:local-qa-internships": "node src/scripts/seedLocalQaInternships.js",
     "seed:assessments": "node src/scripts/seedAssessments.js",
     "seed:beta": "node src/scripts/seedBetaContent.js",
     "seed": "node src/seed/index.js",

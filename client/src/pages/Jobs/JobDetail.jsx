@@ -38,6 +38,29 @@ const JOB_TYPE_BADGE = {
 const ACTION_PRIMARY = 'inline-flex items-center justify-center min-h-[44px] px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover btn-theme disabled:opacity-50 w-full sm:w-auto';
 const ACTION_SECONDARY = 'inline-flex items-center justify-center min-h-[44px] px-4 py-2 rounded-lg border-2 border-primary text-primary dark:text-mint hover:bg-mint/20 dark:hover:bg-mint/10 font-medium btn-theme disabled:opacity-50 w-full sm:w-auto';
 
+function JobDiscoveryCard({ job, ctaLabel }) {
+  const workMode = job.workMode || (job.remote ? 'remote' : job.hybrid ? 'hybrid' : '');
+  const locationLine = [job.city, job.region || job.province || job.location].filter(Boolean).join(', ');
+  return (
+    <Link
+      to={`${ROUTES.JOBS}/${job.slug || job._id}`}
+      className="interactive-card block p-4 min-w-0 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+    >
+      <h3 className="font-semibold text-gray-900 dark:text-white break-words-safe">{job.title}</h3>
+      <p className="text-sm text-gray-600 dark:text-gray-400 break-words-safe mt-0.5">{job.organization || job.company}</p>
+      <p className="text-xs text-gray-500 dark:text-gray-400 mt-2 break-words-safe">
+        {[locationLine, workMode ? (WORK_MODE_LABELS[workMode] || job.type) : job.type, job.deadline ? formatDate(job.deadline) : null].filter(Boolean).join(' · ')}
+      </p>
+      {job.openingsCount ? (
+        <p className="text-xs text-gray-500 mt-1">{job.openingsCount} opening{job.openingsCount === 1 ? '' : 's'}</p>
+      ) : null}
+      <span className="inline-flex mt-3 min-h-[44px] items-center text-sm font-medium text-primary dark:text-mint">
+        {ctaLabel}
+      </span>
+    </Link>
+  );
+}
+
 function Fact({ label, value }) {
   if (value == null || value === '') return null;
   return (
@@ -495,11 +518,7 @@ export default function JobDetail() {
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{t('similarJobs', { ns: 'jobs' })}</h2>
             <div className="grid sm:grid-cols-2 gap-4">
               {related.map((r) => (
-                <Link key={r._id} to={`${ROUTES.JOBS}/${r.slug || r._id}`} className="block p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md card-hover min-w-0">
-                  <h3 className="font-semibold text-gray-900 dark:text-white break-words-safe">{r.title}</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 break-words-safe">{r.organization || r.company}</p>
-                  <p className="text-xs text-gray-500 mt-1 break-words-safe">{r.province || r.location} · {formatDate(r.deadline)}</p>
-                </Link>
+                <JobDiscoveryCard key={r._id} job={r} ctaLabel={t('viewJob', { ns: 'jobs', defaultValue: 'View Job' })} />
               ))}
             </div>
           </section>
@@ -510,11 +529,7 @@ export default function JobDetail() {
             <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{t('recommendedLower', { ns: 'jobs' })}</h2>
             <div className="grid sm:grid-cols-2 gap-4">
               {recommended.filter((r) => r._id !== job._id).slice(0, 4).map((r) => (
-                <Link key={r._id} to={`${ROUTES.JOBS}/${r.slug || r._id}`} className="block p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md card-hover min-w-0">
-                  <h3 className="font-semibold text-gray-900 dark:text-white break-words-safe">{r.title}</h3>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 break-words-safe">{r.organization || r.company}</p>
-                  <p className="text-xs text-gray-500 mt-1">{r.province || r.location} · {formatDate(r.deadline)}</p>
-                </Link>
+                <JobDiscoveryCard key={r._id} job={r} ctaLabel={t('viewJob', { ns: 'jobs', defaultValue: 'View Job' })} />
               ))}
             </div>
           </section>

@@ -43,11 +43,10 @@ export function defaultHeaderItems() {
       visible: true,
       order: 7,
       children: [
-        { label: 'Agents & agencies', path: '/agents', visible: true, order: 0 },
-        { label: 'Professional services', path: '/agents/marketplace', visible: true, order: 1 },
+        { label: 'Agents & Agencies', path: '/agents', visible: true, order: 0 },
+        { label: 'Professional Marketplace', path: '/agents/marketplace', visible: true, order: 1 },
         { label: 'Career Guidance', path: '/career-guidance', visible: true, order: 2 },
         { label: 'Resume Builder', path: '/resume-builder', visible: true, order: 3 },
-        { label: 'Help Center', path: '/help-center', visible: true, order: 4 },
       ],
     },
   ];
@@ -62,32 +61,44 @@ function defaultFooterColumns() {
         { label: 'Internships', path: '/internships' },
         { label: 'Scholarships & Funding', path: '/scholarships' },
         { label: 'Admissions & Intakes', path: '/admissions' },
-        { label: 'Study & Institutions', path: '/program-explorer' },
+      ],
+    },
+    {
+      title: 'Study & Prepare',
+      links: [
+        { label: 'Program Explorer', path: '/program-explorer' },
+        { label: 'Schools & Colleges', path: '/schools-and-colleges' },
+        { label: 'Foreign Studies', path: '/foreign-studies' },
+        { label: 'International Scholarships', path: '/intl-scholarships' },
         { label: 'Tests & Prep', path: '/tests' },
+        { label: 'Exam Prep', path: '/exam-prep' },
       ],
     },
     {
       title: 'Services',
       links: [
-        { label: 'Agents / Professional Services', path: '/agents' },
-        { label: 'Professional marketplace', path: '/agents/marketplace' },
+        { label: 'Agents & Agencies', path: '/agents' },
+        { label: 'Professional Marketplace', path: '/agents/marketplace' },
         { label: 'Career Guidance', path: '/career-guidance' },
         { label: 'Resume Builder', path: '/resume-builder' },
       ],
     },
     {
-      title: 'For organizations',
+      title: 'For Organizations',
       links: [
-        { label: 'Employer', path: '/employer/login' },
+        { label: 'Employer Portal', path: '/employer/login' },
         { label: 'Agent / Agency', path: '/agent/login' },
         { label: 'Institution', path: '/institution/login' },
       ],
     },
     {
-      title: 'Support',
+      title: 'Resources & Support',
       links: [
-        { label: 'Help', path: '/help-center' },
-        { label: 'Contact / Support', path: '/support' },
+        { label: 'Career Blog & Articles', path: '/blog' },
+        { label: 'Help Center', path: '/help-center' },
+        { label: 'FAQ', path: '/faq' },
+        { label: 'Support', path: '/support' },
+        { label: 'Contact', path: '/contact' },
         { label: 'Sitemap', path: '/sitemap' },
       ],
     },
@@ -95,9 +106,10 @@ function defaultFooterColumns() {
       title: 'Legal',
       links: [
         { label: 'Privacy Policy', path: '/privacy-policy' },
-        { label: 'Terms of Service', path: '/terms' },
-        { label: 'Refund / Payment Policy', path: '/refund-policy' },
+        { label: 'Terms & Conditions', path: '/terms' },
+        { label: 'Refund Policy', path: '/refund-policy' },
         { label: 'Cookie Policy', path: '/cookies' },
+        { label: 'Disclaimer', path: '/disclaimer' },
       ],
     },
   ];
@@ -151,12 +163,13 @@ export async function seedCmsSiteContent() {
       {
         status: 'draft',
         hero: {
-          headline: 'Find Jobs, Scholarships & Admissions in Pakistan',
-          subheadline: 'Find jobs, scholarships, admissions, and study abroad opportunities — all in one place.',
+          headline: 'Find jobs, scholarships, admissions, and career resources worldwide',
+          subheadline: 'Discover jobs, scholarships, admissions, internships, and study opportunities — all in one place.',
           ctas: [
-            { label: 'Government Jobs', url: '/jobs', style: 'secondary' },
+            { label: 'Jobs', url: '/jobs', style: 'secondary' },
             { label: 'Scholarships', url: '/scholarships', style: 'secondary' },
-            { label: 'Start Exploring', url: '/jobs', style: 'primary' },
+            { label: 'Admissions', url: '/admissions', style: 'secondary' },
+            { label: 'Internships', url: '/internships', style: 'secondary' },
           ],
         },
         stats: [
@@ -172,8 +185,8 @@ export async function seedCmsSiteContent() {
           partners: { enabled: false, title: 'Our Partners', logos: [] },
           newsletter: { enabled: true, title: 'Get Daily Job & Scholarship Alerts', subtitle: 'Subscribe and we\'ll send you the latest opportunities.' },
         },
-        seoTitle: 'Strideto – Jobs & Education Portal Pakistan',
-        metaDescription: 'Pakistan\'s job and education portal. Find jobs, scholarships, admissions, internships, and study abroad opportunities.',
+        seoTitle: 'Strideto – Jobs, Scholarships, Admissions & Career Platform',
+        metaDescription: 'Discover jobs, scholarships, admissions, internships, and career resources worldwide.',
       }
     );
     stats.homepage[homepageResult] += 1;
@@ -225,12 +238,13 @@ export async function seedCmsSiteContent() {
 }
 
 const DEFAULT_HERO = {
-  headline: 'Find Jobs, Scholarships & Admissions in Pakistan',
-  subheadline: 'Find jobs, scholarships, admissions, and study abroad opportunities — all in one place.',
+  headline: 'Find jobs, scholarships, admissions, and career resources worldwide',
+  subheadline: 'Discover jobs, scholarships, admissions, internships, and study opportunities — all in one place.',
   ctas: [
-    { label: 'Government Jobs', url: '/jobs', style: 'secondary' },
+    { label: 'Jobs', url: '/jobs', style: 'secondary' },
     { label: 'Scholarships', url: '/scholarships', style: 'secondary' },
-    { label: 'Start Exploring', url: '/jobs', style: 'primary' },
+    { label: 'Admissions', url: '/admissions', style: 'secondary' },
+    { label: 'Internships', url: '/internships', style: 'secondary' },
   ],
 };
 

@@ -8,7 +8,7 @@ import {
   projectPublicJobListItem,
 } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 import { normalizeCountryCode } from '../../../shared/international/country.js';
-import { isValidJobFamily, isValidSpecialization } from '../../../shared/career/jobTaxonomy.js';
+import { withFixtureExclusion } from '../../../shared/publicDiscovery/fixtureExclusion.js';
 import {
   getRequestLocale,
   withListLocaleFilter,
@@ -31,13 +31,13 @@ const PUBLIC_PUBLICATION_OR = [
 ];
 
 export function buildPublicJobFilter() {
-  return {
+  return withFixtureExclusion({
     status: 'active',
     $and: [
       { $or: PUBLIC_APPROVAL_OR },
       { $or: PUBLIC_PUBLICATION_OR },
     ],
-  };
+  });
 }
 
 function safeSearchRe(value) {
@@ -88,6 +88,9 @@ function buildJobQuery(q) {
   if (q.applyType && (q.applyType === 'internal' || q.applyType === 'external')) {
     filter.applyType = q.applyType;
   }
+  if (q.workMode === 'remote') extraAnd.push({ remote: true });
+  else if (q.workMode === 'hybrid') extraAnd.push({ hybrid: true });
+  else if (q.workMode === 'on_site') extraAnd.push({ remote: { $ne: true }, hybrid: { $ne: true } });
   if (q.search && q.search.trim()) {
     const re = safeSearchRe(q.search);
     if (re) {

@@ -1,6 +1,6 @@
 {
   "seoTitle": "Career Guidance – Strideto",
-  "seoDescription": "Career paths by degree, skill development, and resume & interview tips for Pakistani students.",
+  "seoDescription": "Career paths by degree, skill development, and resume & interview tips for students worldwide.",
   "title": "Career Guidance",
   "subtitle": "Choose your path, build in-demand skills, and get ready for jobs and interviews.",
   "backToDashboard": "← Dashboard",
@@ -58,7 +58,7 @@
   },
   "articles": {
     "choosingPath": { "title": "Choosing the Right Career Path", "description": "Understand your interests, skills, and market demand to decide your field.", "tag": "Career" },
-    "employerSkills": { "title": "Skills That Employers Look For", "description": "Technical and soft skills that increase your employability in Pakistan.", "tag": "Skills" },
+    "employerSkills": { "title": "Skills That Employers Look For", "description": "Technical and soft skills that increase employability. Salary examples are jurisdiction-specific when shown.", "tag": "Skills" },
     "interviewPrep": { "title": "How to Prepare for Job Interviews", "description": "Common questions, body language, and follow-up tips.", "tag": "Jobs" },
     "examPrep": { "title": "FPSC & PPSC Exam Preparation", "description": "Syllabus, past papers, and time management for government exams.", "tag": "Exam Prep" },
     "networking": { "title": "Building a Professional Network", "description": "LinkedIn, alumni networks, and industry events.", "tag": "Career" },

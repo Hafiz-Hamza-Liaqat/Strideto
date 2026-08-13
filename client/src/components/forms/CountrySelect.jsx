@@ -36,7 +36,9 @@ export function CountrySelect({
   id,
   error = false,
   className = '',
-  placeholder = 'Search countries…',
+  inputClassName = '',
+  listClassName = '',
+  placeholder = 'Search country...',
   allLabel = 'All countries',
 }) {
   const locale = useDisplayLocale();
@@ -44,6 +46,7 @@ export function CountrySelect({
   const rootRef = useRef(null);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
+  const [activeIndex, setActiveIndex] = useState(0);
 
   const normalizedValue =
     normalizeCountryCode(value) || (allowAll && value === '' ? '' : coerceCountryCode(value) || '');
@@ -66,6 +69,7 @@ export function CountrySelect({
 
   useEffect(() => {
     if (!open) setQuery('');
+    setActiveIndex(0);
   }, [open]);
 
   useEffect(() => {
@@ -99,24 +103,46 @@ export function CountrySelect({
           if (!open) setOpen(true);
         }}
         onKeyDown={(event) => {
-          if (event.key === 'Escape') setOpen(false);
+          if (event.key === 'Escape') {
+            setOpen(false);
+            return;
+          }
+          if (event.key === 'ArrowDown') {
+            event.preventDefault();
+            if (!open) setOpen(true);
+            setActiveIndex((i) => Math.min(i + 1, Math.max(options.length - 1, 0)));
+            return;
+          }
+          if (event.key === 'ArrowUp') {
+            event.preventDefault();
+            setActiveIndex((i) => Math.max(i - 1, 0));
+            return;
+          }
+          if (event.key === 'Enter' && open && options[activeIndex]) {
+            event.preventDefault();
+            pick(options[activeIndex].code);
+          }
         }}
-        className={inputControlClassName({ error })}
+        className={inputClassName || inputControlClassName({ error })}
       />
       {open && !disabled ? (
         <ul
           id={listId}
           role="listbox"
-          className="absolute z-30 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800"
+          className={listClassName || 'absolute z-40 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800'}
         >
           {options.length === 0 ? (
             <li className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">No matches</li>
           ) : (
-            options.map((row) => (
+            options.map((row, idx) => (
               <li key={row.code || '__all'} role="option" aria-selected={row.code === normalizedValue}>
                 <button
                   type="button"
-                  className="flex w-full items-center justify-between px-3 py-2 text-start text-sm text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-700"
+                  className={`flex w-full items-center justify-between px-3 py-2 text-start text-sm min-h-[44px] ${
+                    idx === activeIndex
+                      ? 'bg-primary/10 text-primary dark:bg-mint/15 dark:text-mint'
+                      : 'text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-700'
+                  }`}
                   onMouseDown={(event) => event.preventDefault()}
                   onClick={() => pick(row.code)}
                 >

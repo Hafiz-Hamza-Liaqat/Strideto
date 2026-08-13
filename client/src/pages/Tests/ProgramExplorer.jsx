@@ -12,13 +12,14 @@ import { programIntelligenceApi } from '../../services/listingsService';
 import { ROUTES } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
 import { Pagination } from '../../components/ui/Pagination';
+import { checkSaved, saveOpportunity, unsaveOpportunity } from '../../services/actionEngineService';
 import { formatMoney } from '@shared/international/dateDisplay.js';
 import { countryDisplayName } from '@shared/international/country.js';
 import { formatPublicDateOnly, APPLICATION_MODE_LABELS, NO_GUARANTEE_DISCLAIMER, NOT_SPECIFIED } from '@shared/publicDiscovery/publicTruth.js';
 import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
 import { ProvenanceStrip } from '../../components/public/ProvenanceStrip';
 import { testsApi } from '../../services/listingsService';
-import { fallbackScopeLabel, ACCEPTANCE_SCOPES } from '@shared/education/acceptanceExplorer.js';
+import { CountrySelect } from '../../components/forms/CountrySelect';
 
 const DEGREE_LABELS = {
   high_school: 'High School',
@@ -79,7 +80,7 @@ function ProgramCard({ program }) {
   return (
     <Link
       to={detailPath}
-      className="block rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 hover:shadow-md transition-shadow"
+      className="interactive-card block p-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
     >
       <h3 className="text-base font-semibold text-gray-900 dark:text-white line-clamp-2">
         {program.name}
@@ -122,19 +123,16 @@ function ProgramCard({ program }) {
 
 // ── Program List page ─────────────────────────────────────────────────────────
 
-function FilterBar({ filters, onChange, countries = [] }) {
+function FilterBar({ filters, onChange }) {
   return (
     <div className="flex flex-wrap gap-3">
-      <select
-        value={filters.country || ''}
-        onChange={(e) => onChange({ ...filters, country: e.target.value || undefined, page: 1 })}
-        className="text-sm border border-gray-300 dark:border-gray-600 rounded-lg px-3 py-2 bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300"
-      >
-        <option value="">All Countries</option>
-        {countries.map((code) => (
-          <option key={code} value={code}>{countryDisplayName(code) || code}</option>
-        ))}
-      </select>
+      <div className="w-full sm:w-64">
+        <CountrySelect
+          allowAll
+          value={filters.country || ''}
+          onChange={(code) => onChange({ ...filters, country: code || undefined, page: 1 })}
+        />
+      </div>
 
       <select
         value={filters.degree || ''}
@@ -173,18 +171,14 @@ function FilterBar({ filters, onChange, countries = [] }) {
 }
 
 export function ProgramExplorerList() {
-  const [filters, setFilters] = useState({ page: 1, limit: PAGE_SIZE });
+  const location = useLocation();
+  const urlCountry = typeof window !== 'undefined' ? new URLSearchParams(location.search).get('country') || undefined : undefined;
+  const urlSearch = typeof window !== 'undefined' ? new URLSearchParams(location.search).get('search') || undefined : undefined;
+  const [filters, setFilters] = useState({ page: 1, limit: PAGE_SIZE, country: urlCountry, search: urlSearch });
   const [data, setData] = useState([]);
   const [pagination, setPagination] = useState({ page: 1, total: 0, pages: 1 });
-  const [countryOptions, setCountryOptions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-
-  useEffect(() => {
-    programIntelligenceApi.facets()
-      .then(({ data: d }) => setCountryOptions(d?.countries || []))
-      .catch(() => setCountryOptions([]));
-  }, []);
 
   const fetchData = useCallback(async (params) => {
     setLoading(true);
@@ -219,7 +213,7 @@ export function ProgramExplorerList() {
           </div>
 
           <div className="mb-6">
-            <FilterBar filters={filters} onChange={(f) => setFilters(f)} countries={countryOptions} />
+            <FilterBar filters={filters} onChange={(f) => setFilters(f)} />
           </div>
 
           {error && (
@@ -236,7 +230,9 @@ export function ProgramExplorerList() {
             </div>
           ) : data.length === 0 ? (
             <div className="py-20 text-center text-gray-500 dark:text-gray-400">
-              No programs found matching your filters.
+              {filters.country
+                ? `No published programs are currently listed for ${countryDisplayName(filters.country) || filters.country}.`
+                : 'No programs found matching your filters.'}
             </div>
           ) : (
             <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -335,6 +331,8 @@ export function ProgramExplorerDetail() {
   const [acceptanceFallback, setAcceptanceFallback] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
+  const [saved, setSaved] = useState(false);
+  const [shareStatus, setShareStatus] = useState('');
 
   useEffect(() => {
     if (!slug) return;
@@ -357,6 +355,12 @@ export function ProgramExplorerDetail() {
       })
       .finally(() => setLoading(false));
   }, [slug]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !data?._id) return undefined;
+    checkSaved('program', data._id).then((r) => setSaved(!!r?.saved)).catch(() => {});
+    return undefined;
+  }, [isAuthenticated, data?._id]);
 
   if (loading) {
     return (
@@ -414,9 +418,44 @@ export function ProgramExplorerDetail() {
             {inst?.officialName && (
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                 {inst.officialName}
-                {inst.countryCode && ` · ${inst.countryCode}`}
+                {inst.countryCode && ` · ${countryDisplayName(inst.countryCode) || inst.countryCode}`}
+                {data.campus ? ` · ${data.campus}` : ''}
               </p>
             )}
+            <div className="mt-4 flex flex-wrap gap-2">
+              {isAuthenticated ? (
+                <button
+                  type="button"
+                  className={APPLY_BTN_SECONDARY}
+                  onClick={async () => {
+                    try {
+                      if (saved) await unsaveOpportunity('program', data._id);
+                      else await saveOpportunity({ entityType: 'program', entityId: data._id, title: data.name });
+                      setSaved(!saved);
+                    } catch { /* keep current */ }
+                  }}
+                >
+                  {saved ? 'Saved' : 'Save'}
+                </button>
+              ) : (
+                <Link to={ROUTES.LOGIN} state={{ from: loginReturnPath }} className={APPLY_BTN_SECONDARY}>Sign in to save</Link>
+              )}
+              <button
+                type="button"
+                className={APPLY_BTN_SECONDARY}
+                onClick={async () => {
+                  const url = typeof window !== 'undefined' ? window.location.href : '';
+                  try {
+                    if (navigator.share) await navigator.share({ title: data.name, url });
+                    else await navigator.clipboard.writeText(url);
+                    setShareStatus('Link copied');
+                  } catch { setShareStatus(''); }
+                }}
+              >
+                Share
+              </button>
+              {shareStatus ? <span className="text-xs text-gray-500 self-center">{shareStatus}</span> : null}
+            </div>
             <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
               {data.degreeLevel && (
                 <div>

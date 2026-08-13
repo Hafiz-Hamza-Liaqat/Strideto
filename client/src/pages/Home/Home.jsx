@@ -5,7 +5,6 @@ import { SeoHead } from '../../components/seo';
 import { breadcrumbSchema, combineSchemas, webPageSchema } from '../../seo/schemas';
 import { DEFAULT_DESCRIPTION, DEFAULT_KEYWORDS } from '../../seo/config';
 import { ROUTES } from '../../constants';
-import { PROVINCES } from '../../constants/listings';
 import { GlobalSearch } from '../../components/search/GlobalSearch';
 import { trendingApi, jobsApi, scholarshipsApi, admissionsApi, savedApi, recommendationsApi, blogsApi, monetizationApi } from '../../services/listingsService';
 import { useAuth } from '../../context/AuthContext';
@@ -50,15 +49,16 @@ export default function Home() {
   const [loadingRecommended, setLoadingRecommended] = useState(false);
   const [loadingBlogs, setLoadingBlogs] = useState(true);
   const [savedIds, setSavedIds] = useState({ jobs: new Set(), scholarships: new Set(), admissions: new Set() });
-  const [province, setProvince] = useState('');
+  const [countryCode, setCountryCode] = useState('');
   const [searchCategory, setSearchCategory] = useState('all');
 
   const searchCategories = useMemo(() => [
-    { value: 'all', label: 'All' },
-    { value: 'jobs', label: t('navbar:jobs'), type: 'job' },
-    { value: 'scholarships', label: t('navbar:scholarships'), type: 'scholarship' },
-    { value: 'admissions', label: t('navbar:admissions'), type: 'admission' },
-    { value: 'internships', label: t('navbar:internships'), path: ROUTES.INTERNSHIPS },
+    { value: 'all', label: t('home:allOpportunities'), type: '' },
+    { value: 'jobs', label: t('navbar:jobs'), type: 'job', listing: ROUTES.JOBS },
+    { value: 'internships', label: t('navbar:internships'), listing: ROUTES.INTERNSHIPS },
+    { value: 'scholarships', label: t('navbar:scholarships'), type: 'scholarship', listing: ROUTES.SCHOLARSHIPS },
+    { value: 'admissions', label: t('navbar:admissions'), type: 'admission', listing: ROUTES.ADMISSIONS },
+    { value: 'programs', label: t('home:programs'), listing: ROUTES.PROGRAM_EXPLORER },
   ], [t]);
 
   const studentResources = useMemo(() => {
@@ -108,8 +108,8 @@ export default function Home() {
   }, []);
 
   useEffect(() => {
-    jobsApi.list({ limit: TRENDING_JOBS_LIMIT, sort: 'newest', ...(province && { province }) }).then((r) => setTrendingJobs(r.data?.data || r.data || [])).catch(() => {});
-  }, [province]);
+    jobsApi.list({ limit: TRENDING_JOBS_LIMIT, sort: 'newest', ...(countryCode && { countryCode }) }).then((r) => setTrendingJobs(r.data?.data || r.data || [])).catch(() => {});
+  }, [countryCode]);
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -142,14 +142,25 @@ export default function Home() {
   const searchTypeFilter = selectedCategory?.type || '';
 
   const handleSearchNavigate = (path) => {
+    const selected = searchCategories.find((c) => c.value === searchCategory);
+    if (selected?.listing && selected.value !== 'all') {
+      const dest = new URL(selected.listing, window.location.origin);
+      if (path.startsWith(ROUTES.SEARCH)) {
+        const src = new URL(path, window.location.origin);
+        const q = src.searchParams.get('q');
+        if (q) dest.searchParams.set(selected.value === 'programs' ? 'search' : 'search', q);
+      }
+      if (countryCode) {
+        dest.searchParams.set(selected.value === 'programs' ? 'country' : 'countryCode', countryCode);
+      }
+      navigate(`${dest.pathname}${dest.search}`);
+      return;
+    }
     if (searchTypeFilter && path.startsWith(ROUTES.SEARCH)) {
       const url = new URL(path, window.location.origin);
       url.searchParams.set('type', searchTypeFilter);
+      if (countryCode) url.searchParams.set('countryCode', countryCode);
       navigate(`${url.pathname}${url.search}`);
-      return;
-    }
-    if (selectedCategory?.path) {
-      navigate(selectedCategory.path);
       return;
     }
     navigate(path);
@@ -188,8 +199,9 @@ export default function Home() {
 
   // CMS / i18n hero only after the initial site-content request settles (success, empty, failure, or timeout).
   const rawHeadline = homepage?.hero?.headline;
-  const heroTitle = rawHeadline && !isC61TestMarker(rawHeadline) ? rawHeadline : t('home:heroTitle');
-  const heroSub = homepage?.hero?.subheadline || t('home:heroSub');
+  const pakistanScoped = (text) => /in Pakistan|across Pakistan|Pakistan's job/i.test(String(text || ''));
+  const heroTitle = rawHeadline && !isC61TestMarker(rawHeadline) && !pakistanScoped(rawHeadline) ? rawHeadline : t('home:heroTitle');
+  const heroSub = homepage?.hero?.subheadline && !pakistanScoped(homepage.hero.subheadline) ? homepage.hero.subheadline : t('home:heroSub');
   const pageSeoTitle = homepage?.seoTitle || t('home:seoTitle');
   const pageSeoDesc = homepage?.metaDescription || DEFAULT_DESCRIPTION;
   const heroBg = homepage?.hero?.backgroundImageUrl;
@@ -200,7 +212,10 @@ export default function Home() {
   const testimonials = homepage?.sections?.testimonials;
   const partners = homepage?.sections?.partners;
   const newsletterBlock = homepage?.sections?.newsletter;
-  const heroCtas = homepage?.hero?.ctas?.length ? homepage.hero.ctas : null;
+  const heroCtasRaw = homepage?.hero?.ctas?.length ? homepage.hero.ctas : null;
+  const heroCtas = heroCtasRaw?.some((cta) => /government jobs/i.test(cta.label || ''))
+    ? null
+    : heroCtasRaw;
 
   return (
     <>
@@ -280,14 +295,10 @@ export default function Home() {
                   onCategoryChange={(match) => {
                     if (!match) return;
                     setSearchCategory(match.value || 'all');
-                    if (match.path) {
-                      navigate(match.path);
-                    }
                   }}
-                  showProvinceFilter
-                  provinces={PROVINCES}
-                  province={province}
-                  onProvinceChange={setProvince}
+                  showCountryFilter
+                  countryCode={countryCode}
+                  onCountryChange={setCountryCode}
                   onNavigate={handleSearchNavigate}
                 />
               </div>
@@ -300,7 +311,7 @@ export default function Home() {
                   )
                 )) : (
                   <>
-                    <Link to={ROUTES.JOBS} className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-medium border border-white/30 btn-theme">{t('home:govJobs')}</Link>
+                    <Link to={ROUTES.JOBS} className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-medium border border-white/30 btn-theme">{t('home:jobsQuick')}</Link>
                     <Link to={ROUTES.SCHOLARSHIPS} className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-medium border border-white/30 btn-theme">{t('home:scholarships')}</Link>
                     <Link to={ROUTES.ADMISSIONS} className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-medium border border-white/30 btn-theme">{t('home:admissions')}</Link>
                     <Link to={ROUTES.INTERNSHIPS} className="px-4 py-2 rounded-xl bg-white/20 hover:bg-white/30 text-white font-medium border border-white/30 btn-theme">{t('home:internships')}</Link>

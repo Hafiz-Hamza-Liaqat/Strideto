@@ -9,12 +9,13 @@ import {
   isObjectIdParam,
 } from '../utils/localeQuery.js';
 import { projectPublicCmsAdmission } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
+import { withFixtureExclusion } from '../../../shared/publicDiscovery/fixtureExclusion.js';
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
 
 function buildAdmissionQuery(q) {
-  const filter = { status: 'active' };
+  const filter = withFixtureExclusion({ status: 'active' });
   if (q.university) filter.institution = new RegExp(q.university.trim(), 'i');
   if (q.program) filter.$or = [{ program: new RegExp(q.program.trim(), 'i') }, { department: new RegExp(q.program.trim(), 'i') }];
   if (q.deadline) {
@@ -49,7 +50,7 @@ export const getAdmissions = asyncHandler(async (req, res) => {
 export const getAdmissionByIdOrSlug = asyncHandler(async (req, res) => {
   const { idOrSlug } = req.params;
   const locale = getRequestLocale(req);
-  const baseFilter = { status: 'active' };
+  const baseFilter = withFixtureExclusion({ status: 'active' });
   const admission = isObjectIdParam(idOrSlug)
     ? await findLocalizedById(Admission, idOrSlug, baseFilter, locale)
     : await findLocalizedBySlug(Admission, idOrSlug, baseFilter, locale);
