@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { useInstitutionAuth } from '../../context/InstitutionAuthContext';
 import { institutionPortalApi } from '../../services/institutionPortalService';
-import { ADMISSION_STATES } from '../../../../shared/institution/institutionPortal.js';
+import { ADMISSION_STATES, INSTITUTION_ADMISSION_TRANSITIONS } from '../../../../shared/institution/institutionPortal.js';
 import { PageState, Panel, StatusBadge, fieldClass, humanize, primaryButton, secondaryButton } from './InstitutionUi';
 import { ROUTES } from '../../constants';
 
@@ -17,7 +17,7 @@ export default function InstitutionApplications() {
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
   const [status, setStatus] = useState(() => searchParams.get('status') || '');
-  const [nextStatus, setNextStatus] = useState('under_review');
+  const [nextStatus, setNextStatus] = useState('');
   const [note, setNote] = useState('');
 
   const load = (query = q, st = status) => institutionPortalApi.applications(organizationId, { q: query, status: st, page: 1, limit: 20 })
@@ -33,7 +33,11 @@ export default function InstitutionApplications() {
   useEffect(() => {
     if (!applicationId) { setDetail(null); return; }
     institutionPortalApi.application(organizationId, applicationId)
-      .then(({ data }) => setDetail(data.application))
+      .then(({ data }) => {
+        setDetail(data.application);
+        const allowed = [...(INSTITUTION_ADMISSION_TRANSITIONS[data.application?.status] || [])];
+        setNextStatus(allowed[0] || '');
+      })
       .catch((err) => setError(err.response?.data?.error || 'Application not found.'));
   }, [applicationId, organizationId]);
 
@@ -67,15 +71,25 @@ export default function InstitutionApplications() {
           <p className="text-xs mt-2 text-gray-500">Consent scope: {detail.consentScope}. This is not a whole Student profile or Vault grant.</p>
         </Panel>
         <Panel title="Update status">
+          {(() => {
+            const allowed = [...(INSTITUTION_ADMISSION_TRANSITIONS[detail.status] || [])];
+            if (!allowed.length) {
+              return <p className="text-sm text-gray-600 dark:text-gray-400">This admission state is terminal. No further Institution transitions are available.</p>;
+            }
+            return (
+              <>
           <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Next state
             <select className={`${fieldClass} mt-1`} value={nextStatus} onChange={(e) => setNextStatus(e.target.value)}>
-              {Object.values(ADMISSION_STATES).map((s) => <option key={s} value={s}>{humanize(s)}</option>)}
+              {allowed.map((s) => <option key={s} value={s}>{humanize(s)}</option>)}
             </select>
           </label>
           <label className="mt-3 block text-sm font-medium text-gray-800 dark:text-gray-200">Note / missing information
             <textarea className={`${fieldClass} mt-1`} value={note} onChange={(e) => setNote(e.target.value)} />
           </label>
-          <button className={`${primaryButton} mt-3`} type="button" onClick={transition}>Apply Institution state</button>
+          <button className={`${primaryButton} mt-3`} type="button" disabled={!nextStatus} onClick={transition}>Apply Institution state</button>
+              </>
+            );
+          })()}
         </Panel>
       </div>
     );

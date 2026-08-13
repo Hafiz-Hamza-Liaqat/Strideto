@@ -752,6 +752,7 @@ export async function getDashboardMetrics(organizationId, canonicalInstitutionId
   const [
     verification, claim, profile, publishedPrograms, draftPrograms, conflicts,
     scholarshipCount, testAcceptanceCount, internalApplications, stalePrograms, reviewDuePrograms,
+    intakeCount,
   ] = await Promise.all([
     OrganizationVerification.findOne({ organizationId }).lean(),
     InstitutionClaim.findOne({ organizationId }).lean(),
@@ -764,6 +765,13 @@ export async function getDashboardMetrics(organizationId, canonicalInstitutionId
     InstitutionAdmissionApplication.countDocuments({ organizationId }),
     canonicalInstitutionId ? Program.countDocuments({ institutionId: canonicalInstitutionId, freshnessState: FRESHNESS_STATES.STALE }) : 0,
     canonicalInstitutionId ? Program.countDocuments({ institutionId: canonicalInstitutionId, freshnessState: FRESHNESS_STATES.REVIEW_DUE }) : 0,
+    canonicalInstitutionId
+      ? Program.aggregate([
+        { $match: { institutionId: canonicalInstitutionId } },
+        { $project: { n: { $size: { $ifNull: ['$intakes', []] } } } },
+        { $group: { _id: null, total: { $sum: '$n' } } },
+      ]).then((rows) => rows[0]?.total || 0).catch(() => 0)
+      : Promise.resolve(0),
   ]);
 
   const orgOid = mongoose.Types.ObjectId.isValid(String(organizationId))
@@ -795,6 +803,7 @@ export async function getDashboardMetrics(organizationId, canonicalInstitutionId
     applicationStatusDistribution,
     staleFacts: stalePrograms,
     reviewDueFacts: reviewDuePrograms,
+    intakeCount,
     externalApplicationTraffic: 'not_tracked',
     launchPlan: INSTITUTION_LAUNCH_BILLING.planLabel,
   };

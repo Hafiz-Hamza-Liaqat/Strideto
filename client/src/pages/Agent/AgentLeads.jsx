@@ -33,7 +33,7 @@ export default function AgentLeads() {
         <article key={lead._id} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
           <div className="flex flex-wrap items-center justify-between gap-3">
             <div>
-              <p className="font-medium text-gray-900 dark:text-white">Relationship {lead._id}</p>
+              <p className="font-medium text-gray-900 dark:text-white">{lead.displayName || 'Relationship'}</p>
               <p className="text-xs text-slate-500">Source: {lead.source || 'user initiated'}</p>
             </div>
             <select disabled={busy === lead._id} value={lead.status} onChange={(event) => update(lead._id, event.target.value)} className="rounded-lg border p-2 text-sm">{STATUSES.map((s) => <option key={s}>{s}</option>)}</select>

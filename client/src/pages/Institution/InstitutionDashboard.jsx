@@ -119,6 +119,7 @@ export default function InstitutionDashboard() {
     ['Published Programs', data.publishedPrograms ?? 0, 'Canonical published records.', ROUTES.INSTITUTION_PROGRAMS],
     ['Draft Programs', data.draftPrograms ?? 0, 'Institution-owned drafts.', ROUTES.INSTITUTION_PROGRAMS],
     ['Internal applications', data.internalApplications ?? 0, 'Strideto-internal submissions only.', ROUTES.INSTITUTION_APPLICATIONS],
+    ['Configured intakes', data.intakeCount ?? 0, 'Server-counted intake cycles on owned programs.', ROUTES.INSTITUTION_INTAKES],
     ['Open conflicts', data.openConflicts ?? 0, 'Records awaiting data review.', ROUTES.INSTITUTION_DATA_QUALITY],
     ['Test Acceptance', data.testAcceptanceRecords ?? 0, 'Institution/program scope only.', ROUTES.INSTITUTION_TEST_ACCEPTANCE],
     ['Own scholarships', data.institutionOwnedScholarships ?? 0, 'Institution-owned awards only.', ROUTES.INSTITUTION_SCHOLARSHIPS],

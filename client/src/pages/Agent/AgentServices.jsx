@@ -1,15 +1,27 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
+import { useTranslation } from 'react-i18next';
+import { ISO_3166_ALPHA2, coerceCountryCode, countryDisplayName } from '@shared/international/country.js';
 import { agentApi } from '../../services/agentService';
+import { MultiSelect } from '../../components/forms/MultiSelect';
 import { btnPrimary, cardClass, inputClass, labelClass, muted } from './agentUi';
 
 const EMPTY = {
   title: '', category: 'study_abroad_guidance', description: '',
-  countriesServed: '', destinationCountries: '', journeyType: 'study_abroad',
+  countriesServed: [], destinationCountries: [], journeyType: 'study_abroad',
   deliveryMode: 'online', pricingMode: 'contact_for_details', durationEstimate: '', amountMinor: '', currency: 'PKR',
 };
-const csv = (value) => value.split(',').map((item) => item.trim().toUpperCase()).filter(Boolean);
+
+function normalizeCodes(list) {
+  return [...new Set((Array.isArray(list) ? list : []).map((item) => coerceCountryCode(item)).filter(Boolean))];
+}
 
 export default function AgentServices() {
+  const { i18n } = useTranslation();
+  const countryOptions = useMemo(
+    () => ISO_3166_ALPHA2.map((code) => ({ value: code, label: countryDisplayName(code, i18n.language || 'en') }))
+      .sort((a, b) => a.label.localeCompare(b.label, i18n.language || 'en', { sensitivity: 'base' })),
+    [i18n.language]
+  );
   const [services, setServices] = useState([]);
   const [form, setForm] = useState(EMPTY);
   const [loading, setLoading] = useState(true);
@@ -24,7 +36,11 @@ export default function AgentServices() {
   const submit = async (event) => {
     event.preventDefault(); setBusy(true); setError(''); setMessage('');
     try {
-      const payload = { ...form, countriesServed: csv(form.countriesServed), destinationCountries: csv(form.destinationCountries) };
+      const payload = {
+        ...form,
+        countriesServed: normalizeCodes(form.countriesServed),
+        destinationCountries: normalizeCodes(form.destinationCountries),
+      };
       if (['fixed_price', 'starting_from'].includes(form.pricingMode)) {
         payload.price = { amountMinor: Number.parseInt(form.amountMinor, 10), currency: form.currency || 'PKR' };
       }
@@ -59,8 +75,12 @@ export default function AgentServices() {
         <label className={labelClass}>Category<select value={form.category} onChange={set('category')} className={inputClass}><option value="study_abroad_guidance">Study abroad guidance</option><option value="university_application_support">University application support</option><option value="scholarship_guidance">Scholarship guidance</option><option value="document_review">Document review</option><option value="career_guidance">Career guidance</option><option value="other">Other</option></select></label>
         <label className={labelClass}>Delivery<select value={form.deliveryMode} onChange={set('deliveryMode')} className={inputClass}><option value="online">Online</option><option value="in_person">In person</option><option value="hybrid">Hybrid</option></select></label>
         <label className={`${labelClass} md:col-span-2`}>Description<textarea required rows="4" value={form.description} onChange={set('description')} className={inputClass} /></label>
-        <label className={labelClass}>Countries served (comma separated)<input value={form.countriesServed} onChange={set('countriesServed')} className={inputClass} /></label>
-        <label className={labelClass}>Destinations (comma separated)<input value={form.destinationCountries} onChange={set('destinationCountries')} className={inputClass} /></label>
+        <label className={labelClass}>Countries served
+          <MultiSelect className="mt-1" value={form.countriesServed} onChange={(countriesServed) => setForm((f) => ({ ...f, countriesServed: normalizeCodes(countriesServed) }))} options={countryOptions} emptyLabel="Select countries you serve" />
+        </label>
+        <label className={labelClass}>Destinations
+          <MultiSelect className="mt-1" value={form.destinationCountries} onChange={(destinationCountries) => setForm((f) => ({ ...f, destinationCountries: normalizeCodes(destinationCountries) }))} options={countryOptions} emptyLabel="Select destination countries" />
+        </label>
         <label className={labelClass}>Pricing<select value={form.pricingMode} onChange={set('pricingMode')} className={inputClass}><option value="free">Free</option><option value="fixed_price">Fixed price (integer minor units)</option><option value="starting_from">Starting from (integer minor units)</option><option value="paid_future">Paid (future payment support)</option><option value="contact_for_details">Contact for details</option></select></label>
         {['fixed_price', 'starting_from'].includes(form.pricingMode) ? (
           <>

@@ -641,12 +641,26 @@ export async function getLeads(agentAccountId, { page = 1, limit = 50, q = '', s
   if (status) filter.status = status;
   if (source) filter.source = source;
   if (q) filter.context = { $regex: String(q).slice(0, 80).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
-  return AgentLead.find(filter)
+  const leads = await AgentLead.find(filter)
     .select('userId source context status createdAt updatedAt')
     .sort({ createdAt: -1 })
     .skip((pageNum - 1) * limitNum)
     .limit(limitNum)
     .lean();
+  const userIds = [...new Set(leads.map((lead) => lead.userId).filter(Boolean))];
+  const users = userIds.length
+    ? await User.find({ _id: { $in: userIds } }).select('name').lean()
+    : [];
+  const names = new Map(users.map((user) => [String(user._id), user.name]));
+  return leads.map((lead) => ({
+    _id: lead._id,
+    source: lead.source,
+    context: lead.context,
+    status: lead.status,
+    createdAt: lead.createdAt,
+    updatedAt: lead.updatedAt,
+    displayName: names.get(String(lead.userId)) || 'Relationship',
+  }));
 }
 
 export async function updateLeadStatus(agentAccountId, leadId, status) {

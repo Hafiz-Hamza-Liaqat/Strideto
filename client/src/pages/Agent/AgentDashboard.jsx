@@ -86,6 +86,25 @@ export default function AgentDashboard() {
         body="Your agent verification is approved. This congratulations appears once."
       />
       <AnnouncementFeed title="Agent announcements" />
+      <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Getting started</h2>
+        <ul className="mt-2 space-y-1 text-sm">
+          {[
+            { done: (dashboard?.profileCompleteness || 0) >= 80, label: 'Complete professional profile', to: ROUTES.AGENT_PROFILE },
+            { done: agent?.emailVerified === true, label: 'Verify email', to: ROUTES.AGENT_SETTINGS },
+            { done: vs === 'approved' || vs === 'under_review' || vs === 'verification_pending', label: 'Complete verification dossier', to: ROUTES.AGENT_VERIFICATION },
+            { done: Number(cards.activeServices?.value || 0) > 0, label: 'Define services', to: ROUTES.AGENT_SERVICES },
+            { done: false, label: 'Set availability', to: ROUTES.AGENT_AVAILABILITY },
+            { done: vs === 'approved', label: 'Use marketplace when eligible', to: ROUTES.AGENT_MARKETPLACE },
+          ].map((item) => (
+            <li key={item.label}>
+              <Link to={item.to} className="text-primary hover:underline">
+                {item.done ? '✓' : '○'} {item.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
       <div>
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Dashboard</h1>
         <p className="text-slate-500 dark:text-gray-400 text-sm mt-1">

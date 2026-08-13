@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
 import { breadcrumbSchema, collectionPageSchema, combineSchemas } from '../../seo/schemas';
@@ -13,17 +13,33 @@ import { SaveButton } from '../../components/listings/SaveButton';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { useAuth } from '../../context/AuthContext';
 import { formatDate } from '../../utils/formatDate';
+import { CountrySelect } from '../../components/forms/CountrySelect';
+import { coerceCountryCode } from '@shared/international/country.js';
 
 const PER_PAGE = 10;
-const COUNTRIES = ['UK', 'USA', 'Australia', 'Germany', 'Canada', 'Singapore'];
 
 export default function IntlScholarships() {
   const { t } = useTranslation(['scholarships', 'seo', 'common']);
   const { isAuthenticated } = useAuth();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [savedIds, setSavedIds] = useState(new Set());
-
-  const initialParams = { limit: PER_PAGE, page: 1 };
+  const urlCountry = coerceCountryCode(searchParams.get('country') || '') || '';
+  const initialParams = { limit: PER_PAGE, page: 1, country: urlCountry || undefined };
   const { data, totalPages, loading, error, params, setPage, setFilters } = useListings(intlScholarshipsApi.list, initialParams);
+
+  useEffect(() => {
+    const next = coerceCountryCode(searchParams.get('country') || '') || '';
+    if ((params.country || '') !== next) setFilters({ country: next || undefined });
+  }, [searchParams]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const applyCountry = (code) => {
+    const next = coerceCountryCode(code) || '';
+    setFilters({ country: next || undefined });
+    const q = new URLSearchParams(searchParams);
+    if (next) q.set('country', next);
+    else q.delete('country');
+    setSearchParams(q, { replace: true });
+  };
 
   useEffect(() => {
     if (!isAuthenticated) return;
@@ -73,16 +89,20 @@ export default function IntlScholarships() {
             <SearchBar placeholder={t('scholarships:intlSearchPlaceholder')} onSearch={(q) => setFilters({ search: q || undefined })} />
           </div>
           <div className="flex flex-wrap gap-2">
-            <select
-              className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
-              value={params.country || ''}
-              onChange={(e) => setFilters({ country: e.target.value || undefined })}
+            <div className="min-w-[220px]">
+              <CountrySelect
+                allowAll
+                value={params.country || ''}
+                onChange={applyCountry}
+              />
+            </div>
+            <button
+              type="button"
+              className="rounded-lg border border-gray-300 dark:border-gray-600 px-3 py-2 text-sm min-h-[44px]"
+              onClick={() => applyCountry('')}
             >
-              <option value="">{t('scholarships:allCountries')}</option>
-              {COUNTRIES.map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+              {t('common:reset', { defaultValue: 'Reset' })}
+            </button>
             <select
               className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm"
               value={params.deadline || ''}

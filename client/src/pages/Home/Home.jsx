@@ -25,12 +25,12 @@ const ADMISSIONS_LIMIT = 6;
 const BLOG_LIMIT = 4;
 
 const FOREIGN_STUDY_COUNTRIES = [
-  { name: 'Turkey', path: ROUTES.INTL_SCHOLARSHIPS, query: '?country=Turkey' },
-  { name: 'Germany', path: ROUTES.INTL_SCHOLARSHIPS, query: '?country=Germany' },
-  { name: 'China', path: ROUTES.INTL_SCHOLARSHIPS, query: '?country=China' },
-  { name: 'Hungary', path: ROUTES.INTL_SCHOLARSHIPS, query: '?country=Hungary' },
-  { name: 'UK', path: ROUTES.INTL_SCHOLARSHIPS, query: '?country=UK' },
-  { name: 'Canada', path: ROUTES.INTL_SCHOLARSHIPS, query: '?country=Canada' },
+  { name: 'Turkey', path: ROUTES.INTL_SCHOLARSHIPS, query: '?country=TR' },
+  { name: 'Germany', path: ROUTES.INTL_SCHOLARSHIPS, query: '?country=DE' },
+  { name: 'China', path: ROUTES.INTL_SCHOLARSHIPS, query: '?country=CN' },
+  { name: 'Hungary', path: ROUTES.INTL_SCHOLARSHIPS, query: '?country=HU' },
+  { name: 'UK', path: ROUTES.INTL_SCHOLARSHIPS, query: '?country=GB' },
+  { name: 'Canada', path: ROUTES.INTL_SCHOLARSHIPS, query: '?country=CA' },
 ];
 
 export default function Home() {

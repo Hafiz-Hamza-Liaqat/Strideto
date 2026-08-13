@@ -15,6 +15,8 @@ export const STUDENT_PORTAL_NAV = [
   { path: ROUTES.DASHBOARD, labelKey: 'dashboard', end: true },
   { path: ROUTES.TALENT_PROFILE, labelKey: 'talentProfile' },
   { path: ROUTES.APPLICATIONS, labelKey: 'applications' },
+  { path: ROUTES.STUDENT_INSTITUTION_ADMISSIONS, labelKey: 'institutionApplications' },
+  { path: ROUTES.PERSONALIZATION_HUB, labelKey: 'personalization' },
   { path: ROUTES.JOURNEY, labelKey: 'journey' },
   { path: ROUTES.JOURNEY_SAVED, labelKey: 'saved' },
   { path: ROUTES.JOURNEY_DEADLINES, labelKey: 'deadlines' },

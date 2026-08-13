@@ -64,7 +64,7 @@ export function DocumentsWidget({ data }) {
       ) : (
         <p className="text-sm text-gray-500 dark:text-gray-400">{t('dashboard:widgets.noDocuments')}</p>
       )}
-      <Link to={ROUTES.TALENT_PROFILE} className="mt-3 inline-block text-sm text-primary dark:text-mint hover:underline">
+      <Link to={ROUTES.VAULT} className="mt-3 inline-block text-sm text-primary dark:text-mint hover:underline">
         {t('dashboard:widgets.manageDocuments')}
       </Link>
     </WidgetShell>

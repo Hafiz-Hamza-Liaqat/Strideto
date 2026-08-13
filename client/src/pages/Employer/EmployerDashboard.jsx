@@ -121,6 +121,25 @@ export default function EmployerDashboard() {
         body="Your organization verification is approved. This congratulations appears once."
       />
       <AnnouncementFeed title="Employer announcements" className="mb-6" />
+      <section className="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
+        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Getting started</h2>
+        <ul className="mt-2 space-y-1 text-sm">
+          {[
+            { done: Boolean(employer?.companyName), label: 'Complete organization', to: ROUTES.EMPLOYER_SETTINGS },
+            { done: data?.verified === true || data?.verificationStatus === 'approved', label: 'Verify organization', to: ROUTES.EMPLOYER_VERIFICATION },
+            { done: (data?.jobs?.length || data?.activeJobs || 0) > 0, label: 'Create a draft job', to: ROUTES.EMPLOYER_POST_JOB },
+            { done: false, label: 'Review Free Beta quota', to: ROUTES.EMPLOYER_PLANS_USAGE },
+            { done: (data?.activeJobs || 0) > 0, label: 'Submit a job for review', to: ROUTES.EMPLOYER_JOBS },
+            { done: (data?.totalApplications || 0) > 0, label: 'Review applicants', to: ROUTES.EMPLOYER_APPLICATIONS },
+          ].map((item) => (
+            <li key={item.label}>
+              <Link to={item.to} className="text-primary hover:underline">
+                {item.done ? '✓' : '○'} {item.label}
+              </Link>
+            </li>
+          ))}
+        </ul>
+      </section>
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">{t('employer:dashboardHeading')}</h1>
         <VerificationBadge level={data?.verificationLevel} verified={data?.verified} />
