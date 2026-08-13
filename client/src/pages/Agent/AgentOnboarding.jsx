@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ISO_3166_ALPHA2, countryDisplayName } from '@shared/international/country.js';
-import { AGENT_SERVICE_CATEGORIES } from '@shared/agent/constants.js';
+import { AGENT_SERVICE_CATEGORIES, AGENT_ONBOARDING_STEPS } from '@shared/agent/constants.js';
 import { agentApi } from '../../services/agentService';
 import { ROUTES } from '../../constants';
 import { Logo } from '../../components/brand/Logo';
@@ -37,12 +37,12 @@ const SPECIALTY_OPTIONS = Object.values(AGENT_SERVICE_CATEGORIES).map((value) =>
 }));
 
 const STEPS = [
-  { key: 'identity', label: 'Professional Identity', description: 'Your public professional name and biography. This is self-declared — not verification.' },
-  { key: 'services', label: 'Contact & Location', description: 'Official contact channels and office location students can reach you at.' },
-  { key: 'markets', label: 'Expertise & Coverage', description: 'Countries you serve, destination expertise, languages, and service specialties.' },
-  { key: 'representative', label: 'Representative / Agency', description: 'Legal entity and authorized representative details for agency accounts.', agencyOnly: true },
-  { key: 'verification', label: 'Verification Readiness', description: 'What you need before submitting a Strideto verification dossier.' },
-  { key: 'review', label: 'Review & Finish', description: 'Confirm your profile summary and continue to verification when ready.' },
+  { key: AGENT_ONBOARDING_STEPS.IDENTITY, label: 'Professional Identity', description: 'Your public professional name and biography. This is self-declared — not verification.' },
+  { key: AGENT_ONBOARDING_STEPS.SERVICES, label: 'Contact & Location', description: 'Official contact channels and office location students can reach you at.' },
+  { key: AGENT_ONBOARDING_STEPS.MARKETS, label: 'Expertise & Coverage', description: 'Countries you serve, destination expertise, languages, and service specialties.' },
+  { key: AGENT_ONBOARDING_STEPS.REPRESENTATIVE, label: 'Representative / Agency', description: 'Legal entity and authorized representative details for agency accounts.', agencyOnly: true },
+  { key: AGENT_ONBOARDING_STEPS.VERIFICATION, label: 'Verification Readiness', description: 'What you need before submitting a Strideto verification dossier.' },
+  { key: AGENT_ONBOARDING_STEPS.REVIEW, label: 'Review & Finish', description: 'Confirm your profile summary and continue to verification when ready.' },
 ];
 
 function buildCountryOptions(locale) {

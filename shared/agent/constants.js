@@ -28,6 +28,7 @@ export const PUBLIC_ACTIVE_STATUSES = Object.freeze(new Set([
   AGENT_PROFILE_STATUSES.APPROVED,
 ]));
 
+/** Wizard steps after account registration. ACCOUNT is registration, not this flow. */
 export const AGENT_ONBOARDING_STEPS = Object.freeze({
   ACCOUNT: 'account',
   IDENTITY: 'identity',
@@ -37,6 +38,25 @@ export const AGENT_ONBOARDING_STEPS = Object.freeze({
   VERIFICATION: 'verification',
   REVIEW: 'review',
 });
+
+/** Professional wizard keys (excludes ACCOUNT and agency-only REPRESENTATIVE). */
+export const AGENT_ONBOARDING_PROFESSIONAL_WIZARD = Object.freeze([
+  AGENT_ONBOARDING_STEPS.IDENTITY,
+  AGENT_ONBOARDING_STEPS.SERVICES,
+  AGENT_ONBOARDING_STEPS.MARKETS,
+  AGENT_ONBOARDING_STEPS.VERIFICATION,
+  AGENT_ONBOARDING_STEPS.REVIEW,
+]);
+
+/** Agency wizard keys (excludes ACCOUNT). */
+export const AGENT_ONBOARDING_AGENCY_WIZARD = Object.freeze([
+  AGENT_ONBOARDING_STEPS.IDENTITY,
+  AGENT_ONBOARDING_STEPS.SERVICES,
+  AGENT_ONBOARDING_STEPS.MARKETS,
+  AGENT_ONBOARDING_STEPS.REPRESENTATIVE,
+  AGENT_ONBOARDING_STEPS.VERIFICATION,
+  AGENT_ONBOARDING_STEPS.REVIEW,
+]);
 
 export const AGENT_SERVICE_CATEGORIES = Object.freeze({
   STUDY_ABROAD_GUIDANCE: 'study_abroad_guidance',

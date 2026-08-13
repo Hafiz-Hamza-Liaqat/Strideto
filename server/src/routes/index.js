@@ -46,6 +46,8 @@ import { employerIntelligenceRouter } from './employerIntelligence.js';
 import { organizationVerificationRouter } from './organizationVerification.js';
 import { testsRouter } from './tests.js';
 import { correctionsRouter } from './corrections.js';
+// correctionsRouter is exported for future use but intentionally unmounted:
+// no launch UI depends on it. Do not mount an unused privileged API.
 import { personalizationRouter } from './personalization.js';
 import { actionEngineRouter } from './actionEngine.js';
 import { vaultRouter } from './vault.js';
