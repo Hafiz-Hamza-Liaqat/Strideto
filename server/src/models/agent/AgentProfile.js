@@ -116,6 +116,12 @@ const agentProfileSchema = new mongoose.Schema(
 
     // Profile completeness score (0-100) — recomputed on save
     completenessScore: { type: Number, default: 0, min: 0, max: 100 },
+
+    isFixture: { type: Boolean, default: false, index: true },
+    dataClass: { type: String, trim: true, lowercase: true },
+    environment: { type: String, trim: true, lowercase: true },
+    launchEligible: { type: Boolean, index: true },
+    demoOnly: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

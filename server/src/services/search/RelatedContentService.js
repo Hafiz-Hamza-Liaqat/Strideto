@@ -3,6 +3,7 @@
  */
 import { SearchDocument } from '../../models/SearchDocument.js';
 import { rankSearchResults } from '../../../../shared/search/scoring.js';
+import { withLaunchSearchFilter } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 
 /**
  * @param {{
@@ -28,13 +29,13 @@ export async function findRelatedContent(input) {
     or.push({ entityType: source.entityType });
   }
 
-  const filter = {
+  const filter = withLaunchSearchFilter({
     searchable: true,
     status: { $in: ['active', 'published'] },
     locale,
     entityId: { $ne: entityId },
     $or: or,
-  };
+  });
 
   const candidates = await SearchDocument.find(filter).limit(50).lean();
   const query = [source.title, source.category, ...(source.tags || [])].filter(Boolean).join(' ');

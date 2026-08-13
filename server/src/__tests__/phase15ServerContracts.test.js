@@ -22,7 +22,7 @@ check(isFixtureRecord({ isFixture: true }) === true, 'explicit isFixture is a fi
 check(isFixtureRecord({ title: 'P13 ACCEPTANCE' }) === false, 'title string matching is not used');
 check(isLaunchProjection({ NODE_ENV: 'production' }) === true, 'production is launch projection');
 check(isLaunchProjection({ NODE_ENV: 'development' }) === false, 'local development includes fixtures unless forced');
-check(withFixtureExclusion({ status: 'active' }, { NODE_ENV: 'production' }).$and.length > 0, 'production filter adds exclusion clause');
+check(withFixtureExclusion({ status: 'active' }, { NODE_ENV: 'production' }).$and.some((p) => p.launchEligible === true), 'production filter requires launchEligible true');
 
 check(isValidTransition(VS.REVOKED, VS.VERIFICATION_PENDING) === true, 'revoked → new attempt');
 check(isValidTransition(VS.REVOKED, VS.APPROVED) === false, 'revoked does not resurrect approved');

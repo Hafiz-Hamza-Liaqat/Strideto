@@ -56,6 +56,7 @@ import {
 } from '../../../shared/international/verification.js';
 import { ACCEPTANCE_SCOPES } from '../../../shared/education/acceptanceExplorer.js';
 import { PUB_STATUSES } from '../../../shared/education/taxonomy.js';
+import { withFixtureExclusion } from '../../../shared/publicDiscovery/fixtureExclusion.js';
 
 // ---------------------------------------------------------------------------
 // Helper: resolve the active membership for an account in an organization
@@ -1020,7 +1021,7 @@ export async function searchPublicInstitutions({ name, countryCode, institutionT
   const safePage = Math.max(page, 1);
   const skip = (safePage - 1) * safeLimit;
 
-  const query = { status: PUB_STATUSES.PUBLISHED };
+  const query = withFixtureExclusion({ status: PUB_STATUSES.PUBLISHED });
   if (name) query.$text = { $search: name };
   if (countryCode) query.countryCode = countryCode.toUpperCase();
   if (institutionType) query.institutionType = institutionType;

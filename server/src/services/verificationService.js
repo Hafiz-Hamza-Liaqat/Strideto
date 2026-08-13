@@ -17,6 +17,7 @@ import { VerificationEvidence } from '../models/VerificationEvidence.js';
 import { VerificationTransition } from '../models/VerificationTransition.js';
 import { Organization } from '../models/Organization.js';
 import { Employer } from '../models/Employer.js';
+import { AgentProfile } from '../models/agent/AgentProfile.js';
 import { logAudit } from './auditService.js';
 import {
   VERIFICATION_STATUSES,
@@ -39,6 +40,7 @@ import { findForbiddenMetadataKeys } from '../../../shared/international/audit.j
 import { INSTITUTION_ORGANIZATION_TYPES } from '../../../shared/institution/institutionPortal.js';
 import { InstitutionClaim } from '../models/institution/InstitutionClaim.js';
 import { emitOrgVerificationNotifications } from './orgVerificationNotificationBridge.js';
+import { assignLaunchEligibleOnAuthorityPublish } from '../../../shared/publicDiscovery/fixtureExclusion.js';
 
 const VS = VERIFICATION_STATUSES;
 
@@ -403,6 +405,11 @@ export async function approve(organizationId, actor, reason) {
     organizationType: record.organizationType,
   });
   await syncEmployerHiringEligibilityFromOrganization(organizationId, VS.APPROVED);
+  const agentProfile = await AgentProfile.findOne({ organizationId }).select('isFixture demoOnly dataClass environment launchEligible');
+  if (agentProfile) {
+    agentProfile.launchEligible = assignLaunchEligibleOnAuthorityPublish(agentProfile.toObject());
+    await agentProfile.save();
+  }
   return updated;
 }
 

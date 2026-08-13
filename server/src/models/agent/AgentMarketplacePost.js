@@ -46,6 +46,11 @@ const postSchema = new mongoose.Schema({
   endsAt: { type: Date, default: null, index: true },
   publishedAt: { type: Date, default: null },
   archivedAt: { type: Date, default: null },
+  isFixture: { type: Boolean, default: false, index: true },
+  dataClass: { type: String, trim: true, lowercase: true },
+  environment: { type: String, trim: true, lowercase: true },
+  launchEligible: { type: Boolean, index: true },
+  demoOnly: { type: Boolean, default: false },
 }, { timestamps: true });
 
 postSchema.index({ organizationId: 1, publicationStatus: 1, moderationStatus: 1 });

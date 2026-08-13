@@ -64,6 +64,11 @@ const programSchema = new mongoose.Schema(
 
     // ISO 3166-1 alpha-2. Typically derived from institution, stored for query.
     country: { type: String, trim: true, uppercase: true, default: '', index: true },
+    isFixture: { type: Boolean, default: false, index: true },
+    dataClass: { type: String, trim: true, lowercase: true },
+    environment: { type: String, trim: true, lowercase: true },
+    launchEligible: { type: Boolean, index: true },
+    demoOnly: { type: Boolean, default: false },
 
     // Intakes: lightweight per-cycle window. Full deadline detail lives in
     // ScholarshipCycle / TestAcceptance intake fields.

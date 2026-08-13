@@ -15,6 +15,7 @@ import {
   searchCacheInvalidatePrefix,
   searchCacheSet,
 } from './searchCache.js';
+import { withLaunchSearchFilter } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 
 function buildMongoFilter(params) {
   const filter = {};
@@ -28,7 +29,7 @@ function buildMongoFilter(params) {
   if (params.province) filter.province = new RegExp(params.province, 'i');
   if (params.country) filter.country = new RegExp(params.country, 'i');
   if (params.featured) filter.featured = true;
-  return filter;
+  return withLaunchSearchFilter(filter);
 }
 
 function buildTextFilter(q) {

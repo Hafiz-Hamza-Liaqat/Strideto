@@ -8,6 +8,7 @@ import { CmsHomepage } from '../../models/CmsHomepage.js';
 import { mongoLocaleFilter } from '../../../../shared/localization/localeFallback.js';
 import { normalizeLocale } from '../../../../shared/localization/localeResolver.js';
 import { buildLocalizedSlugUrl } from '../../../../shared/localization/localeUtils.js';
+import { withFixtureExclusion } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 
 const JOB_PROJECTION = 'title slug company organization province category jobType deadline logoUrl remote isFeatured createdAt';
 const SCHOLARSHIP_PROJECTION = 'title slug provider country level degreeLevel deadline logoUrl isFeatured amount';
@@ -21,11 +22,11 @@ function clampCount(count) {
 }
 
 function activeJobFilter(extra = {}) {
-  return {
+  return withFixtureExclusion({
     status: 'active',
     $or: [{ approvalStatus: 'approved' }, { approvalStatus: { $exists: false } }],
     ...extra,
-  };
+  });
 }
 
 /**
@@ -72,7 +73,7 @@ async function queryJobs(query, count) {
 }
 
 async function queryScholarships(query, count) {
-  const filter = { status: 'active', ...mongoLocaleFilter(normalizeLocale(query.locale)) };
+  const filter = withFixtureExclusion({ status: 'active', ...mongoLocaleFilter(normalizeLocale(query.locale)) });
   if (query.featured) filter.isFeatured = true;
   if (query.country) filter.country = new RegExp(String(query.country).trim(), 'i');
   if (query.degree) {
@@ -87,7 +88,7 @@ async function queryScholarships(query, count) {
 }
 
 async function queryAdmissions(query, count) {
-  const filter = { status: 'active', ...mongoLocaleFilter(normalizeLocale(query.locale)) };
+  const filter = withFixtureExclusion({ status: 'active', ...mongoLocaleFilter(normalizeLocale(query.locale)) });
   if (query.university) {
     const re = new RegExp(String(query.university).trim(), 'i');
     filter.$or = [{ institution: re }, { university: re }];
@@ -102,7 +103,7 @@ async function queryAdmissions(query, count) {
 }
 
 async function queryUniversities(query, count) {
-  const filter = { status: 'active', ...mongoLocaleFilter(normalizeLocale(query.locale)) };
+  const filter = withFixtureExclusion({ status: 'active', ...mongoLocaleFilter(normalizeLocale(query.locale)) });
   if (query.featured) filter.isFeatured = true;
   if (query.type) filter.type = query.type;
   if (query.province) filter.province = new RegExp(String(query.province).trim(), 'i');

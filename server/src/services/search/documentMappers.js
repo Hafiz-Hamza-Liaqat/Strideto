@@ -4,6 +4,7 @@
 import { normalizeSearchDocument } from '../../../../shared/search/searchDocument.js';
 import { buildLocalizedSlugUrl } from '../../../../shared/localization/localeUtils.js';
 import { normalizeLocale } from '../../../../shared/localization/localeResolver.js';
+import { isPubliclyLaunchVisible } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 
 function docLocale(doc) {
   return normalizeLocale(doc?.locale || 'en');
@@ -62,12 +63,13 @@ export function mapJobToSearchDocument(doc) {
     updatedAt: doc.updatedAt,
     featured: Boolean(doc.isFeatured),
     status: doc.status === 'active' ? 'active' : doc.status,
-    searchable: doc.status === 'active',
+    searchable: doc.status === 'active' && isPubliclyLaunchVisible(doc),
     locale: docLocale(doc),
     metadata: {
       adminEditUrl: `/admin/jobs`,
       icon: 'job',
       company: doc.company || doc.organization,
+      launchEligible: isPubliclyLaunchVisible(doc),
     },
   });
 }
@@ -89,9 +91,9 @@ export function mapScholarshipToSearchDocument(doc) {
     updatedAt: doc.updatedAt,
     featured: Boolean(doc.isFeatured),
     status: doc.status === 'active' ? 'active' : doc.status,
-    searchable: doc.status === 'active',
+    searchable: doc.status === 'active' && isPubliclyLaunchVisible(doc),
     locale: docLocale(doc),
-    metadata: { adminEditUrl: '/admin/scholarships', icon: 'scholarship' },
+    metadata: { adminEditUrl: '/admin/scholarships', icon: 'scholarship', launchEligible: isPubliclyLaunchVisible(doc) },
   });
 }
 
@@ -112,9 +114,9 @@ export function mapAdmissionToSearchDocument(doc) {
     updatedAt: doc.updatedAt,
     featured: Boolean(doc.isFeatured),
     status: doc.status === 'active' ? 'active' : doc.status,
-    searchable: doc.status === 'active',
+    searchable: doc.status === 'active' && isPubliclyLaunchVisible(doc),
     locale: docLocale(doc),
-    metadata: { adminEditUrl: '/admin/admissions', icon: 'admission' },
+    metadata: { adminEditUrl: '/admin/admissions', icon: 'admission', launchEligible: isPubliclyLaunchVisible(doc) },
   });
 }
 

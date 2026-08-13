@@ -54,6 +54,11 @@ const canonicalInstitutionSchema = new mongoose.Schema(
       unique: true,
     },
     sources: { type: [evidenceSubSchema], default: [] },
+    isFixture: { type: Boolean, default: false, index: true },
+    dataClass: { type: String, trim: true, lowercase: true },
+    environment: { type: String, trim: true, lowercase: true },
+    launchEligible: { type: Boolean, index: true },
+    demoOnly: { type: Boolean, default: false },
     status: {
       type: String,
       enum: Object.values(PUB_STATUSES),

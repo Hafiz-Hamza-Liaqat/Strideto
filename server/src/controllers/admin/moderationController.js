@@ -5,6 +5,7 @@ import { AdSlotConfig } from '../../models/AdSlotConfig.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { logAudit, auditFromRequest } from '../../services/auditService.js';
 import { onJobApproved, onJobRejected, onEmployerVerificationChange } from '../../services/automationService.js';
+import { assignLaunchEligibleOnAuthorityPublish } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 
 const MAX_REJECTION_REASON_LENGTH = 500;
 
@@ -36,10 +37,16 @@ export const getModerationQueues = asyncHandler(async (_req, res) => {
 export const bulkApproveJobs = asyncHandler(async (req, res) => {
   const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
   if (!ids.length) return res.status(400).json({ error: 'ids array required' });
-  const result = await Job.updateMany(
-    { _id: { $in: ids }, approvalStatus: 'pending' },
-    { $set: { approvalStatus: 'approved', status: 'active' } }
-  );
+  const pending = await Job.find({ _id: { $in: ids }, approvalStatus: 'pending' }).lean();
+  const eligibleIds = pending.filter((d) => assignLaunchEligibleOnAuthorityPublish(d)).map((d) => d._id);
+  const ineligibleIds = pending.filter((d) => !assignLaunchEligibleOnAuthorityPublish(d)).map((d) => d._id);
+  if (eligibleIds.length) {
+    await Job.updateMany({ _id: { $in: eligibleIds } }, { $set: { approvalStatus: 'approved', status: 'active', launchEligible: true } });
+  }
+  if (ineligibleIds.length) {
+    await Job.updateMany({ _id: { $in: ineligibleIds } }, { $set: { approvalStatus: 'approved', status: 'active', launchEligible: false } });
+  }
+  const result = { modifiedCount: pending.length };
   await logAudit({
     ...auditFromRequest(req),
     action: 'jobs.bulk_approve',

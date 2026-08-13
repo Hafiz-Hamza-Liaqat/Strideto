@@ -35,6 +35,7 @@ import {
   canManageTeam,
 } from '../../../shared/institution/institutionPortal.js';
 import { PUB_STATUSES } from '../../../shared/education/taxonomy.js';
+import { withFixtureExclusion } from '../../../shared/publicDiscovery/fixtureExclusion.js';
 import { ACCEPTANCE_SCOPES as _ACCEPTANCE_SCOPES } from '../../../shared/education/acceptanceExplorer.js';
 
 // ---------------------------------------------------------------------------
@@ -764,7 +765,7 @@ export const studentRespondAdmission = asyncHandler(async (req, res) => {
 
 export const getPublicInstitutionProfile = asyncHandler(async (req, res) => {
   const { slug } = req.params;
-  const institution = await CanonicalInstitution.findOne({ slug, status: PUB_STATUSES.PUBLISHED }).lean();
+  const institution = await CanonicalInstitution.findOne(withFixtureExclusion({ slug, status: PUB_STATUSES.PUBLISHED })).lean();
   if (!institution) return res.status(404).json({ error: 'Institution not found' });
 
   // Check for verified organization management
@@ -784,7 +785,7 @@ export const getPublicInstitutionProfile = asyncHandler(async (req, res) => {
   }
 
   // Public programs (published only)
-  const programs = await Program.find({ institutionId: institution._id, status: PUB_STATUSES.PUBLISHED })
+  const programs = await Program.find(withFixtureExclusion({ institutionId: institution._id, status: PUB_STATUSES.PUBLISHED }))
     .select('name slug degreeLevel field studyMode durationMonths country campus officialProgramUrl tuition intakes lastVerifiedAt freshnessState')
     .limit(20)
     .lean();

@@ -24,6 +24,7 @@ import {
   MARKETPLACE_MODERATION_STATUSES,
 } from '../../../shared/agent/marketplace.js';
 import { AGENT_PROFILE_STATUSES } from '../../../shared/agent/constants.js';
+import { withFixtureExclusion } from '../../../shared/publicDiscovery/fixtureExclusion.js';
 
 function getPublicOrigin() {
   return resolvePublicSiteOrigin(process.env.SITE_URL || process.env.FRONTEND_URL || '');
@@ -101,32 +102,32 @@ export const getSitemap = asyncHandler(async (_req, res) => {
     approvedOrgs,
     marketplacePosts,
   ] = await Promise.all([
-    Job.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(5000).lean(),
-    Scholarship.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(2000).lean(),
-    Admission.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(2000).lean(),
+    Job.find(withFixtureExclusion({ status: 'active', ...slugFilter })).select('slug updatedAt').limit(5000).lean(),
+    Scholarship.find(withFixtureExclusion({ status: 'active', ...slugFilter })).select('slug updatedAt').limit(2000).lean(),
+    Admission.find(withFixtureExclusion({ status: 'active', ...slugFilter })).select('slug updatedAt').limit(2000).lean(),
     Blog.find({ status: 'published', ...slugFilter }).select('slug updatedAt publishedAt').limit(2000).lean(),
-    Internship.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(1000).lean(),
+    Internship.find(withFixtureExclusion({ status: 'active', ...slugFilter })).select('slug updatedAt').limit(1000).lean(),
     Exam.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(200).lean(),
     IntlScholarship.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(500).lean(),
     Institution.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(1000).lean(),
     ForeignStudy.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(500).lean(),
-    Program.find({ status: PUB_STATUSES.PUBLISHED, ...slugFilter }).select('slug updatedAt').limit(2000).lean(),
+    Program.find(withFixtureExclusion({ status: PUB_STATUSES.PUBLISHED, ...slugFilter })).select('slug updatedAt').limit(2000).lean(),
     Test.find({ status: PUB_STATUSES.PUBLISHED, ...slugFilter }).select('slug updatedAt').limit(500).lean(),
     OrganizationVerification.find({ status: VERIFICATION_STATUSES.APPROVED }, { organizationId: 1 }).lean(),
-    AgentMarketplacePost.find({
+    AgentMarketplacePost.find(withFixtureExclusion({
       publicationStatus: MARKETPLACE_PUBLICATION_STATUSES.PUBLISHED,
       moderationStatus: MARKETPLACE_MODERATION_STATUSES.APPROVED,
       ...slugFilter,
-    }).select('slug updatedAt publishedAt').limit(500).lean(),
+    })).select('slug updatedAt publishedAt').limit(500).lean(),
   ]);
 
   const approvedOrgIds = approvedOrgs.map((r) => r.organizationId).filter(Boolean);
   const agentProfiles = approvedOrgIds.length
-    ? await AgentProfile.find({
+    ? await AgentProfile.find(withFixtureExclusion({
       organizationId: { $in: approvedOrgIds },
       profileStatus: AGENT_PROFILE_STATUSES.APPROVED,
       ...slugFilter,
-    }).select('slug updatedAt').limit(500).lean()
+    })).select('slug updatedAt').limit(500).lean()
     : [];
 
   jobs.filter(hasSlug).forEach((j) => addUrl(`/jobs/${j.slug}`, { lastmod: j.updatedAt }));
@@ -180,7 +181,7 @@ export const getSeoJobsPage = asyncHandler(async (req, res) => {
       { location: new RegExp(slug.replace(/-/g, ' '), 'i') },
     ];
   }
-  const jobs = await Job.find(filter).sort({ createdAt: -1 }).limit(limit).lean();
+  const jobs = await Job.find(withFixtureExclusion(filter)).sort({ createdAt: -1 }).limit(limit).lean();
   const title = province
     ? `Latest Government & Private Jobs in ${province} 2026 | Strideto`
     : `Latest Jobs in ${slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())} 2026 | Strideto`;
@@ -198,7 +199,7 @@ export const getSeoJobsByCategory = asyncHandler(async (req, res) => {
   const jobType = SLUG_TO_JOB_TYPE[slug];
   if (!jobType) return res.status(404).json({ error: 'Invalid category' });
   const limit = Math.min(50, parseInt(req.query.limit, 10) || 24);
-  const jobs = await Job.find({ status: 'active', jobType }).sort({ createdAt: -1 }).limit(limit).lean();
+  const jobs = await Job.find(withFixtureExclusion({ status: 'active', jobType })).sort({ createdAt: -1 }).limit(limit).lean();
   const title = `Latest ${jobType} in Pakistan 2026 | Strideto`;
   const description = `Find the latest ${jobType.toLowerCase()} in Pakistan. Updated daily with verified opportunities.`;
   const base = getPublicOrigin();
@@ -214,7 +215,7 @@ export const getSeoJobsBySource = asyncHandler(async (req, res) => {
   if (!JOB_SOURCE_SLUGS.includes(source)) return res.status(404).json({ error: 'Invalid source' });
   const limit = Math.min(50, parseInt(req.query.limit, 10) || 24);
   const sourceWebsite = source.toUpperCase().replace(/-/g, ' ');
-  const jobs = await Job.find({ status: 'active', sourceWebsite: new RegExp(sourceWebsite, 'i') })
+  const jobs = await Job.find(withFixtureExclusion({ status: 'active', sourceWebsite: new RegExp(sourceWebsite, 'i') }))
     .sort({ createdAt: -1 })
     .limit(limit)
     .lean();
@@ -231,7 +232,7 @@ export const getSeoJobsBySource = asyncHandler(async (req, res) => {
 
 export const getLatestGovernmentJobs = asyncHandler(async (req, res) => {
   const limit = Math.min(50, parseInt(req.query.limit, 10) || 24);
-  const jobs = await Job.find({ status: 'active', jobType: 'Government' })
+  const jobs = await Job.find(withFixtureExclusion({ status: 'active', jobType: 'Government' }))
     .sort({ createdAt: -1 })
     .limit(limit)
     .lean();
@@ -249,10 +250,10 @@ export const getSeoScholarshipsPage = asyncHandler(async (req, res) => {
   const country = (req.params.country || '').toLowerCase().replace(/-/g, ' ');
   const limit = Math.min(50, parseInt(req.query.limit, 10) || 24);
   const filter = { status: 'active', country: new RegExp(country, 'i') };
-  const scholarships = await Scholarship.find(filter).sort({ deadline: 1 }).limit(limit).lean();
+  const scholarships = await Scholarship.find(withFixtureExclusion(filter)).sort({ deadline: 1 }).limit(limit).lean();
   const countryTitle = country.replace(/\b\w/g, (c) => c.toUpperCase());
-  const title = `Scholarships in ${countryTitle} for Pakistani Students 2026 | Strideto`;
-  const description = `Find scholarships in ${countryTitle} for Pakistani students. Fully funded and partial scholarships.`;
+  const title = `Scholarships in ${countryTitle} | Strideto`;
+  const description = `Find scholarships in ${countryTitle}. Fully funded and partial scholarships on Strideto.`;
   const base = getPublicOrigin();
   res.json({
     meta: { title, description, canonical: `${base}/scholarships-in-${req.params.country}` },

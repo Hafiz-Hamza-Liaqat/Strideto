@@ -46,6 +46,11 @@ import {
   deriveBadges,
   VERIFICATION_STATUSES,
 } from '../../../shared/international/verification.js';
+import { coerceCountryCode } from '../../../shared/international/country.js';
+import {
+  isPubliclyLaunchVisible,
+  withFixtureExclusion,
+} from '../../../shared/publicDiscovery/fixtureExclusion.js';
 
 // ---------------------------------------------------------------------------
 // Internal helpers
@@ -215,7 +220,17 @@ export async function updateProfile(agentAccountId, updates) {
     'officeLocation', 'credentialReferences', 'profileImageId',
   ];
   for (const key of allowed) {
-    if (key in updates) profile[key] = updates[key];
+    if (!(key in updates)) continue;
+    if (key === 'serviceCountries' || key === 'destinationCountries') {
+      const list = Array.isArray(updates[key]) ? updates[key] : [];
+      profile[key] = list.map((value) => coerceCountryCode(value)).filter(Boolean);
+      continue;
+    }
+    if (key === 'countryCode') {
+      profile.countryCode = coerceCountryCode(updates.countryCode) || '';
+      continue;
+    }
+    profile[key] = updates[key];
   }
 
   // Recompute completeness
@@ -671,8 +686,8 @@ export async function updateLeadStatus(agentAccountId, leadId, status) {
 // ---------------------------------------------------------------------------
 
 export async function getPublicProfileBySlug(slug) {
-  const profile = await AgentProfile.findOne({ slug }).lean();
-  if (!profile) {
+  const profile = await AgentProfile.findOne(withFixtureExclusion({ slug })).lean();
+  if (!profile || !isPubliclyLaunchVisible(profile)) {
     const err = new Error('Profile not found');
     err.status = 404;
     throw err;
@@ -701,9 +716,9 @@ export async function getPublicProfileBySlug(slug) {
     slug: profile.slug,
     professionalName: profile.professionalName,
     agentType: profile.agentType,
-    countryCode: profile.countryCode,
-    serviceCountries: profile.serviceCountries,
-    destinationCountries: profile.destinationCountries,
+    countryCode: coerceCountryCode(profile.countryCode) || profile.countryCode,
+    serviceCountries: (profile.serviceCountries || []).map((c) => coerceCountryCode(c) || c).filter(Boolean),
+    destinationCountries: (profile.destinationCountries || []).map((c) => coerceCountryCode(c) || c).filter(Boolean),
     languages: profile.languages,
     specialties: profile.specialties,
     yearsOfExperience: profile.yearsOfExperience,
@@ -743,39 +758,36 @@ export async function getPublicDirectory({
   ).lean();
   const approvedOrgIds = approvedOrgs.map((r) => r.organizationId);
 
-  const query = {
-    organizationId: { $in: approvedOrgIds },
-  };
+  const extras = {};
   if (agentType && Object.values(AGENT_TYPES).includes(agentType)) {
-    query.agentType = agentType;
+    extras.agentType = agentType;
   }
-  if (countryCode) query.countryCode = countryCode.toUpperCase();
-  if (destinationCountry) query.destinationCountries = destinationCountry.toUpperCase();
-  if (language) query.languages = language.toLowerCase();
+  if (countryCode) extras.countryCode = countryCode.toUpperCase();
+  if (destinationCountry) extras.destinationCountries = destinationCountry.toUpperCase();
+  if (language) extras.languages = language.toLowerCase();
 
-  const pageNum = Math.max(1, parseInt(page, 10) || 1);
-  const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));
-
-  let q = AgentProfile.find(query)
-    .select('slug professionalName agentType countryCode serviceCountries destinationCountries languages specialties professionalSummary website')
-    .skip((pageNum - 1) * limitNum)
-    .limit(limitNum)
-    .sort({ createdAt: -1 });
-
+  let orgIds = approvedOrgIds;
   if (serviceCategory) {
     const svcOrgs = await AgentService.distinct('organizationId', {
       category: serviceCategory,
       status: AGENT_SERVICE_STATUSES.ACTIVE,
     });
-    query.organizationId = { $in: approvedOrgIds.filter((id) =>
-      svcOrgs.some((s) => String(s) === String(id))
-    )};
-    q = AgentProfile.find(query)
-      .select('slug professionalName agentType countryCode serviceCountries destinationCountries languages specialties professionalSummary website')
-      .skip((pageNum - 1) * limitNum)
-      .limit(limitNum)
-      .sort({ createdAt: -1 });
+    orgIds = approvedOrgIds.filter((id) => svcOrgs.some((s) => String(s) === String(id)));
   }
+
+  const query = withFixtureExclusion({
+    organizationId: { $in: orgIds },
+    ...extras,
+  });
+
+  const pageNum = Math.max(1, parseInt(page, 10) || 1);
+  const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));
+
+  const q = AgentProfile.find(query)
+    .select('slug professionalName agentType countryCode serviceCountries destinationCountries languages specialties professionalSummary website')
+    .skip((pageNum - 1) * limitNum)
+    .limit(limitNum)
+    .sort({ createdAt: -1 });
 
   const [profiles, total] = await Promise.all([
     q.lean(),

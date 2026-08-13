@@ -32,6 +32,7 @@ import {
   educationSlug,
 } from '../../../../shared/education/taxonomy.js';
 import { normalizeCountryCode } from '../../../../shared/international/country.js';
+import { assignLaunchEligibleOnAuthorityPublish } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 
 // ── Source/evidence helper ────────────────────────────────────────────────────
 
@@ -547,6 +548,8 @@ export const adminCreateInstitution = asyncHandler(async (req, res) => {
 
 export const adminUpdateInstitution = asyncHandler(async (req, res) => {
   const body = req.body || {};
+  const existing = await CanonicalInstitution.findById(req.params.id).lean();
+  if (!existing) return res.status(404).json({ error: 'Institution not found' });
   const update = {};
 
   if (body.officialName !== undefined) update.officialName = sanitizeString(body.officialName);
@@ -558,7 +561,12 @@ export const adminUpdateInstitution = asyncHandler(async (req, res) => {
   if (body.institutionType !== undefined && isValidInstitutionType(body.institutionType)) update.institutionType = body.institutionType;
   if (body.isPublic !== undefined) update.isPublic = body.isPublic != null ? Boolean(body.isPublic) : null;
   if (body.sources !== undefined) update.sources = parseSources(body.sources).sources;
-  if (body.status !== undefined && isValidPubStatus(body.status)) update.status = body.status;
+  if (body.status !== undefined && isValidPubStatus(body.status)) {
+    update.status = body.status;
+    if (body.status === 'published') {
+      update.launchEligible = assignLaunchEligibleOnAuthorityPublish(existing);
+    }
+  }
 
   const doc = await CanonicalInstitution.findByIdAndUpdate(req.params.id, update, { new: true });
   if (!doc) return res.status(404).json({ error: 'Institution not found' });
@@ -616,6 +624,9 @@ export const adminCreateProgram = asyncHandler(async (req, res) => {
     durationMonths: body.durationMonths ? Number(body.durationMonths) : undefined,
     officialProgramUrl: sanitizeString(body.officialProgramUrl),
     status: isValidPubStatus(body.status) ? body.status : 'draft',
+    launchEligible: isValidPubStatus(body.status) && body.status === 'published'
+      ? assignLaunchEligibleOnAuthorityPublish({ isFixture: false })
+      : undefined,
     sources: parseSources(body.sources).sources,
   });
 
@@ -624,6 +635,8 @@ export const adminCreateProgram = asyncHandler(async (req, res) => {
 
 export const adminUpdateProgram = asyncHandler(async (req, res) => {
   const body = req.body || {};
+  const existing = await Program.findById(req.params.id).lean();
+  if (!existing) return res.status(404).json({ error: 'Program not found' });
   const update = {};
 
   if (body.name !== undefined) update.name = sanitizeString(body.name);
@@ -633,7 +646,12 @@ export const adminUpdateProgram = asyncHandler(async (req, res) => {
   if (body.studyMode !== undefined && isValidStudyMode(body.studyMode)) update.studyMode = body.studyMode;
   if (body.durationMonths !== undefined) update.durationMonths = Number(body.durationMonths);
   if (body.officialProgramUrl !== undefined) update.officialProgramUrl = sanitizeString(body.officialProgramUrl);
-  if (body.status !== undefined && isValidPubStatus(body.status)) update.status = body.status;
+  if (body.status !== undefined && isValidPubStatus(body.status)) {
+    update.status = body.status;
+    if (body.status === 'published') {
+      update.launchEligible = assignLaunchEligibleOnAuthorityPublish(existing);
+    }
+  }
   if (body.sources !== undefined) update.sources = parseSources(body.sources).sources;
 
   const doc = await Program.findByIdAndUpdate(req.params.id, update, { new: true });

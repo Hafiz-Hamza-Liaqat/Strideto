@@ -24,6 +24,7 @@ import { projectPublicAcceptance } from '../../../../shared/education/acceptance
 import { FRESHNESS_STATES } from '../../../../shared/trust/sourceVerification.js';
 import { projectPublicProgram } from '../../../../shared/publicDiscovery/projectPublicDiscovery.js';
 import { currentAcceptanceMongoFilter } from '../../../../shared/publicDiscovery/publicTruth.js';
+import { withFixtureExclusion } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 
 const PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;
@@ -56,7 +57,7 @@ function projectProgram(doc) {
 
 export const getProgramFacets = asyncHandler(async (_req, res) => {
   const rows = await Program.aggregate([
-    { $match: { status: 'published' } },
+    { $match: withFixtureExclusion({ status: 'published' }) },
     { $match: { country: { $exists: true, $nin: [null, ''] } } },
     { $group: { _id: { $toUpper: '$country' } } },
     { $sort: { _id: 1 } },
@@ -66,7 +67,7 @@ export const getProgramFacets = asyncHandler(async (_req, res) => {
 
 export const listPrograms = asyncHandler(async (req, res) => {
   const q = req.query || {};
-  const filter = { status: 'published' };
+  const filter = withFixtureExclusion({ status: 'published' });
 
   if (q.country) filter.country = sanitizeString(q.country).toUpperCase();
   if (q.institutionId) filter.institutionId = sanitizeString(q.institutionId);
@@ -106,7 +107,7 @@ export const listPrograms = asyncHandler(async (req, res) => {
 
 export const getProgramDetail = asyncHandler(async (req, res) => {
   const slug = sanitizeString(req.params.slug);
-  const doc = await Program.findOne({ slug, status: 'published' })
+  const doc = await Program.findOne(withFixtureExclusion({ slug, status: 'published' }))
     .populate('institutionId', 'officialName slug countryCode institutionType')
     .select('-__v')
     .lean();
@@ -174,9 +175,9 @@ export const comparePrograms = asyncHandler(async (req, res) => {
   }
 
   const isObjectId = /^[a-f0-9]{24}$/.test(items[0]);
-  const filter = isObjectId
+  const filter = withFixtureExclusion(isObjectId
     ? { _id: { $in: items }, status: 'published' }
-    : { slug: { $in: items }, status: 'published' };
+    : { slug: { $in: items }, status: 'published' });
 
   const docs = await Program.find(filter)
     .populate('institutionId', 'officialName slug countryCode')

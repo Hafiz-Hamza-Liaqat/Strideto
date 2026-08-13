@@ -20,6 +20,7 @@ import {
   derivePublishingEntitlementType,
   loadEmployerPublishingUsage,
 } from '../../services/employer/employerPublishingQuota.js';
+import { assignLaunchEligibleOnAuthorityPublish } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -293,8 +294,27 @@ export const bulkAction = asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'Unknown bulk action' });
   }
 
+  if (action === 'publish' || action === 'approve') {
+    const pending = await Job.find({ _id: { $in: validIds } }).select('isFixture demoOnly dataClass environment launchEligible').lean();
+    const eligibleIds = pending.filter((d) => assignLaunchEligibleOnAuthorityPublish(d)).map((d) => d._id);
+    const ineligibleIds = pending.filter((d) => !assignLaunchEligibleOnAuthorityPublish(d)).map((d) => d._id);
+    if (eligibleIds.length) {
+      await Job.updateMany({ _id: { $in: eligibleIds } }, { $set: { ...updates, launchEligible: true } });
+    }
+    if (ineligibleIds.length) {
+      await Job.updateMany({ _id: { $in: ineligibleIds } }, { $set: { ...updates, launchEligible: false } });
+    }
+    onContentBulkUpdated('jobs', validIds);
+    await invalidateJobCaches();
+    await logAudit({
+      ...auditFromRequest(req),
+      action: auditAction,
+      targetType: 'job',
+      metadata: { ids: validIds, modified: pending.length },
+    });
+    return res.json({ action, affected: pending.length });
+  }
   const result = await Job.updateMany({ _id: { $in: validIds } }, { $set: updates });
-  if (action === 'publish' || action === 'approve') onContentBulkUpdated('jobs', validIds);
   await invalidateJobCaches();
   await logAudit({
     ...auditFromRequest(req),
@@ -308,7 +328,13 @@ export const bulkAction = asyncHandler(async (req, res) => {
 export const approveJob = asyncHandler(async (req, res) => {
   const { id } = req.params;
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
-  const doc = await Job.findByIdAndUpdate(id, { status: 'active', approvalStatus: 'approved' }, { new: true });
+  const existing = await Job.findById(id).lean();
+  if (!existing) return res.status(404).json({ error: 'Job not found' });
+  const doc = await Job.findByIdAndUpdate(id, {
+    status: 'active',
+    approvalStatus: 'approved',
+    launchEligible: assignLaunchEligibleOnAuthorityPublish(existing),
+  }, { new: true });
   if (!doc) return res.status(404).json({ error: 'Job not found' });
   onContentSaved('jobs', doc);
   await logAudit({ ...auditFromRequest(req), action: 'job.approve', targetType: 'job', targetId: id, targetLabel: doc.title });
