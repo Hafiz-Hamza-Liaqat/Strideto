@@ -154,7 +154,7 @@ export default function AgentProfile() {
         </div>
         <div>
           <span className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Phone</span>
-          <PhoneInput id="agent-profile-phone" value={phoneValue} defaultCountry={form.countryCode || 'US'} onChange={setPhoneValue} />
+          <PhoneInput id="agent-profile-phone" value={phoneValue} defaultCountry={form.countryCode || ''} onChange={setPhoneValue} />
         </div>
         <div>
           <label htmlFor="agent-profile-country" className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Primary country</label>

@@ -5,6 +5,7 @@ import { SeoHead } from '../../components/seo';
 import { employerApi } from '../../services/employerService';
 import { ROUTES } from '../../constants';
 import { isEmployerIntelligenceEnabled } from '../../config/careerFeatureFlags';
+import { DateInput } from '../../components/forms/NativeTemporalInput';
 
 export default function EmployerInterviews() {
   const { t } = useTranslation(['employer', 'common']);
@@ -79,11 +80,11 @@ export default function EmployerInterviews() {
         ) : null}
         <label className="text-sm">
           From
-          <input type="date" value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="mt-1 block min-h-[44px] px-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900" />
+          <DateInput value={fromDate} onChange={(e) => setFromDate(e.target.value)} className="mt-1 block min-h-[44px] px-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900" />
         </label>
         <label className="text-sm">
           To
-          <input type="date" value={toDate} onChange={(e) => setToDate(e.target.value)} className="mt-1 block min-h-[44px] px-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900" />
+          <DateInput value={toDate} onChange={(e) => setToDate(e.target.value)} className="mt-1 block min-h-[44px] px-3 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900" />
         </label>
       </div>
       {loading ? <p>{t('common:loading')}</p> : visible.length === 0 ? (

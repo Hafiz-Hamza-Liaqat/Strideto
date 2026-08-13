@@ -233,7 +233,7 @@ export default function InstitutionProfile() {
               id="institution-official-phone"
               className="mt-1"
               value={phoneValue}
-              defaultCountry={form.countryCode || 'US'}
+              defaultCountry={form.countryCode || ''}
               onChange={setPhoneValue}
             />
           </div>

@@ -1,63 +1,65 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   formatPhoneE164,
   getCountryCallingCode,
+  listPhoneCountries,
+  parseE164ToPhoneParts,
 } from '@shared/international/phone.js';
-import { ISO_3166_ALPHA2, normalizeCountryCode } from '@shared/international/country.js';
-import { controlShellClassName, inputControlClassName, selectControlClassName } from './controlClasses.js';
-
-const DEFAULT_COUNTRY = 'US';
+import { normalizeCountryCode } from '@shared/international/country.js';
+import { controlShellClassName, inputControlClassName } from './controlClasses.js';
+import { SearchableSelect } from './SearchableSelect.jsx';
 
 function stripNationalInput(raw) {
   return String(raw || '').replace(/[^\d\s()-]/g, '');
 }
 
-function emptyPhoneValue(countryCode = DEFAULT_COUNTRY) {
-  const code = normalizeCountryCode(countryCode) || DEFAULT_COUNTRY;
-  const dialCode = getCountryCallingCode(code) || '';
-  return { countryCode: code, dialCode, nationalNumber: '', e164: null };
+function emptyPhoneValue(countryCode = '') {
+  const code = normalizeCountryCode(countryCode) || '';
+  const callingCode = getCountryCallingCode(code) || '';
+  return { countryCode: code, callingCode, dialCode: callingCode, nationalNumber: '', e164: null };
 }
 
-function parseControlledValue(value, fallbackCountry) {
-  if (value == null || value === '') return emptyPhoneValue(fallbackCountry);
+function parseControlledValue(value, preferredCountry) {
+  if (value == null || value === '') return emptyPhoneValue(preferredCountry);
   if (typeof value === 'string') {
-    const digits = value.replace(/[^\d+]/g, '');
-    if (digits.startsWith('+')) {
-      for (const code of ISO_3166_ALPHA2) {
-        const dial = getCountryCallingCode(code);
-        if (!dial) continue;
-        if (digits.startsWith(`+${dial}`)) {
-          const nationalNumber = digits.slice(dial.length + 1);
-          return {
-            countryCode: code,
-            dialCode: dial,
-            nationalNumber,
-            e164: formatPhoneE164({ dialCode: dial, nationalNumber }),
-          };
-        }
-      }
+    const parsed = parseE164ToPhoneParts(value, { preferredCountry });
+    if (parsed) {
+      return {
+        countryCode: parsed.countryCode,
+        callingCode: parsed.callingCode,
+        dialCode: parsed.callingCode,
+        nationalNumber: parsed.nationalNumber,
+        e164: formatPhoneE164({
+          countryCode: parsed.countryCode,
+          dialCode: parsed.callingCode,
+          nationalNumber: parsed.nationalNumber,
+        }),
+      };
     }
-    return { ...emptyPhoneValue(fallbackCountry), nationalNumber: stripNationalInput(value) };
+    return { ...emptyPhoneValue(preferredCountry), nationalNumber: stripNationalInput(value) };
   }
-  const countryCode = normalizeCountryCode(value.countryCode) || fallbackCountry;
-  const dialCode = value.dialCode || getCountryCallingCode(countryCode) || '';
+  const countryCode = normalizeCountryCode(value.countryCode) || preferredCountry || '';
+  const callingCode = String(value.callingCode || value.dialCode || getCountryCallingCode(countryCode) || '').replace(/[^\d]/g, '');
   const nationalNumber = stripNationalInput(value.nationalNumber);
   return {
     countryCode,
-    dialCode,
+    callingCode,
+    dialCode: callingCode,
     nationalNumber,
-    e164: formatPhoneE164({ countryCode, dialCode, nationalNumber }),
+    e164: formatPhoneE164({ countryCode, dialCode: callingCode, nationalNumber }),
   };
 }
 
 /**
- * International phone input: ISO country selector, dial code, national number (tel).
- * onChange receives `{ countryCode, dialCode, nationalNumber, e164 }`.
+ * International phone input. Selection identity is ISO alpha-2, not dial code.
+ * onChange receives `{ countryCode, callingCode, dialCode, nationalNumber, e164 }`.
+ * e164 is the only authoritative persisted number. No silent US/PK default.
  */
 export function PhoneInput({
   value,
   onChange,
-  defaultCountry = DEFAULT_COUNTRY,
+  defaultCountry = '',
   disabled = false,
   id,
   nationalId,
@@ -65,62 +67,80 @@ export function PhoneInput({
   error = false,
   className = '',
 }) {
-  const parsed = useMemo(() => parseControlledValue(value, defaultCountry), [value, defaultCountry]);
+  const { i18n } = useTranslation();
+  const locale = i18n.language || 'en';
+  const preferred = normalizeCountryCode(defaultCountry) || '';
+  const parsed = useMemo(() => parseControlledValue(value, preferred), [value, preferred]);
+  const userChoseCountryRef = useRef(false);
+  const lastPrefRef = useRef(preferred);
 
-  const emit = (next) => {
-    const countryCode = normalizeCountryCode(next.countryCode) || DEFAULT_COUNTRY;
-    const dialCode = next.dialCode || getCountryCallingCode(countryCode) || '';
+  const options = useMemo(() => listPhoneCountries(locale), [locale]);
+
+  const emit = (next, { userCountry = false } = {}) => {
+    if (userCountry) userChoseCountryRef.current = true;
+    const countryCode = normalizeCountryCode(next.countryCode) || '';
+    const callingCode = String(next.callingCode || next.dialCode || getCountryCallingCode(countryCode) || '').replace(/[^\d]/g, '');
     const nationalNumber = stripNationalInput(next.nationalNumber);
-    const payload = {
+    onChange?.({
       countryCode,
-      dialCode,
+      callingCode,
+      dialCode: callingCode,
       nationalNumber,
-      e164: formatPhoneE164({ countryCode, dialCode, nationalNumber }),
-    };
-    onChange?.(payload);
+      e164: formatPhoneE164({ countryCode, dialCode: callingCode, nationalNumber }),
+    });
   };
 
-  const countryOptions = useMemo(
-    () =>
-      ISO_3166_ALPHA2.filter((code) => getCountryCallingCode(code))
-        .map((code) => ({ code, dial: getCountryCallingCode(code) }))
-        .sort((a, b) => a.code.localeCompare(b.code)),
-    []
-  );
+  useEffect(() => {
+    if (!preferred || userChoseCountryRef.current) return;
+    if (preferred === lastPrefRef.current) return;
+    lastPrefRef.current = preferred;
+    if (parsed.countryCode === preferred) return;
+    if (parsed.nationalNumber && parsed.countryCode) return;
+    emit({
+      countryCode: preferred,
+      callingCode: getCountryCallingCode(preferred) || '',
+      nationalNumber: parsed.nationalNumber,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- sync prefix from explicit Country only
+  }, [preferred]);
 
   return (
-    <div className={`flex flex-col gap-2 sm:flex-row ${className}`}>
-      <div className="sm:w-40 shrink-0">
-        <label htmlFor={countryId || `${id}-country`} className="sr-only">
-          Country calling code
-        </label>
-        <select
+    <div className={`flex flex-col gap-2 sm:flex-row min-w-0 ${className}`}>
+      <div className="min-w-0 sm:w-[min(100%,18rem)] sm:shrink-0">
+        <SearchableSelect
           id={countryId || `${id}-country`}
-          disabled={disabled}
+          aria-label="Phone country"
           value={parsed.countryCode}
-          onChange={(event) => {
-            const countryCode = event.target.value;
+          disabled={disabled}
+          error={error}
+          placeholder="Search country or +code"
+          options={options}
+          getOptionKey={(row) => row.countryCode}
+          getOptionLabel={(row) => `${row.name} (+${row.callingCode})`}
+          getOptionSearchText={(row) => `${row.name} ${row.countryCode} +${row.callingCode} ${row.callingCode}`}
+          renderOption={(row) => (
+            <>
+              <span className="min-w-0 truncate">{row.name}</span>
+              <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">
+                {row.countryCode} (+{row.callingCode})
+              </span>
+            </>
+          )}
+          onChange={(countryCode) => {
             emit({
               countryCode,
-              dialCode: getCountryCallingCode(countryCode) || '',
+              callingCode: getCountryCallingCode(countryCode) || '',
               nationalNumber: parsed.nationalNumber,
-            });
+            }, { userCountry: true });
           }}
-          className={selectControlClassName({ error })}
-        >
-          {countryOptions.map(({ code, dial }) => (
-            <option key={code} value={code}>
-              {code} (+{dial})
-            </option>
-          ))}
-        </select>
+        />
       </div>
-      <div className={controlShellClassName('flex-1')}>
+      <div className={controlShellClassName('flex-1 min-w-0')}>
         <span
           className="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-3 text-sm text-gray-500 dark:text-gray-400"
           aria-hidden="true"
         >
-          +{parsed.dialCode || '—'}
+          {parsed.callingCode ? `+${parsed.callingCode}` : '+'}
         </span>
         <label htmlFor={nationalId || id} className="sr-only">
           Phone number
@@ -138,7 +158,7 @@ export function PhoneInput({
               nationalNumber: stripNationalInput(event.target.value),
             })
           }
-          className={`${inputControlClassName({ error })} ps-14`}
+          className={`${inputControlClassName({ error })} ps-16`}
         />
       </div>
     </div>

@@ -105,7 +105,7 @@ export default function StudentInstitutionApply() {
             <div className="mt-1">
               <PhoneInput
                 value={form.phone}
-                defaultCountry={form.countryOfResidence || 'US'}
+                defaultCountry={form.countryOfResidence || ''}
                 onChange={(next) => setForm((c) => ({ ...c, phone: next?.e164 || '' }))}
               />
             </div>

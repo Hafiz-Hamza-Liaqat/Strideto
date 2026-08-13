@@ -1,4 +1,4 @@
-import { useEffect, useId, useMemo, useRef, useState } from 'react';
+import { useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   ISO_3166_ALPHA2,
@@ -6,12 +6,7 @@ import {
   countryDisplayName,
   normalizeCountryCode,
 } from '@shared/international/country.js';
-import { inputControlClassName } from './controlClasses.js';
-
-function useDisplayLocale() {
-  const { i18n } = useTranslation();
-  return i18n.language || 'en';
-}
+import { SearchableSelect } from './SearchableSelect.jsx';
 
 function buildCountryOptions(locale, allowAll, allLabel) {
   const rows = ISO_3166_ALPHA2.map((code) => ({
@@ -37,124 +32,41 @@ export function CountrySelect({
   error = false,
   className = '',
   inputClassName = '',
-  listClassName = '',
   placeholder = 'Search country...',
   allLabel = 'All countries',
 }) {
-  const locale = useDisplayLocale();
-  const listId = useId();
-  const rootRef = useRef(null);
-  const [open, setOpen] = useState(false);
-  const [query, setQuery] = useState('');
-  const [activeIndex, setActiveIndex] = useState(0);
+  const { i18n } = useTranslation();
+  const locale = i18n.language || 'en';
 
   const normalizedValue =
     normalizeCountryCode(value) || (allowAll && value === '' ? '' : coerceCountryCode(value) || '');
 
-  const options = useMemo(() => {
-    const rows = buildCountryOptions(locale, allowAll, allLabel);
-    const q = query.trim().toLowerCase();
-    if (!q) return rows;
-    return rows.filter(
-      (row) =>
-        row.name.toLowerCase().includes(q) ||
-        row.code.toLowerCase().includes(q)
-    );
-  }, [locale, allowAll, allLabel, query]);
-
-  const selectedLabel = useMemo(() => {
-    if (allowAll && normalizedValue === '') return allLabel;
-    return normalizedValue ? countryDisplayName(normalizedValue, locale) : '';
-  }, [allowAll, normalizedValue, allLabel, locale]);
-
-  useEffect(() => {
-    if (!open) setQuery('');
-    setActiveIndex(0);
-  }, [open]);
-
-  useEffect(() => {
-    function onDocClick(event) {
-      if (!rootRef.current?.contains(event.target)) setOpen(false);
-    }
-    document.addEventListener('mousedown', onDocClick);
-    return () => document.removeEventListener('mousedown', onDocClick);
-  }, []);
-
-  const pick = (code) => {
-    onChange?.(code);
-    setOpen(false);
-  };
+  const options = useMemo(
+    () => buildCountryOptions(locale, allowAll, allLabel),
+    [locale, allowAll, allLabel]
+  );
 
   return (
-    <div ref={rootRef} className={`relative ${className}`}>
-      <input
-        id={id}
-        type="text"
-        role="combobox"
-        aria-expanded={open}
-        aria-controls={listId}
-        aria-autocomplete="list"
-        disabled={disabled}
-        value={open ? query : selectedLabel}
-        placeholder={placeholder}
-        onFocus={() => !disabled && setOpen(true)}
-        onChange={(event) => {
-          setQuery(event.target.value);
-          if (!open) setOpen(true);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === 'Escape') {
-            setOpen(false);
-            return;
-          }
-          if (event.key === 'ArrowDown') {
-            event.preventDefault();
-            if (!open) setOpen(true);
-            setActiveIndex((i) => Math.min(i + 1, Math.max(options.length - 1, 0)));
-            return;
-          }
-          if (event.key === 'ArrowUp') {
-            event.preventDefault();
-            setActiveIndex((i) => Math.max(i - 1, 0));
-            return;
-          }
-          if (event.key === 'Enter' && open && options[activeIndex]) {
-            event.preventDefault();
-            pick(options[activeIndex].code);
-          }
-        }}
-        className={inputClassName || inputControlClassName({ error })}
-      />
-      {open && !disabled ? (
-        <ul
-          id={listId}
-          role="listbox"
-          className={listClassName || 'absolute z-40 mt-1 max-h-56 w-full overflow-auto rounded-lg border border-gray-200 bg-white py-1 shadow-lg dark:border-gray-600 dark:bg-gray-800'}
-        >
-          {options.length === 0 ? (
-            <li className="px-3 py-2 text-sm text-gray-500 dark:text-gray-400">No matches</li>
-          ) : (
-            options.map((row, idx) => (
-              <li key={row.code || '__all'} role="option" aria-selected={row.code === normalizedValue}>
-                <button
-                  type="button"
-                  className={`flex w-full items-center justify-between px-3 py-2 text-start text-sm min-h-[44px] ${
-                    idx === activeIndex
-                      ? 'bg-primary/10 text-primary dark:bg-mint/15 dark:text-mint'
-                      : 'text-gray-900 hover:bg-gray-100 dark:text-gray-100 dark:hover:bg-gray-700'
-                  }`}
-                  onMouseDown={(event) => event.preventDefault()}
-                  onClick={() => pick(row.code)}
-                >
-                  <span>{row.name}</span>
-                  {row.code ? <span className="text-xs text-gray-500 dark:text-gray-400">{row.code}</span> : null}
-                </button>
-              </li>
-            ))
-          )}
-        </ul>
-      ) : null}
-    </div>
+    <SearchableSelect
+      id={id}
+      className={className}
+      inputClassName={inputClassName}
+      value={normalizedValue}
+      disabled={disabled}
+      error={error}
+      placeholder={placeholder}
+      options={options}
+      getOptionKey={(row) => row.code}
+      getOptionLabel={(row) => row.name}
+      getOptionSearchText={(row) => `${row.name} ${row.code}`}
+      renderOption={(row) => (
+        <>
+          <span className="min-w-0 truncate">{row.name}</span>
+          {row.code ? <span className="shrink-0 text-xs text-gray-500 dark:text-gray-400">{row.code}</span> : null}
+        </>
+      )}
+      onChange={(code) => onChange?.(code)}
+    />
   );
 }
 

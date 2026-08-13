@@ -3,6 +3,7 @@ import { useInstitutionAuth } from '../../context/InstitutionAuthContext';
 import { institutionPortalApi } from '../../services/institutionPortalService';
 import { APPLICATION_MODES } from '../../../../shared/institution/institutionPortal.js';
 import { PageState, Panel, StatusBadge, fieldClass, humanize, primaryButton, secondaryButton } from './InstitutionUi';
+import { DateInput } from '../../components/forms/NativeTemporalInput';
 
 const emptyIntake = {
   cycleLabel: '', applicationOpenDate: '', deadlineDate: '', startDate: '',
@@ -101,9 +102,9 @@ export default function InstitutionIntakes() {
               {Object.values(APPLICATION_MODES).map((m) => <option key={m} value={m}>{humanize(m)}</option>)}
             </select>
           </label>
-          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Opening date<input type="date" className={`${fieldClass} mt-1`} value={intake.applicationOpenDate} onChange={(e) => setIntake({ ...intake, applicationOpenDate: e.target.value })} /></label>
-          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Deadline<input type="date" className={`${fieldClass} mt-1`} value={intake.deadlineDate} onChange={(e) => setIntake({ ...intake, deadlineDate: e.target.value })} /></label>
-          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Start date<input type="date" className={`${fieldClass} mt-1`} value={intake.startDate} onChange={(e) => setIntake({ ...intake, startDate: e.target.value })} /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Opening date<DateInput className={`${fieldClass} mt-1`} value={intake.applicationOpenDate} onChange={(e) => setIntake({ ...intake, applicationOpenDate: e.target.value })} /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Deadline<DateInput className={`${fieldClass} mt-1`} value={intake.deadlineDate} onChange={(e) => setIntake({ ...intake, deadlineDate: e.target.value })} /></label>
+          <label className="text-sm font-medium text-gray-800 dark:text-gray-200">Start date<DateInput className={`${fieldClass} mt-1`} value={intake.startDate} onChange={(e) => setIntake({ ...intake, startDate: e.target.value })} /></label>
           <div>
             <label className="text-sm font-medium text-gray-800 dark:text-gray-200" htmlFor="institution-intake-apply-url">Official application URL<input id="institution-intake-apply-url" type="url" className={`${fieldClass} mt-1`} value={intake.applicationUrl} onChange={(e) => setIntake({ ...intake, applicationUrl: e.target.value })} placeholder="https://www.example.edu/apply" /></label>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Required when application mode is external.</p>

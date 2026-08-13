@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { INSTITUTION_TYPES } from '@shared/education/taxonomy.js';
 import { CountrySelect } from '../../components/forms/CountrySelect';
 import { PhoneInput } from '../../components/forms/PhoneInput';
+import { DateInput } from '../../components/forms/NativeTemporalInput';
 import { useInstitutionAuth } from '../../context/InstitutionAuthContext';
 import { institutionPortalApi } from '../../services/institutionPortalService';
 import { PageState, Panel, StatusBadge, fieldClass, primaryButton } from './InstitutionUi';
@@ -205,7 +206,7 @@ export default function InstitutionVerification() {
               id="institution-verification-phone"
               className="mt-1"
               value={phoneValue}
-              defaultCountry={profile.countryCode || 'US'}
+              defaultCountry={profile.countryCode || ''}
               onChange={setPhoneValue}
             />
           </div>
@@ -267,11 +268,11 @@ export default function InstitutionVerification() {
           </label>
           <label className="text-sm text-gray-900 dark:text-white" htmlFor="institution-verification-issue-date">
             Issue date
-            <input id="institution-verification-issue-date" type="date" value={profile.licenseIssuedAt || ''} onChange={set('licenseIssuedAt')} className={fieldClass} />
+            <DateInput id="institution-verification-issue-date" value={profile.licenseIssuedAt || ''} onChange={set('licenseIssuedAt')} className={fieldClass} />
           </label>
           <label className="text-sm text-gray-900 dark:text-white" htmlFor="institution-verification-expiry-date">
             Expiry date
-            <input id="institution-verification-expiry-date" type="date" value={profile.licenseExpiresAt || ''} onChange={set('licenseExpiresAt')} className={fieldClass} />
+            <DateInput id="institution-verification-expiry-date" value={profile.licenseExpiresAt || ''} onChange={set('licenseExpiresAt')} className={fieldClass} />
           </label>
           <h2 className="md:col-span-2 font-semibold text-gray-900 dark:text-white">Representative</h2>
           <label className="text-sm text-gray-900 dark:text-white" htmlFor="institution-verification-rep-name">

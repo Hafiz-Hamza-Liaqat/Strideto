@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { agentApi } from '../../services/agentService';
 import { TimezoneSelect } from '../../components/forms/TimezoneSelect';
 import { inputControlClassName, selectControlClassName } from '../../components/forms/controlClasses';
+import { DateInput, TimeInput } from '../../components/forms/NativeTemporalInput';
 
 const blankWindow = { weekday: 1, startLocal: '09:00', endLocal: '17:00' };
 const WEEKDAYS = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
@@ -101,8 +102,8 @@ export default function AgentAvailability() {
                     <option key={day} value={value}>{day}</option>
                   ))}
                 </select>
-                <input type="time" value={window.startLocal} onChange={(e) => updateWindow(index, { startLocal: e.target.value })} className={inputControlClassName()} />
-                <input type="time" value={window.endLocal} onChange={(e) => updateWindow(index, { endLocal: e.target.value })} className={inputControlClassName()} />
+                <TimeInput value={window.startLocal} onChange={(e) => updateWindow(index, { startLocal: e.target.value })} className={inputControlClassName()} />
+                <TimeInput value={window.endLocal} onChange={(e) => updateWindow(index, { endLocal: e.target.value })} className={inputControlClassName()} />
                 <button type="button" onClick={() => setForm({ ...form, windows: form.windows.filter((_, i) => i !== index) })} className="px-2 text-red-700 dark:text-red-400">Remove</button>
               </div>
             ))}
@@ -121,11 +122,11 @@ export default function AgentAvailability() {
         <div className="grid gap-3 sm:grid-cols-2">
           <label className="text-sm font-medium text-gray-900 dark:text-white">
             Effective from
-            <input type="date" value={form.effectiveFrom || ''} onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })} className={`${inputControlClassName()} mt-1`} />
+            <DateInput value={form.effectiveFrom || ''} onChange={(e) => setForm({ ...form, effectiveFrom: e.target.value })} className={`${inputControlClassName()} mt-1`} />
           </label>
           <label className="text-sm font-medium text-gray-900 dark:text-white">
             Effective to
-            <input type="date" value={form.effectiveTo || ''} onChange={(e) => setForm({ ...form, effectiveTo: e.target.value })} className={`${inputControlClassName()} mt-1`} />
+            <DateInput value={form.effectiveTo || ''} onChange={(e) => setForm({ ...form, effectiveTo: e.target.value })} className={`${inputControlClassName()} mt-1`} />
           </label>
         </div>
 
