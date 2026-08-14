@@ -125,6 +125,14 @@ export async function mutateGbsServiceListingRecord({
   delete $set.subjectId;
   delete $set.creationCommandId;
   delete $set.publicationStatus;
+  if (!actor?.isStaff) {
+    if ($set.reviewedBy) delete $set.reviewedBy;
+    if ($set.reviewedAt) delete $set.reviewedAt;
+    if ($set.reviewReason) delete $set.reviewReason;
+    if ($set.adminReviewStatus && $set.adminReviewStatus !== 'pending') {
+      delete $set.adminReviewStatus;
+    }
+  }
 
   const subjectFilter = {
     _id: id,

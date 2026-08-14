@@ -7,6 +7,7 @@ import { GbsServiceListing } from '../../models/gbs/GbsServiceListing.js';
 import { ProviderCapability } from '../../models/gbs/ProviderCapability.js';
 import {
   GBS_COMMAND_IDS,
+  GBS_LISTING_ADMIN_REVIEW_STATUSES,
   GBS_LISTING_MODERATION_STATUSES,
   GBS_LISTING_PUBLICATION_STATUSES,
   GBS_PROVIDER_BOUNDS,
@@ -101,6 +102,7 @@ export function publicListingProjection(record) {
     recurringService: record.recurringService,
     moderationStatus: record.moderationStatus,
     publicationStatus: record.publicationStatus,
+    adminReviewStatus: record.adminReviewStatus || GBS_LISTING_ADMIN_REVIEW_STATUSES.PENDING,
     riskFlags: record.riskFlags || [],
     contentRevision: record.contentRevision,
     recordVersion: record.recordVersion,
@@ -114,8 +116,11 @@ export async function createServiceListingDraft({ input, actor, commandId } = {}
     ...input,
     moderationStatus: GBS_LISTING_MODERATION_STATUSES.DRAFT,
     publicationStatus: GBS_LISTING_PUBLICATION_STATUSES.PRIVATE,
+    adminReviewStatus: GBS_LISTING_ADMIN_REVIEW_STATUSES.PENDING,
     creationCommandId: commandId,
     reviewedBy: undefined,
+    reviewedAt: undefined,
+    reviewReason: undefined,
     trustStatus: undefined,
   });
   if (!parsed.ok) {
@@ -152,6 +157,10 @@ export async function createServiceListingDraft({ input, actor, commandId } = {}
           riskFlags: risk.codes,
           creationCommandId: commandId,
           publicationStatus: GBS_LISTING_PUBLICATION_STATUSES.PRIVATE,
+          adminReviewStatus: GBS_LISTING_ADMIN_REVIEW_STATUSES.PENDING,
+          reviewedBy: null,
+          reviewedAt: null,
+          reviewReason: '',
         });
         return { listingId: String(doc._id) };
       },
@@ -262,6 +271,7 @@ export async function updateServiceListing({
       : current.moderationStatus === GBS_LISTING_MODERATION_STATUSES.UNDER_REVIEW && material
         ? GBS_LISTING_MODERATION_STATUSES.UNDER_REVIEW
         : current.moderationStatus;
+  const resetAdminReview = Boolean(wasApproved && material);
 
   const updated = await mutateGbsServiceListingRecord({
     id,
@@ -275,6 +285,14 @@ export async function updateServiceListing({
       publicationStatus: GBS_LISTING_PUBLICATION_STATUSES.PRIVATE,
       riskFlags: risk.codes,
       contentRevision: material ? (current.contentRevision || 1) + 1 : current.contentRevision,
+      ...(resetAdminReview
+        ? {
+            adminReviewStatus: GBS_LISTING_ADMIN_REVIEW_STATUSES.PENDING,
+            reviewedBy: null,
+            reviewedAt: null,
+            reviewReason: '',
+          }
+        : {}),
     },
   });
 
@@ -333,6 +351,10 @@ export async function submitServiceListingForReview({
     set: {
       moderationStatus: nextStatus,
       publicationStatus: GBS_LISTING_PUBLICATION_STATUSES.PRIVATE,
+      adminReviewStatus: GBS_LISTING_ADMIN_REVIEW_STATUSES.PENDING,
+      reviewedBy: null,
+      reviewedAt: null,
+      reviewReason: '',
       riskFlags: risk.codes,
     },
   });

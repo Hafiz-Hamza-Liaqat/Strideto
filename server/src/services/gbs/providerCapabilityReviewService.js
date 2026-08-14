@@ -20,7 +20,7 @@ import {
   isLegacyProviderCapability,
 } from '../../../../shared/gbs/gbsProviderAuthority.js';
 import { GBS_AUDIT_EVENTS, redactAuditMetadata } from '../../../../shared/security/gbsAuditEvents.js';
-import { applyOptimisticMutation } from '../../../../shared/platform/optimisticConcurrency.js';
+import { applyOptimisticMutation, assertExpectedVersion } from '../../../../shared/platform/optimisticConcurrency.js';
 import { POLICY_ACTIONS } from '../../../../shared/capability/permissionPolicy.js';
 
 function deny(code, status = 403) {
@@ -181,6 +181,13 @@ export function createProviderCapabilityReviewService({
     async markEvidenceBacked({ id, subjectType, subjectId, expectedVersion, actor }) {
       if (!actor?.isStaff) throw deny('staff_review_required');
       const current = await loadExact(subjectType, subjectId, id);
+      if (
+        current.trustStatus === PROVIDER_TRUST_STATUSES.EVIDENCE_BACKED ||
+        current.trustStatus === PROVIDER_TRUST_STATUSES.VERIFIED
+      ) {
+        assertExpectedVersion(current.recordVersion, expectedVersion);
+        return current;
+      }
       const next = bump(current, expectedVersion, {
         trustStatus: PROVIDER_TRUST_STATUSES.EVIDENCE_BACKED,
       });
@@ -198,6 +205,10 @@ export function createProviderCapabilityReviewService({
       now = new Date(),
     }) {
       const current = await loadExact(subjectType, subjectId, id);
+      if (current.trustStatus === PROVIDER_TRUST_STATUSES.VERIFIED && current.status === GRANT_STATUSES.ACTIVE) {
+        assertExpectedVersion(current.recordVersion, expectedVersion);
+        return current;
+      }
       assertMayVerify({ record: current, actor, organizationVerified, titleId, now });
       const next = bump(current, expectedVersion, {
         trustStatus: PROVIDER_TRUST_STATUSES.VERIFIED,
@@ -216,6 +227,10 @@ export function createProviderCapabilityReviewService({
     async needsInformation({ id, subjectType, subjectId, expectedVersion, actor, reasonCode }) {
       if (!actor?.isStaff) throw deny('staff_review_required');
       const current = await loadExact(subjectType, subjectId, id);
+      if (current.review?.decision === 'needs_information') {
+        assertExpectedVersion(current.recordVersion, expectedVersion);
+        return current;
+      }
       const next = bump(current, expectedVersion, {
         review: { ...(current.review || {}), decision: 'needs_information', reasonCode },
       });
@@ -225,6 +240,10 @@ export function createProviderCapabilityReviewService({
     async reject({ id, subjectType, subjectId, expectedVersion, actor, reasonCode }) {
       if (!actor?.isStaff) throw deny('staff_review_required');
       const current = await loadExact(subjectType, subjectId, id);
+      if (current.review?.decision === 'rejected') {
+        assertExpectedVersion(current.recordVersion, expectedVersion);
+        return current;
+      }
       const next = bump(current, expectedVersion, {
         trustStatus: PROVIDER_TRUST_STATUSES.CLAIMED,
         review: { ...(current.review || {}), decision: 'rejected', reasonCode },
@@ -235,6 +254,10 @@ export function createProviderCapabilityReviewService({
     async suspend({ id, subjectType, subjectId, expectedVersion, actor, reasonCode }) {
       if (!actor?.isStaff) throw deny('staff_review_required');
       const current = await loadExact(subjectType, subjectId, id);
+      if (current.trustStatus === PROVIDER_TRUST_STATUSES.SUSPENDED && current.status === GRANT_STATUSES.SUSPENDED) {
+        assertExpectedVersion(current.recordVersion, expectedVersion);
+        return current;
+      }
       const next = bump(current, expectedVersion, {
         status: GRANT_STATUSES.SUSPENDED,
         trustStatus: PROVIDER_TRUST_STATUSES.SUSPENDED,
@@ -245,6 +268,10 @@ export function createProviderCapabilityReviewService({
     async revoke({ id, subjectType, subjectId, expectedVersion, actor, reasonCode }) {
       if (!actor?.isStaff) throw deny('staff_review_required');
       const current = await loadExact(subjectType, subjectId, id);
+      if (current.trustStatus === PROVIDER_TRUST_STATUSES.REVOKED && current.status === GRANT_STATUSES.REVOKED) {
+        assertExpectedVersion(current.recordVersion, expectedVersion);
+        return current;
+      }
       const next = bump(current, expectedVersion, {
         status: GRANT_STATUSES.REVOKED,
         trustStatus: PROVIDER_TRUST_STATUSES.REVOKED,

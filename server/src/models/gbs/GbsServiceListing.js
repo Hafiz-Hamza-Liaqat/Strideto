@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import {
   GBS_DELIVERY_MODES,
+  GBS_LISTING_ADMIN_REVIEW_STATUSES,
   GBS_LISTING_MODERATION_STATUSES,
   GBS_LISTING_PUBLICATION_STATUSES,
   GBS_PRICING_MODES,
@@ -65,6 +66,15 @@ const schema = new mongoose.Schema(
       default: GBS_LISTING_PUBLICATION_STATUSES.PRIVATE,
       index: true,
     },
+    adminReviewStatus: {
+      type: String,
+      enum: Object.values(GBS_LISTING_ADMIN_REVIEW_STATUSES),
+      default: GBS_LISTING_ADMIN_REVIEW_STATUSES.PENDING,
+      index: true,
+    },
+    reviewedBy: { type: String, default: null },
+    reviewedAt: { type: Date, default: null },
+    reviewReason: { type: String, default: '' },
     scope: { type: mongoose.Schema.Types.Mixed, default: {} },
     riskFlags: { type: [String], default: [] },
     contentRevision: { type: Number, default: 1, min: 1 },
@@ -76,6 +86,7 @@ const schema = new mongoose.Schema(
 );
 
 schema.index({ subjectType: 1, subjectId: 1, moderationStatus: 1, updatedAt: -1 });
+schema.index({ adminReviewStatus: 1, moderationStatus: 1, updatedAt: -1 });
 schema.index({ creationCommandId: 1 }, { unique: true, sparse: true });
 
 export const GbsServiceListing = mongoose.model('GbsServiceListing', schema);

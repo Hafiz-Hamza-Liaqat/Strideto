@@ -186,7 +186,7 @@ function acspEvidence(overrides = {}) {
   check(parsed.ok === true && parsed.value.capabilityId === '', '14. legacy ProviderCapability without capabilityId remains historically readable');
   check(isLegacyProviderCapability(parsed.value), '14b. legacy row is classified as legacy');
   const pub = evaluateListingPublicationGate({
-    env: { BUSINESS_SERVICES_ENABLED: '1' },
+    env: { BUSINESS_SERVICES_PUBLIC_MARKETPLACE_ENABLED: '1' },
     listing: { ...parsed.value, capabilityId: BUSINESS_SERVICES_CAPABILITY_IDS.BUSINESS_FORMATION, adminReviewStatus: 'approved' },
     capability: parsed.value,
   });

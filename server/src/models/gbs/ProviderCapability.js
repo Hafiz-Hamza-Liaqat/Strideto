@@ -67,6 +67,8 @@ providerCapabilitySchema.index(
 );
 providerCapabilitySchema.index({ subjectType: 1, subjectId: 1, 'scope.jurisdictionIds': 1 });
 providerCapabilitySchema.index({ capabilityId: 1, trustStatus: 1 });
+providerCapabilitySchema.index({ trustStatus: 1, updatedAt: -1 });
+providerCapabilitySchema.index({ subjectType: 1, trustStatus: 1, updatedAt: -1 });
 
 export const ProviderCapability = mongoose.model(
   'ProviderCapability',

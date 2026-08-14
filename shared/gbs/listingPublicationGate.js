@@ -1,11 +1,17 @@
 /**
- * Future listing publication gate (Phase 17D-2 / 17D-2R1).
+ * Listing publication eligibility gate (Phase 17D-4).
  *
- * No listing CRUD. Tests the frozen conjunction only.
- * New GBS publication requires an explicit matching known capabilityId.
+ * Eligible ≠ publicly discoverable. 17D-4 does not create public routes.
+ * Public eligibility requires BUSINESS_SERVICES_PUBLIC_MARKETPLACE_ENABLED.
+ * Provider workspace enablement is a separate flag and never publishes listings.
  */
 import { GRANT_STATUSES } from '../capability/grantStatus.js';
-import { isBusinessServicesEnabled, providerTrustIsVerified } from './constants.js';
+import {
+  GBS_LISTING_ADMIN_REVIEW_STATUSES,
+  GBS_LISTING_MODERATION_STATUSES,
+  isBusinessServicesPublicMarketplaceEnabled,
+  providerTrustIsVerified,
+} from './constants.js';
 import { authorizeGbsProviderAction, GBS_AUTHORITY_DENY_REASONS } from './gbsProviderAuthority.js';
 import { getBusinessServicesCapability, isKnownBusinessServicesCapability } from './businessServicesCapabilities.js';
 import { isCurrentPublicEligible } from './publicationEligibility.js';
@@ -17,6 +23,8 @@ import {
 
 export const LISTING_PUBLICATION_DENY_REASONS = Object.freeze({
   FEATURE_DISABLED: 'business_services_feature_disabled',
+  MARKETPLACE_DISABLED: 'business_services_public_marketplace_disabled',
+  LISTING_NOT_ELIGIBLE: 'listing_not_publication_eligible',
   SUBJECT_MISMATCH: 'listing_subject_mismatch',
   CAPABILITY_ID_REQUIRED: 'listing_capability_id_required',
   CAPABILITY_UNKNOWN: 'listing_capability_unknown',
@@ -63,8 +71,16 @@ export function evaluateListingPublicationGate({
   claimedOfficialFacts = [],
   now = new Date(),
 } = {}) {
-  if (!isBusinessServicesEnabled(env)) {
-    return { allowed: false, reason: LISTING_PUBLICATION_DENY_REASONS.FEATURE_DISABLED };
+  if (!isBusinessServicesPublicMarketplaceEnabled(env)) {
+    return { allowed: false, reason: LISTING_PUBLICATION_DENY_REASONS.MARKETPLACE_DISABLED };
+  }
+  const moderationStatus = listing.moderationStatus;
+  if (
+    moderationStatus === GBS_LISTING_MODERATION_STATUSES.ARCHIVED ||
+    moderationStatus === GBS_LISTING_MODERATION_STATUSES.SUSPENDED ||
+    moderationStatus === GBS_LISTING_MODERATION_STATUSES.REJECTED
+  ) {
+    return { allowed: false, reason: LISTING_PUBLICATION_DENY_REASONS.LISTING_NOT_ELIGIBLE };
   }
   if (!capability || !sameProviderSubject(listing, capability)) {
     return { allowed: false, reason: LISTING_PUBLICATION_DENY_REASONS.SUBJECT_MISMATCH };
@@ -134,7 +150,7 @@ export function evaluateListingPublicationGate({
       return { allowed: false, reason: LISTING_PUBLICATION_DENY_REASONS.JURISDICTION_FACTS_NOT_CURRENT };
     }
   }
-  if (listing.adminReviewStatus !== 'approved') {
+  if (listing.adminReviewStatus !== GBS_LISTING_ADMIN_REVIEW_STATUSES.APPROVED) {
     return { allowed: false, reason: LISTING_PUBLICATION_DENY_REASONS.ADMIN_REVIEW_REQUIRED };
   }
   return { allowed: true, reason: null };

@@ -294,9 +294,9 @@ check(
     capability: verified,
     claimedOfficialFacts: [{ reviewStatus: 'reviewed', superseded: false, reviewDueAt: '2026-11-01T00:00:00.000Z' }],
   });
-  check(gateOff.reason === LISTING_PUBLICATION_DENY_REASONS.FEATURE_DISABLED, 'listing gate requires feature flag');
+  check(gateOff.reason === LISTING_PUBLICATION_DENY_REASONS.MARKETPLACE_DISABLED, 'listing gate requires public marketplace flag');
   const gate = evaluateListingPublicationGate({
-    env: { BUSINESS_SERVICES_ENABLED: '1' },
+    env: { BUSINESS_SERVICES_PUBLIC_MARKETPLACE_ENABLED: '1' },
     listing: { ...verified, adminReviewStatus: 'approved' },
     capability: verified,
     claimedOfficialFacts: [

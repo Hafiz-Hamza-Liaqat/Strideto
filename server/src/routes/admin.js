@@ -54,6 +54,7 @@ import { getPlatformHealth } from '../controllers/platformOpsController.js';
 import { uploadAdminImage as uploadAdminImageMw } from '../middleware/imageUpload.js';
 import { uploadMediaFiles } from '../middleware/mediaUpload.js';
 import { adminVerificationRouter } from './adminVerification.js';
+import { adminGbsRouter } from './adminGbs.js';
 import { adminEducationRouter } from './adminEducation.js';
 import { adminFreshnessRouter } from './adminFreshness.js';
 import { adminAgentMarketplaceRouter } from './adminAgentMarketplace.js';
@@ -122,6 +123,7 @@ adminRouter.patch('/privacy-requests/:id', requirePermission(PERMISSIONS.USERS_R
 
 // Verification queue (Mission 2) — sub-router handles its own permission guards
 adminRouter.use('/verification', adminVerificationRouter);
+adminRouter.use('/gbs', adminGbsRouter);
 
 adminRouter.get('/export/:resource', requirePermission(PERMISSIONS.EXPORT_DATA), exportCtrl.exportData);
 

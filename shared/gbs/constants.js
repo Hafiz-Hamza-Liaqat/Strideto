@@ -63,6 +63,7 @@ export const GBS_COMMAND_IDS = Object.freeze({
   QUOTE_ACCEPT: 'gbs.quote.accept',
   LISTING_CREATE: 'gbs.listing.create',
   LISTING_SUBMIT_REVIEW: 'gbs.listing.submit_review',
+  LISTING_ADMIN_REVIEW: 'gbs.listing.admin_review',
 });
 
 export const GBS_LISTING_MODERATION_STATUSES = Object.freeze({
@@ -74,6 +75,20 @@ export const GBS_LISTING_MODERATION_STATUSES = Object.freeze({
   SUSPENDED: 'suspended',
   ARCHIVED: 'archived',
 });
+
+export const GBS_LISTING_ADMIN_REVIEW_STATUSES = Object.freeze({
+  PENDING: 'pending',
+  APPROVED: 'approved',
+  NEEDS_INFORMATION: 'needs_information',
+  REJECTED: 'rejected',
+  SUSPENDED: 'suspended',
+});
+
+const ADMIN_REVIEW_SET = new Set(Object.values(GBS_LISTING_ADMIN_REVIEW_STATUSES));
+
+export function isValidListingAdminReviewStatus(value) {
+  return typeof value === 'string' && ADMIN_REVIEW_SET.has(value);
+}
 
 export const GBS_LISTING_PUBLICATION_STATUSES = Object.freeze({
   PRIVATE: 'private',
