@@ -22,9 +22,13 @@ import {
   gbsCapabilityWriteLimiter,
   gbsListingWriteLimiter,
   gbsProviderReadLimiter,
+  providerDomainWriteLimiter,
+  agentTeamInviteLimiter,
 } from '../middleware/rateLimit.js';
 import { requireBusinessServicesEnabled } from '../middleware/requireBusinessServices.js';
+import { requireProviderDomainReady } from '../middleware/requireProviderDomainReady.js';
 import * as gbsProvider from '../controllers/gbsProviderController.js';
+import * as providerDomain from '../controllers/providerDomainController.js';
 import { requireTurnstileWhenEnabled } from '../middleware/turnstile.js';
 import { requireAgentEmailVerified } from '../middleware/requireEmailVerified.js';
 import * as agentAuth from '../controllers/agentAuthController.js';
@@ -44,6 +48,7 @@ agentRouter.post(
   requireTurnstileWhenEnabled('register'),
   agentAuth.agentRegister
 );
+agentRouter.get('/auth/agent/provider-domains', providerDomain.getCatalog);
 agentRouter.post(
   '/auth/agent/login',
   employerAuthLimiter,
@@ -169,12 +174,14 @@ agentRouter.post(
   '/agent/services',
   requireAuth,
   requireAgentAuth,
+  requireProviderDomainReady,
   agent.addService
 );
 agentRouter.patch(
   '/agent/services/:serviceId',
   requireAuth,
   requireAgentAuth,
+  requireProviderDomainReady,
   agent.editService
 );
 
@@ -210,7 +217,15 @@ agentRouter.post(
   '/agent/team/invites',
   requireAuth,
   requireAgentAuth,
+  agentTeamInviteLimiter,
   agent.createInvite
+);
+agentRouter.patch(
+  '/agent/team/member/domain-access',
+  requireAuth,
+  requireAgentAuth,
+  agentTeamInviteLimiter,
+  agent.changeMemberDomainAccess
 );
 agentRouter.post(
   '/agent/team/invites/:invitationId/revoke',
@@ -285,13 +300,32 @@ agentRouter.get(
 // Structured Agent marketplace authoring
 agentRouter.get('/agent/marketplace/counts', requireAuth, requireAgentAuth, marketplace.counts);
 agentRouter.get('/agent/marketplace', requireAuth, requireAgentAuth, marketplace.listOwn);
-agentRouter.post('/agent/marketplace', requireAuth, requireAgentAuth, requireAgentEmailVerified(), marketplace.create);
+agentRouter.post('/agent/marketplace', requireAuth, requireAgentAuth, requireAgentEmailVerified(), requireProviderDomainReady, marketplace.create);
 agentRouter.get('/agent/marketplace/:postId', requireAuth, requireAgentAuth, marketplace.getOwn);
 agentRouter.patch('/agent/marketplace/:postId', requireAuth, requireAgentAuth, marketplace.update);
 agentRouter.post('/agent/marketplace/:postId/submit', requireAuth, requireAgentAuth, requireAgentEmailVerified(), marketplace.submit);
 agentRouter.post('/agent/marketplace/:postId/archive', requireAuth, requireAgentAuth, marketplace.archive);
 
-const gbsEnabled = [requireAuth, requireAgentAuth, requireBusinessServicesEnabled];
+const gbsEnabled = [requireAuth, requireAgentAuth, requireProviderDomainReady, requireBusinessServicesEnabled];
+
+agentRouter.get('/agent/provider-domains/catalog', requireAuth, requireAgentAuth, providerDomain.getCatalog);
+agentRouter.get('/agent/provider-domains/home', requireAuth, requireAgentAuth, providerDomain.getHome);
+agentRouter.get('/agent/provider-domains/context', requireAuth, requireAgentAuth, providerDomain.getContext);
+agentRouter.post(
+  '/agent/provider-domains/onboarding',
+  requireAuth,
+  requireAgentAuth,
+  providerDomainWriteLimiter,
+  providerDomain.completeOnboarding
+);
+agentRouter.post(
+  '/agent/provider-domains',
+  requireAuth,
+  requireAgentAuth,
+  requireProviderDomainReady,
+  providerDomainWriteLimiter,
+  providerDomain.addDomain
+);
 
 agentRouter.get('/agent/business-services/enabled', requireAuth, requireAgentAuth, gbsProvider.getEnabled);
 agentRouter.get('/agent/business-services/context', ...gbsEnabled, gbsProviderReadLimiter, gbsProvider.getContext);

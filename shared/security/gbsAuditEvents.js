@@ -57,6 +57,15 @@ export const GBS_AUDIT_EVENTS = Object.freeze({
   GBS_LISTING_RISK_FLAGGED: 'gbs_listing_risk_flagged',
   GBS_LISTING_IDEMPOTENCY_REPLAY: 'gbs_listing_idempotency_replay',
   GBS_LISTING_IDEMPOTENCY_CONFLICT: 'gbs_listing_idempotency_conflict',
+  PROVIDER_DOMAIN_SELECTED: 'provider_domain_selected',
+  PROVIDER_DOMAIN_ADDED: 'provider_domain_added',
+  PROVIDER_DOMAIN_ONBOARDING_COMPLETED: 'provider_domain_onboarding_completed',
+  PROVIDER_DOMAIN_ACCESS_DENIED: 'provider_domain_access_denied',
+  AGENCY_PROVIDER_DOMAIN_ACTIVATED: 'agency_provider_domain_activated',
+  TEAM_DOMAIN_ACCESS_GRANTED: 'team_domain_access_granted',
+  TEAM_DOMAIN_ACCESS_UPDATED: 'team_domain_access_updated',
+  TEAM_DOMAIN_ACCESS_REMOVED: 'team_domain_access_removed',
+  PROVIDER_WORKSPACE_CONTEXT_DENIED: 'provider_workspace_context_denied',
 });
 
 const EVENT_SET = new Set(Object.values(GBS_AUDIT_EVENTS));

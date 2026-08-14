@@ -115,6 +115,13 @@ const agentProfileSchema = new mongoose.Schema(
     onboardingSkippedSteps: { type: [String], default: [] },
     onboardingCompletedAt: { type: Date, default: null },
 
+    // Phase 17D-3R: missing/null = legacy education_mobility compatibility only.
+    providerDomainInitializationState: {
+      type: String,
+      enum: ['legacy', 'pending', 'ready'],
+      default: undefined,
+    },
+
     // Profile completeness score (0-100) — recomputed on save
     completenessScore: { type: Number, default: 0, min: 0, max: 100 },
 

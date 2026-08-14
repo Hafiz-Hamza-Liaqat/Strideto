@@ -31,6 +31,16 @@ const agentMembershipSchema = new mongoose.Schema(
     active: { type: Boolean, default: true, index: true },
     invitedAt: { type: Date, default: null },
     joinedAt: { type: Date, default: null },
+    domainAccess: {
+      type: [
+        {
+          domainId: { type: String, required: true },
+          permissions: { type: [String], default: [] },
+        },
+      ],
+      default: undefined,
+    },
+    recordVersion: { type: Number, default: 0, min: 0 },
   },
   { timestamps: true }
 );

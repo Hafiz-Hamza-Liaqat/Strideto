@@ -7,6 +7,7 @@
 import { AgentAccount } from '../models/agent/AgentAccount.js';
 import { AgentProfile } from '../models/agent/AgentProfile.js';
 import { AgentMembership } from '../models/agent/AgentMembership.js';
+import { AgentInvitation } from '../models/agent/AgentInvitation.js';
 import { Organization } from '../models/Organization.js';
 import { OrganizationVerification } from '../models/OrganizationVerification.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
@@ -32,6 +33,16 @@ import {
   issueRealmVerification,
   reissueUnverifiedIfAllowed,
 } from '../services/auth/realmEmailVerification.js';
+import { AGENT_INVITE_STATUSES } from '../../../shared/agent/team.js';
+import { PROVIDER_SUBJECT_TYPES, isBusinessServicesProviderEnabled } from '../../../shared/gbs/constants.js';
+import { PROVIDER_DOMAIN_INITIALIZATION_STATES } from '../../../shared/provider/providerDomains.js';
+import { validateRequiredProviderDomainSelection, resolveProviderDomainInitializationState } from '../../../shared/provider/providerDomainSelection.js';
+import { normalizeDomainAccessList } from '../../../shared/provider/providerDomainPermissions.js';
+import {
+  enrollProviderDomains,
+  ensureOwnerDomainAccess,
+  markProviderDomainInitialization,
+} from '../services/gbs/providerDomainService.js';
 
 const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000;
 const FRONTEND_BASE = frontendBaseUrl();
@@ -95,7 +106,7 @@ export function createAgentRegisterHandler({
   issueSession: _issueSession = issueSecureAgentSession,
 } = {}) {
   return async (req, res) => {
-  const { email, password, displayName, agentType, countryCode } = req.body || {};
+  const { email, password, displayName, agentType, countryCode, inviteToken } = req.body || {};
 
   if (!email || !password || !displayName || !agentType) {
     return res.status(400).json({ error: 'email, password, displayName, and agentType are required' });
@@ -121,6 +132,30 @@ export function createAgentRegisterHandler({
     return res.status(400).json({ error: 'agentType must be agent or agency' });
   }
 
+  let pendingInvite = null;
+  if (inviteToken) {
+    pendingInvite = await AgentInvitation.findOne({ tokenHash: hashResetToken(String(inviteToken)) });
+    if (!pendingInvite || pendingInvite.status !== AGENT_INVITE_STATUSES.PENDING) {
+      return res.status(400).json({ error: 'Invitation is not valid' });
+    }
+    if (pendingInvite.expiresAt && pendingInvite.expiresAt.getTime() < Date.now()) {
+      return res.status(410).json({ error: 'This invitation has expired' });
+    }
+    if (pendingInvite.email !== normalizedEmail) {
+      return res.status(403).json({ error: 'Invitation email does not match' });
+    }
+  }
+
+  const domainIdsRaw = req.body?.domainIds || req.body?.providerDomainIds;
+  if (!pendingInvite) {
+    const selection = validateRequiredProviderDomainSelection(domainIdsRaw, {
+      allowBusinessServices: isBusinessServicesProviderEnabled(process.env),
+    });
+    if (!selection.ok) {
+      return res.status(400).json({ error: selection.error, unknown: selection.unknown });
+    }
+  }
+
   const existing = await agentAccountModel.findOne({ email: normalizedEmail }).select(
     '+emailVerificationToken +emailVerificationExpires'
   );
@@ -131,7 +166,46 @@ export function createAgentRegisterHandler({
     return res.status(201).json(await genericRegistrationResponse());
   }
 
-  // Create the shared Organization identity first.
+  if (pendingInvite) {
+    const org = await organizationModel.findById(pendingInvite.organizationId);
+    if (!org) return res.status(404).json({ error: 'Organization not found' });
+    const account = await agentAccountModel.create({
+      email: normalizedEmail,
+      password,
+      ...legalAcceptanceMetadata(),
+    });
+    await createProfile(account._id, {
+      organizationId: org._id,
+      agentType: org.organizationType,
+      providerDomainInitializationState: PROVIDER_DOMAIN_INITIALIZATION_STATES.READY,
+    });
+    const domainAccess = normalizeDomainAccessList(pendingInvite.domainAccess);
+    await agentMembershipModel.create({
+      organizationId: org._id,
+      agentAccountId: account._id,
+      role: pendingInvite.role,
+      active: true,
+      invitedAt: pendingInvite.createdAt,
+      joinedAt: new Date(),
+      domainAccess,
+    });
+    pendingInvite.status = AGENT_INVITE_STATUSES.ACCEPTED;
+    pendingInvite.acceptedAt = new Date();
+    pendingInvite.acceptedBy = account._id;
+    await pendingInvite.save();
+    await writeAudit({
+      action: 'agent_registered',
+      actor: { userId: account._id, role: 'agent' },
+      metadata: { organizationId: org._id, agentType: org.organizationType, invited: true },
+    });
+    await issueRealmVerification(account, 'agent', normalizedDisplayName);
+    return res.status(201).json(await genericRegistrationResponse());
+  }
+
+  const selection = validateRequiredProviderDomainSelection(domainIdsRaw, {
+    allowBusinessServices: isBusinessServicesProviderEnabled(process.env),
+  });
+
   const orgSlug = await ensureUniqueOrganizationSlug(
     normalizedDisplayName,
     (s) => organizationModel.exists({ slug: s })
@@ -146,15 +220,17 @@ export function createAgentRegisterHandler({
     status: 'draft',
   });
 
-  // Create AgentAccount
   const account = await agentAccountModel.create({
     email: normalizedEmail,
     password,
     ...legalAcceptanceMetadata(),
   });
 
-  // Create profile linked to organization
-  await createProfile(account._id, { organizationId: org._id, agentType });
+  await createProfile(account._id, {
+    organizationId: org._id,
+    agentType,
+    providerDomainInitializationState: PROVIDER_DOMAIN_INITIALIZATION_STATES.PENDING,
+  });
   await agentMembershipModel.create({
     organizationId: org._id,
     agentAccountId: account._id,
@@ -169,6 +245,40 @@ export function createAgentRegisterHandler({
     countryCode: normalizedCountryCode || '',
     status: VERIFICATION_STATUSES.DRAFT,
   });
+
+  const subjectType =
+    agentType === ORGANIZATION_TYPES.AGENCY
+      ? PROVIDER_SUBJECT_TYPES.ORGANIZATION
+      : PROVIDER_SUBJECT_TYPES.AGENT;
+  const subjectId =
+    subjectType === PROVIDER_SUBJECT_TYPES.ORGANIZATION ? String(org._id) : String(account._id);
+
+  try {
+    await enrollProviderDomains({
+      subjectType,
+      subjectId,
+      domainIds: selection.domainIds,
+      selectedBy: account._id,
+      actor: { userId: account._id, role: 'agent' },
+    });
+    if (subjectType === PROVIDER_SUBJECT_TYPES.ORGANIZATION) {
+      await ensureOwnerDomainAccess({
+        organizationId: org._id,
+        agentAccountId: account._id,
+        domainIds: selection.domainIds,
+        actor: { userId: account._id, role: 'agent' },
+      });
+    }
+    await markProviderDomainInitialization({
+      agentAccountId: account._id,
+      state: PROVIDER_DOMAIN_INITIALIZATION_STATES.READY,
+    });
+  } catch {
+    await markProviderDomainInitialization({
+      agentAccountId: account._id,
+      state: PROVIDER_DOMAIN_INITIALIZATION_STATES.PENDING,
+    });
+  }
 
   await writeAudit({
     action: 'agent_registered',
@@ -228,7 +338,13 @@ export const agentMe = asyncHandler(async (req, res) => {
 
   const profile = await AgentProfile.findOne({ agentAccountId: account._id }).lean();
 
-  return res.status(200).json({ account: toSafeAccount(account), profile: profile || null });
+  return res.status(200).json({
+    account: toSafeAccount(account),
+    profile: profile || null,
+    providerDomainInitializationState: resolveProviderDomainInitializationState(
+      profile?.providerDomainInitializationState
+    ),
+  });
 });
 
 // ---------------------------------------------------------------------------

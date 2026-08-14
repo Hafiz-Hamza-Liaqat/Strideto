@@ -26,6 +26,7 @@ import {
   getMongoIdempotencyStore,
 } from '../platform/idempotencyService.js';
 import { IDEMPOTENCY_CODES } from '../../../../shared/platform/idempotency.js';
+import { AGENT_SERVICE_CATEGORIES } from '../../../../shared/agent/constants.js';
 
 function deny(code, status = 403) {
   return Object.assign(new Error(code), { status, code });
@@ -42,6 +43,9 @@ function listingToRequested(value) {
 
 async function loadVerifiedCapability({ subjectType, subjectId, capabilityId }) {
   if (!capabilityId) throw deny('gbs_capability_id_missing', 400);
+  if (Object.values(AGENT_SERVICE_CATEGORIES).includes(capabilityId)) {
+    throw deny('gbs_listing_rejects_education_category', 400);
+  }
   return ProviderCapability.findOne({
     subjectType,
     subjectId: String(subjectId),

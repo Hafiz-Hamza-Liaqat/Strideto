@@ -1,9 +1,15 @@
-import { isBusinessServicesEnabled } from '../../../shared/gbs/constants.js';
+import { isBusinessServicesProviderEnabled } from '../../../shared/gbs/constants.js';
 import { projectProviderCatalog } from '../../../shared/gbs/providerCatalogProjection.js';
 import {
   resolveAuthorizedProviderSubjects,
   assertAuthorizedProviderSubject,
 } from '../services/gbs/providerSubjectContext.js';
+import {
+  assertProviderDomainAccess,
+  listEnrollmentsForSubject,
+} from '../services/gbs/providerDomainService.js';
+import { PROVIDER_DOMAIN_IDS } from '../../../shared/provider/providerDomains.js';
+import { PROVIDER_DOMAIN_PERMISSIONS } from '../../../shared/provider/providerDomainPermissions.js';
 import { getProviderWorkspaceSummary } from '../services/gbs/providerWorkspaceSummaryService.js';
 import {
   claimProviderCapability,
@@ -40,25 +46,44 @@ function sendError(res, err) {
   return res.status(status).json(payload);
 }
 
-async function requireSubject(req) {
+async function requireSubject(req, permissionId = PROVIDER_DOMAIN_PERMISSIONS.BUSINESS_VIEW) {
   const subjectType = req.query.subjectType || req.body?.subjectType;
   const subjectId = req.query.subjectId || req.body?.subjectId;
-  return assertAuthorizedProviderSubject({
+  const subject = await assertAuthorizedProviderSubject({
     agentAccountId: req.agent.agentAccountId,
     subjectType,
     subjectId,
     actor: actorFrom(req),
   });
+  await assertProviderDomainAccess({
+    agentAccountId: req.agent.agentAccountId,
+    subjectType: subject.subjectType,
+    subjectId: subject.subjectId,
+    domainId: PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES,
+    permissionId,
+    actor: actorFrom(req),
+  });
+  return subject;
 }
 
 export async function getEnabled(_req, res) {
-  return res.json({ enabled: isBusinessServicesEnabled(process.env) });
+  return res.json({
+    enabled: isBusinessServicesProviderEnabled(process.env),
+    publicMarketplaceEnabled: false,
+  });
 }
 
 export async function getContext(req, res) {
   try {
     const { subjects } = await resolveAuthorizedProviderSubjects(req.agent.agentAccountId);
-    return res.json({ enabled: true, subjects });
+    const enrolled = [];
+    for (const subject of subjects) {
+      const rows = await listEnrollmentsForSubject(subject.subjectType, subject.subjectId);
+      if (rows.some((row) => row.domainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES)) {
+        enrolled.push(subject);
+      }
+    }
+    return res.json({ enabled: isBusinessServicesProviderEnabled(process.env), subjects: enrolled });
   } catch (err) {
     return sendError(res, err);
   }
@@ -94,7 +119,7 @@ export async function listCapabilities(req, res) {
 
 export async function claimCapability(req, res) {
   try {
-    const subject = await requireSubject(req);
+    const subject = await requireSubject(req, PROVIDER_DOMAIN_PERMISSIONS.BUSINESS_CAPABILITIES_MANAGE);
     const { record, created } = await claimProviderCapability({
       ...subject,
       capabilityId: req.body?.capabilityId,
@@ -109,7 +134,7 @@ export async function claimCapability(req, res) {
 
 export async function patchCapabilityScope(req, res) {
   try {
-    const subject = await requireSubject(req);
+    const subject = await requireSubject(req, PROVIDER_DOMAIN_PERMISSIONS.BUSINESS_CAPABILITIES_MANAGE);
     const record = await updateClaimedCapabilityScope({
       id: req.params.id,
       ...subject,
@@ -125,7 +150,7 @@ export async function patchCapabilityScope(req, res) {
 
 export async function postCapabilityEvidence(req, res) {
   try {
-    const subject = await requireSubject(req);
+    const subject = await requireSubject(req, PROVIDER_DOMAIN_PERMISSIONS.BUSINESS_CAPABILITIES_MANAGE);
     const record = await submitCapabilityEvidenceMetadata({
       id: req.params.id,
       ...subject,
@@ -169,7 +194,7 @@ export async function getListing(req, res) {
 
 export async function createListing(req, res) {
   try {
-    const subject = await requireSubject(req);
+    const subject = await requireSubject(req, PROVIDER_DOMAIN_PERMISSIONS.BUSINESS_LISTINGS_MANAGE);
     const commandId = String(req.body?.creationCommandId || req.get('Idempotency-Key') || '').trim();
     if (!commandId) {
       return res.status(400).json({ error: 'creationCommandId is required' });
@@ -191,7 +216,7 @@ export async function createListing(req, res) {
 
 export async function patchListing(req, res) {
   try {
-    const subject = await requireSubject(req);
+    const subject = await requireSubject(req, PROVIDER_DOMAIN_PERMISSIONS.BUSINESS_LISTINGS_MANAGE);
     const record = await updateServiceListing({
       id: req.params.listingId,
       ...subject,
@@ -207,7 +232,7 @@ export async function patchListing(req, res) {
 
 export async function submitListing(req, res) {
   try {
-    const subject = await requireSubject(req);
+    const subject = await requireSubject(req, PROVIDER_DOMAIN_PERMISSIONS.BUSINESS_LISTINGS_MANAGE);
     const record = await submitServiceListingForReview({
       id: req.params.listingId,
       ...subject,
@@ -222,7 +247,7 @@ export async function submitListing(req, res) {
 
 export async function archiveListing(req, res) {
   try {
-    const subject = await requireSubject(req);
+    const subject = await requireSubject(req, PROVIDER_DOMAIN_PERMISSIONS.BUSINESS_LISTINGS_MANAGE);
     const record = await archiveServiceListing({
       id: req.params.listingId,
       ...subject,

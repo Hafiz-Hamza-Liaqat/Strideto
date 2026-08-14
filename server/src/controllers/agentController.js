@@ -23,6 +23,7 @@ import {
   getOrgMembers,
   updateMemberRole,
   updateMemberStatus,
+  updateMemberDomainAccess,
   getLeads,
   updateLeadStatus,
   getPublicProfileBySlug,
@@ -322,6 +323,20 @@ export const changeMemberStatus = asyncHandler(async (req, res) => {
   return res.status(200).json({ membership: updated });
 });
 
+export const changeMemberDomainAccess = asyncHandler(async (req, res) => {
+  try {
+    const updated = await updateMemberDomainAccess({
+      agentAccountId: req.agent.agentAccountId,
+      targetAgentAccountId: req.body?.targetAgentAccountId,
+      domainAccess: req.body?.domainAccess,
+      expectedVersion: req.body?.expectedVersion,
+    });
+    return res.status(200).json({ membership: updated });
+  } catch (err) {
+    return inviteError(res, err);
+  }
+});
+
 // ---------------------------------------------------------------------------
 // Leads (foundation — Mission 12+ will expand)
 // ---------------------------------------------------------------------------
@@ -545,6 +560,7 @@ export const createInvite = asyncHandler(async (req, res) => {
       agentAccountId: req.agent.agentAccountId,
       email: req.body?.email,
       role: req.body?.role,
+      domainAccess: req.body?.domainAccess,
     });
     return res.status(201).json(result);
   } catch (err) {
@@ -579,6 +595,7 @@ export const acceptInvite = asyncHandler(async (req, res) => {
     const result = await acceptOrganizationInvite({
       token: req.body?.token,
       agentAccount: account,
+      acceptedDomainIds: req.body?.acceptedDomainIds,
     });
     return res.status(200).json(result);
   } catch (err) {

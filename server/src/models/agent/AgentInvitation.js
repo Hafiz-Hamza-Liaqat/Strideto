@@ -26,6 +26,15 @@ const agentInvitationSchema = new mongoose.Schema(
       index: true,
     },
     tokenHash: { type: String, required: true, unique: true },
+    domainAccess: {
+      type: [
+        {
+          domainId: { type: String, required: true },
+          permissions: { type: [String], default: [] },
+        },
+      ],
+      default: undefined,
+    },
     invitedBy: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'AgentAccount',

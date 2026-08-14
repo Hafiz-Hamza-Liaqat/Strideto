@@ -170,6 +170,18 @@ export const gbsProviderReadLimiter = limiter('gbs-provider-read', {
   max: isDev ? 240 : 90,
   message: { error: 'Too many Business Services reads. Please wait.' },
 });
+
+export const providerDomainWriteLimiter = limiter('provider-domain-write', {
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 80 : 20,
+  message: { error: 'Too many provider-domain requests. Please wait.' },
+});
+
+export const agentTeamInviteLimiter = limiter('agent-team-invite', {
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 60 : 15,
+  message: { error: 'Too many team invitations. Please wait.' },
+});
 export const adminDeleteLimiter = limiter('admin-delete', {
   windowMs: 60 * 1000,
   max: isDev ? 60 : 30,

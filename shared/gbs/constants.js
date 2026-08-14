@@ -121,9 +121,30 @@ export const GBS_PROVIDER_BOUNDS = Object.freeze({
 });
 
 export const GBS_FEATURE_FLAG = 'BUSINESS_SERVICES_ENABLED';
+export const GBS_PROVIDER_FEATURE_FLAG = 'BUSINESS_SERVICES_PROVIDER_ENABLED';
+export const GBS_PUBLIC_MARKETPLACE_FEATURE_FLAG = 'BUSINESS_SERVICES_PUBLIC_MARKETPLACE_ENABLED';
 
 /** Foundation flag. Default OFF. No public GBS routes exist in 17D-1. */
 export function isBusinessServicesEnabled(env) {
   const source = env || (typeof process !== 'undefined' ? process.env : {});
   return source?.BUSINESS_SERVICES_ENABLED === '1';
+}
+
+/**
+ * Provider onboarding / private workspace. Compat: BUSINESS_SERVICES_ENABLED=1
+ * also enables the provider workspace so existing local overrides keep working.
+ * Public marketplace is a separate flag and stays OFF unless explicitly set.
+ */
+export function isBusinessServicesProviderEnabled(env) {
+  const source = env || (typeof process !== 'undefined' ? process.env : {});
+  return (
+    source?.BUSINESS_SERVICES_PROVIDER_ENABLED === '1' ||
+    source?.BUSINESS_SERVICES_ENABLED === '1'
+  );
+}
+
+/** Public Business Services marketplace. Default OFF. No public routes in 17D-3R. */
+export function isBusinessServicesPublicMarketplaceEnabled(env) {
+  const source = env || (typeof process !== 'undefined' ? process.env : {});
+  return source?.BUSINESS_SERVICES_PUBLIC_MARKETPLACE_ENABLED === '1';
 }

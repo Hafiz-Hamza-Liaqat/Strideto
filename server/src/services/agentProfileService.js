@@ -35,6 +35,7 @@ import {
   AGENT_TYPES,
   AGENT_ONBOARDING_STEPS,
   AGENT_SERVICE_STATUSES,
+  AGENT_SERVICE_CATEGORIES,
   AGENT_LEAD_STATUSES,
   AGENT_MEMBER_ROLES,
   GUARANTEE_FORBIDDEN_PHRASES,
@@ -49,6 +50,18 @@ import {
 import { coerceCountryCode } from '../../../shared/international/country.js';
 import { canonicalizeStoredPhone } from '../../../shared/international/phone.js';
 import { validateAgentOnboardingStep } from '../../../shared/agent/onboardingPolicy.js';
+import { BUSINESS_SERVICES_CAPABILITY_IDS } from '../../../shared/gbs/businessServicesCapabilities.js';
+import {
+  defaultPermissionsForInvite,
+  normalizeDomainAccessList,
+} from '../../../shared/provider/providerDomainPermissions.js';
+import { isKnownProviderDomainId } from '../../../shared/provider/providerDomains.js';
+import { listAgencyActivatedDomains } from './gbs/providerDomainService.js';
+import { assertProviderDomainAccess } from './gbs/providerDomainService.js';
+import { PROVIDER_DOMAIN_IDS } from '../../../shared/provider/providerDomains.js';
+import { PROVIDER_DOMAIN_PERMISSIONS } from '../../../shared/provider/providerDomainPermissions.js';
+import { PROVIDER_SUBJECT_TYPES } from '../../../shared/gbs/constants.js';
+import { GBS_AUDIT_EVENTS, redactAuditMetadata } from '../../../shared/security/gbsAuditEvents.js';
 import {
   isPubliclyLaunchVisible,
   withFixtureExclusion,
@@ -153,7 +166,7 @@ export async function findAgentAccountById(agentAccountId) {
  * Get or create the agent's profile. Called after registration when
  * the organization has been linked.
  */
-export async function getOrCreateProfile(agentAccountId, { organizationId, agentType } = {}) {
+export async function getOrCreateProfile(agentAccountId, { organizationId, agentType, providerDomainInitializationState } = {}) {
   let profile = await AgentProfile.findOne({ agentAccountId }).lean();
   if (profile) return profile;
 
@@ -186,6 +199,9 @@ export async function getOrCreateProfile(agentAccountId, { organizationId, agent
     slug,
     professionalName: org.displayName || '',
     countryCode: org.countryCode || '',
+    ...(providerDomainInitializationState
+      ? { providerDomainInitializationState }
+      : {}),
   });
 
   return profile.toObject();
@@ -397,6 +413,41 @@ export async function createService(agentAccountId, data) {
     err.status = 404;
     throw err;
   }
+
+  if (data?.capabilityId) {
+    const err = new Error('Education services do not accept Business Services capabilityId');
+    err.status = 400;
+    err.code = 'education_service_rejects_gbs_capability';
+    throw err;
+  }
+  const gbsIds = new Set(Object.values(BUSINESS_SERVICES_CAPABILITY_IDS));
+  if (data?.category && gbsIds.has(data.category)) {
+    const err = new Error('Education service categories cannot include Business Services capabilities');
+    err.status = 400;
+    err.code = 'education_service_category_invalid';
+    throw err;
+  }
+  if (data?.category && !Object.values(AGENT_SERVICE_CATEGORIES).includes(data.category)) {
+    const err = new Error('Unknown education service category');
+    err.status = 400;
+    err.code = 'education_service_category_invalid';
+    throw err;
+  }
+
+  const subjectType = profile.agentType === AGENT_TYPES.AGENCY
+    ? PROVIDER_SUBJECT_TYPES.ORGANIZATION
+    : PROVIDER_SUBJECT_TYPES.AGENT;
+  const subjectId = subjectType === PROVIDER_SUBJECT_TYPES.ORGANIZATION
+    ? String(profile.organizationId)
+    : String(agentAccountId);
+  await assertProviderDomainAccess({
+    agentAccountId,
+    subjectType,
+    subjectId,
+    domainId: PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY,
+    permissionId: PROVIDER_DOMAIN_PERMISSIONS.EDUCATION_SERVICES_MANAGE,
+    actor: { agentAccountId, role: 'agent' },
+  });
 
   // Guarantee language check
   assertNoGuaranteeLanguage({
@@ -645,11 +696,55 @@ export async function updateMemberStatus(agentAccountId, targetAgentAccountId, a
     { new: true }
   ).lean();
   await logAudit({
-    action: 'agent_member_status_changed',
+    action: active ? 'agent_member_status_changed' : GBS_AUDIT_EVENTS.TEAM_DOMAIN_ACCESS_REMOVED,
     actor: { userId: agentAccountId, role: 'agent' },
-    metadata: { targetAgentAccountId, active, organizationId: profile.organizationId },
+    metadata: redactAuditMetadata({ active, organizationPresent: true }),
   });
   return updated;
+}
+
+export async function updateMemberDomainAccess({
+  agentAccountId,
+  targetAgentAccountId,
+  domainAccess,
+  expectedVersion,
+} = {}) {
+  const profile = await AgentProfile.findOne({ agentAccountId }).lean();
+  if (!profile || profile.agentType !== AGENT_TYPES.AGENCY) {
+    throw domainError(404, 'PROFILE_NOT_FOUND', 'Agency profile not found');
+  }
+  const requester = await getMembership(agentAccountId, profile.organizationId);
+  if (!requester || !agentRoleHasCapability(requester.role, AGENT_CAPABILITIES.TEAM_MANAGE)) {
+    throw domainError(403, 'FORBIDDEN', 'Insufficient agent role capability');
+  }
+  const activated = await listAgencyActivatedDomains(profile.organizationId);
+  const next = normalizeDomainAccessList(domainAccess);
+  if (!next.length) {
+    throw domainError(400, 'provider_domain_selection_required', 'At least one provider domain is required');
+  }
+  for (const row of next) {
+    if (!activated.includes(row.domainId)) {
+      throw domainError(400, 'provider_domain_not_available', 'Agency has not activated that provider domain');
+    }
+  }
+  const target = await AgentMembership.findOne({
+    agentAccountId: targetAgentAccountId,
+    organizationId: profile.organizationId,
+  });
+  if (!target) throw domainError(404, 'MEMBER_NOT_FOUND', 'Member not found');
+  if (typeof expectedVersion === 'number' && target.recordVersion !== expectedVersion) {
+    const err = domainError(409, 'optimistic_concurrency_conflict', 'Membership was updated by another request');
+    throw err;
+  }
+  target.domainAccess = next;
+  target.recordVersion = (target.recordVersion || 0) + 1;
+  await target.save();
+  await logAudit({
+    action: GBS_AUDIT_EVENTS.TEAM_DOMAIN_ACCESS_UPDATED,
+    actor: { userId: agentAccountId, role: 'agent' },
+    metadata: redactAuditMetadata({ domainCount: next.length }),
+  });
+  return target.toObject();
 }
 
 // ---------------------------------------------------------------------------
@@ -875,6 +970,7 @@ export async function listOrganizationInvites(agentAccountId) {
     invitationId: invite._id,
     email: invite.email,
     role: invite.role,
+    domainAccess: invite.domainAccess || [],
     status: invite.expiresAt && invite.expiresAt.getTime() < now
       ? AGENT_INVITE_STATUSES.EXPIRED
       : invite.status,
@@ -883,7 +979,7 @@ export async function listOrganizationInvites(agentAccountId) {
   }));
 }
 
-export async function createOrganizationInvite({ agentAccountId, email, role }) {
+export async function createOrganizationInvite({ agentAccountId, email, role, domainAccess }) {
   const profile = await AgentProfile.findOne({ agentAccountId }).lean();
   if (!profile) throw domainError(404, 'PROFILE_NOT_FOUND', 'Profile not found');
   if (profile.agentType !== AGENT_TYPES.AGENCY) {
@@ -899,6 +995,23 @@ export async function createOrganizationInvite({ agentAccountId, email, role }) 
   }
   if (!isInvitableAgentRole(role)) {
     throw domainError(400, 'INVALID_INVITE_ROLE', 'Invite role must be admin or member');
+  }
+
+  const activated = await listAgencyActivatedDomains(profile.organizationId);
+  const requested = normalizeDomainAccessList(domainAccess);
+  if (!requested.length) {
+    throw domainError(400, 'provider_domain_selection_required', 'At least one provider domain is required');
+  }
+  for (const row of requested) {
+    if (!isKnownProviderDomainId(row.domainId)) {
+      throw domainError(400, 'unknown_provider_domain', 'Unknown provider domain');
+    }
+    if (!activated.includes(row.domainId)) {
+      throw domainError(400, 'provider_domain_not_available', 'Agency has not activated that provider domain');
+    }
+    if (!row.permissions.length) {
+      row.permissions = defaultPermissionsForInvite({ domainId: row.domainId, role });
+    }
   }
 
   const existingAccount = await AgentAccount.findOne({ email: normalized }).select('_id');
@@ -927,16 +1040,24 @@ export async function createOrganizationInvite({ agentAccountId, email, role }) 
     organizationId: profile.organizationId,
     email: normalized,
     role,
+    domainAccess: requested,
     status: AGENT_INVITE_STATUSES.PENDING,
     tokenHash: hashResetToken(token),
     invitedBy: agentAccountId,
     expiresAt: new Date(Date.now() + AGENT_INVITE_TTL_MS),
   });
 
+  await logAudit({
+    action: GBS_AUDIT_EVENTS.TEAM_DOMAIN_ACCESS_GRANTED,
+    actor: { userId: agentAccountId, role: 'agent' },
+    metadata: redactAuditMetadata({ domainCount: requested.length }),
+  });
+
   return {
     invitationId: invitation._id,
     email: invitation.email,
     role: invitation.role,
+    domainAccess: invitation.domainAccess,
     expiresAt: invitation.expiresAt,
     token,
   };
@@ -951,6 +1072,7 @@ export async function previewOrganizationInvite(token) {
   return {
     email: invitation.email,
     role: invitation.role,
+    domainAccess: invitation.domainAccess || [],
     status: expired && invitation.status === AGENT_INVITE_STATUSES.PENDING
       ? AGENT_INVITE_STATUSES.EXPIRED
       : invitation.status,
@@ -959,7 +1081,7 @@ export async function previewOrganizationInvite(token) {
   };
 }
 
-export async function acceptOrganizationInvite({ token, agentAccount }) {
+export async function acceptOrganizationInvite({ token, agentAccount, acceptedDomainIds }) {
   if (!token) throw domainError(400, 'INVITE_TOKEN_REQUIRED', 'Invitation token is required');
   const invitation = await AgentInvitation.findOne({ tokenHash: hashResetToken(token) });
   if (!invitation) throw domainError(404, 'INVITE_NOT_FOUND', 'Invitation not found');
@@ -979,6 +1101,21 @@ export async function acceptOrganizationInvite({ token, agentAccount }) {
     throw domainError(403, 'INVITE_EMAIL_MISMATCH', 'Signed-in agent email does not match this invitation');
   }
 
+  const invitedAccess = normalizeDomainAccessList(invitation.domainAccess);
+  let acceptedAccess = invitedAccess;
+  if (invitedAccess.length) {
+    const accepted = new Set(
+      (Array.isArray(acceptedDomainIds) ? acceptedDomainIds : []).filter(isKnownProviderDomainId)
+    );
+    if (!accepted.size) {
+      throw domainError(400, 'provider_domain_selection_required', 'Confirm at least one invited provider domain');
+    }
+    acceptedAccess = invitedAccess.filter((row) => accepted.has(row.domainId));
+    if (!acceptedAccess.length) {
+      throw domainError(400, 'provider_domain_selection_required', 'Confirm at least one invited provider domain');
+    }
+  }
+
   const existing = await AgentMembership.findOne({ agentAccountId: agentAccount._id, active: true });
   if (existing && String(existing.organizationId) === String(invitation.organizationId)) {
     throw domainError(409, 'ALREADY_MEMBER', 'Already a member of this organization');
@@ -995,6 +1132,7 @@ export async function acceptOrganizationInvite({ token, agentAccount }) {
         active: true,
         invitedAt: invitation.createdAt,
         joinedAt: new Date(),
+        domainAccess: acceptedAccess,
       },
     },
     { upsert: true, new: true }
@@ -1004,7 +1142,11 @@ export async function acceptOrganizationInvite({ token, agentAccount }) {
   invitation.acceptedAt = new Date();
   invitation.acceptedBy = agentAccount._id;
   await invitation.save();
-  return { organizationId: invitation.organizationId, role: invitation.role };
+  return {
+    organizationId: invitation.organizationId,
+    role: invitation.role,
+    domainAccess: acceptedAccess,
+  };
 }
 
 export async function revokeOrganizationInvite({ agentAccountId, invitationId }) {
