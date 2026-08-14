@@ -35,7 +35,7 @@ const files = {
 
 check(files.agentLayout.includes('PortalBrand role="agent"'), 'Agent chrome remains');
 check(!files.layout.includes('StudentPortalNav') && !files.overview.includes('StudentPortalNav'), 'no Student nav in GBS');
-check(files.nav.includes("label: 'Business Services'") && files.nav.includes("label: 'Services'") && files.nav.includes("label: 'Trust / Reviews'"), 'Services / Business Services / Trust remain distinct');
+check(files.nav.includes("label: 'Education & Mobility Services'") && files.nav.includes("label: 'Service Listings'") && files.nav.includes("Identity & Organization / Trust Center"), 'Education services, Business listings, and Trust remain distinct');
 check(files.ctx.includes("strideto-gbs-provider-subject"), 'subject preference is UX-only localStorage');
 check(files.ctx.includes('getContext') && files.layout.includes('subjects.length <= 1'), 'switcher hidden for a single subject');
 check(files.overview.includes('aria-busy') && files.caps.includes('aria-busy') && files.listings.includes('aria-busy'), 'loading states');

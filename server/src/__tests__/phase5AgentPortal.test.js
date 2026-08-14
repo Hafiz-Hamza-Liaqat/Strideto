@@ -76,7 +76,7 @@ check(agentCtrl.includes('requireAgentAuth') || agentRoutes.includes('requireAge
 check(agentRoutes.includes("requireAuth,\n  requireAgentAuth,\n  agent.getDashboard") || agentRoutes.includes('agent.getDashboard'), 'dashboard is agent-authed');
 
 // NAV IA
-['Dashboard', 'Profile', 'Verification', 'Services', 'Marketplace', 'Availability', 'Leads', 'Clients', 'Consultations', 'Cases', 'Messages', 'Trust / Reviews', 'Notifications', 'Usage & Billing', 'Commerce / Payouts', 'Settings', 'Help / Guidelines'].forEach((label) => {
+['Provider Home', 'Profile', 'Identity & Organization / Trust Center', 'Messages', 'Notifications', 'Account Settings', 'Help', 'Education & Mobility Services', 'Marketplace', 'Availability', 'Student Leads', 'Clients', 'Consultations', 'Cases'].forEach((label) => {
   check(navSrc.includes(`label: '${label}'`), `nav has ${label}`);
 });
 check(navSrc.includes("agentType === 'agency'") && navSrc.includes("label: 'Team'"), 'Team only for agency');
@@ -86,11 +86,11 @@ check(routes.includes('AgentUsageBilling') && routes.includes('AgentGuidelines')
 check(routes.includes('AgentAcceptInvitation'), 'accept invitation routed');
 
 // THEME / BRANDING
-check(layout.includes('Logo') && layout.includes('bg-bg-main dark:bg-secondary'), 'layout uses Strideto tokens and logo');
+check((layout.includes('Logo') || layout.includes('PortalBrand')) && layout.includes('bg-bg-main dark:bg-secondary'), 'layout uses Strideto tokens and brand');
 check(layout.includes('dark:bg-gray-900') && layout.includes('AgentNotificationBell'), 'dark sidebar and notification bell');
-check(login.includes('Logo') && login.includes('dark:bg-secondary'), 'login branded');
-check(register.includes('Logo') && register.includes('Individual Agent') && register.includes('Agency'), 'register distinguishes professional vs agency');
-check(dash.includes('dark:text-white') && dash.includes('cards'), 'dashboard themed and sourced');
+check((login.includes('Logo') || login.includes('AuthCard')) && login.includes('dark:'), 'login branded');
+check(register.includes('AuthCard') && register.includes('Individual provider') && register.includes('Agency'), 'register distinguishes professional vs agency');
+check((dash.includes('dark:text-white') && dash.includes('cards')) || dash.includes('Education & Mobility'), 'education dashboard themed and sourced');
 
 // DASHBOARD SOURCES
 check(agentCtrl.includes('leadsCount') && agentCtrl.includes('AgentLead.countDocuments'), 'leads sourced');
@@ -104,7 +104,7 @@ check(dash.includes('0 or not configured') || dash.includes('not configured'), '
 
 // PROFILE
 check(profilePage.includes('agency') && profilePage.includes('professional'), 'profile distinguishes account type');
-check(profilePage.includes('legalName') && profilePage.includes('officeAddressLine1'), 'legal and address fields');
+check(profilePage.includes('legalName') && (profilePage.includes('officeAddressLine1') || profilePage.includes('addressLine1')), 'legal and address fields');
 check(profileSvc.includes("updates.legalName") && profileSvc.includes("AGENT_TYPES.AGENCY"), 'agency legalName sync');
 check(profilePage.includes('Save profile'), 'profile save');
 

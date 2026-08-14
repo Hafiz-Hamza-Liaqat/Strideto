@@ -100,9 +100,10 @@ check(clientRoutes.includes('GbsWorkspaceLayout'), 'GBS uses Agent nested layout
 check(clientRoutes.includes('ProtectedAgentRoute'), 'GBS remains inside ProtectedAgentRoute');
 
 const nav = read('client/src/config/agentNavConfig.js');
-check(nav.includes("label: 'Business Services'"), 'one Business Services nav entry');
+check(nav.includes("label: 'Service Listings'"), 'Business workspace has Service Listings');
+check(nav.includes("label: 'Education & Mobility Services'"), 'Education services labeled distinctly');
 check(nav.includes('gbsEnabled'), 'nav is feature-gated');
-check(!/Requests|Quotes|Mailroom|Payouts/.test(nav.split('Business Services')[1]?.slice(0, 200) || ''), 'no fake GBS modules in nav');
+check(!/Requests|Quotes|Mailroom/.test(nav), 'no fake GBS modules in nav');
 
 const layout = read('client/src/pages/Agent/business-services/GbsWorkspaceLayout.jsx');
 check(layout.includes('Overview') && layout.includes('Capabilities') && layout.includes('Jurisdictions') && layout.includes('Service Listings'), 'subnav IA');
