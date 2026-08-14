@@ -107,7 +107,19 @@ check(home.includes('PREF_KEY') || home.includes('strideto-provider-workspace'),
 const nav = read('client/src/config/agentNavConfig.js');
 check(nav.includes('Education & Mobility Services'), 'education services labeled');
 check(nav.includes('Service Listings'), 'business listings labeled');
+check(nav.includes('hasBusiness ? BUSINESS : []'), 'business operational nav requires authorized workspace');
 check(!/Requests|Quotes|Mailroom|Formation Case/.test(nav), 'no fake future modules');
+
+const gbsLayout = read('client/src/pages/Agent/business-services/GbsWorkspaceLayout.jsx');
+check(gbsLayout.includes('authorized && subjects.length') || gbsLayout.includes('enabled && subjects.length'), 'GBS chrome requires authorized subjects');
+check(gbsLayout.includes('This provider category has not been added'), 'unauthorized URL is setup/add, not empty operational');
+check(gbsLayout.includes('{authorized ?'), 'operational subnav/outlet gated on authorization');
+check(!/useEffect\([\s\S]{0,400}addProviderDomain/.test(gbsLayout), 'URL visit does not enroll a domain');
+
+const trust = read('client/src/pages/Agent/AgentTrust.jsx');
+check(trust.includes('hasBusinessWorkspace'), 'trust gates business verification on authorized domain');
+check(trust.includes('+ Add Business Formation & Corporate Services'), 'education-only trust shows add-domain discoverability');
+check(/hasBusinessWorkspace \?[\s\S]*Manage Business Verification/.test(trust), 'manage business verification only when authorized');
 
 const guard = read('client/src/components/agent/ProtectedAgentRoute.jsx');
 check(guard.includes('needsOnboarding'), 'route guard redirects incomplete onboarding');

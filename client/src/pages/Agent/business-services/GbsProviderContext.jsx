@@ -27,6 +27,7 @@ function writePref(subject) {
 export function GbsProviderContextProvider({ children }) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [enabled, setEnabled] = useState(false);
   const [subjects, setSubjects] = useState([]);
   const [selected, setSelected] = useState(null);
   const [catalog, setCatalog] = useState(null);
@@ -40,6 +41,7 @@ export function GbsProviderContextProvider({ children }) {
         gbsProviderApi.getCatalog(),
       ]);
       const nextSubjects = Array.isArray(ctx.subjects) ? ctx.subjects : [];
+      setEnabled(ctx.enabled === true);
       setSubjects(nextSubjects);
       setCatalog(cat);
       const pref = readPref();
@@ -50,6 +52,7 @@ export function GbsProviderContextProvider({ children }) {
     } catch (err) {
       const code = err.response?.data?.error || err.message || 'Unable to load Business Services';
       setError(code === 'business_services_feature_disabled' ? 'Business Services is not enabled.' : 'Unable to load Business Services.');
+      setEnabled(false);
       setSubjects([]);
       setSelected(null);
     } finally {
@@ -71,8 +74,8 @@ export function GbsProviderContextProvider({ children }) {
   }, [subjects]);
 
   const value = useMemo(
-    () => ({ loading, error, subjects, selected, catalog, selectSubject, reload: load }),
-    [loading, error, subjects, selected, catalog, selectSubject, load]
+    () => ({ loading, error, enabled, subjects, selected, catalog, selectSubject, reload: load }),
+    [loading, error, enabled, subjects, selected, catalog, selectSubject, load]
   );
 
   return <GbsCtx.Provider value={value}>{children}</GbsCtx.Provider>;

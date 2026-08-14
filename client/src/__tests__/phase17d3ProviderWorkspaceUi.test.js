@@ -36,6 +36,9 @@ const files = {
 check(files.agentLayout.includes('PortalBrand role="agent"'), 'Agent chrome remains');
 check(!files.layout.includes('StudentPortalNav') && !files.overview.includes('StudentPortalNav'), 'no Student nav in GBS');
 check(files.nav.includes("label: 'Education & Mobility Services'") && files.nav.includes("label: 'Service Listings'") && files.nav.includes("Identity & Organization / Trust Center"), 'Education services, Business listings, and Trust remain distinct');
+check(files.nav.includes('hasBusiness ? BUSINESS : []'), 'sidebar does not treat a Business URL as operational authority');
+check(files.layout.includes('{authorized ?') && files.layout.includes('This provider category has not been added'), 'unauthorized GBS URL is setup state without operational subnav');
+check(files.layout.includes("aria-label=\"Business Services provider subject\""), 'accessible names');
 check(files.ctx.includes("strideto-gbs-provider-subject"), 'subject preference is UX-only localStorage');
 check(files.ctx.includes('getContext') && files.layout.includes('subjects.length <= 1'), 'switcher hidden for a single subject');
 check(files.overview.includes('aria-busy') && files.caps.includes('aria-busy') && files.listings.includes('aria-busy'), 'loading states');

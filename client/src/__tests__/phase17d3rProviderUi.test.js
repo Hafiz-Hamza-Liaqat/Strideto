@@ -23,6 +23,9 @@ check(!/Both radio|value="both"/.test(register), 'no both radio');
 
 const cards = read('components/provider/ProviderDomainCards.jsx');
 check(cards.includes('type="checkbox"'), 'multi-select checkboxes');
+check(!/readOnly|aria-readonly/.test(cards), 'domain checkboxes are not marked readonly');
+check(cards.includes('aria-required'), 'required domain group is announced');
+check(cards.includes('aria-describedby'), 'hint is associated with the required group');
 check(cards.includes('Selected'), 'selected state not color-only');
 check(cards.includes('Coming soon'), 'coming soon state');
 check(cards.includes('md:grid-cols-2'), 'cards stack then two columns');
@@ -55,5 +58,19 @@ check(!/study_abroad_guidance|scholarship_guidance/.test(gbsEditor), 'GBS editor
 
 const guard = read('components/agent/ProtectedAgentRoute.jsx');
 check(guard.includes('AGENT_DOMAIN_ONBOARDING'), 'direct URL cannot skip required onboarding');
+
+const nav = read('config/agentNavConfig.js');
+check(nav.includes('hasBusiness ? BUSINESS : []'), 'education-only URL to business does not render business operational sidebar');
+
+const gbsLayout = read('pages/Agent/business-services/GbsWorkspaceLayout.jsx');
+check(gbsLayout.includes('{authorized ?'), 'nested GBS routes do not mount operational outlet unless authorized');
+check(gbsLayout.includes('Add Business Formation & Corporate Services'), 'unauthorized root is add/setup');
+check(gbsLayout.includes('Coming soon'), 'disabled flag uses unavailable state');
+check(!/useEffect\([\s\S]{0,500}addProviderDomain/.test(gbsLayout), 'opening the URL does not create enrollment');
+
+const trust = read('pages/Agent/AgentTrust.jsx');
+check(trust.includes('hasBusinessWorkspace'), 'trust uses authorized workspaces');
+check(/hasBusinessWorkspace \?[\s\S]*Manage Business Verification/.test(trust), 'manage business verification only if authorized');
+check(trust.includes('+ Add Business Formation & Corporate Services'), 'education-only trust add-domain CTA');
 
 console.log(`phase17d3rProviderUi.test.js: ${count} assertions passed`);

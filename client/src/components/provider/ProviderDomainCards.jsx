@@ -15,12 +15,17 @@ export function ProviderDomainCards({
   const selected = new Set(selectedIds);
 
   return (
-    <fieldset className="min-w-0">
+    <fieldset
+      className="min-w-0"
+      aria-required={required ? 'true' : undefined}
+      aria-describedby={`${name}-hint${error ? ` ${name}-error` : ''}`}
+      aria-invalid={error ? 'true' : undefined}
+    >
       <legend className="text-sm font-medium text-gray-900 dark:text-white">
         What services do you want to provide?
         {required ? <span className="text-red-700 dark:text-red-400"> *</span> : <span className="text-gray-500"> (Optional)</span>}
       </legend>
-      <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
+      <p id={`${name}-hint`} className="mt-1 text-sm text-gray-600 dark:text-gray-400">
         Select one or both. This configures your Provider Workspace. It does not verify professional credentials.
       </p>
       <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">

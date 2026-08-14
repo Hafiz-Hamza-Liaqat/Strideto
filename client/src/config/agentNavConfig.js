@@ -60,14 +60,16 @@ export function agentNavItems({
     || (!workspaces.length && domainId !== PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES);
   const hasBusiness = gbsEnabled && workspaces.some((w) => w.domainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES);
 
-  const domainNav =
-    domainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES
-      ? BUSINESS
-      : domainId === PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY
-        ? EDUCATION
-        : hasEducation && !hasBusiness
-          ? EDUCATION
-          : [];
+  // URL path is not authority. Business operational nav is only for an authorized
+  // business_services workspace on an exact subject.
+  let domainNav = [];
+  if (domainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES) {
+    domainNav = hasBusiness ? BUSINESS : [];
+  } else if (domainId === PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY) {
+    domainNav = EDUCATION;
+  } else if (hasEducation && !hasBusiness) {
+    domainNav = EDUCATION;
+  }
 
   const items = [
     ...SHARED,

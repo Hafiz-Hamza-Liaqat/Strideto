@@ -2,11 +2,13 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { agentApi } from '../../services/agentService';
 import { ROUTES } from '../../constants';
+import { PROVIDER_DOMAIN_IDS } from '@shared/provider/providerDomains.js';
 import { btnPrimary, cardClass, inputClass, muted } from './agentUi';
 
 export default function AgentTrust() {
   const [data, setData] = useState({ reviews: [], reports: [], disputes: [] });
   const [verification, setVerification] = useState(null);
+  const [domainContext, setDomainContext] = useState({ workspaces: [], addableDomains: [] });
   const [reply, setReply] = useState({});
   const [error, setError] = useState('');
   const load = () => Promise.all([
@@ -14,11 +16,16 @@ export default function AgentTrust() {
     agentApi.getReports(),
     agentApi.getDisputes(),
     agentApi.getVerification().catch(() => ({ data: null })),
-  ]).then(([r, p, d, v]) => {
+    agentApi.getProviderDomainContext().catch(() => ({ data: { workspaces: [], addableDomains: [] } })),
+  ]).then(([r, p, d, v, ctx]) => {
     setData({ reviews: r.data.reviews || [], reports: p.data.reports || [], disputes: d.data.disputes || [] });
     setVerification(v.data);
+    setDomainContext(ctx.data || { workspaces: [], addableDomains: [] });
   });
   useEffect(() => { load().catch((e) => setError(e.response?.data?.error || 'Unable to load trust center.')); }, []);
+  const workspaces = domainContext.workspaces || [];
+  const hasBusinessWorkspace = workspaces.some((w) => w.domainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES);
+  const canAddBusiness = (domainContext.addableDomains || []).some((d) => d.domainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES);
   return (
     <div className="space-y-8">
       <header>
@@ -44,10 +51,23 @@ export default function AgentTrust() {
           {verification?.verificationStatus || 'unknown'}
         </p>
         <Link to={ROUTES.AGENT_VERIFICATION} className="mt-2 inline-block text-sm text-primary">Manage Education Verification →</Link>
-        <p className="mt-3 text-sm">
-          Business Formation & Corporate Services capabilities are managed in the Business workspace. Capability trust is not granted by domain enrollment.
-        </p>
-        <Link to={ROUTES.AGENT_BUSINESS_SERVICES_CAPABILITIES} className="mt-2 inline-block text-sm text-primary">Manage Business Verification →</Link>
+        {hasBusinessWorkspace ? (
+          <>
+            <p className="mt-3 text-sm">
+              Business Formation & Corporate Services capabilities are managed in the Business workspace. Capability trust is not granted by domain enrollment.
+            </p>
+            <Link to={ROUTES.AGENT_BUSINESS_SERVICES_CAPABILITIES} className="mt-2 inline-block text-sm text-primary">Manage Business Verification →</Link>
+          </>
+        ) : canAddBusiness ? (
+          <>
+            <p className="mt-3 text-sm">
+              Business Formation & Corporate Services has not been added to this provider. Adding a domain does not verify professional capabilities.
+            </p>
+            <Link to={`${ROUTES.AGENT_DASHBOARD}?home=1`} className="mt-2 inline-block text-sm text-primary">
+              + Add Business Formation & Corporate Services
+            </Link>
+          </>
+        ) : null}
       </section>
       <section className={cardClass}>
         <h2 className="font-semibold text-gray-900 dark:text-white">Organization / professional verification</h2>
