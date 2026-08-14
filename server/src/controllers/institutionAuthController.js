@@ -218,7 +218,18 @@ export const institutionMe = asyncHandler(async (req, res) => {
     active: true,
   }).lean();
 
-  return res.status(200).json({ account: toSafeAccount(account), memberships });
+  const orgIds = memberships.map((m) => m.organizationId).filter(Boolean);
+  const orgs = orgIds.length
+    ? await Organization.find({ _id: { $in: orgIds } }).select('displayName legalName').lean()
+    : [];
+  const orgById = new Map(orgs.map((org) => [String(org._id), org]));
+  const membershipsWithName = memberships.map((m) => {
+    const org = orgById.get(String(m.organizationId));
+    const organizationName = String(org?.displayName || org?.legalName || '').trim();
+    return { ...m, organizationName };
+  });
+
+  return res.status(200).json({ account: toSafeAccount(account), memberships: membershipsWithName });
 });
 
 // ---------------------------------------------------------------------------

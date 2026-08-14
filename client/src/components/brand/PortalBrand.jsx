@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { ROUTES } from '../../constants';
 import { Logo } from './Logo';
+import { writeActiveWorkspacePreference } from '../../auth/activeWorkspace';
 
 const ROLE_SUBTITLE = {
   employer: 'Employer Portal',
@@ -25,6 +26,11 @@ export function PortalBrand({
         to={ROUTES.HOME}
         className="inline-flex items-center gap-2 min-w-0 text-gray-900 dark:text-white"
         aria-label="Strideto home"
+        onClick={() => {
+          if (role === 'employer' || role === 'agent' || role === 'institution') {
+            writeActiveWorkspacePreference(role);
+          }
+        }}
       >
         <Logo variant="full" height={height} className="shrink-0" />
       </Link>
