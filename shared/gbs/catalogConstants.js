@@ -122,6 +122,7 @@ export const FEE_CATEGORIES = Object.freeze({
   PERIODIC_REPORT: 'periodic_report',
   NAME_RESERVATION: 'name_reservation',
   CERTIFIED_COPY: 'certified_copy',
+  EIN_ISSUANCE: 'ein_issuance',
   OTHER_GOVERNMENT: 'other_government',
 });
 

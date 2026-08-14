@@ -225,7 +225,7 @@ const now = new Date('2026-08-14T12:00:00.000Z');
   check(wy.ownership === 'government', '26. government fee separate from provider fee concepts');
   check(validateGovernmentFeeRecord({ ...wy, currency: '' }).ok === false, '27. currency required');
   check(validateGovernmentFeeRecord({ ...wy, amount: -1 }).ok === false, '28. negative amount rejected');
-  check(feeById['fee:US-DE-llc-formation'].amountModel === FEE_AMOUNT_MODELS.NOT_CATALOGUED, '29. unknown/ambiguous fee can be not_catalogued');
+  check(feeById['fee:PK-SECP-incorporation'].amountModel === FEE_AMOUNT_MODELS.NOT_CATALOGUED, '29. unknown/ambiguous fee can be not_catalogued');
   check(
     catalog.fees.every((f) => f.fxAuthoritative === false) &&
       validateGovernmentFeeRecord({ ...wy, fxAuthoritative: true }).ok === false,
