@@ -3,6 +3,7 @@ import { Institution } from '../../models/Institution.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { listResponse, paginate } from '../../utils/apiResponse.js';
 import { sanitizeString } from '../../utils/sanitize.js';
+import { canonicalizeStoredPhone } from '../../../../shared/international/phone.js';
 import { logAudit, auditFromRequest } from '../../services/auditService.js';
 import { applyResolvedSlug, slugErrorResponse } from '../../utils/adminSlugHelpers.js';
 import { runBulkAction, duplicateDoc } from '../../utils/adminBulkHelper.js';
@@ -31,7 +32,11 @@ function applyBody(doc, body) {
   if (body.city !== undefined) doc.city = body.city ? sanitizeString(body.city) : undefined;
   if (body.province !== undefined) doc.province = body.province ? sanitizeString(body.province) : undefined;
   if (body.address !== undefined) doc.address = body.address ? sanitizeString(body.address) : undefined;
-  if (body.phone !== undefined) doc.phone = body.phone ? sanitizeString(body.phone) : undefined;
+  if (body.phone !== undefined) {
+    const result = canonicalizeStoredPhone(body.phone);
+    if (!result.ok) throw Object.assign(new Error(result.error), { status: 400 });
+    doc.phone = result.value || undefined;
+  }
   if (body.email !== undefined) doc.email = body.email ? sanitizeString(body.email) : undefined;
   if (body.website !== undefined) doc.website = body.website ? sanitizeString(body.website) : undefined;
   if (body.imageUrl !== undefined) doc.imageUrl = sanitizeString(body.imageUrl);

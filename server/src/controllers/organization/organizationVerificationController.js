@@ -23,6 +23,7 @@ import { Employer } from '../../models/Employer.js';
 import { AgentAccount } from '../../models/agent/AgentAccount.js';
 import { InstitutionAccount } from '../../models/institution/InstitutionAccount.js';
 import { isB2bEmailVerificationRequired } from '../../services/auth/realmEmailVerification.js';
+import { canonicalizeStoredPhone } from '../../../../shared/international/phone.js';
 
 async function prepareAgentSubmission(req, organizationId) {
   if (!req.agent?.agentAccountId) return;
@@ -39,6 +40,10 @@ async function prepareAgentSubmission(req, organizationId) {
  */
 function normalizeVerificationProfile(profile) {
   const next = { ...profile };
+  delete next.phoneVerified;
+  delete next.phoneCountry;
+  delete next.trustStatus;
+  delete next.verificationStatus;
   if (next.authorizedRepresentative && typeof next.authorizedRepresentative === 'object') {
     const rep = next.authorizedRepresentative;
     next.representativeRole = next.representativeRole || rep.title || '';
@@ -46,6 +51,12 @@ function normalizeVerificationProfile(profile) {
     next.authorizedRepresentative = rep.fullName || '';
   }
   if (next.officialPhone && !next.phone) next.phone = next.officialPhone;
+  const phoneResult = canonicalizeStoredPhone(next.phone);
+  if (!phoneResult.ok) {
+    throw Object.assign(new Error(phoneResult.error), { status: 400 });
+  }
+  next.phone = phoneResult.value;
+  delete next.officialPhone;
   return next;
 }
 

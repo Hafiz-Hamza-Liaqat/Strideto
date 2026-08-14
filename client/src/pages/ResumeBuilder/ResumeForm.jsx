@@ -15,9 +15,10 @@ import {
   parseSkillLines,
 } from './resumeDefaults';
 import { AdminImageUrlField } from '../../components/admin/AdminImageUrlField';
+import { PhoneInput } from '../../components/forms/PhoneInput';
 import { resumesApi } from '../../services/listingsService';
 import { useToast } from '../../context/ToastContext';
-import { sanitizeGpa, sanitizePhone, sanitizeYear } from './resumeInputSanitize';
+import { sanitizeGpa, sanitizeYear } from './resumeInputSanitize';
 
 const inputClass =
   'w-full px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary dark:focus:ring-mint outline-none text-sm';
@@ -102,15 +103,12 @@ export function ResumeForm({ stepIndex, resume, onChange }) {
             <input type="email" className={inputClass} value={p.email || ''} onChange={(e) => update('personalInfo.email', e.target.value)} placeholder="email@example.com" />
           </div>
           <div>
-            <label className={labelClass}>{t('phone')}</label>
-            <input
-              type="tel"
-              inputMode="tel"
-              autoComplete="tel"
-              className={inputClass}
+            <label className={labelClass} htmlFor="resume-phone-national">{t('phone')}</label>
+            <PhoneInput
+              id="resume-phone"
+              nationalId="resume-phone-national"
               value={p.phone || ''}
-              onChange={(e) => update('personalInfo.phone', sanitizePhone(e.target.value))}
-              placeholder="+92 300 1234567"
+              onChange={(next) => update('personalInfo.phone', next?.e164 || '')}
             />
           </div>
           <div>
@@ -389,13 +387,10 @@ export function ResumeForm({ stepIndex, resume, onChange }) {
               <input className={inputClass} placeholder={t('company')} value={entry.company || ''} onChange={(e) => updateEntry('references', i, 'company', e.target.value)} />
               <div className="grid sm:grid-cols-2 gap-2">
                 <input className={inputClass} placeholder={t('email')} value={entry.email || ''} onChange={(e) => updateEntry('references', i, 'email', e.target.value)} />
-                <input
-                  type="tel"
-                  inputMode="tel"
-                  className={inputClass}
-                  placeholder={t('phone')}
+                <PhoneInput
+                  id={`resume-ref-phone-${i}`}
                   value={entry.phone || ''}
-                  onChange={(e) => updateEntry('references', i, 'phone', sanitizePhone(e.target.value))}
+                  onChange={(next) => updateEntry('references', i, 'phone', next?.e164 || '')}
                 />
               </div>
             </div>

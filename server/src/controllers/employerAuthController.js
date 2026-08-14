@@ -16,7 +16,7 @@ import { frontendBaseUrl } from '../utils/emailVerification.js';
 import { ensureUniqueEmployerSlug } from '../utils/employerSlug.js';
 import { legalAcceptanceMetadata, requireAcceptedTerms } from '../../../shared/legal/policyVersions.js';
 import { validatePassword } from '../validators/authValidator.js';
-import { isE164, normalizePhone } from '../../../shared/international/phone.js';
+import { canonicalizeStoredPhone } from '../../../shared/international/phone.js';
 import {
   genericRegistrationResponse,
   genericRecoveryResponse,
@@ -105,6 +105,10 @@ export const employerRegister = asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'Validation failed', details: { password: passwordError } });
   }
   const emailNorm = email.trim().toLowerCase();
+  const phoneResult = canonicalizeStoredPhone(phone);
+  if (!phoneResult.ok) {
+    return res.status(400).json({ error: phoneResult.error });
+  }
   const existing = await Employer.findOne({ email: emailNorm }).select(
     '+emailVerificationToken +emailVerificationExpires'
   );
@@ -127,12 +131,7 @@ export const employerRegister = asyncHandler(async (req, res) => {
         companyName: companyNameTrimmed,
         slug,
         email: emailNorm,
-        phone: (() => {
-          const raw = typeof phone === 'string' ? phone.trim() : '';
-          if (!raw) return '';
-          if (isE164(raw)) return raw;
-          return normalizePhone(raw) || raw;
-        })(),
+        phone: phoneResult.value,
         website: (website || '').trim(),
         companyDescription: (companyDescription || '').trim(),
         password,

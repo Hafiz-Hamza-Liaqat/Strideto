@@ -47,6 +47,7 @@ import {
   VERIFICATION_STATUSES,
 } from '../../../shared/international/verification.js';
 import { coerceCountryCode } from '../../../shared/international/country.js';
+import { canonicalizeStoredPhone } from '../../../shared/international/phone.js';
 import { validateAgentOnboardingStep } from '../../../shared/agent/onboardingPolicy.js';
 import {
   isPubliclyLaunchVisible,
@@ -229,6 +230,16 @@ export async function updateProfile(agentAccountId, updates) {
     }
     if (key === 'countryCode') {
       profile.countryCode = coerceCountryCode(updates.countryCode) || '';
+      continue;
+    }
+    if (key === 'phone') {
+      const result = canonicalizeStoredPhone(updates.phone);
+      if (!result.ok) {
+        const err = new Error(result.error);
+        err.status = 400;
+        throw err;
+      }
+      profile.phone = result.value;
       continue;
     }
     profile[key] = updates[key];

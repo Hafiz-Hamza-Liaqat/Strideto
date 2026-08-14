@@ -33,6 +33,7 @@ import {
 import { TIMELINE_VERBS, TIMELINE_OBJECT_TYPES } from './timelineVerbs.js';
 import { normalizeLocale } from '../localization/localeResolver.js';
 import { canTransition, resolveStageTemplateId } from './applicationStageMachine.js';
+import { canonicalizeStoredPhone } from '../international/phone.js';
 import {
   parseExamScoreEntry,
   validateExamScoreEntry,
@@ -594,11 +595,12 @@ export function validateReminderReferenceInput(body = {}) {
 }
 
 export function parseApplicationContactInput(body = {}) {
+  const phoneResult = body.phone !== undefined ? canonicalizeStoredPhone(body.phone) : { ok: true, value: '' };
   return {
     name: body.name !== undefined ? trimStr(body.name, 120) : undefined,
     role: body.role !== undefined ? trimStr(body.role, 40) : 'recruiter',
     email: body.email !== undefined ? trimStr(body.email, 200) : '',
-    phone: body.phone !== undefined ? trimStr(body.phone, 40) : '',
+    phone: phoneResult.ok ? phoneResult.value : '__invalid_phone__',
     organization: body.organization !== undefined ? trimStr(body.organization, 200) : '',
     notes: body.notes !== undefined ? trimStr(body.notes, 1000) : '',
   };
@@ -608,6 +610,9 @@ export function validateApplicationContactInput(body = {}) {
   const errors = [];
   if (!trimStr(body.name)) errors.push('contact name is required');
   if (body.role != null) errors.push(...validateEnum(body.role, SET(APPLICATION_CONTACT_ROLES), 'role'));
+  if (body.phone && !canonicalizeStoredPhone(body.phone).ok) {
+    errors.push('phone must be a valid international number');
+  }
   return errors;
 }
 

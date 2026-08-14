@@ -1,4 +1,5 @@
 import { sanitizeString } from './sanitize.js';
+import { canonicalizeStoredPhone } from '../../../shared/international/phone.js';
 
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
@@ -62,7 +63,9 @@ export function buildEmployerProfileUpdates(body = {}) {
       continue;
     }
     if (key === 'phone') {
-      updates.phone = sanitizeString(String(body.phone || '').trim()).slice(0, 40);
+      const result = canonicalizeStoredPhone(body.phone);
+      if (!result.ok) return { ok: false, error: result.error };
+      updates.phone = result.value;
       continue;
     }
     if (key === 'companyName') {

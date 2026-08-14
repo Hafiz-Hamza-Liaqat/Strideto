@@ -57,6 +57,7 @@ import {
 import { ACCEPTANCE_SCOPES } from '../../../shared/education/acceptanceExplorer.js';
 import { PUB_STATUSES } from '../../../shared/education/taxonomy.js';
 import { withFixtureExclusion } from '../../../shared/publicDiscovery/fixtureExclusion.js';
+import { canonicalizeStoredPhone } from '../../../shared/international/phone.js';
 
 // ---------------------------------------------------------------------------
 // Helper: resolve the active membership for an account in an organization
@@ -413,9 +414,16 @@ export async function updateProfile({ organizationId, updates, actor, membership
   ];
 
   for (const key of allowed) {
-    if (updates[key] !== undefined) {
-      profile[key] = updates[key];
+    if (updates[key] === undefined) continue;
+    if (key === 'officialPhone') {
+      const result = canonicalizeStoredPhone(updates.officialPhone);
+      if (!result.ok) {
+        throw Object.assign(new Error(result.error), { status: 400 });
+      }
+      profile.officialPhone = result.value;
+      continue;
     }
+    profile[key] = updates[key];
   }
 
   // Recompute completeness

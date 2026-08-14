@@ -98,7 +98,7 @@ export default function AgentProfile() {
         yearsOfExperience: form.yearsOfExperience ? Number(form.yearsOfExperience) : null,
         website: form.website,
         officialEmail: form.officialEmail,
-        phone: typeof phoneValue === 'object' ? (phoneValue.e164 || phoneValue.nationalNumber || '') : phoneValue,
+        phone: typeof phoneValue === 'object' ? (phoneValue.e164 || '') : phoneValue,
         officeLocation: {
           ...officeLocation,
           countryCode: (officeLocation.countryCode || form.countryCode || '').toUpperCase(),

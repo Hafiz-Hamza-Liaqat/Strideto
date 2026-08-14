@@ -1,8 +1,8 @@
-/** Phone: digits and common phone punctuation only. */
+import { normalizeNationalNumberInput } from '@shared/international/phone.js';
+
+/** Local-number digits only — canonical E.164 is built by PhoneInput. */
 export function sanitizePhone(value) {
-  return String(value || '')
-    .replace(/[^\d+\-\s().]/g, '')
-    .slice(0, 24);
+  return normalizeNationalNumberInput(value).slice(0, 15);
 }
 
 /** Calendar year: digits only, max 4. */

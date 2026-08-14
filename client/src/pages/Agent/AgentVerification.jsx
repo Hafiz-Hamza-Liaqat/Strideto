@@ -1,5 +1,7 @@
 import { useEffect, useState } from 'react';
 import { agentApi } from '../../services/agentService';
+import { PhoneInput } from '../../components/forms/PhoneInput';
+import { storedPhoneFromInput } from '@shared/international/phone.js';
 
 const EMPTY = {
   legalName: '', displayName: '', countryCode: '', officialEmail: '', officialWebsite: '', phone: '',
@@ -16,6 +18,8 @@ export default function AgentVerification() {
   const [summary, setSummary] = useState(null);
   const [details, setDetails] = useState(null);
   const [profile, setProfile] = useState(EMPTY);
+  const [phoneValue, setPhoneValue] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -35,6 +39,8 @@ export default function AgentVerification() {
         ? { ...EMPTY.authorizedRepresentative, ...existing.authorizedRepresentative }
         : { ...EMPTY.authorizedRepresentative, fullName: existing.authorizedRepresentative || '' },
     });
+    setPhoneValue(existing.phone || '');
+    setPhoneError('');
   };
 
   useEffect(() => {
@@ -48,10 +54,15 @@ export default function AgentVerification() {
 
   const submit = async (event) => {
     event.preventDefault();
-    setBusy(true); setError(''); setMessage('');
+    const stored = storedPhoneFromInput(phoneValue);
+    if (stored.incomplete) {
+      setPhoneError('Enter a valid phone number. Letters are not accepted.');
+      return;
+    }
+    setBusy(true); setError(''); setMessage(''); setPhoneError('');
     try {
       const method = details?.status === 'needs_information' ? agentApi.respondToVerification : agentApi.submitVerification;
-      await method(summary.organizationId, profile);
+      await method(summary.organizationId, { ...profile, phone: stored.e164 });
       await load();
       setMessage('Verification submitted for review. Admin will review the dossier. Maps/Business cannot alone verify you.');
     } catch (err) {
@@ -92,7 +103,23 @@ export default function AgentVerification() {
           <label className="text-sm text-gray-900 dark:text-white">Country (ISO)<input required maxLength={2} value={profile.countryCode} onChange={set('countryCode')} className={inputClass} /></label>
           <label className="text-sm text-gray-900 dark:text-white">{isAgency ? 'Organization category' : 'Professional category'}<input value={profile.organizationCategory || profile.profession} onChange={set(isAgency ? 'organizationCategory' : 'profession')} className={inputClass} /></label>
           <label className="text-sm text-gray-900 dark:text-white">Official email<input required type="email" value={profile.officialEmail} onChange={set('officialEmail')} className={inputClass} /></label>
-          <label className="text-sm text-gray-900 dark:text-white">Phone<input value={profile.phone} onChange={set('phone')} className={inputClass} /></label>
+          <div className="text-sm text-gray-900 dark:text-white md:col-span-2">
+            <span>Phone</span>
+            <PhoneInput
+              id="agent-verification-phone"
+              className="mt-1"
+              value={phoneValue}
+              defaultCountry={profile.countryCode || ''}
+              onChange={(next) => {
+                setPhoneValue(next);
+                setPhoneError('');
+              }}
+              error={Boolean(phoneError)}
+            />
+            {phoneError ? <p className="mt-1 text-xs text-red-600 dark:text-red-300" role="alert">{phoneError}</p> : (
+              <p className="mt-1 text-xs text-slate-500">Contact evidence only. Phone is not verified and does not verify the organization.</p>
+            )}
+          </div>
           <label className="text-sm text-gray-900 dark:text-white md:col-span-2">Official website / domain<input required value={profile.officialWebsite} onChange={set('officialWebsite')} className={inputClass} /></label>
           <label className="text-sm text-gray-900 dark:text-white md:col-span-2">Registered address<input required value={profile.registeredAddress.addressLine1} onChange={(e) => setProfile((p) => ({ ...p, registeredAddress: { ...p.registeredAddress, addressLine1: e.target.value } }))} className={inputClass} /></label>
           <label className="text-sm text-gray-900 dark:text-white">City / region<input value={profile.registeredAddress.city} onChange={(e) => setProfile((p) => ({ ...p, registeredAddress: { ...p.registeredAddress, city: e.target.value } }))} className={inputClass} /></label>

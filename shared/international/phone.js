@@ -156,8 +156,55 @@ export function parseE164ToPhoneParts(value, { preferredCountry } = {}) {
  * Returns `null` when dial code or national digits are missing/invalid.
  */
 export function formatPhoneE164({ countryCode, dialCode, nationalNumber } = {}) {
+  const rawNational = String(nationalNumber || '');
+  if (/[A-Za-z]/.test(rawNational)) return null;
   const cc = String(dialCode || getCountryCallingCode(countryCode) || '').replace(/[^\d]/g, '');
-  const national = String(nationalNumber || '').replace(/[^\d]/g, '').replace(/^0+/, '');
-  if (!cc || !national) return null;
+  const national = rawNational.replace(/\D/g, '').replace(/^0+/, '');
+  if (!cc || national.length < 4) return null;
   return normalizePhone(`+${cc}${national}`);
+}
+
+/**
+ * Local-number field contract: digits only.
+ * Formatting punctuation and letters are dropped; validity is decided later
+ * by E.164 construction — this must not invent a country or a valid number.
+ */
+export function normalizeNationalNumberInput(raw) {
+  return String(raw || '').replace(/\D/g, '');
+}
+
+/**
+ * Persist only canonical E.164 (or empty). Rejects objects/metadata such as
+ * phoneVerified / country labels. Empty is allowed (optional contact).
+ */
+export function canonicalizeStoredPhone(raw) {
+  if (raw == null || raw === '') return { ok: true, value: '' };
+  if (typeof raw === 'object') {
+    const e164 = raw.e164 != null ? String(raw.e164).trim() : '';
+    if (!e164) {
+      if (raw.nationalNumber) {
+        return { ok: false, error: 'Phone must be a valid international number' };
+      }
+      return { ok: true, value: '' };
+    }
+    if (!isE164(e164)) return { ok: false, error: 'Phone must be a valid international number' };
+    return { ok: true, value: e164 };
+  }
+  const text = String(raw).trim();
+  if (!text) return { ok: true, value: '' };
+  const normalized = isE164(text) ? text : normalizePhone(text);
+  if (!normalized) return { ok: false, error: 'Phone must be a valid international number' };
+  return { ok: true, value: normalized };
+}
+
+/** UI helper: stored E.164 plus whether the user typed an incomplete local number. */
+export function storedPhoneFromInput(value) {
+  if (value == null || value === '') return { e164: '', incomplete: false };
+  if (typeof value === 'string') {
+    const result = canonicalizeStoredPhone(value);
+    return { e164: result.ok ? result.value : '', incomplete: Boolean(value) && !result.ok };
+  }
+  const national = normalizeNationalNumberInput(value.nationalNumber);
+  const e164 = value.e164 && isE164(value.e164) ? value.e164 : '';
+  return { e164, incomplete: Boolean(national) && !e164 };
 }

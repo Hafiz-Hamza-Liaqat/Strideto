@@ -9,6 +9,8 @@ import { isValidHttpUrl } from './employerPostJobValidation';
 import { ROUTES } from '../../constants';
 import { ConnectedAccountsPanel } from '../../components/account/ConnectedAccountsPanel';
 import { PasswordInput } from '../../components/forms/PasswordInput';
+import { PhoneInput } from '../../components/forms/PhoneInput';
+import { storedPhoneFromInput } from '@shared/international/phone.js';
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -131,9 +133,14 @@ export default function EmployerSettings() {
       setError(t('employer:validationLogoUrlInvalid'));
       return;
     }
+    const stored = storedPhoneFromInput(form.phone);
+    if (stored.incomplete) {
+      setError('Enter a valid phone number. Letters are not accepted.');
+      return;
+    }
     setSaving(true);
     try {
-      await employerApi.updateProfile(form);
+      await employerApi.updateProfile({ ...form, phone: stored.e164 });
       await refreshEmployer();
       setSuccess(t('employer:settingsSaved'));
     } catch (err) {
@@ -192,10 +199,20 @@ export default function EmployerSettings() {
           />
         </div>
         <div>
-          <label htmlFor="settings-phone" className="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">
+          <label htmlFor="settings-phone-national" className="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">
             {t('employer:phone')}
           </label>
-          <input id="settings-phone" name="phone" value={form.phone} onChange={onChange} className={inputClass} />
+          <PhoneInput
+            id="settings-phone"
+            nationalId="settings-phone-national"
+            countryId="settings-phone-country"
+            value={form.phone}
+            onChange={(next) => {
+              setForm((f) => ({ ...f, phone: next }));
+              setError('');
+              setSuccess('');
+            }}
+          />
         </div>
         <div>
           <label htmlFor="settings-website" className="block text-sm font-medium text-slate-600 dark:text-gray-300 mb-1">

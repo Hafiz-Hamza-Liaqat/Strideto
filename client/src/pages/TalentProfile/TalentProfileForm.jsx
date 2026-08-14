@@ -1,6 +1,7 @@
 import { useTranslation } from 'react-i18next';
 import { FormField } from '../../components/common/FormField';
 import { DateInput } from '../../components/forms/NativeTemporalInput';
+import { PhoneInput } from '../../components/forms/PhoneInput';
 import { Button } from '../../components/common/Button';
 import {
   GRADING_SYSTEMS,
@@ -173,14 +174,11 @@ export function TalentProfileForm({ form, setForm, activeTab }) {
             <p className="text-xs text-gray-500 mt-1">{t('talent:contact.emailReadOnly')}</p>
           </FormField>
           <FormField label={t('talent:personal.phone')} id="tp-phone">
-            <input
+            <PhoneInput
               id="tp-phone"
-              type="tel"
-              className={inputClass}
               value={form.personal.phone}
-              onChange={(e) => updateNested(setForm, 'personal.phone', e.target.value)}
-              autoComplete="tel"
-              placeholder="+12125551234"
+              defaultCountry={form.personal.country || ''}
+              onChange={(next) => updateNested(setForm, 'personal.phone', next?.e164 || '')}
             />
           </FormField>
           <FormField label={t('talent:personal.timeZone')} id="tp-tz-contact">

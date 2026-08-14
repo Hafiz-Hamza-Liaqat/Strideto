@@ -3,6 +3,7 @@ import { Job } from '../models/Job.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { TalentProfileService } from '../services/career/TalentProfileService.js';
 import { evaluateResumeQuality } from '../../../shared/scoring/resumeQualityRules.js';
+import { canonicalizeStoredPhone } from '../../../shared/international/phone.js';
 
 function resumeQualityScore(resume) {
   const result = evaluateResumeQuality({
@@ -190,6 +191,10 @@ function sanitizePersonalInfo(p) {
   for (const f of fields) {
     if (p[f] != null && typeof p[f] === 'string') out[f] = p[f].trim();
     else out[f] = '';
+  }
+  if (out.phone) {
+    const result = canonicalizeStoredPhone(out.phone);
+    out.phone = result.ok ? result.value : '';
   }
   return out;
 }

@@ -13,6 +13,7 @@ import {
   profileToForm,
   formToProfilePayload,
 } from './talentProfileMapper';
+import { storedPhoneFromInput } from '@shared/international/phone.js';
 import { TalentProfileForm } from './TalentProfileForm';
 import { CareerOnboardingBanner } from './CareerOnboardingBanner';
 import { ResumeVersionsPanel } from './ResumeVersionsPanel';
@@ -51,7 +52,16 @@ export default function TalentProfileEditor() {
   }, [loadProfile]);
 
   const handleSave = async () => {
-    const payload = formToProfilePayload(form);
+    const storedPhone = storedPhoneFromInput(form.personal?.phone);
+    if (storedPhone.incomplete) {
+      setFieldError('Enter a valid phone number. Letters are not accepted.');
+      setActiveTab('contact');
+      return;
+    }
+    const payload = formToProfilePayload({
+      ...form,
+      personal: { ...form.personal, phone: storedPhone.e164 },
+    });
     const errors = validateTalentProfileInput(payload, { partial: true });
     if (!payload.displayName?.trim()) {
       setFieldError(t('talent:validation.firstNameRequired'));

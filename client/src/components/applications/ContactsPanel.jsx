@@ -1,5 +1,7 @@
 import { useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { PhoneInput } from '../forms/PhoneInput';
+import { storedPhoneFromInput } from '@shared/international/phone.js';
 
 const ROLES = ['recruiter', 'hiring_manager', 'hr', 'referrer', 'other'];
 
@@ -15,10 +17,17 @@ export function ContactsPanel({ contacts = [], onAdd, onRemove, disabled }) {
   async function submit(e) {
     e.preventDefault();
     if (!name.trim()) return;
+    const stored = storedPhoneFromInput(phone);
+    if (stored.incomplete) {
+      setError(t('applications:tracker.contactPhoneInvalid', {
+        defaultValue: 'Enter a valid phone number. Letters are not accepted.',
+      }));
+      return;
+    }
     setBusy(true);
     setError('');
     try {
-      await onAdd({ name: name.trim(), role, email, phone });
+      await onAdd({ name: name.trim(), role, email, phone: stored.e164 });
       setName('');
       setEmail('');
       setPhone('');
@@ -77,9 +86,14 @@ export function ContactsPanel({ contacts = [], onAdd, onRemove, disabled }) {
             className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm min-h-[44px]" />
         </div>
         <div>
-          <label htmlFor="contact-phone" className="block text-sm font-medium mb-1">{t('applications:tracker.contactPhone')}</label>
-          <input id="contact-phone" value={phone} onChange={(e) => setPhone(e.target.value)} disabled={disabled || busy}
-            className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3 py-2 text-sm min-h-[44px]" />
+          <label htmlFor="contact-phone-national" className="block text-sm font-medium mb-1">{t('applications:tracker.contactPhone')}</label>
+          <PhoneInput
+            id="contact-phone"
+            nationalId="contact-phone-national"
+            value={phone}
+            disabled={disabled || busy}
+            onChange={setPhone}
+          />
         </div>
         {error ? <p className="sm:col-span-2 text-sm text-red-600" role="alert">{error}</p> : null}
         <div className="sm:col-span-2">

@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
 import { employerApi } from '../../services/employerService';
+import { PhoneInput } from '../../components/forms/PhoneInput';
+import { storedPhoneFromInput } from '@shared/international/phone.js';
 import { useEmployerAuth } from '../../context/EmployerAuthContext';
 
 const EMPTY = {
@@ -91,6 +93,8 @@ export default function EmployerVerification() {
   const canSubmit = (employer?.capabilities || []).includes('verification.submit');
   const [details, setDetails] = useState(null);
   const [profile, setProfile] = useState(EMPTY);
+  const [phoneValue, setPhoneValue] = useState('');
+  const [phoneError, setPhoneError] = useState('');
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
@@ -100,7 +104,12 @@ export default function EmployerVerification() {
     if (!orgId) return;
     const { data } = await employerApi.verificationStatus(orgId);
     setDetails(data);
-    if (data?.profile) setProfile(hydrateProfile(data.profile));
+    if (data?.profile) {
+      const next = hydrateProfile(data.profile);
+      setProfile(next);
+      setPhoneValue(next.officialPhone || '');
+      setPhoneError('');
+    }
   }, [orgId]);
 
   useEffect(() => {
@@ -114,14 +123,20 @@ export default function EmployerVerification() {
   const submit = async (e) => {
     e.preventDefault();
     if (!orgId) return;
+    const stored = storedPhoneFromInput(phoneValue);
+    if (stored.incomplete) {
+      setPhoneError('Enter a valid phone number. Letters are not accepted.');
+      return;
+    }
     setBusy(true);
     setError('');
     setMessage('');
+    setPhoneError('');
     try {
       const method = details?.status === 'needs_information'
         ? employerApi.verificationRespond
         : employerApi.verificationSubmit;
-      await method(orgId, toSubmitProfile(profile));
+      await method(orgId, toSubmitProfile({ ...profile, officialPhone: stored.e164 }));
       await load();
       setMessage(t('employer:verificationSubmitted'));
     } catch (err) {
@@ -189,7 +204,6 @@ export default function EmployerVerification() {
             ['displayName', true],
             ['countryCode', true],
             ['officialEmail', true],
-            ['officialPhone', false],
             ['officialWebsite', true],
             ['registrationAuthority', false],
             ['registrationNumber', false],
@@ -206,6 +220,21 @@ export default function EmployerVerification() {
               />
             </label>
           ))}
+          <div className="text-sm md:col-span-2">
+            {t('employer:vf_officialPhone', { defaultValue: 'Phone' })}
+            <PhoneInput
+              id="employer-verification-phone"
+              className="mt-1"
+              value={phoneValue}
+              defaultCountry={profile.countryCode || ''}
+              onChange={(next) => {
+                setPhoneValue(next);
+                setPhoneError('');
+              }}
+              error={Boolean(phoneError)}
+            />
+            {phoneError ? <p className="mt-1 text-xs text-red-600" role="alert">{phoneError}</p> : null}
+          </div>
           <label className="text-sm md:col-span-2">
             {t('employer:vf_registeredAddress')}
             <input

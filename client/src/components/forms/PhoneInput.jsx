@@ -4,6 +4,7 @@ import {
   formatPhoneE164,
   getCountryCallingCode,
   listPhoneCountries,
+  normalizeNationalNumberInput,
   parseE164ToPhoneParts,
 } from '@shared/international/phone.js';
 import { normalizeCountryCode } from '@shared/international/country.js';
@@ -11,7 +12,7 @@ import { controlShellClassName, inputControlClassName } from './controlClasses.j
 import { SearchableSelect } from './SearchableSelect.jsx';
 
 function stripNationalInput(raw) {
-  return String(raw || '').replace(/[^\d\s()-]/g, '');
+  return normalizeNationalNumberInput(raw);
 }
 
 function emptyPhoneValue(countryCode = '') {
@@ -148,7 +149,7 @@ export function PhoneInput({
         <input
           id={nationalId || id}
           type="tel"
-          inputMode="tel"
+          inputMode="numeric"
           autoComplete="tel-national"
           disabled={disabled}
           value={parsed.nationalNumber}
