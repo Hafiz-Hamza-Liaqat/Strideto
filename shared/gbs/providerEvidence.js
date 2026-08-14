@@ -9,6 +9,8 @@ export const EVIDENCE_TYPES = Object.freeze({
   AUTHORITY_CONFIRMATION: 'authority_confirmation',
   ORGANIZATION_ATTESTATION: 'organization_attestation',
   STAFF_REVIEW_NOTE: 'staff_review_note',
+  OFFICIAL_REGISTRY_STATUS: 'official_registry_status',
+  PHYSICAL_REGISTERED_OFFICE_CONFIRMATION: 'physical_registered_office_confirmation',
   OTHER: 'other',
 });
 

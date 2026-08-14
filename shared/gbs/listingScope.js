@@ -12,6 +12,7 @@ import {
   PROVIDER_CAPABILITY_FLAGS,
   providerTrustIsVerified,
 } from './constants.js';
+import { isKnownBusinessServicesCapability } from './businessServicesCapabilities.js';
 import {
   normalizeProviderScope,
   sameProviderSubject,
@@ -23,6 +24,8 @@ export const LISTING_SCOPE_DENY_REASONS = Object.freeze({
   NOT_VERIFIED: 'listing_scope_not_verified',
   SCOPE_NOT_SUBSET: 'listing_scope_not_subset',
   UNKNOWN: 'listing_scope_unknown',
+  CAPABILITY_ID_REQUIRED: 'listing_scope_capability_id_required',
+  CAPABILITY_ID_UNKNOWN: 'listing_scope_capability_id_unknown',
 });
 
 function listIsSubset(requested, allowed) {
@@ -50,10 +53,21 @@ export function authorizeListingScope({ requested = {}, capability = null } = {}
     return { allowed: false, reason: LISTING_SCOPE_DENY_REASONS.NOT_VERIFIED };
   }
 
-  const requestedCapabilityId = requested.capabilityId ? String(requested.capabilityId) : '';
-  const haveCapabilityId = capability.capabilityId ? String(capability.capabilityId) : '';
-  if (requestedCapabilityId && haveCapabilityId && requestedCapabilityId !== haveCapabilityId) {
-    return { allowed: false, reason: LISTING_SCOPE_DENY_REASONS.SCOPE_NOT_SUBSET };
+  const requestedCapabilityId = requested.capabilityId ? String(requested.capabilityId).trim() : '';
+  const haveCapabilityId = capability.capabilityId ? String(capability.capabilityId).trim() : '';
+  if (requestedCapabilityId) {
+    if (!haveCapabilityId) {
+      return { allowed: false, reason: LISTING_SCOPE_DENY_REASONS.CAPABILITY_ID_REQUIRED };
+    }
+    if (
+      !isKnownBusinessServicesCapability(requestedCapabilityId) ||
+      !isKnownBusinessServicesCapability(haveCapabilityId)
+    ) {
+      return { allowed: false, reason: LISTING_SCOPE_DENY_REASONS.CAPABILITY_ID_UNKNOWN };
+    }
+    if (requestedCapabilityId !== haveCapabilityId) {
+      return { allowed: false, reason: LISTING_SCOPE_DENY_REASONS.SCOPE_NOT_SUBSET };
+    }
   }
 
   const want = normalizeProviderScope(requested.scope || requested);

@@ -53,6 +53,17 @@ function cap(overrides = {}) {
   };
 }
 
+function formationEvidence(overrides = {}) {
+  return {
+    evidenceType: 'authority_confirmation',
+    decision: EVIDENCE_DECISIONS.ACCEPTED,
+    subjectType: 'agent',
+    subjectId: 'agent-A',
+    jurisdictionId: 'j:US-WY',
+    ...overrides,
+  };
+}
+
 const staff = { id: 'staff-1', isStaff: true, realm: 'staff', subjectType: 'staff', subjectId: 'staff-1' };
 const provider = { id: 'agent-A', isStaff: false, subjectType: 'agent', subjectId: 'agent-A' };
 
@@ -108,7 +119,13 @@ check(
 }
 
 {
-  const { svc, events } = serviceWith(cap({ trustStatus: PROVIDER_TRUST_STATUSES.EVIDENCE_BACKED, recordVersion: 2 }));
+  const { svc, events } = serviceWith(
+    cap({
+      trustStatus: PROVIDER_TRUST_STATUSES.EVIDENCE_BACKED,
+      recordVersion: 2,
+      evidenceRefs: [formationEvidence()],
+    })
+  );
   const verified = await svc.verify({
     id: 'cap-1',
     subjectType: 'agent',
@@ -235,7 +252,7 @@ check(
 }
 
 {
-  const { svc } = serviceWith(cap({ recordVersion: 4 }));
+  const { svc } = serviceWith(cap({ recordVersion: 4, evidenceRefs: [formationEvidence()] }));
   try {
     await svc.verify({
       id: 'cap-1',

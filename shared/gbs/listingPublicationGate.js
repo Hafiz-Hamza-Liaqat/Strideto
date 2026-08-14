@@ -1,27 +1,59 @@
 /**
- * Future listing publication gate (Phase 17D-2).
+ * Future listing publication gate (Phase 17D-2 / 17D-2R1).
  *
  * No listing CRUD. Tests the frozen conjunction only.
+ * New GBS publication requires an explicit matching known capabilityId.
  */
 import { GRANT_STATUSES } from '../capability/grantStatus.js';
 import { isBusinessServicesEnabled, providerTrustIsVerified } from './constants.js';
-import { authorizeListingScope } from './listingScope.js';
-import { getBusinessServicesCapability } from './businessServicesCapabilities.js';
-import { evidenceIsCurrent } from './providerEvidence.js';
+import { authorizeGbsProviderAction, GBS_AUTHORITY_DENY_REASONS } from './gbsProviderAuthority.js';
+import { getBusinessServicesCapability, isKnownBusinessServicesCapability } from './businessServicesCapabilities.js';
 import { isCurrentPublicEligible } from './publicationEligibility.js';
 import { sameProviderSubject } from './providerCapability.js';
+import {
+  evaluateProtectedTitleVerification,
+  PROTECTED_TITLE_POLICY_DENY_REASONS,
+} from './protectedTitleEvidencePolicy.js';
 
 export const LISTING_PUBLICATION_DENY_REASONS = Object.freeze({
   FEATURE_DISABLED: 'business_services_feature_disabled',
   SUBJECT_MISMATCH: 'listing_subject_mismatch',
+  CAPABILITY_ID_REQUIRED: 'listing_capability_id_required',
   CAPABILITY_UNKNOWN: 'listing_capability_unknown',
+  CAPABILITY_ID_MISMATCH: 'listing_capability_id_mismatch',
   NOT_ACTIVE: 'listing_capability_not_active',
   NOT_VERIFIED: 'listing_capability_not_verified',
   SCOPE_NOT_SUBSET: 'listing_scope_not_subset',
   PROTECTED_TITLE_REQUIRED: 'listing_protected_title_required',
+  PROTECTED_TITLE_POLICY_NOT_CONFIGURED: 'protected_title_policy_not_configured',
   JURISDICTION_FACTS_NOT_CURRENT: 'listing_jurisdiction_facts_not_current',
   ADMIN_REVIEW_REQUIRED: 'listing_admin_review_required',
 });
+
+function mapAuthorityReason(reason) {
+  if (reason === GBS_AUTHORITY_DENY_REASONS.SUBJECT_MISMATCH) {
+    return LISTING_PUBLICATION_DENY_REASONS.SUBJECT_MISMATCH;
+  }
+  if (
+    reason === GBS_AUTHORITY_DENY_REASONS.CAPABILITY_ID_MISSING ||
+    reason === GBS_AUTHORITY_DENY_REASONS.LEGACY_NOT_AUTHORITATIVE
+  ) {
+    return LISTING_PUBLICATION_DENY_REASONS.CAPABILITY_ID_REQUIRED;
+  }
+  if (reason === GBS_AUTHORITY_DENY_REASONS.CAPABILITY_ID_UNKNOWN) {
+    return LISTING_PUBLICATION_DENY_REASONS.CAPABILITY_UNKNOWN;
+  }
+  if (reason === GBS_AUTHORITY_DENY_REASONS.CAPABILITY_ID_MISMATCH) {
+    return LISTING_PUBLICATION_DENY_REASONS.CAPABILITY_ID_MISMATCH;
+  }
+  if (reason === GBS_AUTHORITY_DENY_REASONS.NOT_ACTIVE) {
+    return LISTING_PUBLICATION_DENY_REASONS.NOT_ACTIVE;
+  }
+  if (reason === GBS_AUTHORITY_DENY_REASONS.NOT_VERIFIED) {
+    return LISTING_PUBLICATION_DENY_REASONS.NOT_VERIFIED;
+  }
+  return LISTING_PUBLICATION_DENY_REASONS.SCOPE_NOT_SUBSET;
+}
 
 export function evaluateListingPublicationGate({
   env,
@@ -29,6 +61,7 @@ export function evaluateListingPublicationGate({
   capability = null,
   protectedTitleEvidence = null,
   claimedOfficialFacts = [],
+  now = new Date(),
 } = {}) {
   if (!isBusinessServicesEnabled(env)) {
     return { allowed: false, reason: LISTING_PUBLICATION_DENY_REASONS.FEATURE_DISABLED };
@@ -36,7 +69,23 @@ export function evaluateListingPublicationGate({
   if (!capability || !sameProviderSubject(listing, capability)) {
     return { allowed: false, reason: LISTING_PUBLICATION_DENY_REASONS.SUBJECT_MISMATCH };
   }
-  const def = getBusinessServicesCapability(listing.capabilityId || capability.capabilityId);
+
+  const listingCapabilityId = listing.capabilityId ? String(listing.capabilityId).trim() : '';
+  const haveCapabilityId = capability.capabilityId ? String(capability.capabilityId).trim() : '';
+  if (!listingCapabilityId || !haveCapabilityId) {
+    return { allowed: false, reason: LISTING_PUBLICATION_DENY_REASONS.CAPABILITY_ID_REQUIRED };
+  }
+  if (
+    !isKnownBusinessServicesCapability(listingCapabilityId) ||
+    !isKnownBusinessServicesCapability(haveCapabilityId)
+  ) {
+    return { allowed: false, reason: LISTING_PUBLICATION_DENY_REASONS.CAPABILITY_UNKNOWN };
+  }
+  if (listingCapabilityId !== haveCapabilityId) {
+    return { allowed: false, reason: LISTING_PUBLICATION_DENY_REASONS.CAPABILITY_ID_MISMATCH };
+  }
+
+  const def = getBusinessServicesCapability(listingCapabilityId);
   if (!def) {
     return { allowed: false, reason: LISTING_PUBLICATION_DENY_REASONS.CAPABILITY_UNKNOWN };
   }
@@ -46,21 +95,42 @@ export function evaluateListingPublicationGate({
   if (!providerTrustIsVerified(capability.trustStatus)) {
     return { allowed: false, reason: LISTING_PUBLICATION_DENY_REASONS.NOT_VERIFIED };
   }
-  const scopeDecision = authorizeListingScope({ requested: listing, capability });
+
+  const scopeDecision = authorizeGbsProviderAction({ requested: listing, capability });
   if (!scopeDecision.allowed) {
-    return { allowed: false, reason: LISTING_PUBLICATION_DENY_REASONS.SCOPE_NOT_SUBSET };
+    return { allowed: false, reason: mapAuthorityReason(scopeDecision.reason) };
   }
+
   if (def.protectedTitleRequired) {
-    const titleOk =
-      evidenceIsCurrent(protectedTitleEvidence) &&
-      protectedTitleEvidence?.titleId === def.requiredProtectedTitleId &&
-      sameProviderSubject(protectedTitleEvidence, capability);
-    if (!titleOk) {
+    const titleId = def.requiredProtectedTitleId;
+    const jurisdictionIds = capability.scope?.jurisdictionIds || listing.scope?.jurisdictionIds || [];
+    if (!jurisdictionIds.length) {
       return { allowed: false, reason: LISTING_PUBLICATION_DENY_REASONS.PROTECTED_TITLE_REQUIRED };
     }
+    const evidence = Array.isArray(protectedTitleEvidence)
+      ? protectedTitleEvidence
+      : protectedTitleEvidence
+        ? [protectedTitleEvidence]
+        : capability.evidenceRefs;
+    for (const jurisdictionId of jurisdictionIds) {
+      const titleDecision = evaluateProtectedTitleVerification({
+        titleId,
+        jurisdictionId,
+        subject: capability,
+        evidence,
+        now,
+      });
+      if (!titleDecision.ok) {
+        if (titleDecision.code === PROTECTED_TITLE_POLICY_DENY_REASONS.POLICY_NOT_CONFIGURED) {
+          return { allowed: false, reason: LISTING_PUBLICATION_DENY_REASONS.PROTECTED_TITLE_POLICY_NOT_CONFIGURED };
+        }
+        return { allowed: false, reason: LISTING_PUBLICATION_DENY_REASONS.PROTECTED_TITLE_REQUIRED };
+      }
+    }
   }
+
   for (const fact of claimedOfficialFacts) {
-    if (!isCurrentPublicEligible(fact)) {
+    if (!isCurrentPublicEligible(fact, { now })) {
       return { allowed: false, reason: LISTING_PUBLICATION_DENY_REASONS.JURISDICTION_FACTS_NOT_CURRENT };
     }
   }
