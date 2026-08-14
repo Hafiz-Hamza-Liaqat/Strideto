@@ -13,7 +13,13 @@ import {
   isKnownBusinessServicesCapability,
 } from '../../../../shared/gbs/businessServicesCapabilities.js';
 import { PROTECTED_TITLE_IDS } from '../../../../shared/gbs/protectedTitles.js';
-import { EVIDENCE_DECISIONS, EVIDENCE_TYPES, evidenceIsCurrent } from '../../../../shared/gbs/providerEvidence.js';
+import {
+  EVIDENCE_DECISIONS,
+  EVIDENCE_TYPES,
+  canTransitionEvidenceDecision,
+  evidenceIsCurrent,
+  isStaffEvidenceReviewDecision,
+} from '../../../../shared/gbs/providerEvidence.js';
 import { evaluateProtectedTitleVerification } from '../../../../shared/gbs/protectedTitleEvidencePolicy.js';
 import {
   isGbsAuthoritativeCapability,
@@ -48,6 +54,36 @@ function uniqueIds(values) {
   return out;
 }
 
+function evidenceListOf(record) {
+  return Array.isArray(record?.evidenceRefs) ? record.evidenceRefs : [];
+}
+
+export function assertRequiredAcceptedEvidence(record) {
+  const capabilityId = record?.capabilityId ? String(record.capabilityId).trim() : '';
+  if (!capabilityId) throw deny('gbs_capability_id_missing');
+  if (!isKnownBusinessServicesCapability(capabilityId)) throw deny('gbs_capability_id_unknown');
+  const def = getBusinessServicesCapability(capabilityId);
+  const evidenceList = evidenceListOf(record);
+  const orgOnly =
+    evidenceList.length > 0 &&
+    evidenceList.every((row) => (row.evidenceType || row.evidenceClass) === EVIDENCE_TYPES.ORGANIZATION_ATTESTATION);
+  if (orgOnly) throw deny('organization_verified_insufficient');
+  if (def?.evidenceRequired) {
+    const accepted = evidenceList.filter((row) => row.decision === EVIDENCE_DECISIONS.ACCEPTED);
+    if (!accepted.length) throw deny('required_evidence_absent');
+  }
+}
+
+function evidenceReviewAuditAction(decision) {
+  if (decision === EVIDENCE_DECISIONS.ACCEPTED) {
+    return GBS_AUDIT_EVENTS.PROVIDER_CAPABILITY_EVIDENCE_ACCEPTED;
+  }
+  if (decision === EVIDENCE_DECISIONS.REJECTED) {
+    return GBS_AUDIT_EVENTS.PROVIDER_CAPABILITY_EVIDENCE_REJECTED;
+  }
+  return GBS_AUDIT_EVENTS.PROVIDER_CAPABILITY_EVIDENCE_REVIEWED;
+}
+
 export function organizationVerifiedDoesNotVerify(capabilityId) {
   const protectedCaps = new Set([
     'business_formation',
@@ -76,7 +112,7 @@ function assertMayVerify({ record, actor, organizationVerified = false, titleId 
   if (organizationVerified) throw deny('organization_verified_insufficient');
 
   const def = getBusinessServicesCapability(capabilityId);
-  const evidenceList = Array.isArray(record.evidenceRefs) ? record.evidenceRefs : [];
+  const evidenceList = evidenceListOf(record);
   const orgOnly =
     evidenceList.length > 0 &&
     evidenceList.every((row) => (row.evidenceType || row.evidenceClass) === EVIDENCE_TYPES.ORGANIZATION_ATTESTATION);
@@ -107,8 +143,7 @@ function assertMayVerify({ record, actor, organizationVerified = false, titleId 
       }
     }
   } else if (def.evidenceRequired) {
-    const accepted = evidenceList.filter((row) => row.decision === EVIDENCE_DECISIONS.ACCEPTED);
-    if (!accepted.length) throw deny('required_evidence_absent');
+    assertRequiredAcceptedEvidence(record);
   }
 }
 
@@ -151,6 +186,10 @@ export function createProviderCapabilityReviewService({
         recordVersion: record.recordVersion,
         reasonCode: extra.reasonCode || null,
         actorId: actor?.id || null,
+        evidenceIndex: extra.evidenceIndex ?? null,
+        evidenceType: extra.evidenceType || null,
+        oldDecision: extra.oldDecision || null,
+        newDecision: extra.newDecision || null,
       }),
     });
     return record;
@@ -178,9 +217,54 @@ export function createProviderCapabilityReviewService({
       return write(next, actor, GBS_AUDIT_EVENTS.PROVIDER_CAPABILITY_EVIDENCE_SUBMITTED);
     },
 
+    async reviewEvidence({
+      id,
+      subjectType,
+      subjectId,
+      expectedVersion,
+      actor,
+      evidenceIndex,
+      decision,
+      reasonCode,
+    }) {
+      if (!actor?.isStaff) throw deny('staff_review_required');
+      const current = await loadExact(subjectType, subjectId, id);
+      if (isSelf(actor, current)) throw deny('provider_self_review_forbidden');
+      if (!isStaffEvidenceReviewDecision(decision)) throw deny('unknown_evidence_decision', 400);
+      if (!Number.isInteger(evidenceIndex) || evidenceIndex < 0) {
+        throw deny('invalid_evidence_index', 400);
+      }
+      const refs = evidenceListOf(current);
+      const row = refs[evidenceIndex];
+      if (!row) throw deny('evidence_not_found', 404);
+      const oldDecision = row.decision || EVIDENCE_DECISIONS.PENDING;
+      if (!canTransitionEvidenceDecision(oldDecision, decision)) {
+        throw deny('invalid_evidence_decision', 400);
+      }
+      if (oldDecision === decision) {
+        assertExpectedVersion(current.recordVersion, expectedVersion);
+        return current;
+      }
+      const nextRefs = refs.map((item, index) =>
+        index === evidenceIndex ? { ...item, decision } : { ...item }
+      );
+      const next = bump(current, expectedVersion, {
+        evidenceRefs: nextRefs,
+      });
+      return write(next, actor, evidenceReviewAuditAction(decision), {
+        reasonCode,
+        evidenceIndex,
+        evidenceType: row.evidenceType || row.evidenceClass || null,
+        oldDecision,
+        newDecision: decision,
+      });
+    },
+
     async markEvidenceBacked({ id, subjectType, subjectId, expectedVersion, actor }) {
       if (!actor?.isStaff) throw deny('staff_review_required');
       const current = await loadExact(subjectType, subjectId, id);
+      if (isSelf(actor, current)) throw deny('provider_self_review_forbidden');
+      assertRequiredAcceptedEvidence(current);
       if (
         current.trustStatus === PROVIDER_TRUST_STATUSES.EVIDENCE_BACKED ||
         current.trustStatus === PROVIDER_TRUST_STATUSES.VERIFIED

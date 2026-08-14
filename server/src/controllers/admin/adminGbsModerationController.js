@@ -8,7 +8,7 @@ import { ProviderCapability } from '../../models/gbs/ProviderCapability.js';
 import { GbsServiceListing } from '../../models/gbs/GbsServiceListing.js';
 import { AuditLog } from '../../models/AuditLog.js';
 import { listResponse, paginate } from '../../utils/apiResponse.js';
-import { publicSafeEvidenceProjection } from '../../../../shared/gbs/providerEvidence.js';
+import { adminSafeEvidenceProjection } from '../../../../shared/gbs/providerEvidence.js';
 import { getBusinessServicesCapability } from '../../../../shared/gbs/businessServicesCapabilities.js';
 import { GBS_AUDIT_EVENTS, redactAuditMetadata } from '../../../../shared/security/gbsAuditEvents.js';
 import { logAudit } from '../../services/auditService.js';
@@ -25,7 +25,9 @@ import {
 import {
   parseAdminGbsReviewBody,
   parseCapabilityQueueQuery,
+  parseEvidenceIndex,
   parseListingQueueQuery,
+  parseStaffEvidenceReviewAction,
 } from '../../services/gbs/gbsAdminModerationValidation.js';
 import {
   resolveProviderSubjectLabels,
@@ -88,7 +90,8 @@ function capabilityProjection(record, subject = null) {
     status: record.status,
     trustStatus: record.trustStatus,
     scope: record.scope || {},
-    evidence: (record.evidenceRefs || []).map((row) => publicSafeEvidenceProjection(row)),
+    evidenceRequired: def?.evidenceRequired === true,
+    evidence: (record.evidenceRefs || []).map((row, index) => adminSafeEvidenceProjection(row, index)),
     review: {
       decision: record.review?.decision || null,
       reasonCode: record.review?.reasonCode || null,
@@ -140,6 +143,11 @@ async function reviewHistory(targetType, targetId) {
     reason: row.reason || '',
     metadata: redactAuditMetadata(row.metadata || {}),
   }));
+}
+
+function alreadyEvidenceState(record, evidenceIndex, decision) {
+  const row = (record.evidenceRefs || [])[evidenceIndex];
+  return Boolean(row) && (row.decision || 'pending') === decision;
 }
 
 function alreadyCapabilityState(record, action) {
@@ -245,6 +253,63 @@ export async function reviewCapability(req, res) {
         targetId: String(plain._id || req.params.id),
         metadata: redactAuditMetadata({
           reviewAction: action,
+          subjectType: plain.subjectType,
+          subjectId: plain.subjectId,
+          capabilityId: plain.capabilityId,
+          trustStatus: plain.trustStatus,
+        }),
+        reason: body.reason,
+      });
+    }
+    return res.json({ capability: capabilityProjection(plain, label), replay });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function reviewCapabilityEvidence(req, res) {
+  try {
+    if (!isObjectId(req.params.id)) return res.status(400).json({ error: 'invalid_id' });
+    const action = req.params.action;
+    const evidenceIndex = parseEvidenceIndex(req.params.evidenceIndex);
+    const decision = parseStaffEvidenceReviewAction(action);
+    const body = parseAdminGbsReviewBody(req.body, { action });
+    const current = await ProviderCapability.findOne({
+      _id: req.params.id,
+      subjectType: body.subjectType,
+      subjectId: body.subjectId,
+    }).lean();
+    if (!current) return res.status(404).json({ error: 'provider_capability_not_found' });
+
+    const actor = staffActor(req);
+    const record = await capabilityReview.reviewEvidence({
+      id: req.params.id,
+      subjectType: body.subjectType,
+      subjectId: body.subjectId,
+      expectedVersion: body.expectedVersion,
+      actor,
+      evidenceIndex,
+      decision,
+      reasonCode: body.reasonCode,
+    });
+
+    const plain = record.toObject ? record.toObject() : record;
+    const replay =
+      alreadyEvidenceState(current, evidenceIndex, decision) &&
+      Number(current.recordVersion) === Number(plain.recordVersion);
+    const [label] = await attachSubjectLabels([plain]);
+    if (!replay) {
+      await logAudit({
+        actor,
+        action: GBS_AUDIT_EVENTS.PROVIDER_CAPABILITY_REVIEWED,
+        targetType: 'ProviderCapability',
+        targetId: String(plain._id || req.params.id),
+        metadata: redactAuditMetadata({
+          reviewAction: action,
+          evidenceIndex,
+          evidenceType: (plain.evidenceRefs || [])[evidenceIndex]?.evidenceType || null,
+          oldDecision: (current.evidenceRefs || [])[evidenceIndex]?.decision || null,
+          newDecision: decision,
           subjectType: plain.subjectType,
           subjectId: plain.subjectId,
           capabilityId: plain.capabilityId,

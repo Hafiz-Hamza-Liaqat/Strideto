@@ -22,6 +22,36 @@ export const EVIDENCE_DECISIONS = Object.freeze({
   EXPIRED: 'expired',
 });
 
+/** Staff review actions only. expired is not a staff review decision. */
+export const STAFF_EVIDENCE_REVIEW_DECISIONS = Object.freeze([
+  EVIDENCE_DECISIONS.ACCEPTED,
+  EVIDENCE_DECISIONS.NEEDS_INFORMATION,
+  EVIDENCE_DECISIONS.REJECTED,
+]);
+
+export const STAFF_EVIDENCE_REVIEW_ACTIONS = Object.freeze({
+  accept: EVIDENCE_DECISIONS.ACCEPTED,
+  'needs-information': EVIDENCE_DECISIONS.NEEDS_INFORMATION,
+  reject: EVIDENCE_DECISIONS.REJECTED,
+});
+
+export function isStaffEvidenceReviewDecision(value) {
+  return STAFF_EVIDENCE_REVIEW_DECISIONS.includes(value);
+}
+
+export function canTransitionEvidenceDecision(from, to) {
+  if (!isStaffEvidenceReviewDecision(to)) return false;
+  const current = from || EVIDENCE_DECISIONS.PENDING;
+  if (current === to) return true;
+  if (current === EVIDENCE_DECISIONS.PENDING) {
+    return STAFF_EVIDENCE_REVIEW_DECISIONS.includes(to);
+  }
+  if (current === EVIDENCE_DECISIONS.NEEDS_INFORMATION) {
+    return to === EVIDENCE_DECISIONS.ACCEPTED || to === EVIDENCE_DECISIONS.REJECTED;
+  }
+  return false;
+}
+
 export function publicSafeEvidenceProjection(evidence = {}) {
   return {
     evidenceType: evidence.evidenceType || null,
@@ -30,7 +60,15 @@ export function publicSafeEvidenceProjection(evidence = {}) {
     decision: evidence.decision || null,
     effectiveFrom: evidence.effectiveFrom || null,
     effectiveTo: evidence.effectiveTo || evidence.expiresAt || null,
+    submittedAt: evidence.submittedAt || evidence.createdAt || null,
     hasVaultRef: Boolean(evidence.vaultRef),
+  };
+}
+
+export function adminSafeEvidenceProjection(evidence = {}, evidenceIndex = 0) {
+  return {
+    ...publicSafeEvidenceProjection(evidence),
+    evidenceIndex,
   };
 }
 

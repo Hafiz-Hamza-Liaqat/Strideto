@@ -10,6 +10,7 @@ import {
 } from '../../../../shared/gbs/constants.js';
 import { isValidListingModerationStatus } from '../../../../shared/gbs/serviceListing.js';
 import { isKnownBusinessServicesCapability } from '../../../../shared/gbs/businessServicesCapabilities.js';
+import { STAFF_EVIDENCE_REVIEW_ACTIONS } from '../../../../shared/gbs/providerEvidence.js';
 
 const REVIEW_BODY_KEYS = Object.freeze([
   'expectedVersion',
@@ -151,4 +152,20 @@ export function parseAdminGbsReviewBody(body = {}, { action } = {}) {
     reason,
     reasonCode: reasonCode || (reason ? 'staff_review' : ''),
   };
+}
+
+export function parseEvidenceIndex(value) {
+  const raw = value == null ? '' : String(value).trim();
+  if (!/^\d+$/.test(raw)) throw deny('invalid_evidence_index');
+  const evidenceIndex = Number(raw);
+  if (!Number.isInteger(evidenceIndex) || evidenceIndex < 0 || evidenceIndex >= GBS_PROVIDER_BOUNDS.EVIDENCE_ROWS_MAX) {
+    throw deny('invalid_evidence_index');
+  }
+  return evidenceIndex;
+}
+
+export function parseStaffEvidenceReviewAction(action) {
+  const decision = STAFF_EVIDENCE_REVIEW_ACTIONS[action];
+  if (!decision) throw deny('unknown_evidence_decision');
+  return decision;
 }

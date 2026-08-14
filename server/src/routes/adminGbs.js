@@ -22,6 +22,30 @@ adminGbsRouter.get(
   ctrl.getCapabilityDetail
 );
 adminGbsRouter.post(
+  '/capabilities/:id/evidence/:evidenceIndex/accept',
+  requirePermission(PERMISSIONS.VERIFICATION_REVIEW),
+  (req, res, next) => {
+    req.params.action = 'accept';
+    return ctrl.reviewCapabilityEvidence(req, res, next);
+  }
+);
+adminGbsRouter.post(
+  '/capabilities/:id/evidence/:evidenceIndex/needs-information',
+  requirePermission(PERMISSIONS.VERIFICATION_REVIEW),
+  (req, res, next) => {
+    req.params.action = 'needs-information';
+    return ctrl.reviewCapabilityEvidence(req, res, next);
+  }
+);
+adminGbsRouter.post(
+  '/capabilities/:id/evidence/:evidenceIndex/reject',
+  requirePermission(PERMISSIONS.VERIFICATION_REVIEW),
+  (req, res, next) => {
+    req.params.action = 'reject';
+    return ctrl.reviewCapabilityEvidence(req, res, next);
+  }
+);
+adminGbsRouter.post(
   '/capabilities/:id/mark-evidence-backed',
   requirePermission(PERMISSIONS.VERIFICATION_REVIEW),
   (req, res, next) => {

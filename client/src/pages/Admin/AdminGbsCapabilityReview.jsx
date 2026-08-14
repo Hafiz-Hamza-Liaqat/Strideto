@@ -10,6 +10,18 @@ import { usePermissions } from '../../hooks/usePermissions';
 import { gbsAdminApi } from '../../services/gbsAdminApi';
 import { ROUTES } from '../../constants';
 
+function evidenceDecisionLabel(t, decision) {
+  if (decision === 'accepted') return t('gbsEvidenceAccepted');
+  if (decision === 'rejected') return t('gbsEvidenceRejected');
+  if (decision === 'needs_information') return t('gbsEvidenceNeedsInformationStatus');
+  if (decision === 'expired') return t('gbsEvidenceExpired');
+  return t('gbsEvidencePendingReview');
+}
+
+function isReviewableEvidence(row) {
+  return row?.decision === 'pending' || row?.decision === 'needs_information' || !row?.decision;
+}
+
 export default function AdminGbsCapabilityReview() {
   const { id } = useParams();
   const { t } = useTranslation('admin');
@@ -40,6 +52,21 @@ export default function AdminGbsCapabilityReview() {
   }, [load]);
 
   const cap = payload?.capability;
+  const hasAcceptedEvidence = Boolean(cap?.evidence?.some((row) => row.decision === 'accepted'));
+  const canMarkEvidenceBacked =
+    hasAcceptedEvidence && cap?.trustStatus !== 'verified' && cap?.trustStatus !== 'revoked';
+  const canVerify =
+    hasAcceptedEvidence && (cap?.trustStatus === 'evidence_backed' || cap?.trustStatus === 'verified');
+
+  const fail = (err) => {
+    const code = err.response?.data?.error;
+    setError(
+      err.response?.status === 409
+        ? t('gbsStaleConflict')
+        : code || err.message || t('actionFailed')
+    );
+  };
+
   const run = async (action) => {
     if (!cap) return;
     setBusy(true);
@@ -55,15 +82,39 @@ export default function AdminGbsCapabilityReview() {
       setReason('');
       await load();
     } catch (err) {
-      const code = err.response?.data?.error;
-      setError(
-        err.response?.status === 409
-          ? t('gbsStaleConflict')
-          : code || err.message || t('actionFailed')
-      );
+      fail(err);
     } finally {
       setBusy(false);
     }
+  };
+
+  const runEvidence = async (evidenceIndex, action) => {
+    if (!cap) return;
+    setBusy(true);
+    setError('');
+    try {
+      await gbsAdminApi.reviewCapabilityEvidence(id, evidenceIndex, action, {
+        expectedVersion: cap.recordVersion,
+        subjectType: cap.subjectType,
+        subjectId: cap.subjectId,
+        reason,
+      });
+      setConfirm(null);
+      setReason('');
+      await load();
+    } catch (err) {
+      fail(err);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const confirmEvidence = (evidenceIndex, action) => {
+    if ((action === 'reject' || action === 'needs-information') && !reason.trim()) {
+      setError(t('gbsEvidenceReviewReasonRequired'));
+      return;
+    }
+    setConfirm({ kind: 'evidence', evidenceIndex, action });
   };
 
   return (
@@ -94,13 +145,71 @@ export default function AdminGbsCapabilityReview() {
             </section>
             <section className="rounded-xl border border-gray-200 dark:border-gray-700 p-4">
               <h2 className="font-semibold text-gray-900 dark:text-white mb-2">{t('gbsEvidenceMetadata')}</h2>
+              {cap.evidenceRequired ? (
+                <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">{t('gbsEvidenceRequiredHint')}</p>
+              ) : null}
               {cap.evidence?.length ? (
-                <ul className="space-y-2 text-sm">
-                  {cap.evidence.map((row, i) => (
-                    <li key={i} className="break-words">
-                      {row.evidenceType || 'evidence'} · {row.decision || 'pending'}
-                      {row.jurisdictionId ? ` · ${row.jurisdictionId}` : ''}
-                      {row.hasVaultRef ? ` · ${t('gbsVaultRefPresent')}` : ''}
+                <ul className="space-y-3">
+                  {cap.evidence.map((row) => (
+                    <li
+                      key={row.evidenceIndex}
+                      className="rounded-lg border border-gray-200 dark:border-gray-700 p-3 space-y-2 min-w-0"
+                    >
+                      <p className="break-words text-sm font-medium text-gray-900 dark:text-white">
+                        {row.evidenceType || 'evidence'}
+                        {cap.evidenceRequired ? ` · ${t('gbsEvidenceRequired')}` : ''}
+                      </p>
+                      <p className="flex flex-wrap items-center gap-2 text-sm">
+                        <span>{t('gbsEvidenceDecision')}</span>
+                        <AdminStatusBadge
+                          value={row.decision || 'pending'}
+                          label={evidenceDecisionLabel(t, row.decision || 'pending')}
+                        />
+                      </p>
+                      {row.jurisdictionId ? (
+                        <p className="break-words text-sm text-gray-600 dark:text-gray-300">
+                          {t('gbsEvidenceJurisdiction')}: {row.jurisdictionId}
+                        </p>
+                      ) : null}
+                      {row.submittedAt || row.effectiveFrom ? (
+                        <p className="text-sm text-gray-600 dark:text-gray-300">
+                          {t('gbsEvidenceSubmittedAt')}: {formatAdminDate(row.submittedAt || row.effectiveFrom)}
+                        </p>
+                      ) : null}
+                      {row.hasVaultRef ? (
+                        <p className="text-sm text-gray-600 dark:text-gray-300">{t('gbsVaultRefPresent')}</p>
+                      ) : null}
+                      {can(PERMISSIONS.VERIFICATION_REVIEW) && isReviewableEvidence(row) ? (
+                        <div className="flex flex-wrap gap-2" role="group" aria-label={t('gbsEvidenceReviewControls')}>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            aria-describedby="gbs-cap-reason"
+                            onClick={() => runEvidence(row.evidenceIndex, 'accept')}
+                            className="min-h-[44px] px-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-primary"
+                          >
+                            {t('gbsAcceptEvidence')}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            aria-describedby="gbs-cap-reason"
+                            onClick={() => confirmEvidence(row.evidenceIndex, 'needs-information')}
+                            className="min-h-[44px] px-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-primary"
+                          >
+                            {t('gbsEvidenceNeedsInformation')}
+                          </button>
+                          <button
+                            type="button"
+                            disabled={busy}
+                            aria-describedby="gbs-cap-reason"
+                            onClick={() => confirmEvidence(row.evidenceIndex, 'reject')}
+                            className="min-h-[44px] px-3 rounded-lg border border-red-600 text-red-700 dark:text-red-300 focus:outline-none focus:ring-2 focus:ring-red-600"
+                          >
+                            {t('gbsRejectEvidence')}
+                          </button>
+                        </div>
+                      ) : null}
                     </li>
                   ))}
                 </ul>
@@ -121,10 +230,21 @@ export default function AdminGbsCapabilityReview() {
             <section className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 space-y-3">
               <h2 className="font-semibold">{t('gbsStaffActions')}</h2>
               <AdminTextarea id="gbs-cap-reason" label={t('gbsReviewReason')} value={reason} onChange={(e) => setReason(e.target.value)} />
+              {!hasAcceptedEvidence ? (
+                <p className="text-sm text-gray-600 dark:text-gray-300" role="status">{t('gbsVerifyBlocked')}</p>
+              ) : !canVerify ? (
+                <p className="text-sm text-gray-600 dark:text-gray-300" role="status">{t('gbsMarkEvidenceBackedFirst')}</p>
+              ) : null}
               <div className="flex flex-wrap gap-2">
                 {can(PERMISSIONS.VERIFICATION_REVIEW) ? (
                   <>
-                    <button type="button" disabled={busy} onClick={() => run('mark-evidence-backed')} className="min-h-[44px] px-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-primary">
+                    <button
+                      type="button"
+                      disabled={busy || !canMarkEvidenceBacked}
+                      title={!canMarkEvidenceBacked ? t('gbsMarkEvidenceBackedBlocked') : undefined}
+                      onClick={() => run('mark-evidence-backed')}
+                      className="min-h-[44px] px-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
                       {t('gbsMarkEvidenceBacked')}
                     </button>
                     <button type="button" disabled={busy} onClick={() => run('needs-information')} className="min-h-[44px] px-3 rounded-lg border focus:outline-none focus:ring-2 focus:ring-primary">
@@ -134,19 +254,25 @@ export default function AdminGbsCapabilityReview() {
                 ) : null}
                 {can(PERMISSIONS.VERIFICATION_APPROVE) ? (
                   <>
-                    <button type="button" disabled={busy} onClick={() => run('verify')} className="min-h-[44px] px-3 rounded-lg bg-primary text-white focus:outline-none focus:ring-2 focus:ring-primary">
+                    <button
+                      type="button"
+                      disabled={busy || !canVerify}
+                      title={!canVerify ? t('gbsVerifyBlocked') : undefined}
+                      onClick={() => run('verify')}
+                      className="min-h-[44px] px-3 rounded-lg bg-primary text-white focus:outline-none focus:ring-2 focus:ring-primary disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
                       {t('gbsVerify')}
                     </button>
-                    <button type="button" disabled={busy} onClick={() => setConfirm('reject')} className="min-h-[44px] px-3 rounded-lg border border-red-600 text-red-700 dark:text-red-300 focus:outline-none focus:ring-2 focus:ring-red-600">
+                    <button type="button" disabled={busy} onClick={() => setConfirm({ kind: 'capability', action: 'reject' })} className="min-h-[44px] px-3 rounded-lg border border-red-600 text-red-700 dark:text-red-300 focus:outline-none focus:ring-2 focus:ring-red-600">
                       {t('gbsReject')}
                     </button>
-                    <button type="button" disabled={busy} onClick={() => setConfirm('suspend')} className="min-h-[44px] px-3 rounded-lg border border-red-600 text-red-700 dark:text-red-300 focus:outline-none focus:ring-2 focus:ring-red-600">
+                    <button type="button" disabled={busy} onClick={() => setConfirm({ kind: 'capability', action: 'suspend' })} className="min-h-[44px] px-3 rounded-lg border border-red-600 text-red-700 dark:text-red-300 focus:outline-none focus:ring-2 focus:ring-red-600">
                       {t('gbsSuspend')}
                     </button>
                   </>
                 ) : null}
                 {can(PERMISSIONS.VERIFICATION_REVOKE) ? (
-                  <button type="button" disabled={busy} onClick={() => setConfirm('revoke')} className="min-h-[44px] px-3 rounded-lg bg-red-600 text-white focus:outline-none focus:ring-2 focus:ring-red-600">
+                  <button type="button" disabled={busy} onClick={() => setConfirm({ kind: 'capability', action: 'revoke' })} className="min-h-[44px] px-3 rounded-lg bg-red-600 text-white focus:outline-none focus:ring-2 focus:ring-red-600">
                     {t('gbsRevoke')}
                   </button>
                 ) : null}
@@ -154,12 +280,19 @@ export default function AdminGbsCapabilityReview() {
             </section>
             <AdminConfirmDialog
               open={Boolean(confirm)}
-              title={t('gbsConfirmReviewTitle')}
-              message={t('gbsConfirmReviewBody', { action: confirm || '' })}
+              title={confirm?.kind === 'evidence' ? t('gbsConfirmEvidenceReviewTitle') : t('gbsConfirmReviewTitle')}
+              message={
+                confirm?.kind === 'evidence'
+                  ? t('gbsConfirmEvidenceReviewBody', { action: confirm?.action || '' })
+                  : t('gbsConfirmReviewBody', { action: confirm?.action || '' })
+              }
               danger
               loading={busy}
               onCancel={() => setConfirm(null)}
-              onConfirm={() => run(confirm)}
+              onConfirm={() => {
+                if (confirm?.kind === 'evidence') runEvidence(confirm.evidenceIndex, confirm.action);
+                else if (confirm?.action) run(confirm.action);
+              }}
             />
           </>
         ) : null}
