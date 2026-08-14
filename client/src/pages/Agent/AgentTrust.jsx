@@ -22,10 +22,33 @@ export default function AgentTrust() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Trust / Reviews</h1>
-        <p className={muted}>Respond professionally. You cannot remove negative reviews. Reporter identity is private. Professional dispute is not a financial dispute and does not create a refund.</p>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Trust & Verification</h1>
+        <p className={muted}>Identity, organization, and professional-domain verification are separate. Identity Verified is not Registered Agent capability verified.</p>
       </header>
       {error ? <p className="rounded bg-red-50 dark:bg-red-950/40 p-3 text-red-700 dark:text-red-300" role="alert">{error}</p> : null}
+      <section className={cardClass}>
+        <h2 className="font-semibold text-gray-900 dark:text-white">Identity & Organization</h2>
+        <ul className="mt-2 space-y-1 text-sm text-gray-800 dark:text-gray-200">
+          <li>{verification?.emailVerified ? '✓' : '○'} Email</li>
+          <li>○ Identity — {verification?.identityStatus || verification?.verificationStatus || 'not submitted'}</li>
+          <li>○ Organization — {verification?.verificationStatus || 'unknown'}</li>
+        </ul>
+        <p className={`mt-2 ${muted}`}>Organization Verified is not a professional title and is not Registered Agent or ACSP verification.</p>
+        <Link to={ROUTES.AGENT_VERIFICATION} className="mt-3 inline-block text-sm text-primary">Manage identity & organization verification →</Link>
+      </section>
+      <section className={cardClass}>
+        <h2 className="font-semibold text-gray-900 dark:text-white">Professional domains</h2>
+        <p className={`mt-2 ${muted}`}>Only activated domains appear here. Adding a domain does not verify capabilities.</p>
+        <p className="mt-2 text-sm">
+          Education & Mobility professional verification:{' '}
+          {verification?.verificationStatus || 'unknown'}
+        </p>
+        <Link to={ROUTES.AGENT_VERIFICATION} className="mt-2 inline-block text-sm text-primary">Manage Education Verification →</Link>
+        <p className="mt-3 text-sm">
+          Business Formation & Corporate Services capabilities are managed in the Business workspace. Capability trust is not granted by domain enrollment.
+        </p>
+        <Link to={ROUTES.AGENT_BUSINESS_SERVICES_CAPABILITIES} className="mt-2 inline-block text-sm text-primary">Manage Business Verification →</Link>
+      </section>
       <section className={cardClass}>
         <h2 className="font-semibold text-gray-900 dark:text-white">Organization / professional verification</h2>
         <p className="mt-2 text-sm text-gray-800 dark:text-gray-200">Status: {verification?.verificationStatus || 'unknown'} · Approved capability: {verification?.isApproved ? 'yes' : 'no'}</p>

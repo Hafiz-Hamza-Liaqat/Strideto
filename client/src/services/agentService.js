@@ -96,6 +96,7 @@ export const agentAuthApi = {
   register: (payload) => agentAxios.post('/api/auth/agent/register', payload),
   login: (email, password) => agentAxios.post('/api/auth/agent/login', { email, password }),
   me: () => agentAxios.get('/api/auth/agent/me'),
+  providerDomainCatalog: () => agentAxios.get('/api/auth/agent/provider-domains'),
   logout: () => agentAxios.post('/api/auth/agent/logout'),
   logoutAll: () => agentAxios.post('/api/auth/agent/logout-all'),
   refreshToken: () => agentAxios.post('/api/auth/agent/refresh-token'),
@@ -172,9 +173,16 @@ export const agentApi = {
     agentAxios.get(`/api/organizations/${organizationId}/verification/credential-policy`),
   getTeamInvites: () => agentAxios.get('/api/agent/team/invites'),
   createTeamInvite: (data) => agentAxios.post('/api/agent/team/invites', data),
+  updateMemberDomainAccess: (data) => agentAxios.patch('/api/agent/team/member/domain-access', data),
   revokeTeamInvite: (invitationId) => agentAxios.post(`/api/agent/team/invites/${invitationId}/revoke`),
   previewInvite: (token) => agentAxios.get('/api/auth/agent/invitations/preview', { params: { token } }),
-  acceptInvite: (token) => agentAxios.post('/api/auth/agent/invitations/accept', { token }),
+  acceptInvite: (token, acceptedDomainIds) =>
+    agentAxios.post('/api/auth/agent/invitations/accept', { token, acceptedDomainIds }),
+  getProviderHome: () => agentAxios.get('/api/agent/provider-domains/home'),
+  getProviderDomainContext: () => agentAxios.get('/api/agent/provider-domains/context'),
+  completeProviderDomainOnboarding: (domainIds) =>
+    agentAxios.post('/api/agent/provider-domains/onboarding', { domainIds }),
+  addProviderDomain: (data) => agentAxios.post('/api/agent/provider-domains', data),
   getPaymentStatus: () => agentAxios.post('/api/agent/marketplace-payments/connect/sync'),
   startPaymentOnboarding: (country, idempotencyKey) => agentAxios.post('/api/agent/marketplace-payments/connect/onboarding', { country }, { headers: { 'Idempotency-Key': idempotencyKey } }),
 };

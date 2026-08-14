@@ -60,8 +60,8 @@ export default function AgentServices() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Services</h1>
-        <p className={muted}>Create truthful draft services. Activation requires approved verification. Guaranteed visa, admission, scholarship, or job claims are blocked. Prices use integer minor units.</p>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Education & Mobility Services</h1>
+        <p className={muted}>Create truthful draft education services. This form never includes LLC formation, Registered Agent, registered office, or EIN assistance. Activation requires approved Education & Mobility professional verification.</p>
       </div>
       {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300" role="alert">{error}</p> : null}
       {message ? <p className="rounded-lg bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950/40 dark:text-green-300">{message}</p> : null}

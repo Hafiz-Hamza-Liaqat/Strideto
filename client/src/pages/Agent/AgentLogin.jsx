@@ -40,7 +40,7 @@ export default function AgentLogin() {
   };
 
   return (
-    <AuthCard title="Agent Portal Login" subtitle="Sign in to your Strideto agent account.">
+    <AuthCard title="Provider Portal Login" subtitle="Sign in to your Strideto provider workspace.">
       {ctxError && (
         <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm" role="alert">{ctxError}</div>
       )}

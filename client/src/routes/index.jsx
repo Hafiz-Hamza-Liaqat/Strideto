@@ -188,6 +188,8 @@ const AgentResetPassword = lazyLoad(() => import('../pages/Agent/AgentResetPassw
 const AgentRegister = lazyLoad(() => import('../pages/Agent/AgentRegister'));
 const AgentLayout = lazyLoad(() => import('../pages/Agent/AgentLayout'));
 const AgentDashboard = lazyLoad(() => import('../pages/Agent/AgentDashboard'));
+const ProviderHome = lazyLoad(() => import('../pages/Agent/ProviderHome'));
+const ProviderDomainOnboarding = lazyLoad(() => import('../pages/Agent/ProviderDomainOnboarding'));
 const AgentOnboarding = lazyLoad(() => import('../pages/Agent/AgentOnboarding'));
 const AgentProfile = lazyLoad(() => import('../pages/Agent/AgentProfile'));
 const AgentServices = lazyLoad(() => import('../pages/Agent/AgentServices'));
@@ -321,7 +323,8 @@ export const routes = [
       </ProtectedAgentRoute>
     ),
     children: [
-      { index: true, element: <AgentDashboard /> },
+      { index: true, element: <ProviderHome /> },
+      { path: 'education', element: <AgentDashboard /> },
       { path: 'profile', element: <AgentProfile /> },
       { path: 'services', element: <AgentServices /> },
       { path: 'marketplace', element: <AgentMarketplace /> },
@@ -356,6 +359,10 @@ export const routes = [
       { path: 'help', element: <AgentHelp /> },
       { path: 'settings', element: <AgentSettings /> },
     ],
+  },
+  {
+    path: ROUTES.AGENT_DOMAIN_ONBOARDING,
+    element: <ProtectedAgentRoute><ProviderDomainOnboarding /></ProtectedAgentRoute>,
   },
   {
     path: ROUTES.AGENT_ONBOARDING,

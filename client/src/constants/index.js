@@ -79,6 +79,8 @@ export const ROUTES = {
   AGENT_REGISTER: '/agent/register',
   AGENT_DASHBOARD: '/agent',
   AGENT_ONBOARDING: '/agent/onboarding',
+  AGENT_DOMAIN_ONBOARDING: '/agent/onboarding/domains',
+  AGENT_EDUCATION: '/agent/education',
   AGENT_PROFILE: '/agent/profile',
   AGENT_SERVICES: '/agent/services',
   AGENT_VERIFICATION: '/agent/verification',

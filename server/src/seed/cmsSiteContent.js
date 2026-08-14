@@ -43,7 +43,7 @@ export function defaultHeaderItems() {
       visible: true,
       order: 7,
       children: [
-        { label: 'Agents & Agencies', path: '/agents', visible: true, order: 0 },
+        { label: 'Service Providers', path: '/agents', visible: true, order: 0 },
         { label: 'Professional Marketplace', path: '/agents/marketplace', visible: true, order: 1 },
         { label: 'Career Guidance', path: '/career-guidance', visible: true, order: 2 },
         { label: 'Resume Builder', path: '/resume-builder', visible: true, order: 3 },
@@ -77,7 +77,7 @@ function defaultFooterColumns() {
     {
       title: 'Services',
       links: [
-        { label: 'Agents & Agencies', path: '/agents' },
+        { label: 'Service Providers', path: '/agents' },
         { label: 'Professional Marketplace', path: '/agents/marketplace' },
         { label: 'Career Guidance', path: '/career-guidance' },
         { label: 'Resume Builder', path: '/resume-builder' },
@@ -87,7 +87,7 @@ function defaultFooterColumns() {
       title: 'For Organizations',
       links: [
         { label: 'Employer Portal', path: '/employer/login' },
-        { label: 'Agent / Agency', path: '/agent/login' },
+        { label: 'Provider Portal', path: '/agent/login' },
         { label: 'Institution', path: '/institution/login' },
       ],
     },

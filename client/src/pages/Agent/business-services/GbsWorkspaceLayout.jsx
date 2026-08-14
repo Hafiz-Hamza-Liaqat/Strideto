@@ -44,10 +44,10 @@ function GbsWorkspaceShell() {
   return (
     <div className={page}>
       <header className="space-y-3 min-w-0">
-        <h1 className={h1}>Business Services</h1>
+        <h1 className={h1}>Business Formation & Corporate Services</h1>
         <p className={`${muted} ${wrap}`}>
-          Company formation and corporate-services provider workspace. This is not the education Services catalog,
-          not Trust verification, and not a public marketplace.
+          Company formation and corporate-services provider workspace. This is not the Education & Mobility Services catalog,
+          not Identity verification, and not a public marketplace.
         </p>
         {loading ? <div className={skeleton} aria-busy="true" /> : null}
         {error ? <div className={errorBox} role="alert">{error}</div> : null}

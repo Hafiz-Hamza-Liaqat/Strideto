@@ -58,10 +58,15 @@ export default function AgentDirectory() {
           <p className="text-sm font-medium uppercase tracking-wide text-primary dark:text-mint mb-2">
             Professional directory
           </p>
-          <h1 className={ui.h1}>Verified agents and agencies</h1>
+          <h1 className={ui.h1}>Join Strideto as a Service Provider</h1>
           <p className={`mt-2 max-w-2xl ${ui.muted}`}>
-            Browse approved Agent and Agency profiles. Ratings, prices, and credentials appear only when
-            the platform has eligible public data — never as placeholders.
+            Strideto supports Education & Mobility providers and Business Formation & Corporate Services providers.
+            Browse approved public Education & Mobility profiles here. Business Services public marketplace is not available yet.
+          </p>
+          <p className="mt-3 text-sm">
+            <Link to={ROUTES.AGENT_REGISTER} className="text-primary font-medium hover:underline">Create a provider account</Link>
+            {' · '}
+            Education, admissions, scholarships, study-abroad guidance · Company formation, LLC registration, Registered Agent services, registered office, EIN assistance.
           </p>
         </div>
 
