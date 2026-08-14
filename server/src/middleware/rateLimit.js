@@ -150,7 +150,26 @@ export const adminWriteLimiter = limiter('admin-write', {
   skip: (req) => !['POST', 'PUT', 'PATCH'].includes(req.method),
 });
 
-/** Authenticated admin — DELETE 30/min */
+/** Agent GBS capability claim / evidence writes */
+export const gbsCapabilityWriteLimiter = limiter('gbs-capability-write', {
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 120 : 30,
+  message: { error: 'Too many Business Services capability requests. Please wait.' },
+});
+
+/** Agent GBS listing create / update / submit */
+export const gbsListingWriteLimiter = limiter('gbs-listing-write', {
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 120 : 40,
+  message: { error: 'Too many Business Services listing requests. Please wait.' },
+});
+
+/** Agent GBS catalog / overview reads */
+export const gbsProviderReadLimiter = limiter('gbs-provider-read', {
+  windowMs: 60 * 1000,
+  max: isDev ? 240 : 90,
+  message: { error: 'Too many Business Services reads. Please wait.' },
+});
 export const adminDeleteLimiter = limiter('admin-delete', {
   windowMs: 60 * 1000,
   max: isDev ? 60 : 30,

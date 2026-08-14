@@ -45,6 +45,18 @@ export const GBS_AUDIT_EVENTS = Object.freeze({
   PROVIDER_CAPABILITY_REJECTED: 'provider_capability_rejected',
   PROTECTED_TITLE_VERIFIED: 'protected_title_verified',
   PROTECTED_TITLE_DENIED: 'protected_title_denied',
+  PROVIDER_SUBJECT_CONTEXT_DENIED: 'provider_subject_context_denied',
+  PROVIDER_CAPABILITY_CLAIM_CREATED: 'provider_capability_claim_created',
+  PROVIDER_CAPABILITY_SCOPE_UPDATED: 'provider_capability_scope_updated',
+  GBS_LISTING_DRAFT_CREATED: 'gbs_listing_draft_created',
+  GBS_LISTING_UPDATED: 'gbs_listing_updated',
+  GBS_LISTING_MATERIAL_CHANGE: 'gbs_listing_material_change',
+  GBS_LISTING_SUBMITTED_REVIEW: 'gbs_listing_submitted_review',
+  GBS_LISTING_ARCHIVED: 'gbs_listing_archived',
+  GBS_LISTING_SCOPE_DENIED: 'gbs_listing_scope_denied',
+  GBS_LISTING_RISK_FLAGGED: 'gbs_listing_risk_flagged',
+  GBS_LISTING_IDEMPOTENCY_REPLAY: 'gbs_listing_idempotency_replay',
+  GBS_LISTING_IDEMPOTENCY_CONFLICT: 'gbs_listing_idempotency_conflict',
 });
 
 const EVENT_SET = new Set(Object.values(GBS_AUDIT_EVENTS));

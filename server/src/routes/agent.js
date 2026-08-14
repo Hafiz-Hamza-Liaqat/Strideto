@@ -19,7 +19,12 @@ import {
   refreshLimiter,
   forgotPasswordLimiter,
   authLimiter,
+  gbsCapabilityWriteLimiter,
+  gbsListingWriteLimiter,
+  gbsProviderReadLimiter,
 } from '../middleware/rateLimit.js';
+import { requireBusinessServicesEnabled } from '../middleware/requireBusinessServices.js';
+import * as gbsProvider from '../controllers/gbsProviderController.js';
 import { requireTurnstileWhenEnabled } from '../middleware/turnstile.js';
 import { requireAgentEmailVerified } from '../middleware/requireEmailVerified.js';
 import * as agentAuth from '../controllers/agentAuthController.js';
@@ -285,6 +290,23 @@ agentRouter.get('/agent/marketplace/:postId', requireAuth, requireAgentAuth, mar
 agentRouter.patch('/agent/marketplace/:postId', requireAuth, requireAgentAuth, marketplace.update);
 agentRouter.post('/agent/marketplace/:postId/submit', requireAuth, requireAgentAuth, requireAgentEmailVerified(), marketplace.submit);
 agentRouter.post('/agent/marketplace/:postId/archive', requireAuth, requireAgentAuth, marketplace.archive);
+
+const gbsEnabled = [requireAuth, requireAgentAuth, requireBusinessServicesEnabled];
+
+agentRouter.get('/agent/business-services/enabled', requireAuth, requireAgentAuth, gbsProvider.getEnabled);
+agentRouter.get('/agent/business-services/context', ...gbsEnabled, gbsProviderReadLimiter, gbsProvider.getContext);
+agentRouter.get('/agent/business-services/overview', ...gbsEnabled, gbsProviderReadLimiter, gbsProvider.getOverview);
+agentRouter.get('/agent/business-services/catalog', ...gbsEnabled, gbsProviderReadLimiter, gbsProvider.getCatalog);
+agentRouter.get('/agent/business-services/capabilities', ...gbsEnabled, gbsProviderReadLimiter, gbsProvider.listCapabilities);
+agentRouter.post('/agent/business-services/capabilities', ...gbsEnabled, gbsCapabilityWriteLimiter, gbsProvider.claimCapability);
+agentRouter.patch('/agent/business-services/capabilities/:id', ...gbsEnabled, gbsCapabilityWriteLimiter, gbsProvider.patchCapabilityScope);
+agentRouter.post('/agent/business-services/capabilities/:id/evidence', ...gbsEnabled, gbsCapabilityWriteLimiter, gbsProvider.postCapabilityEvidence);
+agentRouter.get('/agent/business-services/listings', ...gbsEnabled, gbsProviderReadLimiter, gbsProvider.listListings);
+agentRouter.post('/agent/business-services/listings', ...gbsEnabled, gbsListingWriteLimiter, gbsProvider.createListing);
+agentRouter.get('/agent/business-services/listings/:listingId', ...gbsEnabled, gbsProviderReadLimiter, gbsProvider.getListing);
+agentRouter.patch('/agent/business-services/listings/:listingId', ...gbsEnabled, gbsListingWriteLimiter, gbsProvider.patchListing);
+agentRouter.post('/agent/business-services/listings/:listingId/submit', ...gbsEnabled, gbsListingWriteLimiter, gbsProvider.submitListing);
+agentRouter.post('/agent/business-services/listings/:listingId/archive', ...gbsEnabled, gbsListingWriteLimiter, gbsProvider.archiveListing);
 
 // ---------------------------------------------------------------------------
 // Public — no auth required

@@ -61,6 +61,63 @@ export const GBS_COMMAND_IDS = Object.freeze({
   PROVIDER_CAPABILITY_CLAIM: 'gbs.provider_capability.claim',
   PROVIDER_CAPABILITY_REVIEW: 'gbs.provider_capability.review',
   QUOTE_ACCEPT: 'gbs.quote.accept',
+  LISTING_CREATE: 'gbs.listing.create',
+  LISTING_SUBMIT_REVIEW: 'gbs.listing.submit_review',
+});
+
+export const GBS_LISTING_MODERATION_STATUSES = Object.freeze({
+  DRAFT: 'draft',
+  UNDER_REVIEW: 'under_review',
+  NEEDS_INFORMATION: 'needs_information',
+  APPROVED: 'approved',
+  REJECTED: 'rejected',
+  SUSPENDED: 'suspended',
+  ARCHIVED: 'archived',
+});
+
+export const GBS_LISTING_PUBLICATION_STATUSES = Object.freeze({
+  PRIVATE: 'private',
+  INTERNAL_APPROVED: 'internal_approved',
+  PUBLIC: 'public',
+});
+
+export const GBS_PRICING_MODES = Object.freeze({
+  FIXED: 'fixed',
+  STARTING_AT: 'starting_at',
+  RANGE: 'range',
+  QUOTE_REQUIRED: 'quote_required',
+});
+
+export const GBS_DELIVERY_MODES = Object.freeze({
+  REMOTE: 'remote',
+  IN_PERSON: 'in_person',
+  HYBRID: 'hybrid',
+});
+
+export const GBS_TURNAROUND_UNITS = Object.freeze({
+  HOURS: 'hours',
+  DAYS: 'days',
+  WEEKS: 'weeks',
+  BUSINESS_DAYS: 'business_days',
+});
+
+/** Resource bounds for provider writes (Phase 17D-3). */
+export const GBS_PROVIDER_BOUNDS = Object.freeze({
+  TITLE_MAX: 160,
+  SHORT_DESCRIPTION_MAX: 280,
+  DESCRIPTION_MAX: 8000,
+  LANGUAGES_MAX: 16,
+  ENTITY_TYPE_IDS_MAX: 16,
+  INCLUDED_ITEMS_MAX: 30,
+  EXCLUDED_ITEMS_MAX: 30,
+  PROVIDER_FEE_LINES_MAX: 20,
+  EVIDENCE_ROWS_MAX: 20,
+  JURISDICTION_IDS_MAX: 32,
+  COUNTRY_CODES_MAX: 8,
+  NOTES_MAX: 500,
+  URL_MAX: 500,
+  LIST_PAGE_MAX: 50,
+  REFERENCE_MAX: 120,
 });
 
 export const GBS_FEATURE_FLAG = 'BUSINESS_SERVICES_ENABLED';
