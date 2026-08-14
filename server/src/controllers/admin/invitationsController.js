@@ -248,6 +248,7 @@ export const acceptInvitation = asyncHandler(async (req, res) => {
     password,
     role: invitation.role,
     emailVerified: true,
+    capabilityInitializationState: 'pending',
   });
   const { getUserCapabilityService } = await import('../../services/capability/userCapabilityRuntime.js');
   await getUserCapabilityService().initializeStaffUser(user, {

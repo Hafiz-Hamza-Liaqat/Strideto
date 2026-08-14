@@ -28,6 +28,7 @@ function serviceWith({ failGrant = false, failMark = false } = {}) {
   const store = createMemoryGrantStore();
   const schema = new Map();
   const users = new Map();
+  const initState = new Map();
   const inner = createMemoryGrantStore();
   const grantStore = {
     findByUser: (...args) => (failGrant ? Promise.reject(new Error('grant_read_failed')) : inner.findByUser(...args)),
@@ -42,13 +43,17 @@ function serviceWith({ failGrant = false, failMark = false } = {}) {
     markSchemaVersion: async (userId, version) => {
       if (failMark) throw Object.assign(new Error('schema_write_failed'), { code: 'schema_write_failed' });
       schema.set(String(userId), version);
+      initState.set(String(userId), 'ready');
+    },
+    markInitializationState: async (userId, state) => {
+      initState.set(String(userId), state);
     },
     loadUser: async (userId) => users.get(String(userId)) || null,
     audit: async (evt) => {
       events.push(evt);
     },
   });
-  return { svc, store: failGrant ? inner : store, schema, events, users };
+  return { svc, store: failGrant ? inner : store, schema, events, users, initState };
 }
 
 check(

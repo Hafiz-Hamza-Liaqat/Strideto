@@ -113,6 +113,8 @@ check(/applyRoleTransitionCapabilities/.test(ensureAdmin), 'ensureAdmin update i
 
 const userModel = read('server/src/models/User.js');
 check(/capabilitySchemaVersion/.test(userModel), 'User model has capabilitySchemaVersion marker');
+check(/capabilityInitializationState/.test(userModel), 'User model has capability-era initialization state');
+check(!/capabilityInitializationState:[\s\S]{0,80}default:/.test(userModel), 'initialization state has no mongoose default that would rewrite historical rows');
 
 const backfill = read('server/src/scripts/backfillUserCapabilities.js');
 check(/Live User capability backfill is not permitted/.test(backfill), 'CLI backfill refuses live execution in 17D-1');

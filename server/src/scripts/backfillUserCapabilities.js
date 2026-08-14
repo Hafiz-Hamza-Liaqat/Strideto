@@ -41,6 +41,7 @@ export async function backfillUserCapabilities({
     wouldInitializeStaff: 0,
     skippedInitialized: 0,
     skippedAmbiguous: 0,
+    skippedCapabilityEraIncomplete: 0,
     grantedStudent: 0,
     initializedStaff: 0,
     errors: 0,
@@ -51,6 +52,10 @@ export async function backfillUserCapabilities({
     const classification = classifyUserForBackfill(user);
     if (classification.kind === 'initialized') {
       counts.skippedInitialized += 1;
+      continue;
+    }
+    if (classification.kind === 'capability_era_incomplete') {
+      counts.skippedCapabilityEraIncomplete += 1;
       continue;
     }
     if (classification.failClosed || classification.kind === 'ambiguous') {

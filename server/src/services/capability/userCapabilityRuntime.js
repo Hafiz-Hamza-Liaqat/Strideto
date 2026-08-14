@@ -7,6 +7,7 @@ import { UserCapabilityGrant } from '../../models/capability/UserCapabilityGrant
 import { logAudit } from '../auditService.js';
 import { createUserCapabilityService } from './userCapabilityService.js';
 import { CAPABILITY_SCHEMA_VERSION } from '../../../../shared/capability/grantStatus.js';
+import { CAPABILITY_INITIALIZATION_STATES } from '../../../../shared/capability/capabilityInitialization.js';
 
 const mongooseGrantStore = {
   async findByUser(userId) {
@@ -34,11 +35,25 @@ const mongooseGrantStore = {
 };
 
 async function markSchemaVersion(userId, version = CAPABILITY_SCHEMA_VERSION) {
-  await User.updateOne({ _id: userId }, { $set: { capabilitySchemaVersion: version } });
+  await User.updateOne(
+    { _id: userId },
+    {
+      $set: {
+        capabilitySchemaVersion: version,
+        capabilityInitializationState: CAPABILITY_INITIALIZATION_STATES.READY,
+      },
+    }
+  );
+}
+
+async function markInitializationState(userId, state) {
+  await User.updateOne({ _id: userId }, { $set: { capabilityInitializationState: state } });
 }
 
 async function loadUser(userId) {
-  return User.findById(userId).select('role capabilitySchemaVersion').lean();
+  return User.findById(userId)
+    .select('role capabilitySchemaVersion capabilityInitializationState')
+    .lean();
 }
 
 let singleton;
@@ -48,6 +63,7 @@ export function getUserCapabilityService() {
     singleton = createUserCapabilityService({
       grantStore: mongooseGrantStore,
       markSchemaVersion,
+      markInitializationState,
       loadUser,
       audit: logAudit,
     });
@@ -64,6 +80,7 @@ export async function resolveUserCapabilitiesForRequest(req) {
     role: req.user?.role,
     accountStatus: req.user?.accountStatus,
     capabilitySchemaVersion: req.user?.capabilitySchemaVersion ?? 0,
+    capabilityInitializationState: req.user?.capabilityInitializationState,
   };
   req._userCapabilities = await service.resolveUserCapabilities(user);
   return req._userCapabilities;

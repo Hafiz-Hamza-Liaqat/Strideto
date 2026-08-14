@@ -1,5 +1,5 @@
 /**
- * Idempotent command contract (Phase 17D-1).
+ * Idempotent command contract (Phase 17D-1 / 17D-1R2).
  *
  * Same key + same logical request → one logical side effect.
  * Same key + different fingerprint → conflict.
@@ -7,6 +7,14 @@
  * Do not persist secrets or full sensitive bodies.
  *
  * Hashing is injected so this module stays free of Node-only crypto.
+ *
+ * Crash-window future invariant: a Mongo reservation prevents duplicate
+ * execution across api-a/api-b, BUT if a domain side effect is durably
+ * committed before the record is marked COMPLETED, that command must itself
+ * be replay-safe (domain unique commandId, unique constraint no-op, same
+ * supported transaction, or provider-native idempotency). IdempotencyRecord
+ * alone does not provide exactly-once semantics across arbitrary crashes.
+ * Payments remain deferred.
  */
 export const IDEMPOTENCY_STORE_KINDS = Object.freeze({
   IN_MEMORY: 'in_memory',

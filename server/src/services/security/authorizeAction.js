@@ -44,12 +44,13 @@ export async function loadUserRecordForAuth(req) {
   if (!req.user?.userId) return null;
   const { User } = await import('../../models/User.js');
   const record = await User.findById(req.user.userId)
-    .select('role accountStatus capabilitySchemaVersion tokenVersion')
+    .select('role accountStatus capabilitySchemaVersion capabilityInitializationState tokenVersion')
     .lean();
   req.userRecord = record;
   if (record && req.user) {
     req.user.accountStatus = record.accountStatus;
     req.user.capabilitySchemaVersion = record.capabilitySchemaVersion ?? 0;
+    req.user.capabilityInitializationState = record.capabilityInitializationState;
     req.user.role = record.role || req.user.role;
   }
   return record;

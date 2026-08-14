@@ -514,6 +514,7 @@ export const assignRole = asyncHandler(async (req, res) => {
       user: {
         role: user.role,
         capabilitySchemaVersion: user.capabilitySchemaVersion,
+        capabilityInitializationState: user.capabilityInitializationState,
       },
     });
   }

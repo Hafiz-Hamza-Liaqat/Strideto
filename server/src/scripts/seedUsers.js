@@ -30,14 +30,14 @@ async function seed() {
   const { getUserCapabilityService } = await import('../services/capability/userCapabilityRuntime.js');
   const caps = getUserCapabilityService();
   for (const s of STUDENTS) {
-    const user = await User.create(s);
+    const user = await User.create({ ...s, capabilityInitializationState: 'pending' });
     await caps.initializeCustomerUser(user, {
       grantedBy: 'system:seed_users',
       grantReason: 'student_registration',
     });
     console.log('Created student:', s.email);
   }
-  const admin = await User.create(ADMIN);
+  const admin = await User.create({ ...ADMIN, capabilityInitializationState: 'pending' });
   await caps.initializeStaffUser(admin, {
     grantedBy: 'system:seed_users',
     grantReason: 'staff_account_created',

@@ -31,7 +31,11 @@ export async function ensureAdminOnBoot({ logIdentity = true } = {}) {
       newRole: 'Admin',
       mode: DEFAULT_ADMIN_ROLE_TRANSITION_MODE,
       actor: 'system:ensure_admin',
-      user: { role: priorRole, capabilitySchemaVersion: priorSchemaVersion },
+      user: {
+        role: priorRole,
+        capabilitySchemaVersion: priorSchemaVersion,
+        capabilityInitializationState: user.capabilityInitializationState,
+      },
     });
     logger.info('admin_ensured', {
       ...(logIdentity ? { email } : {}),
@@ -46,6 +50,7 @@ export async function ensureAdminOnBoot({ logIdentity = true } = {}) {
     password,
     role: 'Admin',
     emailVerified: true,
+    capabilityInitializationState: 'pending',
   });
   const { getUserCapabilityService } = await import('../services/capability/userCapabilityRuntime.js');
   await getUserCapabilityService().initializeStaffUser(created, {

@@ -16,6 +16,10 @@ import {
 } from '../../../../shared/capability/userCapabilities.js';
 import { classifyLegacyUserAccount, isLegacyStaffRole } from '../../../../shared/capability/legacyUserClassification.js';
 import {
+  CAPABILITY_INITIALIZATION_STATES,
+  isCapabilityEraIncomplete,
+} from '../../../../shared/capability/capabilityInitialization.js';
+import {
   DEFAULT_ADMIN_ROLE_TRANSITION_MODE,
   ROLE_CAPABILITY_TRANSITION_MODES,
   resolveRoleCapabilityTransitionMode,
@@ -36,6 +40,7 @@ const UNTRUSTED_GRANT_KEYS = Object.freeze([
   'policyVersion',
   'status',
   'capabilitySchemaVersion',
+  'capabilityInitializationState',
   'suspendedAt',
   'suspendedBy',
   'revokedAt',
@@ -93,6 +98,7 @@ function pushHistory(grant, { status, by, reason, policyVersion }) {
 export function createUserCapabilityService({
   grantStore,
   markSchemaVersion,
+  markInitializationState,
   loadUser,
   audit = async () => {},
 } = {}) {
@@ -237,22 +243,41 @@ export function createUserCapabilityService({
     return grant;
   }
 
+  async function writeInitializationState(userId, state) {
+    if (typeof markInitializationState === 'function') {
+      await markInitializationState(userId, state);
+    }
+  }
+
   /**
-   * Genuine Student registration: grant first, then mark schema initialized.
-   * Never mark initialized without an active student grant.
+   * Genuine Student registration: grant first, then mark schema initialized/ready.
+   * Never mark ready/initialized without an active student grant.
+   * On grant failure, mark `failed` so legacy fallback cannot apply.
    * Retry is safe because (userId, capability) is unique and active duplicates no-op.
    */
   async function initializeCustomerUser(user, provenance = {}) {
     const userId = user._id || user.userId;
-    await grantCapability({
-      userId,
-      capability: USER_CAPABILITY_IDS.STUDENT,
-      grantedBy: provenance.grantedBy || 'system:registration',
-      grantReason: provenance.grantReason || 'student_registration',
-    });
-    await assertActiveStudentGrant(userId);
-    if (typeof markSchemaVersion === 'function') {
-      await markSchemaVersion(userId, CAPABILITY_SCHEMA_VERSION);
+    try {
+      await grantCapability({
+        userId,
+        capability: USER_CAPABILITY_IDS.STUDENT,
+        grantedBy: provenance.grantedBy || 'system:registration',
+        grantReason: provenance.grantReason || 'student_registration',
+      });
+      await assertActiveStudentGrant(userId);
+      if (typeof markSchemaVersion === 'function') {
+        await markSchemaVersion(userId, CAPABILITY_SCHEMA_VERSION);
+      }
+    } catch (err) {
+      try {
+        const grant = await grantStore.findOne(userId, USER_CAPABILITY_IDS.STUDENT);
+        if (!grant || !grantStatusAuthorizes(grant.status)) {
+          await writeInitializationState(userId, CAPABILITY_INITIALIZATION_STATES.FAILED);
+        }
+      } catch {
+        /* still rethrow the original initialization error */
+      }
+      throw err;
     }
   }
 
@@ -299,7 +324,10 @@ export function createUserCapabilityService({
       .map((g) => g.capability);
 
     let schemaInitializedOnTransition = false;
-    if (!isCapabilitySchemaInitialized(user.capabilitySchemaVersion)) {
+    if (
+      !isCapabilitySchemaInitialized(user.capabilitySchemaVersion) ||
+      isCapabilityEraIncomplete(user)
+    ) {
       if (typeof markSchemaVersion === 'function') {
         await markSchemaVersion(userId, CAPABILITY_SCHEMA_VERSION);
         schemaInitializedOnTransition = true;

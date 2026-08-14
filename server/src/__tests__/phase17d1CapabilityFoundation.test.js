@@ -114,6 +114,15 @@ function serviceWithAudit() {
   check(initializedEmpty.kind === LEGACY_CLASSIFICATIONS.INITIALIZED, 'initialized uses persisted grants');
   check(initializedEmpty.effectiveStudent === false, 'initialized does not fall through to legacy student');
   check(initializedEmpty.usePersistedGrants === true, 'initialized uses persisted grants only');
+
+  const pending = classifyLegacyUserAccount({
+    role: 'User',
+    capabilitySchemaVersion: 0,
+    capabilityInitializationState: 'pending',
+  });
+  check(pending.kind === LEGACY_CLASSIFICATIONS.CAPABILITY_ERA_INCOMPLETE, 'pending new registration is not historical legacy');
+  check(pending.effectiveStudent === false, 'pending registration gets no legacy student');
+  check(pending.grantStudentOnBackfill === false, 'pending registration is not a backfill student candidate');
 }
 
 // --- Resolver + grants ---
@@ -236,6 +245,7 @@ function serviceWithAudit() {
 {
   check(bodyAttemptsGrantMassAssignment({ capability: 'student' }), 'capability in body is mass-assignment');
   check(bodyAttemptsGrantMassAssignment({ grantedBy: 'me' }), 'grantedBy in body is mass-assignment');
+  check(bodyAttemptsGrantMassAssignment({ capabilityInitializationState: 'legacy' }), 'initialization state in body is mass-assignment');
   const stripped = stripUntrustedGrantFields({
     name: 'Ada',
     capability: 'business_client',
@@ -420,6 +430,8 @@ function serviceWithAudit() {
     { _id: '2', role: 'Admin', capabilitySchemaVersion: 0 },
     { _id: '3', role: 'mystery', capabilitySchemaVersion: 0 },
     { _id: '4', role: 'User', capabilitySchemaVersion: 1 },
+    { _id: '5', role: 'User', capabilitySchemaVersion: 0, capabilityInitializationState: 'pending' },
+    { _id: '6', role: 'User', capabilitySchemaVersion: 0, capabilityInitializationState: 'failed' },
   ];
   let granted = 0;
   const summary = await backfillUserCapabilities({
@@ -435,6 +447,7 @@ function serviceWithAudit() {
   check(summary.wouldInitializeStaff === 1, 'dry-run would init one staff');
   check(summary.skippedAmbiguous === 1, 'dry-run skips ambiguous');
   check(summary.skippedInitialized === 1, 'dry-run skips initialized');
+  check(summary.skippedCapabilityEraIncomplete === 2, 'dry-run does not treat pending/failed registration as historical Student');
   check(granted === 0, 'dry-run does not write grants');
   check(summary.neverGranted === USER_CAPABILITY_IDS.BUSINESS_CLIENT, 'backfill never grants business_client');
 

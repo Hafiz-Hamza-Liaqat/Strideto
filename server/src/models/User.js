@@ -113,7 +113,7 @@ const userSchema = new mongoose.Schema(
     },
     /**
      * Phase 17D-1 — capability grant schema marker.
-     * 0 / missing = legacy uninitialized (compatibility resolver may apply).
+     * 0 / missing = not schema-initialized.
      * >= 1 = grants are authoritative, including an intentional empty set.
      */
     capabilitySchemaVersion: {
@@ -121,6 +121,17 @@ const userSchema = new mongoose.Schema(
       default: 0,
       min: 0,
       max: Number.MAX_SAFE_INTEGER,
+      index: true,
+    },
+    /**
+     * Phase 17D-1R2 — capability-era initialization state.
+     * Unset on historical documents = legacy-eligible.
+     * No schema default: a default would reclassify historical rows on load.
+     * New registration/staff creates must set `pending` explicitly.
+     */
+    capabilityInitializationState: {
+      type: String,
+      enum: ['legacy', 'pending', 'ready', 'failed'],
       index: true,
     },
   },

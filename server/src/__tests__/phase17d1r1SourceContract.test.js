@@ -65,8 +65,8 @@ check(/grantedBusinessClient: false/.test(users), 'role-change audit records no 
 const register = read('server/src/controllers/authController.js');
 check(/initializeCustomerUser/.test(register), 'student registration still initializes student grant');
 check(/student_registration_retry/.test(register), 'uninitialized duplicate registration retries grant+init');
-check(/isLegacyCustomerRole\(existing\.role\)/.test(register), 'retry compensation is limited to customer role');
-check(/isCapabilitySchemaInitialized\(existing\.capabilitySchemaVersion\)/.test(register), 'initialized zero-grant accounts are not auto-granted student on re-register');
+check(/shouldRetryCapabilityEraRegistration\(existing\)/.test(register), 'retry compensation is limited to capability-era pending/failed customer registrations');
+check(/capabilityInitializationState: 'pending'/.test(register), 'new Student User.create is pending, not historical legacy');
 
 const ensureAdmin = read('server/src/seed/ensureAdmin.js');
 check(/applyRoleTransitionCapabilities/.test(ensureAdmin), 'ensureAdmin update initializes capabilities deterministically');

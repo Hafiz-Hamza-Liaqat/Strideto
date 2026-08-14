@@ -76,9 +76,8 @@ export const register = asyncHandler(async (req, res) => {
   const existing = await User.findOne({ email }).select('+emailVerificationToken +emailVerificationExpires');
   if (existing) {
     const { genericRegistrationResponse, reissueUnverifiedIfAllowed } = await import('../services/auth/realmEmailVerification.js');
-    const { isCapabilitySchemaInitialized } = await import('../../../shared/capability/grantStatus.js');
-    const { isLegacyCustomerRole } = await import('../../../shared/capability/legacyUserClassification.js');
-    if (isLegacyCustomerRole(existing.role) && !isCapabilitySchemaInitialized(existing.capabilitySchemaVersion)) {
+    const { shouldRetryCapabilityEraRegistration } = await import('../../../shared/capability/legacyUserClassification.js');
+    if (shouldRetryCapabilityEraRegistration(existing)) {
       try {
         const { getUserCapabilityService } = await import('../services/capability/userCapabilityRuntime.js');
         await getUserCapabilityService().initializeCustomerUser(existing, {
@@ -106,6 +105,7 @@ export const register = asyncHandler(async (req, res) => {
     role: 'User',
     referredBy,
     emailVerified: false,
+    capabilityInitializationState: 'pending',
     ...legalAcceptanceMetadata(),
   });
   const { getUserCapabilityService } = await import('../services/capability/userCapabilityRuntime.js');
