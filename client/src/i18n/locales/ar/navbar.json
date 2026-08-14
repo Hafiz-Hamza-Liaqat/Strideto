@@ -70,5 +70,16 @@
   "idCopied": "[AR] Copied",
   "help": "[AR] Help",
   "productTour": "[AR] Product Tour",
-  "helpCenter": "[AR] Help Center"
+  "helpCenter": "[AR] Help Center",
+  "signedInAs": "[AR] Signed in as",
+  "openWorkspace": "[AR] Open workspace",
+  "switchWorkspace": "[AR] Switch workspace",
+  "checkingWorkspaces": "[AR] Checking workspaces…",
+  "noOtherWorkspaces": "[AR] No other signed-in workspaces.",
+  "employerWorkspace": "[AR] Employer Workspace",
+  "agentWorkspace": "[AR] Agent Workspace",
+  "institutionWorkspace": "[AR] Institution Workspace",
+  "accountSecurity": "[AR] Account / Security",
+  "notifications": "[AR] Notifications",
+  "accountHydrating": "[AR] Checking signed-in workspace"
 }

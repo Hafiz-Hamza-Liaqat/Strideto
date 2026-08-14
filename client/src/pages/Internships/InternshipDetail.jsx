@@ -8,7 +8,8 @@ import { internshipsApi, savedApi } from '../../services/listingsService';
 import { applicationsApi as oaApi } from '../../services/applicationsApi';
 import { ROUTES } from '../../constants';
 import { SaveButton } from '../../components/listings/SaveButton';
-import { useAuth } from '../../context/AuthContext';
+import { useActiveWorkspace } from '../../context/ActiveWorkspaceContext';
+import { StudentAuthorityNotice } from '../../components/auth/StudentAuthorityNotice';
 import { useToast } from '../../context/ToastContext';
 import { isOpportunityApplicationEnabled } from '../../config/careerFeatureFlags';
 import { formatDate } from '../../utils/formatDate';
@@ -23,7 +24,8 @@ export default function InternshipDetail() {
   const { idOrSlug } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { canActAsStudent, isAuthenticated: workspaceAuth, realm } = useActiveWorkspace();
+  const studentWriteBlocked = workspaceAuth && realm !== 'student' && realm !== 'guest';
   const { toast } = useToast();
   const [internship, setInternship] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -38,22 +40,23 @@ export default function InternshipDetail() {
   }, [idOrSlug]);
 
   useEffect(() => {
-    if (!isAuthenticated || !internship) return;
+    if (!canActAsStudent || !internship) return;
     savedApi.get().then(({ data: d }) => {
       const ids = (d.savedInternships || []).map((i) => i._id);
       setSaved(ids.includes(internship._id));
     }).catch(() => {});
-  }, [isAuthenticated, internship]);
+  }, [canActAsStudent, internship]);
 
   const handleSaveToggle = async (id, save) => {
-    if (!id) return;
+    if (!id || !canActAsStudent) return;
     if (save) await internshipsApi.save(id);
     else await internshipsApi.unsave(id);
     setSaved(!!save);
   };
 
   const handleApply = async () => {
-    if (!isAuthenticated) {
+    if (studentWriteBlocked) return;
+    if (!canActAsStudent) {
       navigate(ROUTES.LOGIN, { state: loginLocationState(location) });
       return;
     }
@@ -71,7 +74,7 @@ export default function InternshipDetail() {
   };
 
   const handleTrackApplication = async () => {
-    if (!internship?._id || !isOpportunityApplicationEnabled()) return;
+    if (!canActAsStudent || !internship?._id || !isOpportunityApplicationEnabled()) return;
     setTrackLoading(true);
     try {
       const { data: app } = await oaApi.create({
@@ -186,7 +189,8 @@ export default function InternshipDetail() {
           <p className="mt-4 text-sm text-amber-800 dark:text-amber-200 bg-amber-50 dark:bg-amber-950/30 border border-amber-200 dark:border-amber-800 rounded-lg px-3 py-2">{EXTERNAL_APPLY_DISCLOSURE}</p>
         )}
         <div className="mt-6 flex flex-wrap gap-3">
-          {internship.applyInPlatform && (
+          {studentWriteBlocked && internship.applyInPlatform ? <StudentAuthorityNotice /> : null}
+          {internship.applyInPlatform && !studentWriteBlocked && (
             <button
               type="button"
               onClick={handleApply}
@@ -206,7 +210,7 @@ export default function InternshipDetail() {
               {t('applyCompanyPortal', { ns: 'internships' })}
             </a>
           )}
-          {isAuthenticated && isOpportunityApplicationEnabled() && (
+          {canActAsStudent && isOpportunityApplicationEnabled() && (
             <button
               type="button"
               onClick={handleTrackApplication}

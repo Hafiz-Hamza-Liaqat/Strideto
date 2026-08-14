@@ -72,5 +72,16 @@
   "idCopied": "Copied",
   "help": "Help",
   "productTour": "Product Tour",
-  "helpCenter": "Help Center"
+  "helpCenter": "Help Center",
+  "signedInAs": "Signed in as",
+  "openWorkspace": "Open workspace",
+  "switchWorkspace": "Switch workspace",
+  "checkingWorkspaces": "Checking workspaces…",
+  "noOtherWorkspaces": "No other signed-in workspaces.",
+  "employerWorkspace": "Employer Workspace",
+  "agentWorkspace": "Agent Workspace",
+  "institutionWorkspace": "Institution Workspace",
+  "accountSecurity": "Account / Security",
+  "notifications": "Notifications",
+  "accountHydrating": "Checking signed-in workspace"
 }

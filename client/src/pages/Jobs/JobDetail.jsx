@@ -8,7 +8,8 @@ import { applicationsApi as oaApi } from '../../services/applicationsApi';
 import { talentApi } from '../../services/talentApi';
 import { shouldUseTalentProfileApi, isOpportunityApplicationEnabled } from '../../config/careerFeatureFlags';
 import { ROUTES } from '../../constants';
-import { useAuth } from '../../context/AuthContext';
+import { useActiveWorkspace } from '../../context/ActiveWorkspaceContext';
+import { StudentAuthorityNotice } from '../../components/auth/StudentAuthorityNotice';
 import { useToast } from '../../context/ToastContext';
 import { SaveButton } from '../../components/listings/SaveButton';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
@@ -85,7 +86,8 @@ export default function JobDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { canActAsStudent, isAuthenticated: workspaceAuth, realm } = useActiveWorkspace();
+  const studentWriteBlocked = workspaceAuth && realm !== 'student' && realm !== 'guest';
   const fileInputRef = useRef(null);
   const [job, setJob] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -108,36 +110,36 @@ export default function JobDetail() {
   useEffect(() => {
     jobsApi.get(slug).then(({ data }) => {
       setJob(data);
-      if (isAuthenticated && data?._id) recentViewedApi.record('job', data._id).catch(() => {});
+      if (canActAsStudent && data?._id) recentViewedApi.record('job', data._id).catch(() => {});
     }).catch((err) => setError(err.response?.data?.error || t('failedToLoad', { ns: 'common' }))).finally(() => setLoading(false));
-  }, [slug, isAuthenticated, t]);
+  }, [slug, canActAsStudent, t]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!canActAsStudent) return;
     savedApi.get().then(({ data: d }) => setSavedIds(new Set((d.savedJobs || []).map((j) => j._id)))).catch(() => {});
-  }, [isAuthenticated]);
+  }, [canActAsStudent]);
 
   useEffect(() => {
-    if (!isAuthenticated || !job?._id) return;
+    if (!canActAsStudent || !job?._id) return;
     applicationsApi.getMy().then(({ data }) => {
       const list = data.data || [];
       const hasApplied = list.some((a) => (a.job?._id || a.job)?.toString() === job._id.toString());
       setApplied(hasApplied);
     }).catch(() => {});
-  }, [isAuthenticated, job?._id]);
+  }, [canActAsStudent, job?._id]);
 
   useEffect(() => {
-    if (!isAuthenticated || !shouldUseTalentProfileApi()) return;
+    if (!canActAsStudent || !shouldUseTalentProfileApi()) return;
     talentApi.getApplyKit().then(({ data }) => {
       setApplyKit(data);
       if (data?.resumeDocumentUrl) setSelectedDocUrl(data.resumeDocumentUrl);
     }).catch(() => setApplyKit(null));
-  }, [isAuthenticated]);
+  }, [canActAsStudent]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!canActAsStudent) return;
     recommendationsApi.get().then(({ data }) => setRecommended(data.jobs || [])).catch(() => setRecommended([]));
-  }, [isAuthenticated]);
+  }, [canActAsStudent]);
 
   const handleSaveToggle = async (id, save) => {
     if (save) await jobsApi.save(id);
@@ -152,6 +154,7 @@ export default function JobDetail() {
 
   const handleInternalApply = async (e) => {
     e.preventDefault();
+    if (!canActAsStudent) return;
     if (!job || job.applyType !== 'internal') return;
     if (job.acceptingApplications === false) return;
     setApplyLoading(true);
@@ -188,7 +191,7 @@ export default function JobDetail() {
   };
 
   const handleTrackApplication = async () => {
-    if (!job?._id || !isOpportunityApplicationEnabled()) return;
+    if (!canActAsStudent || !job?._id || !isOpportunityApplicationEnabled()) return;
     setTrackLoading(true);
     try {
       const external = job.applyType === 'external';
@@ -311,7 +314,7 @@ export default function JobDetail() {
           {t('applyByEmail', { ns: 'jobs', defaultValue: 'Apply by email' })}
         </a>
       )}
-      {!isExternal && isAuthenticated && accepting && (
+      {!isExternal && canActAsStudent && accepting && (
         applied || applySuccess ? (
           <span className="inline-flex items-center justify-center min-h-[44px] px-4 py-2 rounded-lg bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 text-sm">{t('applied', { ns: 'jobs' })}</span>
         ) : (
@@ -340,11 +343,14 @@ export default function JobDetail() {
           </form>
         )
       )}
-      {!isAuthenticated && !isExternal && accepting && (
+      {studentWriteBlocked && !isExternal && accepting && (
+        <StudentAuthorityNotice />
+      )}
+      {!canActAsStudent && !studentWriteBlocked && !isExternal && accepting && (
         <Link to={ROUTES.LOGIN} state={loginState} className={ACTION_PRIMARY}>{t('loginToApply', { ns: 'jobs' })}</Link>
       )}
       <SaveButton type="job" id={job._id} saved={savedIds.has(job._id)} onToggle={handleSaveToggle} />
-      {isAuthenticated && isOpportunityApplicationEnabled() && (
+      {canActAsStudent && isOpportunityApplicationEnabled() && (
         <button
           type="button"
           onClick={handleTrackApplication}
@@ -359,12 +365,12 @@ export default function JobDetail() {
               : t('trackApplication', { ns: 'jobs', defaultValue: 'Track application' })}
         </button>
       )}
-      {isAuthenticated && (
+      {canActAsStudent && (
         <Link to={`${ROUTES.RESUME_BUILDER}?optimizeForJob=${job._id}`} className={ACTION_SECONDARY}>
           {t('optimizeResume', { ns: 'jobs' })}
         </Link>
       )}
-      {isAuthenticated && (
+      {canActAsStudent && (
         <button
           type="button"
           onClick={async () => {

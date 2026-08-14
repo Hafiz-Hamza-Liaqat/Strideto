@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../constants';
 import { inboxApi } from '../../services/listingsService';
 import { useAuth } from '../../context/AuthContext';
+import { useActiveWorkspace } from '../../context/ActiveWorkspaceContext';
 import { useUserNavbarSession } from '../../hooks/useUserNavbarSession';
 import { registerOverlayEscape } from '../../a11y/overlayStack';
 import { isSafeInternalLink } from '../../utils/notificationLink';
@@ -131,10 +132,11 @@ export function NotificationBellCore({ api, enabled, viewAllRoute }) {
 export function NotificationBell() {
   const { isAuthenticated } = useAuth();
   const { enabled: userNavbarSession } = useUserNavbarSession();
+  const { canActAsStudent } = useActiveWorkspace();
   return (
     <NotificationBellCore
       api={inboxApi}
-      enabled={userNavbarSession && isAuthenticated}
+      enabled={userNavbarSession && isAuthenticated && canActAsStudent}
       viewAllRoute={ROUTES.NOTIFICATIONS}
     />
   );

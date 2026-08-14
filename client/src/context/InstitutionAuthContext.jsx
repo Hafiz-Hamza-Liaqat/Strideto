@@ -3,6 +3,10 @@ import { useLocation } from 'react-router-dom';
 import { isInstitutionRoutePrefix } from '../auth/institutionAuthRealm';
 import { onSessionExpired } from '../auth/sessionExpired';
 import {
+  clearActiveWorkspacePreferenceIfRealm,
+  writeActiveWorkspacePreference,
+} from '../auth/activeWorkspace';
+import {
   clearInstitutionAccessToken,
   getInstitutionAccessToken,
   institutionAuthApi,
@@ -48,7 +52,9 @@ export function InstitutionAuthProvider({ children }) {
     setError('');
     const { data } = await institutionAuthApi.login(email, password);
     setInstitutionAccessToken(data.accessToken);
-    return loadMe();
+    const next = await loadMe();
+    writeActiveWorkspacePreference('institution');
+    return next;
   }, [loadMe]);
 
   const register = useCallback(async (payload) => {
@@ -62,8 +68,30 @@ export function InstitutionAuthProvider({ children }) {
       };
     }
     setInstitutionAccessToken(data.accessToken);
-    return loadMe();
+    const next = await loadMe();
+    writeActiveWorkspacePreference('institution');
+    return next;
   }, [loadMe]);
+
+  const ensureSession = useCallback(async () => {
+    if (getInstitutionAccessToken() && session?.account) return session;
+    try {
+      const { data } = await institutionAuthApi.refresh();
+      setInstitutionAccessToken(data.accessToken);
+      return await loadMe();
+    } catch {
+      clearLocalSession();
+      persist(null);
+      return null;
+    }
+  }, [session, loadMe, persist]);
+
+  const refreshQuietly = useCallback(() => {
+    if (document.hidden || !getInstitutionAccessToken()) return;
+    institutionAuthApi.refresh().then(({ data }) => {
+      if (data?.accessToken) setInstitutionAccessToken(data.accessToken);
+    }).catch(() => {});
+  }, []);
 
   const logout = useCallback(async () => {
     try {
@@ -72,6 +100,7 @@ export function InstitutionAuthProvider({ children }) {
     finally {
       clearLocalSession();
       setSession(null);
+      clearActiveWorkspacePreferenceIfRealm('institution');
     }
   }, []);
 
@@ -81,6 +110,7 @@ export function InstitutionAuthProvider({ children }) {
     } finally {
       clearLocalSession();
       setSession(null);
+      clearActiveWorkspacePreferenceIfRealm('institution');
     }
   }, []);
 
@@ -163,7 +193,9 @@ export function InstitutionAuthProvider({ children }) {
     register,
     logout,
     logoutAll,
-  }), [account, memberships, organizationId, loading, error, login, register, logout, logoutAll]);
+    ensureSession,
+    refreshQuietly,
+  }), [account, memberships, organizationId, loading, error, login, register, logout, logoutAll, ensureSession, refreshQuietly]);
 
   return <InstitutionAuthContext.Provider value={value}>{children}</InstitutionAuthContext.Provider>;
 }

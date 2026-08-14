@@ -16,6 +16,10 @@ import {
 import { resetPermissionsCache } from '../hooks/usePermissions';
 import { shouldSkipUserAuthBootstrap } from '../auth/authRealm';
 import { onSessionExpired } from '../auth/sessionExpired';
+import {
+  clearActiveWorkspacePreferenceIfRealm,
+  writeActiveWorkspacePreference,
+} from '../auth/activeWorkspace';
 
 /**
  * SEC-3E — the access token lives in `axiosBase.js`'s in-memory store
@@ -68,6 +72,7 @@ export function AuthProvider({ children }) {
         ...data.user,
         mustChangePassword: !!data.mustChangePassword,
       });
+      writeActiveWorkspacePreference('student');
       return { user: data.user, mustChangePassword: !!data.mustChangePassword };
     },
     [persistUser]
@@ -89,6 +94,7 @@ export function AuthProvider({ children }) {
       }
       setAccessToken(data.accessToken);
       persistUser(data.user);
+      writeActiveWorkspacePreference('student');
       return { user: data.user, requiresVerification: false };
     },
     [persistUser]
@@ -103,6 +109,7 @@ export function AuthProvider({ children }) {
       // ignore
     }
     clearAuth();
+    clearActiveWorkspacePreferenceIfRealm('student');
   }, [clearAuth]);
 
   const logoutAll = useCallback(async () => {
@@ -110,6 +117,7 @@ export function AuthProvider({ children }) {
       await authApi.logoutAll();
     } finally {
       clearAuth();
+      clearActiveWorkspacePreferenceIfRealm('student');
     }
   }, [clearAuth]);
 

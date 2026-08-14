@@ -10,6 +10,8 @@ import { Logo } from '../brand/Logo';
 import { TourAnchors } from '../../onboarding/TourAnchors';
 import { registerOverlayEscape } from '../../a11y/overlayStack';
 import { PRIMARY_NAV_ITEMS } from './navConfig';
+import { writeActiveWorkspacePreference } from '../../auth/activeWorkspace';
+import { isStudentWorkspacePath } from '../../config/studentWorkspacePaths';
 
 export function isNavPathCurrent(pathname, path) {
   if (!path) return false;
@@ -89,6 +91,9 @@ export function Navbar() {
             to={ROUTES.HOME}
             className="flex items-center gap-2 shrink-0 min-w-0 max-w-[40%] sm:max-w-none link-hover"
             aria-label={t('common:appName')}
+            onClick={() => {
+              if (isStudentWorkspacePath(pathname)) writeActiveWorkspacePreference('student');
+            }}
           >
             <span className="inline-flex sm:hidden shrink-0">
               <Logo variant="symbol" tone="light" height={36} className="shrink-0" />

@@ -14,6 +14,10 @@ import {
   clearEmployerAccessToken,
 } from '../services/employerService';
 import { isEmployerRoutePrefix } from '../auth/authRealm';
+import {
+  clearActiveWorkspacePreferenceIfRealm,
+  writeActiveWorkspacePreference,
+} from '../auth/activeWorkspace';
 
 /**
  * SEC-3E — mirrors `AuthContext.jsx`'s secure contract: the Employer
@@ -58,6 +62,7 @@ export function EmployerAuthProvider({ children }) {
       setEmployerAccessToken(data.accessToken);
       const me = await employerAuthApi.me();
       persistEmployer(me.data.employer);
+      writeActiveWorkspacePreference('employer');
       return me.data.employer;
     },
     [persistEmployer]
@@ -76,6 +81,7 @@ export function EmployerAuthProvider({ children }) {
       setEmployerAccessToken(data.accessToken);
       const me = await employerAuthApi.me();
       persistEmployer(me.data.employer);
+      writeActiveWorkspacePreference('employer');
       return me.data.employer;
     },
     [persistEmployer]
@@ -87,6 +93,28 @@ export function EmployerAuthProvider({ children }) {
     return data.employer;
   }, [persistEmployer]);
 
+  const ensureSession = useCallback(async () => {
+    if (getEmployerAccessToken() && employer) return employer;
+    try {
+      const { data } = await employerAuthApi.refresh();
+      setEmployerAccessToken(data.accessToken);
+      const me = await employerAuthApi.me();
+      persistEmployer(me.data.employer);
+      return me.data.employer;
+    } catch {
+      clearEmployerSessionLocal();
+      persistEmployer(null);
+      return null;
+    }
+  }, [employer, persistEmployer]);
+
+  const refreshQuietly = useCallback(() => {
+    if (document.hidden || !getEmployerAccessToken()) return;
+    employerAuthApi.refresh().then(({ data }) => {
+      if (data?.accessToken) setEmployerAccessToken(data.accessToken);
+    }).catch(() => {});
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       if (getEmployerAccessToken()) {
@@ -97,6 +125,7 @@ export function EmployerAuthProvider({ children }) {
     }
     clearEmployerSessionLocal();
     persistEmployer(null);
+    clearActiveWorkspacePreferenceIfRealm('employer');
   }, [persistEmployer]);
 
   const logoutAll = useCallback(async () => {
@@ -105,6 +134,7 @@ export function EmployerAuthProvider({ children }) {
     } finally {
       clearEmployerSessionLocal();
       persistEmployer(null);
+      clearActiveWorkspacePreferenceIfRealm('employer');
     }
   }, [persistEmployer]);
 
@@ -177,6 +207,8 @@ export function EmployerAuthProvider({ children }) {
     logout,
     logoutAll,
     refreshEmployer,
+    ensureSession,
+    refreshQuietly,
   };
 
   return (

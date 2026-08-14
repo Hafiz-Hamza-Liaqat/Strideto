@@ -3,14 +3,13 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ROUTES, STAFF_ROLES } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
-import { useEmployerAuth } from '../../context/EmployerAuthContext';
 import { talentApi } from '../../services/talentApi';
 import { shouldUseTalentProfileApi } from '../../config/careerFeatureFlags';
-import { useUserNavbarSession } from '../../hooks/useUserNavbarSession';
 import { useTheme } from '../../context/ThemeContext';
 import { LanguageSwitcher } from '../i18n/LanguageSwitcher';
 import { restartProductTour } from '../../onboarding';
 import { useOverlayA11y } from '../../a11y/useOverlayA11y';
+import { useActiveWorkspace } from '../../context/ActiveWorkspaceContext';
 
 const itemClass =
   'block w-[calc(100%-0.5rem)] mx-1 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary min-h-[44px]';
@@ -43,18 +42,53 @@ function MenuSectionLabel({ children }) {
   );
 }
 
+function AccountSkeleton() {
+  return (
+    <div className="hidden sm:flex items-center gap-2 min-h-[44px] px-2" aria-hidden="true">
+      <span className="h-8 w-8 rounded-full bg-white/15 animate-pulse" />
+      <span className="flex flex-col gap-1">
+        <span className="h-3 w-20 rounded bg-white/15 animate-pulse" />
+        <span className="h-2 w-14 rounded bg-white/10 animate-pulse" />
+      </span>
+    </div>
+  );
+}
+
+function RoleBadge({ label, verifiedLabel }) {
+  const text = verifiedLabel || label;
+  if (!text) return null;
+  return (
+    <p className="mt-1 text-xs font-medium text-gray-600 dark:text-gray-300">
+      <span className="inline-flex items-center rounded-full border border-gray-200 px-2 py-0.5 dark:border-gray-600">
+        {text}
+      </span>
+    </p>
+  );
+}
+
 export function UserAccountMenu() {
   const { t } = useTranslation(['navbar', 'common']);
   const navigate = useNavigate();
-  const { isAuthenticated, user, logout } = useAuth();
-  const { isAuthenticated: isEmployer, logout: employerLogout } = useEmployerAuth();
-  const { enabled: userNavbarSession } = useUserNavbarSession();
-  const showUserSession = userNavbarSession && isAuthenticated;
+  const { user, logout } = useAuth();
+  const {
+    identity,
+    isAuthenticated,
+    isHydrating,
+    logoutActive,
+    discoverOtherRealms,
+    discovered,
+    activateRealm,
+  } = useActiveWorkspace();
   const { preference, setPreference } = useTheme();
   const [open, setOpen] = useState(false);
   const [careerHeadline, setCareerHeadline] = useState('');
+  const [switchOpen, setSwitchOpen] = useState(false);
+  const [discovering, setDiscovering] = useState(false);
   const ref = useRef(null);
   const panelRef = useRef(null);
+
+  const showUserSession = isAuthenticated && identity.realm === 'student';
+  const showB2bSession = isAuthenticated && identity.realm !== 'student' && identity.realm !== 'guest';
 
   useOverlayA11y({
     open,
@@ -81,38 +115,87 @@ export function UserAccountMenu() {
     return () => document.removeEventListener('mousedown', onDoc);
   }, []);
 
-  const close = () => setOpen(false);
+  const close = () => {
+    setOpen(false);
+    setSwitchOpen(false);
+  };
 
   const handleLogout = async () => {
-    await logout();
+    if (identity.realm === 'student') {
+      await logout();
+      close();
+      navigate(ROUTES.HOME, { replace: true });
+      return;
+    }
+    await logoutActive();
     close();
-    navigate(ROUTES.HOME, { replace: true });
   };
 
-  const handleEmployerLogout = async () => {
-    await employerLogout();
-    close();
+  const handleSwitchWorkspace = async () => {
+    setDiscovering(true);
+    try {
+      await discoverOtherRealms();
+      setSwitchOpen(true);
+    } finally {
+      setDiscovering(false);
+    }
   };
+
+  const triggerLabel = isAuthenticated
+    ? t('navbar:accountMenuNamed', {
+        name: identity.displayName,
+        role: identity.roleLabel,
+        defaultValue: `Account menu, ${identity.displayName}, ${identity.roleLabel}`,
+      })
+    : t('navbar:accountMenu');
+
+  if (isHydrating && !isAuthenticated) {
+    return (
+      <div className="relative min-w-[44px] min-h-[44px] flex items-center" data-tour="user-profile">
+        <AccountSkeleton />
+        <span className="sm:hidden inline-block h-8 w-8 rounded-full bg-white/15 animate-pulse" aria-hidden="true" />
+        <span className="sr-only">{t('navbar:accountHydrating', { defaultValue: 'Checking signed-in workspace' })}</span>
+      </div>
+    );
+  }
 
   return (
     <div className="relative" ref={ref} data-tour="user-profile">
       <button
         type="button"
         onClick={() => setOpen((o) => !o)}
-        className="relative min-w-[44px] min-h-[44px] flex items-center justify-center rounded-lg text-gray-700 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary"
-        aria-label={t('navbar:accountMenu')}
+        className="relative min-h-[44px] min-w-[44px] flex items-center gap-2 rounded-lg px-1.5 text-slate-200 hover:bg-white/10 focus:outline-none focus-visible:ring-2 focus-visible:ring-white/80"
+        aria-label={triggerLabel}
         aria-expanded={open}
         aria-haspopup="dialog"
         aria-controls="account-menu-panel"
       >
-        <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-          <path
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth={1.75}
-            d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+        {identity.avatarUrl ? (
+          <img
+            src={identity.avatarUrl}
+            alt=""
+            className="h-8 w-8 rounded-full object-cover bg-white/10"
           />
-        </svg>
+        ) : (
+          <svg className="w-6 h-6 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.75}
+              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+            />
+          </svg>
+        )}
+        {isAuthenticated ? (
+          <span className="hidden min-[768px]:flex flex-col items-start min-w-0 max-w-[9.5rem]">
+            <span className="w-full truncate text-start text-sm font-medium text-white leading-tight">
+              {identity.displayName}
+            </span>
+            <span className="w-full truncate text-start text-xs text-slate-300 leading-tight">
+              {identity.roleLabel}
+            </span>
+          </span>
+        ) : null}
       </button>
 
       {open && (
@@ -127,9 +210,13 @@ export function UserAccountMenu() {
             {showUserSession ? (
               <>
                 <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
-                  <p className="break-words font-semibold text-gray-900 dark:text-white">
-                    {user?.name || t('navbar:profile')}
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    {t('navbar:signedInAs', { defaultValue: 'Signed in as' })}
                   </p>
+                  <p className="break-words font-semibold text-gray-900 dark:text-white">
+                    {user?.name || identity.displayName || t('navbar:profile')}
+                  </p>
+                  <RoleBadge label={identity.roleLabel} verifiedLabel={identity.verifiedLabel} />
                   {careerHeadline ? (
                     <p className="mt-0.5 break-words text-xs text-gray-500 dark:text-gray-400">{careerHeadline}</p>
                   ) : null}
@@ -137,7 +224,7 @@ export function UserAccountMenu() {
                     <p className="mt-0.5 break-all text-xs text-gray-500 dark:text-gray-400">{user.email}</p>
                   ) : null}
                 </div>
-                <MenuSectionLabel>{t('navbar:workspace', { defaultValue: 'Workspace' })}</MenuSectionLabel>
+                <MenuSectionLabel>{t('navbar:openWorkspace', { defaultValue: 'Open workspace' })}</MenuSectionLabel>
                 <MenuLink to={ROUTES.DASHBOARD} onClose={close}>
                   {t('navbar:myWorkspace', { defaultValue: 'My Workspace' })}
                 </MenuLink>
@@ -154,6 +241,43 @@ export function UserAccountMenu() {
                 <MenuLink to={`${ROUTES.PROFILE}#account-settings`} onClose={close}>
                   {t('navbar:accountSettings')}
                 </MenuLink>
+                <MenuLink to={identity.notificationsHref || ROUTES.NOTIFICATIONS} onClose={close}>
+                  {t('navbar:notifications', { defaultValue: 'Notifications' })}
+                </MenuLink>
+              </>
+            ) : showB2bSession ? (
+              <>
+                <div className="border-b border-gray-200 px-4 py-3 dark:border-gray-700">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
+                    {t('navbar:signedInAs', { defaultValue: 'Signed in as' })}
+                  </p>
+                  <p className="break-words font-semibold text-gray-900 dark:text-white">
+                    {identity.displayName}
+                  </p>
+                  {identity.organizationName && identity.organizationName !== identity.displayName ? (
+                    <p className="mt-0.5 break-words text-sm text-gray-600 dark:text-gray-300">
+                      {identity.organizationName}
+                    </p>
+                  ) : null}
+                  <RoleBadge label={identity.roleLabel} verifiedLabel={identity.verifiedLabel} />
+                </div>
+                <MenuSectionLabel>{t('navbar:openWorkspace', { defaultValue: 'Open workspace' })}</MenuSectionLabel>
+                <MenuLink to={identity.workspaceHref} onClose={close}>
+                  {identity.realm === 'employer'
+                    ? t('navbar:employerWorkspace', { defaultValue: 'Employer Workspace' })
+                    : identity.realm === 'agent'
+                      ? t('navbar:agentWorkspace', { defaultValue: 'Agent Workspace' })
+                      : t('navbar:institutionWorkspace', { defaultValue: 'Institution Workspace' })}
+                </MenuLink>
+                <MenuSectionLabel>{t('navbar:accountSecurity', { defaultValue: 'Account / Security' })}</MenuSectionLabel>
+                <MenuLink to={identity.settingsHref} onClose={close}>
+                  {t('navbar:accountSettings')}
+                </MenuLink>
+                {identity.notificationsHref ? (
+                  <MenuLink to={identity.notificationsHref} onClose={close}>
+                    {t('navbar:notifications', { defaultValue: 'Notifications' })}
+                  </MenuLink>
+                ) : null}
               </>
             ) : (
               <>
@@ -166,16 +290,44 @@ export function UserAccountMenu() {
               </>
             )}
 
-            {isEmployer ? (
+            {isAuthenticated ? (
               <>
                 <MenuSeparator />
-                <MenuSectionLabel>{t('navbar:employerPortal', { defaultValue: 'Employer' })}</MenuSectionLabel>
-                <MenuLink to={ROUTES.EMPLOYER_DASHBOARD} onClose={close}>
-                  {t('navbar:employerDashboard', { defaultValue: 'Employer dashboard' })}
-                </MenuLink>
-                <MenuButton onClick={handleEmployerLogout} className="text-red-600 dark:text-red-400">
-                  {t('navbar:employerLogout', { defaultValue: 'Log out of employer' })}
+                <MenuButton
+                  onClick={handleSwitchWorkspace}
+                  aria-expanded={switchOpen}
+                  disabled={discovering}
+                >
+                  {discovering
+                    ? t('navbar:checkingWorkspaces', { defaultValue: 'Checking workspaces…' })
+                    : t('navbar:switchWorkspace', { defaultValue: 'Switch workspace' })}
                 </MenuButton>
+                {switchOpen ? (
+                  discovered.length > 0 ? (
+                    discovered.map((item) => (
+                      <MenuButton
+                        key={item.realm}
+                        onClick={() => {
+                          close();
+                          activateRealm(item.realm);
+                        }}
+                      >
+                        <span className="flex flex-col min-w-0">
+                          <span className="font-medium text-gray-900 dark:text-white">{item.roleLabel}</span>
+                          {item.organizationName || item.displayName ? (
+                            <span className="break-words text-xs text-gray-500 dark:text-gray-400">
+                              {item.organizationName || item.displayName}
+                            </span>
+                          ) : null}
+                        </span>
+                      </MenuButton>
+                    ))
+                  ) : (
+                    <p className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
+                      {t('navbar:noOtherWorkspaces', { defaultValue: 'No other signed-in workspaces.' })}
+                    </p>
+                  )
+                ) : null}
               </>
             ) : null}
 
@@ -219,6 +371,11 @@ export function UserAccountMenu() {
                 {t('navbar:studentHelp', { defaultValue: 'Student Help' })}
               </MenuLink>
             ) : null}
+            {showB2bSession && identity.helpHref ? (
+              <MenuLink to={identity.helpHref} onClose={close}>
+                {t('navbar:help', { defaultValue: 'Help' })}
+              </MenuLink>
+            ) : null}
             <MenuButton
               onClick={() => {
                 close();
@@ -232,7 +389,7 @@ export function UserAccountMenu() {
             </MenuLink>
           </div>
 
-          {showUserSession ? (
+          {isAuthenticated ? (
             <div className="shrink-0 border-t border-gray-200 bg-white py-1 dark:border-gray-700 dark:bg-gray-800">
               <MenuSectionLabel>{t('navbar:session', { defaultValue: 'Session' })}</MenuSectionLabel>
               <MenuButton

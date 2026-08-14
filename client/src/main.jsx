@@ -10,6 +10,7 @@ import { AuthProvider } from './context/AuthContext';
 import { EmployerAuthProvider } from './context/EmployerAuthContext';
 import { AgentAuthProvider } from './context/AgentAuthContext';
 import { InstitutionAuthProvider } from './context/InstitutionAuthContext';
+import { ActiveWorkspaceProvider } from './context/ActiveWorkspaceContext';
 import { ToastProvider } from './context/ToastContext';
 import { NotificationProvider } from './context/NotificationContext';
 import { LanguageProvider } from './context/LanguageContext';
@@ -61,6 +62,7 @@ function Bootstrap() {
               <EmployerAuthProvider>
                 <AgentAuthProvider>
                   <InstitutionAuthProvider>
+                  <ActiveWorkspaceProvider>
                   <LanguageProvider>
                   <ToastProvider>
                     <NotificationProvider>
@@ -73,6 +75,7 @@ function Bootstrap() {
                     </NotificationProvider>
                   </ToastProvider>
                   </LanguageProvider>
+                  </ActiveWorkspaceProvider>
                   </InstitutionAuthProvider>
                 </AgentAuthProvider>
               </EmployerAuthProvider>

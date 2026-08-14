@@ -72,5 +72,16 @@
   "idCopied": "کاپی ہو گیا",
   "help": "مدد",
   "productTour": "پروڈکٹ ٹور",
-  "helpCenter": "ہیلپ سینٹر"
+  "helpCenter": "ہیلپ سینٹر",
+  "signedInAs": "سائن ان بطور",
+  "openWorkspace": "ورک اسپیس کھولیں",
+  "switchWorkspace": "ورک اسپیس تبدیل کریں",
+  "checkingWorkspaces": "ورک اسپیس چیک کیے جا رہے ہیں…",
+  "noOtherWorkspaces": "کوئی اور سائن ان ورک اسپیس نہیں۔",
+  "employerWorkspace": "آجر ورک اسپیس",
+  "agentWorkspace": "ایجنٹ ورک اسپیس",
+  "institutionWorkspace": "ادارہ ورک اسپیس",
+  "accountSecurity": "اکاؤنٹ / سیکیورٹی",
+  "notifications": "اطلاعات",
+  "accountHydrating": "سائن ان ورک اسپیس چیک ہو رہا ہے"
 }

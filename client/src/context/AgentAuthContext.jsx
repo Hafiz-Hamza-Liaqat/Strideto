@@ -15,6 +15,10 @@ import {
 } from '../services/agentService';
 import { isAgentRoutePrefix } from '../auth/agentAuthRealm';
 import { onSessionExpired } from '../auth/sessionExpired';
+import {
+  clearActiveWorkspacePreferenceIfRealm,
+  writeActiveWorkspacePreference,
+} from '../auth/activeWorkspace';
 
 const STORAGE_AGENT = 'strideto-agent';
 
@@ -53,6 +57,7 @@ export function AgentAuthProvider({ children }) {
       const { data } = await agentAuthApi.login(email, password);
       setAgentAccessToken(data.accessToken);
       persistAgent(data.account);
+      writeActiveWorkspacePreference('agent');
       return data.account;
     },
     [persistAgent]
@@ -70,16 +75,52 @@ export function AgentAuthProvider({ children }) {
       }
       setAgentAccessToken(data.accessToken);
       persistAgent(data.account);
+      writeActiveWorkspacePreference('agent');
       return data.account;
     },
     [persistAgent]
   );
 
-  const refreshAgent = useCallback(async () => {
-    const { data } = await agentAuthApi.me();
-    persistAgent(data.account);
-    return data.account;
+  const persistFromMe = useCallback((res) => {
+    if (!res?.data?.account) {
+      persistAgent(null);
+      return null;
+    }
+    const next = {
+      ...res.data.account,
+      agentType: res.data.profile?.agentType || res.data.account?.agentType,
+      professionalName: res.data.profile?.professionalName || '',
+      profileStatus: res.data.profile?.profileStatus || '',
+    };
+    persistAgent(next);
+    return next;
   }, [persistAgent]);
+
+  const refreshAgent = useCallback(async () => {
+    const res = await agentAuthApi.me();
+    return persistFromMe(res);
+  }, [persistFromMe]);
+
+  const ensureSession = useCallback(async () => {
+    if (getAgentAccessToken() && agent) return agent;
+    try {
+      const { data } = await agentAuthApi.refreshToken();
+      setAgentAccessToken(data.accessToken);
+      const me = await agentAuthApi.me();
+      return persistFromMe(me);
+    } catch {
+      clearAgentSessionLocal();
+      persistAgent(null);
+      return null;
+    }
+  }, [agent, persistAgent, persistFromMe]);
+
+  const refreshQuietly = useCallback(() => {
+    if (document.hidden || !getAgentAccessToken()) return;
+    agentAuthApi.refreshToken().then(({ data }) => {
+      if (data?.accessToken) setAgentAccessToken(data.accessToken);
+    }).catch(() => {});
+  }, []);
 
   const logout = useCallback(async () => {
     try {
@@ -89,6 +130,7 @@ export function AgentAuthProvider({ children }) {
     } finally {
       clearAgentSessionLocal();
       setAgent(null);
+      clearActiveWorkspacePreferenceIfRealm('agent');
     }
   }, []);
 
@@ -98,6 +140,7 @@ export function AgentAuthProvider({ children }) {
     } finally {
       clearAgentSessionLocal();
       setAgent(null);
+      clearActiveWorkspacePreferenceIfRealm('agent');
     }
   }, []);
 
@@ -131,12 +174,7 @@ export function AgentAuthProvider({ children }) {
         return agentAuthApi.me();
       })
       .then((res) => {
-        if (!cancelled && res) {
-          persistAgent({
-            ...res.data.account,
-            agentType: res.data.profile?.agentType || res.data.account?.agentType,
-          });
-        }
+        if (!cancelled && res) persistFromMe(res);
       })
       .catch(() => {
         if (!cancelled) {
@@ -184,6 +222,8 @@ export function AgentAuthProvider({ children }) {
     logout,
     logoutAll,
     refreshAgent,
+    ensureSession,
+    refreshQuietly,
   };
 
   return (
