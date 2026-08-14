@@ -35,6 +35,11 @@ const home = read('pages/Agent/ProviderHome.jsx');
 check(home.includes('Provider Home'), 'provider home heading');
 check(home.includes('Add another provider category'), 'add category');
 check(home.includes('kind === \'independent\'') || home.includes('group.label'), 'groups by subject');
+check(home.includes('addableDomainsForGroup'), 'addable domains are computed per subject group');
+check(home.includes('subjectType: group.subjectType'), 'Add Domain sends the group subjectType');
+check(home.includes('subjectId: group.subjectId'), 'Add Domain sends the group subjectId');
+check(!/addDomain\(domain\.domainId, independent\)/.test(home), 'Add Domain does not default every CTA to Independent');
+check(home.includes('This changes {group.label} only'), 'Add CTA names the subject being modified');
 
 const layout = read('pages/Agent/AgentLayout.jsx');
 check(layout.includes('WorkspaceSwitcher'), 'workspace switcher');
@@ -67,6 +72,12 @@ check(gbsLayout.includes('{authorized ?'), 'nested GBS routes do not mount opera
 check(gbsLayout.includes('Add Business Formation & Corporate Services'), 'unauthorized root is add/setup');
 check(gbsLayout.includes('Coming soon'), 'disabled flag uses unavailable state');
 check(!/useEffect\([\s\S]{0,500}addProviderDomain/.test(gbsLayout), 'opening the URL does not create enrollment');
+check(gbsLayout.includes('requestedProviderSubject'), 'GBS add uses the requested provider subject');
+check(gbsLayout.includes("params.get('subjectType')") && gbsLayout.includes("params.get('subjectId')"), 'GBS add reads exact URL subjectType and subjectId');
+check(gbsLayout.includes('urlSpecifiesSubject') && gbsLayout.includes('requestedMatch'), 'Independent Business URL stays setup when only Agency Business is enrolled');
+check(!gbsLayout.includes('addIndependentBusiness'), 'GBS add is not Independent-hardcoded');
+check(layout.includes('subjectType: params.get(\'subjectType\')'), 'sidebar scopes operational chrome to the URL subject');
+check(nav.includes('scopedWorkspaces'), 'business nav does not inherit another subject\'s enrollment');
 
 const trust = read('pages/Agent/AgentTrust.jsx');
 check(trust.includes('hasBusinessWorkspace'), 'trust uses authorized workspaces');

@@ -103,6 +103,8 @@ check(!/value="both"|Both</.test(clientReg), 'no contradictory Both radio');
 const home = read('client/src/pages/Agent/ProviderHome.jsx');
 check(home.includes('Add another provider category'), 'add domain CTA');
 check(home.includes('PREF_KEY') || home.includes('strideto-provider-workspace'), 'workspace preference UX only');
+check(home.includes('subjectType: group.subjectType') && home.includes('subjectId: group.subjectId'), 'Provider Home Add sends exact group subject');
+check(!/addDomain\(domain\.domainId, independent\)/.test(home), 'Provider Home Add does not default to Independent');
 
 const nav = read('client/src/config/agentNavConfig.js');
 check(nav.includes('Education & Mobility Services'), 'education services labeled');
@@ -111,10 +113,13 @@ check(nav.includes('hasBusiness ? BUSINESS : []'), 'business operational nav req
 check(!/Requests|Quotes|Mailroom|Formation Case/.test(nav), 'no fake future modules');
 
 const gbsLayout = read('client/src/pages/Agent/business-services/GbsWorkspaceLayout.jsx');
-check(gbsLayout.includes('authorized && subjects.length') || gbsLayout.includes('enabled && subjects.length'), 'GBS chrome requires authorized subjects');
+check(gbsLayout.includes('urlSpecifiesSubject') && gbsLayout.includes('requestedMatch'), 'GBS chrome requires the exact requested subject to be enrolled');
+check(gbsLayout.includes('enabled && (urlSpecifiesSubject ? requestedMatch : subjects.length > 0)'), 'GBS chrome requires authorized subjects');
 check(gbsLayout.includes('This provider category has not been added'), 'unauthorized URL is setup/add, not empty operational');
 check(gbsLayout.includes('{authorized ?'), 'operational subnav/outlet gated on authorization');
 check(!/useEffect\([\s\S]{0,400}addProviderDomain/.test(gbsLayout), 'URL visit does not enroll a domain');
+check(gbsLayout.includes('requestedProviderSubject'), 'GBS setup add respects requested subject context');
+check(!gbsLayout.includes('addIndependentBusiness'), 'GBS setup add is not Independent-only');
 
 const trust = read('client/src/pages/Agent/AgentTrust.jsx');
 check(trust.includes('hasBusinessWorkspace'), 'trust gates business verification on authorized domain');

@@ -54,11 +54,16 @@ export function agentNavItems({
   gbsEnabled,
   providerDomainId,
   workspaces = [],
+  subjectType,
+  subjectId,
 } = {}) {
   const domainId = providerDomainId || null;
-  const hasEducation = workspaces.some((w) => w.domainId === PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY)
-    || (!workspaces.length && domainId !== PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES);
-  const hasBusiness = gbsEnabled && workspaces.some((w) => w.domainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES);
+  const scopedWorkspaces = (subjectType && subjectId)
+    ? workspaces.filter((w) => w.subjectType === subjectType && String(w.subjectId) === String(subjectId))
+    : workspaces;
+  const hasEducation = scopedWorkspaces.some((w) => w.domainId === PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY)
+    || (!scopedWorkspaces.length && !subjectType && domainId !== PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES);
+  const hasBusiness = gbsEnabled && scopedWorkspaces.some((w) => w.domainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES);
 
   // URL path is not authority. Business operational nav is only for an authorized
   // business_services workspace on an exact subject.

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { Link, NavLink, Outlet, useNavigate } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { Link, NavLink, Outlet, useNavigate, useSearchParams } from 'react-router-dom';
 import { SearchableSelect } from '../../../components/forms/SearchableSelect';
 import { ROUTES } from '../../../constants';
 import { PROVIDER_DOMAIN_IDS } from '@shared/provider/providerDomains.js';
@@ -42,26 +42,36 @@ function SubjectSwitcher() {
   );
 }
 
+function requestedProviderSubject(params, accountId) {
+  const subjectType = params.get('subjectType');
+  const subjectId = params.get('subjectId');
+  if ((subjectType === 'organization' || subjectType === 'agent') && subjectId) {
+    return { subjectType, subjectId };
+  }
+  return { subjectType: 'agent', subjectId: accountId || '' };
+}
+
 function GbsSetupState({ enabled, loadError }) {
   const navigate = useNavigate();
+  const [params] = useSearchParams();
   const { reload } = useGbsProvider();
   const [busy, setBusy] = useState(false);
   const [addError, setAddError] = useState('');
 
-  const addIndependentBusiness = async () => {
+  const addBusinessForRequestedSubject = async () => {
     setBusy(true);
     setAddError('');
     try {
       const { data } = await agentApi.getProviderDomainContext();
-      const subjectId = data?.accountId;
-      if (!subjectId) throw new Error('missing_subject');
+      const subject = requestedProviderSubject(params, data?.accountId);
+      if (!subject.subjectId) throw new Error('missing_subject');
       await agentApi.addProviderDomain({
-        subjectType: 'agent',
-        subjectId,
+        subjectType: subject.subjectType,
+        subjectId: subject.subjectId,
         domainId: PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES,
       });
       await reload();
-      navigate(`${ROUTES.AGENT_BUSINESS_SERVICES_CAPABILITIES}?subjectType=agent&subjectId=${subjectId}`);
+      navigate(`${ROUTES.AGENT_BUSINESS_SERVICES_CAPABILITIES}?subjectType=${subject.subjectType}&subjectId=${subject.subjectId}`);
     } catch (err) {
       setAddError(err.response?.data?.error || 'Unable to add Business Formation & Corporate Services.');
     } finally {
@@ -100,7 +110,7 @@ function GbsSetupState({ enabled, loadError }) {
           type="button"
           className="inline-flex min-h-[44px] items-center rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-50"
           disabled={busy}
-          onClick={addIndependentBusiness}
+          onClick={addBusinessForRequestedSubject}
         >
           {busy ? 'Adding…' : 'Add Business Formation & Corporate Services'}
         </button>
@@ -116,8 +126,29 @@ function GbsSetupState({ enabled, loadError }) {
 }
 
 function GbsWorkspaceShell() {
-  const { loading, error, enabled, subjects, selected } = useGbsProvider();
-  const authorized = enabled && subjects.length > 0;
+  const [params] = useSearchParams();
+  const { loading, error, enabled, subjects, selected, selectSubject } = useGbsProvider();
+  const requested = requestedProviderSubject(params, null);
+  const urlSpecifiesSubject = (
+    (params.get('subjectType') === 'organization' || params.get('subjectType') === 'agent')
+    && Boolean(params.get('subjectId'))
+  );
+  const requestedMatch = urlSpecifiesSubject
+    ? subjects.find((s) => s.subjectType === requested.subjectType && String(s.subjectId) === String(requested.subjectId))
+    : null;
+  const authorized = Boolean(enabled && (urlSpecifiesSubject ? requestedMatch : subjects.length > 0));
+
+  useEffect(() => {
+    if (!requestedMatch) return;
+    if (
+      selected
+      && selected.subjectType === requestedMatch.subjectType
+      && String(selected.subjectId) === String(requestedMatch.subjectId)
+    ) {
+      return;
+    }
+    selectSubject(requestedMatch);
+  }, [requestedMatch, selected, selectSubject]);
 
   return (
     <div className={page}>

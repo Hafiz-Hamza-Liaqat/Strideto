@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { agentApi } from '../../services/agentService';
 import { ROUTES } from '../../constants';
-import { PROVIDER_DOMAIN_IDS } from '@shared/provider/providerDomains.js';
+import { PROVIDER_DOMAIN_IDS, publicProviderDomainProjection } from '@shared/provider/providerDomains.js';
 import { btnPrimary, btnSecondary, cardClass, muted } from './agentUi';
 import { PortalWelcomeBanner } from '../../components/welcome/PortalWelcomeBanner';
 import { useAgentAuth } from '../../context/AgentAuthContext';
@@ -19,6 +19,19 @@ function readPref() {
 
 function workspaceKey(row) {
   return `${row.subjectType}:${row.subjectId}:${row.domainId}`;
+}
+
+function subjectKey(row) {
+  return `${row.subjectType}:${row.subjectId}`;
+}
+
+function addableDomainsForGroup(items, businessEnabled) {
+  const have = new Set((items || []).map((card) => card.domainId));
+  const ids = [PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY];
+  if (businessEnabled) ids.push(PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES);
+  return ids
+    .map(publicProviderDomainProjection)
+    .filter((domain) => domain && !have.has(domain.domainId));
 }
 
 export default function ProviderHome() {
@@ -43,8 +56,17 @@ export default function ProviderHome() {
   const groups = useMemo(() => {
     const map = new Map();
     for (const card of cards) {
-      const key = `${card.subjectType}:${card.subjectId}`;
-      if (!map.has(key)) map.set(key, { label: card.label, kind: card.kind, items: [] });
+      const key = subjectKey(card);
+      if (!map.has(key)) {
+        map.set(key, {
+          key,
+          label: card.label,
+          kind: card.kind,
+          subjectType: card.subjectType,
+          subjectId: card.subjectId,
+          items: [],
+        });
+      }
       map.get(key).items.push(card);
     }
     return [...map.values()];
@@ -68,7 +90,7 @@ export default function ProviderHome() {
   }, [data, stayHome, cards, navigate]);
 
   const addDomain = async (domainId, subject) => {
-    setBusy(domainId);
+    setBusy(`${subject.subjectType}:${subject.subjectId}:${domainId}`);
     setError('');
     try {
       await agentApi.addProviderDomain({
@@ -98,12 +120,6 @@ export default function ProviderHome() {
     );
   }
 
-  const independent = cards.find((c) => c.kind === 'independent') || {
-    subjectType: 'agent',
-    subjectId: data?.accountId,
-    kind: 'independent',
-  };
-
   return (
     <div className="space-y-6 min-w-0">
       <PortalWelcomeBanner
@@ -119,61 +135,70 @@ export default function ProviderHome() {
       </header>
       {error ? <p className="rounded-lg bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300" role="alert">{error}</p> : null}
 
-      {groups.map((group) => (
-        <section key={group.label} className="space-y-3 min-w-0">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white break-words">{group.label}</h2>
-          <div className="grid gap-3 md:grid-cols-2">
-            {group.items.map((card) => (
-              <article key={workspaceKey(card)} className={`${cardClass} min-w-0`}>
-                <h3 className="font-semibold text-gray-900 dark:text-white break-words">{card.domain?.publicName}</h3>
-                <p className={`mt-1 ${muted} break-words`}>
-                  {card.domainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES
-                    ? `Verified capabilities: ${card.counters?.verifiedCapabilities ?? 0} · Listings: ${card.counters?.listings ?? 0}`
-                    : `Verification: ${card.counters?.verificationStatus || 'draft'} · Active services: ${card.counters?.activeServices ?? 0} · Leads: ${card.counters?.leads ?? 0}`}
-                </p>
-                <Link
-                  to={`${card.path}?subjectType=${card.subjectType}&subjectId=${card.subjectId}`}
-                  className={`${btnPrimary} mt-4`}
-                  onClick={() => {
-                    try {
-                      localStorage.setItem(PREF_KEY, JSON.stringify({
-                        subjectType: card.subjectType,
-                        subjectId: card.subjectId,
-                        domainId: card.domainId,
-                      }));
-                    } catch { /* UX only */ }
-                  }}
-                >
-                  Open {card.domain?.shortName || 'workspace'}
-                </Link>
-              </article>
-            ))}
-          </div>
-        </section>
-      ))}
-
-      {(data?.addableDomains || []).length > 0 ? (
-        <section className={`${cardClass} space-y-3 min-w-0`}>
-          <h2 className="font-semibold text-gray-900 dark:text-white">Add another provider category</h2>
-          <p className={muted}>Adding a domain does not verify professional capabilities.</p>
-          {(data.addableDomains || []).map((domain) => (
-            <div key={domain.domainId} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
-              <div className="min-w-0">
-                <p className="font-medium text-gray-900 dark:text-white break-words">{domain.publicName}</p>
-                <p className={`${muted} break-words`}>{domain.description}</p>
-              </div>
-              <button
-                type="button"
-                className={btnSecondary}
-                disabled={Boolean(busy)}
-                onClick={() => addDomain(domain.domainId, independent)}
-              >
-                + Add {domain.shortName}
-              </button>
+      {groups.map((group) => {
+        const addable = addableDomainsForGroup(group.items, data?.businessServicesProviderEnabled);
+        return (
+          <section key={group.key} className="space-y-3 min-w-0">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white break-words">{group.label}</h2>
+            <div className="grid gap-3 md:grid-cols-2">
+              {group.items.map((card) => (
+                <article key={workspaceKey(card)} className={`${cardClass} min-w-0`}>
+                  <h3 className="font-semibold text-gray-900 dark:text-white break-words">{card.domain?.publicName}</h3>
+                  <p className={`mt-1 ${muted} break-words`}>
+                    {card.domainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES
+                      ? `Verified capabilities: ${card.counters?.verifiedCapabilities ?? 0} · Listings: ${card.counters?.listings ?? 0}`
+                      : `Verification: ${card.counters?.verificationStatus || 'draft'} · Active services: ${card.counters?.activeServices ?? 0} · Leads: ${card.counters?.leads ?? 0}`}
+                  </p>
+                  <Link
+                    to={`${card.path}?subjectType=${card.subjectType}&subjectId=${card.subjectId}`}
+                    className={`${btnPrimary} mt-4`}
+                    onClick={() => {
+                      try {
+                        localStorage.setItem(PREF_KEY, JSON.stringify({
+                          subjectType: card.subjectType,
+                          subjectId: card.subjectId,
+                          domainId: card.domainId,
+                        }));
+                      } catch { /* UX only */ }
+                    }}
+                  >
+                    Open {card.domain?.shortName || 'workspace'}
+                  </Link>
+                </article>
+              ))}
             </div>
-          ))}
-        </section>
-      ) : null}
+            {addable.length > 0 ? (
+              <div className={`${cardClass} space-y-3 min-w-0`}>
+                <h3 className="font-semibold text-gray-900 dark:text-white">Add another provider category</h3>
+                <p className={`${muted} break-words`}>
+                  Adding a domain does not verify professional capabilities. This changes {group.label} only.
+                  Independent and Agency identities stay separate.
+                </p>
+                {addable.map((domain) => (
+                  <div key={domain.domainId} className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                    <div className="min-w-0">
+                      <p className="font-medium text-gray-900 dark:text-white break-words">{domain.publicName}</p>
+                      <p className={`${muted} break-words`}>{domain.description}</p>
+                    </div>
+                    <button
+                      type="button"
+                      className={btnSecondary}
+                      disabled={Boolean(busy)}
+                      aria-label={`Add ${domain.publicName} for ${group.label}`}
+                      onClick={() => addDomain(domain.domainId, {
+                        subjectType: group.subjectType,
+                        subjectId: group.subjectId,
+                      })}
+                    >
+                      + Add {domain.shortName}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            ) : null}
+          </section>
+        );
+      })}
     </div>
   );
 }

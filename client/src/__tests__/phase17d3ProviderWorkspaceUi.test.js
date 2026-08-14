@@ -38,6 +38,9 @@ check(!files.layout.includes('StudentPortalNav') && !files.overview.includes('St
 check(files.nav.includes("label: 'Education & Mobility Services'") && files.nav.includes("label: 'Service Listings'") && files.nav.includes("Identity & Organization / Trust Center"), 'Education services, Business listings, and Trust remain distinct');
 check(files.nav.includes('hasBusiness ? BUSINESS : []'), 'sidebar does not treat a Business URL as operational authority');
 check(files.layout.includes('{authorized ?') && files.layout.includes('This provider category has not been added'), 'unauthorized GBS URL is setup state without operational subnav');
+check(files.layout.includes('urlSpecifiesSubject') && files.layout.includes('requestedMatch'), 'exact URL subject must be enrolled before operational GBS chrome');
+check(files.layout.includes('requestedProviderSubject'), 'GBS add uses requested exact subject');
+check(!files.layout.includes('addIndependentBusiness'), 'GBS add is not Independent-hardcoded');
 check(files.layout.includes("aria-label=\"Business Services provider subject\""), 'accessible names');
 check(files.ctx.includes("strideto-gbs-provider-subject"), 'subject preference is UX-only localStorage');
 check(files.ctx.includes('getContext') && files.layout.includes('subjects.length <= 1'), 'switcher hidden for a single subject');

@@ -278,6 +278,286 @@ test('agency business invite does not grant education or personal capability', a
   assert.equal(resolved.workspaces.some((w) => w.kind === 'agency'), false);
 });
 
+async function makeReadyAgencyOwner({ email, name, orgName, orgDomains = [] }) {
+  const account = await AgentAccount.create({ email, password: 'TestPass123!', accountStatus: 'active' });
+  const agency = await Organization.create({
+    organizationType: ORGANIZATION_TYPES.AGENCY,
+    displayName: orgName,
+    status: ORGANIZATION_STATUSES.ACTIVE,
+  });
+  await AgentProfile.create({
+    agentAccountId: account._id,
+    organizationId: agency._id,
+    agentType: AGENT_TYPES.AGENCY,
+    professionalName: name,
+    providerDomainInitializationState: 'ready',
+  });
+  await AgentMembership.create({
+    organizationId: agency._id,
+    agentAccountId: account._id,
+    role: AGENT_MEMBER_ROLES.OWNER,
+    active: true,
+    domainAccess: orgDomains.map((domainId) => ({
+      domainId,
+      permissions: Object.values(PROVIDER_DOMAIN_PERMISSIONS).filter((p) => p.startsWith(domainId.split('_')[0])),
+    })),
+  });
+  if (orgDomains.length) {
+    await enrollProviderDomains({
+      subjectType: PROVIDER_SUBJECT_TYPES.ORGANIZATION,
+      subjectId: agency._id,
+      domainIds: orgDomains,
+      selectedBy: account._id,
+    });
+  }
+  return { account, agency };
+}
+
+test('independent add business does not enroll agency; agency add business does not enroll independent', async () => {
+  const { account, agency } = await makeReadyAgencyOwner({
+    email: 'split-owner@example.test',
+    name: 'Split Owner',
+    orgName: 'Split Agency',
+    orgDomains: [PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY],
+  });
+  await enrollProviderDomains({
+    subjectType: PROVIDER_SUBJECT_TYPES.AGENT,
+    subjectId: account._id,
+    domainIds: [PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY],
+    selectedBy: account._id,
+  });
+
+  await addProviderDomain({
+    agentAccountId: account._id,
+    subjectType: PROVIDER_SUBJECT_TYPES.AGENT,
+    subjectId: String(account._id),
+    domainId: PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES,
+  });
+  assert.equal(
+    await ProviderDomainEnrollment.countDocuments({
+      subjectType: PROVIDER_SUBJECT_TYPES.ORGANIZATION,
+      subjectId: String(agency._id),
+      domainId: PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES,
+    }),
+    0
+  );
+  assert.equal(
+    await ProviderDomainEnrollment.countDocuments({
+      subjectType: PROVIDER_SUBJECT_TYPES.AGENT,
+      subjectId: String(account._id),
+      domainId: PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES,
+    }),
+    1
+  );
+
+  const { account: ownerB, agency: agencyB } = await makeReadyAgencyOwner({
+    email: 'agency-add@example.test',
+    name: 'Agency Add',
+    orgName: 'Agency Add Co',
+    orgDomains: [PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY],
+  });
+  await addProviderDomain({
+    agentAccountId: ownerB._id,
+    subjectType: PROVIDER_SUBJECT_TYPES.ORGANIZATION,
+    subjectId: String(agencyB._id),
+    domainId: PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES,
+  });
+  assert.equal(
+    await ProviderDomainEnrollment.countDocuments({
+      subjectType: PROVIDER_SUBJECT_TYPES.AGENT,
+      subjectId: String(ownerB._id),
+      domainId: PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES,
+    }),
+    0
+  );
+  assert.equal(
+    await ProviderDomainEnrollment.countDocuments({
+      subjectType: PROVIDER_SUBJECT_TYPES.ORGANIZATION,
+      subjectId: String(agencyB._id),
+      domainId: PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES,
+    }),
+    1
+  );
+  assert.equal(
+    await ProviderCapability.countDocuments({
+      subjectType: PROVIDER_SUBJECT_TYPES.ORGANIZATION,
+      subjectId: String(agencyB._id),
+      trustStatus: PROVIDER_TRUST_STATUSES.VERIFIED,
+    }),
+    0
+  );
+  assert.equal(await ProviderCapability.countDocuments({ subjectId: String(agencyB._id) }), 0);
+
+  const again = await addProviderDomain({
+    agentAccountId: ownerB._id,
+    subjectType: PROVIDER_SUBJECT_TYPES.ORGANIZATION,
+    subjectId: String(agencyB._id),
+    domainId: PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES,
+  });
+  assert.equal(again.alreadyActive, true);
+  assert.equal(
+    await ProviderDomainEnrollment.countDocuments({
+      subjectType: PROVIDER_SUBJECT_TYPES.ORGANIZATION,
+      subjectId: String(agencyB._id),
+      domainId: PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES,
+    }),
+    1
+  );
+});
+
+test('agency business-only owner can add education to the same organization subject', async () => {
+  const { account, agency } = await makeReadyAgencyOwner({
+    email: 'biz-only-agency@example.test',
+    name: 'Biz Only Agency',
+    orgName: 'Biz Only Co',
+    orgDomains: [PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES],
+  });
+  await addProviderDomain({
+    agentAccountId: account._id,
+    subjectType: PROVIDER_SUBJECT_TYPES.ORGANIZATION,
+    subjectId: String(agency._id),
+    domainId: PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY,
+  });
+  assert.equal(
+    await ProviderDomainEnrollment.countDocuments({
+      subjectType: PROVIDER_SUBJECT_TYPES.ORGANIZATION,
+      subjectId: String(agency._id),
+      domainId: PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY,
+    }),
+    1
+  );
+  assert.equal(
+    await ProviderDomainEnrollment.countDocuments({
+      subjectType: PROVIDER_SUBJECT_TYPES.AGENT,
+      subjectId: String(account._id),
+    }),
+    0
+  );
+});
+
+test('member without management authority cannot activate an agency domain', async () => {
+  const { agency } = await makeReadyAgencyOwner({
+    email: 'owner-deny-member@example.test',
+    name: 'Owner Deny',
+    orgName: 'Deny Co',
+    orgDomains: [PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY],
+  });
+  const member = await AgentAccount.create({
+    email: 'member-deny@example.test',
+    password: 'TestPass123!',
+    accountStatus: 'active',
+  });
+  await AgentProfile.create({
+    agentAccountId: member._id,
+    organizationId: agency._id,
+    agentType: AGENT_TYPES.AGENCY,
+    professionalName: 'Member Deny',
+    providerDomainInitializationState: 'ready',
+  });
+  await AgentMembership.create({
+    organizationId: agency._id,
+    agentAccountId: member._id,
+    role: AGENT_MEMBER_ROLES.MEMBER,
+    active: true,
+    domainAccess: [{
+      domainId: PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY,
+      permissions: [PROVIDER_DOMAIN_PERMISSIONS.EDUCATION_VIEW],
+    }],
+  });
+  await assert.rejects(
+    () => addProviderDomain({
+      agentAccountId: member._id,
+      subjectType: PROVIDER_SUBJECT_TYPES.ORGANIZATION,
+      subjectId: String(agency._id),
+      domainId: PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES,
+    }),
+    (err) => err.code === 'provider_domain_access_denied'
+  );
+  assert.equal(
+    await ProviderDomainEnrollment.countDocuments({
+      subjectType: PROVIDER_SUBJECT_TYPES.ORGANIZATION,
+      subjectId: String(agency._id),
+      domainId: PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES,
+    }),
+    0
+  );
+});
+
+test('unauthorized organization cannot be activated; multiple memberships mutate the exact selected agency', async () => {
+  const { account: ownerA, agency: agencyA } = await makeReadyAgencyOwner({
+    email: 'multi-a@example.test',
+    name: 'Multi A',
+    orgName: 'Agency Alpha',
+    orgDomains: [PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY],
+  });
+  const agencyB = await Organization.create({
+    organizationType: ORGANIZATION_TYPES.AGENCY,
+    displayName: 'Agency Beta',
+    status: ORGANIZATION_STATUSES.ACTIVE,
+  });
+  await AgentMembership.create({
+    organizationId: agencyB._id,
+    agentAccountId: ownerA._id,
+    role: AGENT_MEMBER_ROLES.OWNER,
+    active: true,
+    domainAccess: [{
+      domainId: PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY,
+      permissions: Object.values(PROVIDER_DOMAIN_PERMISSIONS).filter((p) => p.startsWith('education')),
+    }],
+  });
+  await enrollProviderDomains({
+    subjectType: PROVIDER_SUBJECT_TYPES.ORGANIZATION,
+    subjectId: agencyB._id,
+    domainIds: [PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY],
+    selectedBy: ownerA._id,
+  });
+
+  const stranger = await AgentAccount.create({
+    email: 'stranger@example.test',
+    password: 'TestPass123!',
+    accountStatus: 'active',
+  });
+  await AgentProfile.create({
+    agentAccountId: stranger._id,
+    organizationId: agencyA._id,
+    agentType: AGENT_TYPES.AGENT,
+    professionalName: 'Stranger',
+    providerDomainInitializationState: 'ready',
+  });
+  await assert.rejects(
+    () => addProviderDomain({
+      agentAccountId: stranger._id,
+      subjectType: PROVIDER_SUBJECT_TYPES.ORGANIZATION,
+      subjectId: String(agencyA._id),
+      domainId: PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES,
+    }),
+    (err) => err.code === 'provider_subject_context_denied' || err.code === 'provider_domain_access_denied'
+  );
+
+  await addProviderDomain({
+    agentAccountId: ownerA._id,
+    subjectType: PROVIDER_SUBJECT_TYPES.ORGANIZATION,
+    subjectId: String(agencyB._id),
+    domainId: PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES,
+  });
+  assert.equal(
+    await ProviderDomainEnrollment.countDocuments({
+      subjectType: PROVIDER_SUBJECT_TYPES.ORGANIZATION,
+      subjectId: String(agencyA._id),
+      domainId: PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES,
+    }),
+    0
+  );
+  assert.equal(
+    await ProviderDomainEnrollment.countDocuments({
+      subjectType: PROVIDER_SUBJECT_TYPES.ORGANIZATION,
+      subjectId: String(agencyB._id),
+      domainId: PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES,
+    }),
+    1
+  );
+});
+
 test('complete onboarding pending cannot stay empty; ready after persist', async () => {
   const account = await AgentAccount.create({ email: 'pending@example.test', password: 'TestPass123!', accountStatus: 'active' });
   const org = await Organization.create({

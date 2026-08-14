@@ -142,8 +142,10 @@ export default function AgentLayout() {
       gbsEnabled,
       providerDomainId: domainId || (workspaces.length === 1 ? workspaces[0].domainId : null),
       workspaces,
+      subjectType: params.get('subjectType'),
+      subjectId: params.get('subjectId'),
     }),
-    [agentType, gbsEnabled, domainId, workspaces]
+    [agentType, gbsEnabled, domainId, workspaces, params]
   );
 
   const handleLogout = async () => {
