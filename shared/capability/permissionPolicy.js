@@ -24,6 +24,8 @@ export const POLICY_ACTIONS = Object.freeze({
   GBS_ORGANIZATION_BUYER_ACTION: 'gbs.organization.buyer.action',
   GBS_PROVIDER_ACTION: 'gbs.provider.action',
   ADMIN_PROVIDER_VERIFICATION: 'admin.provider.verification',
+  ADMIN_GBS_CATALOG_REVIEW: 'admin.gbs.catalog.review',
+  ADMIN_GBS_SOURCE_REVIEW: 'admin.gbs.source.review',
   EMPLOYER_HIRING_ACTION: 'employer.hiring.action',
 });
 
@@ -68,6 +70,18 @@ export const ACTION_POLICY = Object.freeze({
     denyEmployerCookie: true,
   }),
   [POLICY_ACTIONS.ADMIN_PROVIDER_VERIFICATION]: Object.freeze({
+    policyVersion: PERMISSION_POLICY_VERSION,
+    realm: AUTH_REALMS.STAFF,
+    requireStaffRbac: true,
+    denyEmployerCookie: true,
+  }),
+  [POLICY_ACTIONS.ADMIN_GBS_CATALOG_REVIEW]: Object.freeze({
+    policyVersion: PERMISSION_POLICY_VERSION,
+    realm: AUTH_REALMS.STAFF,
+    requireStaffRbac: true,
+    denyEmployerCookie: true,
+  }),
+  [POLICY_ACTIONS.ADMIN_GBS_SOURCE_REVIEW]: Object.freeze({
     policyVersion: PERMISSION_POLICY_VERSION,
     realm: AUTH_REALMS.STAFF,
     requireStaffRbac: true,

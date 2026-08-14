@@ -34,6 +34,7 @@ const providerCapabilitySchema = new mongoose.Schema(
       enum: Object.values(PROVIDER_SUBJECT_TYPES),
     },
     subjectId: { type: String, required: true },
+    capabilityId: { type: String, default: '', index: true },
     status: {
       type: String,
       enum: Object.values(GRANT_STATUSES),
@@ -53,8 +54,9 @@ const providerCapabilitySchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-providerCapabilitySchema.index({ subjectType: 1, subjectId: 1, status: 1 });
+providerCapabilitySchema.index({ subjectType: 1, subjectId: 1, capabilityId: 1, status: 1 });
 providerCapabilitySchema.index({ subjectType: 1, subjectId: 1, 'scope.jurisdictionIds': 1 });
+providerCapabilitySchema.index({ capabilityId: 1, trustStatus: 1 });
 
 export const ProviderCapability = mongoose.model(
   'ProviderCapability',

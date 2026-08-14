@@ -50,6 +50,12 @@ export function authorizeListingScope({ requested = {}, capability = null } = {}
     return { allowed: false, reason: LISTING_SCOPE_DENY_REASONS.NOT_VERIFIED };
   }
 
+  const requestedCapabilityId = requested.capabilityId ? String(requested.capabilityId) : '';
+  const haveCapabilityId = capability.capabilityId ? String(capability.capabilityId) : '';
+  if (requestedCapabilityId && haveCapabilityId && requestedCapabilityId !== haveCapabilityId) {
+    return { allowed: false, reason: LISTING_SCOPE_DENY_REASONS.SCOPE_NOT_SUBSET };
+  }
+
   const want = normalizeProviderScope(requested.scope || requested);
   const have = normalizeProviderScope(capability.scope || capability);
 

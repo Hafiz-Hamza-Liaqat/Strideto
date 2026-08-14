@@ -81,6 +81,11 @@ export function validateProviderCapabilityRecord(input = {}) {
   const trustStatus = input.trustStatus || PROVIDER_TRUST_STATUSES.CLAIMED;
   if (!isValidProviderTrustStatus(trustStatus)) errors.push('trustStatus is invalid');
 
+  const capabilityId =
+    input.capabilityId == null || input.capabilityId === ''
+      ? ''
+      : String(input.capabilityId).trim();
+
   if (errors.length) return { ok: false, errors };
 
   const recordVersion = Number.isInteger(input.recordVersion) ? input.recordVersion : 0;
@@ -89,6 +94,7 @@ export function validateProviderCapabilityRecord(input = {}) {
     value: {
       subjectType: input.subjectType,
       subjectId,
+      capabilityId,
       status,
       trustStatus,
       scope: normalizeProviderScope(input.scope || input),
