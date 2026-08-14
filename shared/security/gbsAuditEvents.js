@@ -22,6 +22,10 @@ export const GBS_AUDIT_EVENTS = Object.freeze({
   OPTIMISTIC_CONCURRENCY_CONFLICT: 'optimistic_concurrency_conflict',
   IDEMPOTENCY_REPLAY: 'idempotency_replay',
   IDEMPOTENCY_CONFLICT: 'idempotency_conflict',
+  IDEMPOTENCY_IN_FLIGHT: 'idempotency_in_flight',
+  ROLE_TRANSITION_SCHEMA_INITIALIZED: 'role_transition_schema_initialized',
+  ROLE_TRANSITION_CAPABILITIES_PRESERVED: 'role_transition_capabilities_preserved',
+  ROLE_TRANSITION_STAFF_ONLY: 'role_transition_staff_only',
 });
 
 const EVENT_SET = new Set(Object.values(GBS_AUDIT_EVENTS));

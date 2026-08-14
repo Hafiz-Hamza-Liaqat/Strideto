@@ -462,6 +462,8 @@ function serviceWithAudit() {
 {
   check(isKnownGbsAuditEvent('capability_denied'), 'capability_denied is catalogued');
   check(isKnownGbsAuditEvent('security_denied'), 'security_denied is catalogued');
+  check(isKnownGbsAuditEvent('role_transition_capabilities_preserved'), 'role transition preserve event is catalogued');
+  check(isKnownGbsAuditEvent('role_transition_schema_initialized'), 'role transition schema event is catalogued');
   const redacted = redactAuditMetadata({ password: 'x', jwt: 'y', capability: 'student' });
   check(redacted.password === undefined && redacted.jwt === undefined, 'secrets stripped from audit metadata');
   check(redacted.capability === 'student', 'safe audit fields retained');

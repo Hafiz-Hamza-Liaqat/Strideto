@@ -101,6 +101,7 @@ check(!announcements.includes('studentProductAuth'), 'announcements remain capab
 
 const register = read('server/src/controllers/authController.js');
 check(/initializeCustomerUser/.test(register), 'student registration initializes student grant');
+check(/student_registration_retry/.test(register), 'uninitialized duplicate registration retries grant+init');
 check(!/initializeCustomerUser[\s\S]{0,200}business_client/.test(register), 'registration does not grant business_client');
 
 const invite = read('server/src/controllers/admin/invitationsController.js');
@@ -108,6 +109,7 @@ check(/initializeStaffUser/.test(invite), 'staff invitation initializes without 
 
 const ensureAdmin = read('server/src/seed/ensureAdmin.js');
 check(/initializeStaffUser/.test(ensureAdmin), 'ensureAdmin create initializes staff capabilities');
+check(/applyRoleTransitionCapabilities/.test(ensureAdmin), 'ensureAdmin update initializes capabilities on role mutation');
 
 const userModel = read('server/src/models/User.js');
 check(/capabilitySchemaVersion/.test(userModel), 'User model has capabilitySchemaVersion marker');

@@ -172,6 +172,16 @@ function buildFlows(overrides = {}) {
       overrides.accountSecurityMutation || fakeAccountSecurityMutation(),
     denylistService: overrides.denylist || fakeDenylist(),
     userModel: overrides.userModel || fakeUserModel(),
+    roleCapabilityTransitionService: overrides.roleCapabilityTransitionService || {
+      applyRoleTransitionCapabilities: async () => ({
+        mode: 'preserve_existing_capabilities',
+        preservedCapabilities: [],
+        schemaInitializedOnTransition: false,
+        grantedStudent: false,
+        grantedBusinessClient: false,
+        studentSuspended: false,
+      }),
+    },
   });
 }
 
@@ -541,7 +551,24 @@ function buildFlows(overrides = {}) {
 {
   const accountSecurityMutation = fakeAccountSecurityMutation();
   const familyRevocation = fakeFamilyRevocation();
-  const flows = buildFlows({ accountSecurityMutation, familyRevocation });
+  const transitionCalls = [];
+  const flows = buildFlows({
+    accountSecurityMutation,
+    familyRevocation,
+    roleCapabilityTransitionService: {
+      applyRoleTransitionCapabilities: async (args) => {
+        transitionCalls.push(args);
+        return {
+          mode: 'preserve_existing_capabilities',
+          preservedCapabilities: ['student'],
+          schemaInitializedOnTransition: false,
+          grantedStudent: false,
+          grantedBusinessClient: false,
+          studentSuspended: false,
+        };
+      },
+    },
+  });
 
   const suspendResult = await flows.suspendUser({ subjectId: SUBJECT_ID });
   check(
@@ -577,6 +604,18 @@ function buildFlows(overrides = {}) {
       ([kind, args]) => kind === 'all' && args.reason === 'role_changed'
     ),
     'role change sweeps all User refresh families'
+  );
+  check(transitionCalls.length === 1, 'role change applies capability transition exactly once');
+  check(
+    transitionCalls[0].mode === 'preserve_existing_capabilities' &&
+      transitionCalls[0].priorRole === 'User' &&
+      transitionCalls[0].newRole === 'Admin',
+    'role change uses server-authoritative PRESERVE mode, not a client-supplied mode'
+  );
+  check(
+    roleResult.capabilityTransition?.grantedBusinessClient === false &&
+      roleResult.capabilityTransition?.grantedStudent === false,
+    'role change does not grant student or business_client'
   );
 }
 

@@ -15,10 +15,24 @@ export async function ensureAdminOnBoot({ logIdentity = true } = {}) {
   const name = (process.env.ADMIN_NAME || 'Admin User').trim() || 'Admin User';
   let user = await User.findOne({ email }).select('+password');
   if (user) {
+    const priorRole = user.role;
+    const priorSchemaVersion = user.capabilitySchemaVersion;
     user.role = 'Admin';
     user.password = password;
     user.emailVerified = true;
     await user.save();
+    const { getUserCapabilityService } = await import('../services/capability/userCapabilityRuntime.js');
+    const { DEFAULT_ADMIN_ROLE_TRANSITION_MODE } = await import(
+      '../../../shared/capability/roleCapabilityTransition.js'
+    );
+    await getUserCapabilityService().applyRoleTransitionCapabilities({
+      userId: user._id,
+      priorRole,
+      newRole: 'Admin',
+      mode: DEFAULT_ADMIN_ROLE_TRANSITION_MODE,
+      actor: 'system:ensure_admin',
+      user: { role: priorRole, capabilitySchemaVersion: priorSchemaVersion },
+    });
     logger.info('admin_ensured', {
       ...(logIdentity ? { email } : {}),
       action: 'updated',

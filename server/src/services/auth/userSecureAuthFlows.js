@@ -47,6 +47,7 @@ export function createUserSecureAuthFlows({
   accountSecurityMutationService,
   denylistService,
   userModel = User,
+  roleCapabilityTransitionService,
 } = {}) {
   if (!jwtProvider || typeof jwtProvider.issueAccessToken !== 'function') {
     throw new TypeError('jwtProvider is required');
@@ -493,6 +494,20 @@ export function createUserSecureAuthFlows({
         subjectId,
         reason: 'role_changed',
       });
+      const { DEFAULT_ADMIN_ROLE_TRANSITION_MODE } = await import(
+        '../../../../shared/capability/roleCapabilityTransition.js'
+      );
+      const transitionService =
+        roleCapabilityTransitionService ||
+        (await import('../capability/userCapabilityRuntime.js')).getUserCapabilityService();
+      const capabilityTransition = await transitionService.applyRoleTransitionCapabilities({
+        userId: subjectId,
+        priorRole: expectedPriorRole,
+        newRole,
+        mode: DEFAULT_ADMIN_ROLE_TRANSITION_MODE,
+        actor: 'system:role_change',
+      });
+      return Object.freeze({ ...result, capabilityTransition });
     }
     return result;
   }

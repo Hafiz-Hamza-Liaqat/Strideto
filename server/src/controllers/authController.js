@@ -76,6 +76,19 @@ export const register = asyncHandler(async (req, res) => {
   const existing = await User.findOne({ email }).select('+emailVerificationToken +emailVerificationExpires');
   if (existing) {
     const { genericRegistrationResponse, reissueUnverifiedIfAllowed } = await import('../services/auth/realmEmailVerification.js');
+    const { isCapabilitySchemaInitialized } = await import('../../../shared/capability/grantStatus.js');
+    const { isLegacyCustomerRole } = await import('../../../shared/capability/legacyUserClassification.js');
+    if (isLegacyCustomerRole(existing.role) && !isCapabilitySchemaInitialized(existing.capabilitySchemaVersion)) {
+      try {
+        const { getUserCapabilityService } = await import('../services/capability/userCapabilityRuntime.js');
+        await getUserCapabilityService().initializeCustomerUser(existing, {
+          grantedBy: 'system:registration',
+          grantReason: 'student_registration_retry',
+        });
+      } catch {
+        // Anti-enumeration: existing-email responses stay generic. Compensation is retried next attempt.
+      }
+    }
     if (!existing.emailVerified) {
       await reissueUnverifiedIfAllowed(existing, 'user', existing.name);
     }

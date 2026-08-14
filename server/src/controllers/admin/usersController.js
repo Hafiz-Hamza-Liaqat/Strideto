@@ -248,7 +248,15 @@ export const bulkAssignRole = asyncHandler(async (req, res) => {
       targetType: 'user',
       targetId: user._id,
       targetLabel: user.email,
-      metadata: { from: prev, to: role },
+      metadata: {
+        from: prev,
+        to: role,
+        capabilityTransitionMode: result.capabilityTransition?.mode,
+        preservedCapabilities: result.capabilityTransition?.preservedCapabilities,
+        schemaInitializedOnTransition: result.capabilityTransition?.schemaInitializedOnTransition,
+        grantedStudent: false,
+        grantedBusinessClient: false,
+      },
       reason: req.body?.reason || 'Bulk role assignment',
     });
   }
@@ -481,6 +489,7 @@ export const assignRole = asyncHandler(async (req, res) => {
   }
 
   const prev = user.role;
+  let capabilityTransition;
   if (prev !== role) {
     const result = await userSecureAuthFlows.changeUserRole({
       subjectId: user._id.toString(),
@@ -490,6 +499,23 @@ export const assignRole = asyncHandler(async (req, res) => {
     if (!SUBJECT_STATE_MUTATION_OK.has(result.code)) {
       return res.status(503).json({ error: 'Could not update role' });
     }
+    capabilityTransition = result.capabilityTransition;
+  } else {
+    const { getUserCapabilityService } = await import('../../services/capability/userCapabilityRuntime.js');
+    const { DEFAULT_ADMIN_ROLE_TRANSITION_MODE } = await import(
+      '../../../../shared/capability/roleCapabilityTransition.js'
+    );
+    capabilityTransition = await getUserCapabilityService().applyRoleTransitionCapabilities({
+      userId: user._id,
+      priorRole: prev,
+      newRole: role,
+      mode: DEFAULT_ADMIN_ROLE_TRANSITION_MODE,
+      actor: String(req.user?.userId || req.user?.id || 'admin'),
+      user: {
+        role: user.role,
+        capabilitySchemaVersion: user.capabilitySchemaVersion,
+      },
+    });
   }
   await logAudit({
     ...auditFromRequest(req),
@@ -497,7 +523,15 @@ export const assignRole = asyncHandler(async (req, res) => {
     targetType: 'user',
     targetId: id,
     targetLabel: user.email,
-    metadata: { from: prev, to: role },
+    metadata: {
+      from: prev,
+      to: role,
+      capabilityTransitionMode: capabilityTransition?.mode,
+      preservedCapabilities: capabilityTransition?.preservedCapabilities,
+      schemaInitializedOnTransition: capabilityTransition?.schemaInitializedOnTransition,
+      grantedStudent: false,
+      grantedBusinessClient: false,
+    },
     reason: req.body?.reason || '',
   });
   res.json({

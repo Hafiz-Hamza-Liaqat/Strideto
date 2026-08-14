@@ -8,14 +8,22 @@ import {
   GRANT_STATUSES,
   grantStatusAuthorizes,
   CAPABILITY_SCHEMA_VERSION,
+  isCapabilitySchemaInitialized,
 } from '../../../../shared/capability/grantStatus.js';
 import {
   isKnownUserCapability,
   USER_CAPABILITY_IDS,
 } from '../../../../shared/capability/userCapabilities.js';
-import { classifyLegacyUserAccount } from '../../../../shared/capability/legacyUserClassification.js';
+import { classifyLegacyUserAccount, isLegacyStaffRole } from '../../../../shared/capability/legacyUserClassification.js';
+import {
+  DEFAULT_ADMIN_ROLE_TRANSITION_MODE,
+  ROLE_CAPABILITY_TRANSITION_MODES,
+  resolveRoleCapabilityTransitionMode,
+} from '../../../../shared/capability/roleCapabilityTransition.js';
 import { GBS_AUDIT_EVENTS, redactAuditMetadata } from '../../../../shared/security/gbsAuditEvents.js';
 import { PERMISSION_POLICY_VERSION } from '../../../../shared/capability/permissionPolicy.js';
+
+export const REGISTRATION_AUTHORITY_INCOMPLETE = 'registration_authority_incomplete';
 
 const UNTRUSTED_GRANT_KEYS = Object.freeze([
   'capability',
@@ -85,6 +93,7 @@ function pushHistory(grant, { status, by, reason, policyVersion }) {
 export function createUserCapabilityService({
   grantStore,
   markSchemaVersion,
+  loadUser,
   audit = async () => {},
 } = {}) {
   if (!grantStore) throw new Error('grantStore is required');
@@ -217,6 +226,22 @@ export function createUserCapabilityService({
     return Array.isArray(resolved?.active) && resolved.active.includes(capabilityId);
   }
 
+  async function assertActiveStudentGrant(userId) {
+    const grant = await grantStore.findOne(userId, USER_CAPABILITY_IDS.STUDENT);
+    if (!grant || !grantStatusAuthorizes(grant.status)) {
+      throw Object.assign(new Error('Student capability grant missing'), {
+        status: 503,
+        code: REGISTRATION_AUTHORITY_INCOMPLETE,
+      });
+    }
+    return grant;
+  }
+
+  /**
+   * Genuine Student registration: grant first, then mark schema initialized.
+   * Never mark initialized without an active student grant.
+   * Retry is safe because (userId, capability) is unique and active duplicates no-op.
+   */
   async function initializeCustomerUser(user, provenance = {}) {
     const userId = user._id || user.userId;
     await grantCapability({
@@ -225,6 +250,7 @@ export function createUserCapabilityService({
       grantedBy: provenance.grantedBy || 'system:registration',
       grantReason: provenance.grantReason || 'student_registration',
     });
+    await assertActiveStudentGrant(userId);
     if (typeof markSchemaVersion === 'function') {
       await markSchemaVersion(userId, CAPABILITY_SCHEMA_VERSION);
     }
@@ -241,6 +267,93 @@ export function createUserCapabilityService({
     };
   }
 
+  /**
+   * Server-authoritative role ↔ capability transition.
+   * Does not grant student or business_client because role changed.
+   * Uninitialized accounts are marked schema-initialized so legacy fallback
+   * cannot reactivate after an administrative role mutation.
+   */
+  async function applyRoleTransitionCapabilities({
+    userId,
+    priorRole,
+    newRole,
+    mode,
+    actor = 'system:role_change',
+    user: userSnapshot,
+  } = {}) {
+    const resolvedMode = resolveRoleCapabilityTransitionMode(mode);
+    let user = userSnapshot;
+    if (!user && typeof loadUser === 'function') {
+      user = await loadUser(userId);
+    }
+    if (!user) {
+      throw Object.assign(new Error('User not found for capability transition'), {
+        status: 404,
+        code: 'user_not_found',
+      });
+    }
+
+    const grants = await listGrants(userId);
+    const preservedCapabilities = grants
+      .filter((g) => grantStatusAuthorizes(g.status))
+      .map((g) => g.capability);
+
+    let schemaInitializedOnTransition = false;
+    if (!isCapabilitySchemaInitialized(user.capabilitySchemaVersion)) {
+      if (typeof markSchemaVersion === 'function') {
+        await markSchemaVersion(userId, CAPABILITY_SCHEMA_VERSION);
+        schemaInitializedOnTransition = true;
+      }
+    }
+
+    let studentSuspended = false;
+    if (
+      resolvedMode === ROLE_CAPABILITY_TRANSITION_MODES.MAKE_STAFF_ONLY &&
+      isLegacyStaffRole(newRole) &&
+      preservedCapabilities.includes(USER_CAPABILITY_IDS.STUDENT)
+    ) {
+      await setStatus({
+        userId,
+        capability: USER_CAPABILITY_IDS.STUDENT,
+        status: GRANT_STATUSES.SUSPENDED,
+        actor,
+        reason: 'role_transition_make_staff_only',
+      });
+      studentSuspended = true;
+    }
+
+    const action = studentSuspended
+      ? GBS_AUDIT_EVENTS.ROLE_TRANSITION_STAFF_ONLY
+      : schemaInitializedOnTransition
+        ? GBS_AUDIT_EVENTS.ROLE_TRANSITION_SCHEMA_INITIALIZED
+        : GBS_AUDIT_EVENTS.ROLE_TRANSITION_CAPABILITIES_PRESERVED;
+
+    await audit({
+      action,
+      targetType: 'user',
+      targetId: String(userId),
+      metadata: redactAuditMetadata({
+        priorRole,
+        newRole,
+        mode: resolvedMode,
+        preservedCapabilities,
+        schemaInitializedOnTransition,
+        grantedStudent: false,
+        grantedBusinessClient: false,
+        studentSuspended,
+      }),
+    });
+
+    return {
+      mode: resolvedMode,
+      preservedCapabilities,
+      schemaInitializedOnTransition,
+      grantedStudent: false,
+      grantedBusinessClient: false,
+      studentSuspended,
+    };
+  }
+
   return {
     listGrants,
     grantCapability,
@@ -249,5 +362,7 @@ export function createUserCapabilityService({
     hasActiveUserCapability,
     initializeCustomerUser,
     initializeStaffUser,
+    applyRoleTransitionCapabilities,
+    assertActiveStudentGrant,
   };
 }

@@ -37,6 +37,10 @@ async function markSchemaVersion(userId, version = CAPABILITY_SCHEMA_VERSION) {
   await User.updateOne({ _id: userId }, { $set: { capabilitySchemaVersion: version } });
 }
 
+async function loadUser(userId) {
+  return User.findById(userId).select('role capabilitySchemaVersion').lean();
+}
+
 let singleton;
 
 export function getUserCapabilityService() {
@@ -44,6 +48,7 @@ export function getUserCapabilityService() {
     singleton = createUserCapabilityService({
       grantStore: mongooseGrantStore,
       markSchemaVersion,
+      loadUser,
       audit: logAudit,
     });
   }
