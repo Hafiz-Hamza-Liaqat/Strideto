@@ -249,6 +249,11 @@ export const acceptInvitation = asyncHandler(async (req, res) => {
     role: invitation.role,
     emailVerified: true,
   });
+  const { getUserCapabilityService } = await import('../../services/capability/userCapabilityRuntime.js');
+  await getUserCapabilityService().initializeStaffUser(user, {
+    grantedBy: 'system:staff_invitation',
+    grantReason: 'staff_account_created',
+  });
 
   invitation.status = 'accepted';
   invitation.acceptedAt = new Date();

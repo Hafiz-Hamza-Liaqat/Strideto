@@ -1,0 +1,63 @@
+/**
+ * Security / GBS foundation audit event catalog (Phase 17D-1).
+ *
+ * Reuses AuditLog / auditService. Do not log passwords, JWTs, refresh tokens,
+ * verification tokens, cookies, DEK/KEK, passport, national ID, or document contents.
+ */
+export const GBS_AUDIT_EVENTS = Object.freeze({
+  USER_CAPABILITY_GRANTED: 'user_capability_granted',
+  USER_CAPABILITY_SUSPENDED: 'user_capability_suspended',
+  USER_CAPABILITY_REVOKED: 'user_capability_revoked',
+  ORGANIZATION_CAPABILITY_GRANTED: 'organization_capability_granted',
+  ORGANIZATION_CAPABILITY_SUSPENDED: 'organization_capability_suspended',
+  ORGANIZATION_CAPABILITY_REVOKED: 'organization_capability_revoked',
+  CAPABILITY_DENIED: 'capability_denied',
+  SECURITY_DENIED: 'security_denied',
+  TENANT_DENIED: 'tenant_denied',
+  PROVIDER_CAPABILITY_CLAIMED: 'provider_capability_claimed',
+  PROVIDER_CAPABILITY_REVIEWED: 'provider_capability_reviewed',
+  PROVIDER_CAPABILITY_SUSPENDED: 'provider_capability_suspended',
+  PROVIDER_CAPABILITY_REVOKED: 'provider_capability_revoked',
+  LISTING_SCOPE_DENIED: 'listing_scope_denied',
+  OPTIMISTIC_CONCURRENCY_CONFLICT: 'optimistic_concurrency_conflict',
+  IDEMPOTENCY_REPLAY: 'idempotency_replay',
+  IDEMPOTENCY_CONFLICT: 'idempotency_conflict',
+});
+
+const EVENT_SET = new Set(Object.values(GBS_AUDIT_EVENTS));
+
+export function isKnownGbsAuditEvent(action) {
+  return typeof action === 'string' && EVENT_SET.has(action);
+}
+
+export const AUDIT_SECRET_KEYS = Object.freeze([
+  'password',
+  'token',
+  'jwt',
+  'refreshToken',
+  'accessToken',
+  'verificationToken',
+  'cookie',
+  'cookies',
+  'dek',
+  'kek',
+  'passport',
+  'nationalId',
+  'documentContents',
+  'documentContent',
+]);
+
+export function redactAuditMetadata(metadata = {}) {
+  if (!metadata || typeof metadata !== 'object') return {};
+  const out = {};
+  for (const [key, value] of Object.entries(metadata)) {
+    const lower = key.toLowerCase();
+    if (AUDIT_SECRET_KEYS.some((s) => lower.includes(s.toLowerCase()))) continue;
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      out[key] = redactAuditMetadata(value);
+    } else {
+      out[key] = value;
+    }
+  }
+  return out;
+}

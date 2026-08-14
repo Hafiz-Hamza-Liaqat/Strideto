@@ -26,12 +26,17 @@ export async function ensureAdminOnBoot({ logIdentity = true } = {}) {
     return { skipped: false, action: 'updated', email };
   }
 
-  await User.create({
+  const created = await User.create({
     name,
     email,
     password,
     role: 'Admin',
     emailVerified: true,
+  });
+  const { getUserCapabilityService } = await import('../services/capability/userCapabilityRuntime.js');
+  await getUserCapabilityService().initializeStaffUser(created, {
+    grantedBy: 'system:ensure_admin',
+    grantReason: 'staff_account_created',
   });
   logger.info('admin_ensured', {
     ...(logIdentity ? { email } : {}),

@@ -95,6 +95,11 @@ export const register = asyncHandler(async (req, res) => {
     emailVerified: false,
     ...legalAcceptanceMetadata(),
   });
+  const { getUserCapabilityService } = await import('../services/capability/userCapabilityRuntime.js');
+  await getUserCapabilityService().initializeCustomerUser(user, {
+    grantedBy: 'system:registration',
+    grantReason: 'student_registration',
+  });
   await ensureReferralCode(user);
 
   const REFERRER_POINTS = 25;

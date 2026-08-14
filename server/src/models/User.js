@@ -111,6 +111,18 @@ const userSchema = new mongoose.Schema(
         message: 'tokenVersion must be an integer',
       },
     },
+    /**
+     * Phase 17D-1 — capability grant schema marker.
+     * 0 / missing = legacy uninitialized (compatibility resolver may apply).
+     * >= 1 = grants are authoritative, including an intentional empty set.
+     */
+    capabilitySchemaVersion: {
+      type: Number,
+      default: 0,
+      min: 0,
+      max: Number.MAX_SAFE_INTEGER,
+      index: true,
+    },
   },
   { timestamps: true }
 );

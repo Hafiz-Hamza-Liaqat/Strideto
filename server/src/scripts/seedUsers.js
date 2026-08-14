@@ -27,11 +27,21 @@ async function seed() {
     process.exit(0);
     return;
   }
+  const { getUserCapabilityService } = await import('../services/capability/userCapabilityRuntime.js');
+  const caps = getUserCapabilityService();
   for (const s of STUDENTS) {
-    await User.create(s);
+    const user = await User.create(s);
+    await caps.initializeCustomerUser(user, {
+      grantedBy: 'system:seed_users',
+      grantReason: 'student_registration',
+    });
     console.log('Created student:', s.email);
   }
-  await User.create(ADMIN);
+  const admin = await User.create(ADMIN);
+  await caps.initializeStaffUser(admin, {
+    grantedBy: 'system:seed_users',
+    grantReason: 'staff_account_created',
+  });
   console.log('Created admin:', ADMIN.email);
   await mongoose.disconnect();
   console.log('Seed done.');
