@@ -9,16 +9,50 @@ import { Alert } from '../../components/ui/Alerts';
 import { useSecretQueryToken } from '../../hooks/useSecretQueryToken.js';
 import { realmLoginPath, realmDashboardPath } from '../../utils/authUrls.js';
 import { AuthCard } from '../../layouts/AuthLayout.jsx';
+import {
+  VERIFY_EMAIL_STATES,
+  VERIFY_EMAIL_MESSAGES,
+  captureVerifyEmailSecrets,
+  initialVerifyEmailStatus,
+  isWellFormedVerifyToken,
+  mapResendHttpResult,
+  mapVerifyEmailHttpError,
+  nextConsumeGate,
+  shouldStartVerification,
+  verifiedSearchParams,
+} from '../../auth/verifyEmailLifecycle.js';
+
+function realmOnlyParams(realm) {
+  const next = new URLSearchParams();
+  if (realm && realm !== 'user') next.set('realm', realm);
+  return next;
+}
 
 export default function VerifyEmail() {
-  const [searchParams, setSearchParams] = useSearchParams();
+  const [, setSearchParams] = useSearchParams();
   const token = useSecretQueryToken('token');
-  const realm = searchParams.get('realm') || 'user';
-  const pending = searchParams.get('pending') === '1' || searchParams.get('verified') === '1';
-  const deliveryUnavailable = searchParams.get('delivery') === 'unavailable';
+  const [captured] = useState(() => {
+    const snap = captureVerifyEmailSecrets(
+      typeof window !== 'undefined' ? window.location.search : ''
+    );
+    return {
+      ...snap,
+      token: token || snap.token,
+    };
+  });
+  const realm = captured.realm;
+  const pending = captured.pending;
+  const deliveryUnavailable = captured.deliveryUnavailable;
+  const capturedToken = captured.token;
   const { t } = useTranslation(['forms', 'common']);
-  const [status, setStatus] = useState(token ? 'loading' : pending ? 'pending' : 'idle');
-  const [message, setMessage] = useState('');
+  const [status, setStatus] = useState(() => initialVerifyEmailStatus({
+    token: capturedToken,
+    pending,
+    verified: captured.verified,
+  }));
+  const [message, setMessage] = useState(
+    captured.verified ? VERIFY_EMAIL_MESSAGES.SUCCESS : ''
+  );
   const [email, setEmail] = useState('');
   const [resending, setResending] = useState(false);
   const [resendMsg, setResendMsg] = useState('');
@@ -27,43 +61,61 @@ export default function VerifyEmail() {
   const consumedRef = useRef(false);
 
   useEffect(() => {
-    if (!token) {
-      if (searchParams.get('verified') === '1') {
-        setStatus('success');
-        setMessage(t('forms:verifyEmail.success', { defaultValue: 'Email verified successfully.' }));
-        return undefined;
-      }
-      if (!pending) {
-        setStatus('idle');
-        setMessage(t('forms:verifyEmail.missingToken', { defaultValue: 'Verification link is invalid or missing.' }));
-      }
+    if (captured.verified && !capturedToken) {
+      setStatus(VERIFY_EMAIL_STATES.VERIFIED);
+      setMessage(t('forms:verifyEmail.success', { defaultValue: VERIFY_EMAIL_MESSAGES.SUCCESS }));
       return undefined;
     }
-    if (consumedRef.current) return undefined;
-    consumedRef.current = true;
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await authApi.verifyEmail({ token, realm });
-        if (cancelled) return;
-        setStatus('success');
-        setMessage(res.data?.message || t('forms:verifyEmail.success', { defaultValue: 'Email verified successfully.' }));
-      } catch (err) {
-        if (cancelled) return;
-        setStatus('error');
-        setMessage(err.response?.data?.error || t('forms:verifyEmail.failed', { defaultValue: 'Verification failed. The link may have expired.' }));
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [token, realm, pending, searchParams, t]);
+    if (!capturedToken) {
+      setStatus(pending ? VERIFY_EMAIL_STATES.PENDING_EMAIL_INPUT : VERIFY_EMAIL_STATES.IDLE);
+      return undefined;
+    }
+    if (!isWellFormedVerifyToken(capturedToken)) {
+      setStatus(VERIFY_EMAIL_STATES.INVALID_OR_EXPIRED);
+      setMessage(VERIFY_EMAIL_MESSAGES.INVALID_OR_EXPIRED);
+      setSearchParams(realmOnlyParams(realm), { replace: true });
+      return undefined;
+    }
+    if (!shouldStartVerification({ token: capturedToken, alreadyStarted: consumedRef.current })) {
+      return undefined;
+    }
+    const gate = nextConsumeGate(consumedRef.current);
+    consumedRef.current = gate.alreadyStarted;
+    if (!gate.start) return undefined;
 
-  useEffect(() => {
-    if (status !== 'success' || !token) return;
-    const next = new URLSearchParams();
-    next.set('verified', '1');
-    if (realm && realm !== 'user') next.set('realm', realm);
-    setSearchParams(next, { replace: true });
-  }, [status, token, realm, setSearchParams]);
+    setStatus(VERIFY_EMAIL_STATES.VERIFYING);
+    const token = capturedToken;
+    let settled = false;
+    authApi.verifyEmail({ token, realm })
+      .then((res) => {
+        settled = true;
+        setStatus(VERIFY_EMAIL_STATES.VERIFIED);
+        setMessage(res.data?.message || t('forms:verifyEmail.success', {
+          defaultValue: VERIFY_EMAIL_MESSAGES.SUCCESS,
+        }));
+        const next = verifiedSearchParams(realm);
+        setSearchParams(next, { replace: true });
+      })
+      .catch((err) => {
+        settled = true;
+        const mapped = mapVerifyEmailHttpError(err);
+        setStatus(mapped.state);
+        setMessage(mapped.message);
+        setSearchParams(realmOnlyParams(realm), { replace: true });
+      })
+      .finally(() => {
+        if (!settled) {
+          setStatus(VERIFY_EMAIL_STATES.ERROR_SAFE);
+          setMessage(VERIFY_EMAIL_MESSAGES.ERROR_SAFE);
+          setSearchParams(realmOnlyParams(realm), { replace: true });
+        }
+      });
+    return undefined;
+    // Token capture is frozen on first navigation. Do not restart when the
+    // address bar is replaced, i18n re-renders, or StrictMode remounts the
+    // effect — consumedRef is the single-consume gate.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [capturedToken, realm]);
 
   useEffect(() => {
     if (cooldown <= 0) return undefined;
@@ -76,7 +128,9 @@ export default function VerifyEmail() {
     const target = email.trim().toLowerCase();
     if (!target) {
       setResendOk(false);
-      setResendMsg(t('forms:verifyEmail.emailRequired', { defaultValue: 'Enter your email to resend verification.' }));
+      setResendMsg(t('forms:verifyEmail.emailRequired', {
+        defaultValue: VERIFY_EMAIL_MESSAGES.EMAIL_REQUIRED,
+      }));
       return;
     }
     setResending(true);
@@ -85,18 +139,21 @@ export default function VerifyEmail() {
       const { data } = await authApi.resendVerification(target, realm);
       setResendOk(true);
       setCooldown(60);
+      setStatus(VERIFY_EMAIL_STATES.RESEND_ACCEPTED);
       if (data.emailMode === 'unavailable') {
         setResendMsg(t('forms:verifyEmail.resendUnavailable', {
           defaultValue: 'If an unverified account exists, a link will be sent once email delivery is available.',
         }));
       } else {
         setResendMsg(data.message || t('forms:verifyEmail.resendSent', {
-          defaultValue: 'If an unverified account exists for this email, a new verification link has been sent.',
+          defaultValue: VERIFY_EMAIL_MESSAGES.RESEND_ACCEPTED,
         }));
       }
     } catch (err) {
+      const mapped = mapResendHttpResult(err);
       setResendOk(false);
-      setResendMsg(err.response?.data?.error || t('forms:verifyEmail.resendFailed', { defaultValue: 'Could not resend verification email.' }));
+      setStatus(mapped.state);
+      setResendMsg(mapped.message);
     } finally {
       setResending(false);
     }
@@ -104,19 +161,36 @@ export default function VerifyEmail() {
 
   const nextLogin = realmLoginPath(realm);
   const nextWorkspace = realmDashboardPath(realm);
+  const showResend = [
+    VERIFY_EMAIL_STATES.IDLE,
+    VERIFY_EMAIL_STATES.PENDING_EMAIL_INPUT,
+    VERIFY_EMAIL_STATES.INVALID_OR_EXPIRED,
+    VERIFY_EMAIL_STATES.ALREADY_USED,
+    VERIFY_EMAIL_STATES.RATE_LIMITED,
+    VERIFY_EMAIL_STATES.RESEND_ACCEPTED,
+    VERIFY_EMAIL_STATES.ERROR_SAFE,
+  ].includes(status);
+  const errorStates = [
+    VERIFY_EMAIL_STATES.INVALID_OR_EXPIRED,
+    VERIFY_EMAIL_STATES.ALREADY_USED,
+    VERIFY_EMAIL_STATES.RATE_LIMITED,
+    VERIFY_EMAIL_STATES.ERROR_SAFE,
+  ];
 
   return (
     <>
       <SeoHead title={t('forms:verifyEmail.title', { defaultValue: 'Verify email' })} noindex />
       <AuthCard>
         <div className="text-center">
-          {status === 'loading' && (
-            <p className="text-gray-600 dark:text-gray-300">{t('common:loading', { defaultValue: 'Loading…' })}</p>
+          {status === VERIFY_EMAIL_STATES.VERIFYING && (
+            <p className="text-gray-600 dark:text-gray-300" role="status">
+              {t('forms:verifyEmail.verifying', { defaultValue: VERIFY_EMAIL_MESSAGES.VERIFYING })}
+            </p>
           )}
-          {status === 'success' && (
+          {status === VERIFY_EMAIL_STATES.VERIFIED && (
             <>
               <Alert variant="success" title={t('forms:verifyEmail.successTitle', { defaultValue: 'Email verified' })} className="mb-6 text-left">
-                {message}
+                {message || VERIFY_EMAIL_MESSAGES.SUCCESS}
                 <p className="mt-2 text-sm">
                   This confirms email ownership only. It does not verify an organization, approve a claim, or grant publishing or payment authority.
                 </p>
@@ -136,15 +210,15 @@ export default function VerifyEmail() {
               </div>
             </>
           )}
-          {status === 'error' && (
+          {errorStates.includes(status) && (
             <Alert variant="error" title={t('forms:verifyEmail.errorTitle', { defaultValue: 'Verification failed' })} className="mb-6 text-left">
               {message}
             </Alert>
           )}
         </div>
-        {(status === 'pending' || status === 'idle' || status === 'error') && (
+        {showResend && (
           <div className="text-left space-y-4">
-            {status === 'pending' && (
+            {status === VERIFY_EMAIL_STATES.PENDING_EMAIL_INPUT && (
               <Alert variant={deliveryUnavailable ? 'info' : 'success'} title={t('forms:verifyEmail.checkEmailTitle', { defaultValue: 'Check your email' })} className="mb-2">
                 {deliveryUnavailable
                   ? t('forms:verifyEmail.accountCreatedNoDelivery', {
@@ -155,7 +229,7 @@ export default function VerifyEmail() {
                   })}
               </Alert>
             )}
-            {status === 'idle' && (
+            {status === VERIFY_EMAIL_STATES.IDLE && (
               <Alert variant="info" title={t('forms:verifyEmail.title', { defaultValue: 'Verify email' })} className="mb-2">
                 {t('forms:verifyEmail.idleHint', { defaultValue: 'Enter your email to resend a verification link.' })}
               </Alert>

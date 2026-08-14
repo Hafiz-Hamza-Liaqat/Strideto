@@ -178,7 +178,7 @@ export async function consumeRealmVerificationToken(realm, rawToken) {
     clearVerificationTokenFields(live);
     await live.save({ validateBeforeSave: false });
     logAuthOutcome({ realm, outcome: 'VERIFICATION_COMPLETED', accountId: live._id });
-    return { ok: true, realm, code: 'VERIFICATION_COMPLETED' };
+    return { ok: true, realm, code: 'VERIFICATION_COMPLETED', accountId: live._id };
   }
   const stale = await Model.findOne({ emailVerificationToken: hashed }).select(
     '+emailVerificationToken +emailVerificationExpires'
@@ -189,4 +189,41 @@ export async function consumeRealmVerificationToken(realm, rawToken) {
   }
   logAuthOutcome({ realm, outcome: 'TOKEN_INVALID' });
   return { ok: false, code: 'TOKEN_INVALID' };
+}
+
+export function publicEmailVerifyFailure(code) {
+  if (code === 'TOKEN_EXPIRED') {
+    return {
+      status: 400,
+      body: {
+        error: 'This verification link is invalid or has expired. Request a new verification link.',
+        code: 'INVALID_OR_EXPIRED',
+      },
+    };
+  }
+  if (code === 'TOKEN_INVALID' || code === 'ALREADY_USED') {
+    return {
+      status: 400,
+      body: {
+        error: 'This verification link can no longer be used. Request a new link if needed.',
+        code: 'ALREADY_USED',
+      },
+    };
+  }
+  if (code === 'REALM_MISMATCH') {
+    return {
+      status: 400,
+      body: {
+        error: 'This verification link is invalid or has expired. Request a new verification link.',
+        code: 'INVALID_OR_EXPIRED',
+      },
+    };
+  }
+  return {
+    status: 400,
+    body: {
+      error: 'This verification link is invalid or has expired. Request a new verification link.',
+      code: 'INVALID_OR_EXPIRED',
+    },
+  };
 }

@@ -18,9 +18,7 @@ import { getPermissionsForRole } from '../config/rbac.js';
 import { hashResetToken } from '../utils/tokenStore.js';
 import { legalAcceptanceMetadata } from '../../../shared/legal/policyVersions.js';
 import {
-  clearVerificationTokenFields,
   frontendBaseUrl,
-  hashVerificationToken,
   isEmailVerificationRequired,
 } from '../utils/emailVerification.js';
 import { secureAuthConfig } from '../services/auth/secureAuthConfig.js';
@@ -309,42 +307,36 @@ export const forgotPassword = asyncHandler(async (req, res) => {
 export const verifyEmail = asyncHandler(async (req, res) => {
   const token = (req.query.token || req.body?.token || '').trim();
   const realm = String(req.query.realm || req.body?.realm || 'user').trim();
-  if (!token)
-    return res.status(400).json({ error: 'Verification token is required' });
-
-  if (realm && realm !== 'user') {
-    const { consumeRealmVerificationToken } = await import('../services/auth/realmEmailVerification.js');
-    const result = await consumeRealmVerificationToken(realm, token);
-    if (!result.ok) {
-      return res.status(400).json({ error: 'Invalid or expired verification link' });
-    }
-    return res.json({ message: 'Email verified successfully', emailVerified: true, realm: result.realm });
-  }
-
-  const user = await User.findOne({
-    emailVerificationToken: hashVerificationToken(token),
-    emailVerificationExpires: { $gt: new Date() },
-  }).select('+emailVerificationToken +emailVerificationExpires');
-
-  if (!user)
-    return res
-      .status(400)
-      .json({ error: 'Invalid or expired verification link' });
-
-  user.emailVerified = true;
-  clearVerificationTokenFields(user);
-  await user.save({ validateBeforeSave: false });
-
-  if (isSmtpConfigured()) {
-    await queueEmail({
-      to: user.email,
-      templateKey: 'welcome',
-      vars: { name: user.name || user.email.split('@')[0] },
-      dedupKey: `welcome:${user._id}`,
+  if (!token) {
+    return res.status(400).json({
+      error: 'This verification link is invalid or has expired. Request a new verification link.',
+      code: 'INVALID_OR_EXPIRED',
     });
   }
 
-  res.json({ message: 'Email verified successfully', emailVerified: true, realm: 'user' });
+  const {
+    consumeRealmVerificationToken,
+    publicEmailVerifyFailure,
+  } = await import('../services/auth/realmEmailVerification.js');
+  const result = await consumeRealmVerificationToken(realm, token);
+  if (!result.ok) {
+    const failure = publicEmailVerifyFailure(result.code);
+    return res.status(failure.status).json(failure.body);
+  }
+
+  if (realm === 'user' && isSmtpConfigured() && result.accountId) {
+    const user = await User.findById(result.accountId).select('email name');
+    if (user) {
+      await queueEmail({
+        to: user.email,
+        templateKey: 'welcome',
+        vars: { name: user.name || user.email.split('@')[0] },
+        dedupKey: `welcome:${user._id}`,
+      });
+    }
+  }
+
+  return res.json({ message: 'Email verified successfully', emailVerified: true, realm: result.realm });
 });
 
 export const resetPassword = asyncHandler(async (req, res) => {

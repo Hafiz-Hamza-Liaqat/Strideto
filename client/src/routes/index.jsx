@@ -12,6 +12,7 @@ import { RouteErrorBoundary } from '../components/common/RouteErrorBoundary';
 import { AdminRouteGuard } from '../components/admin/AdminRouteGuard';
 import { PERMISSIONS } from '../config/rbac';
 import { ROUTES } from '../constants';
+import VerifyEmail from '../pages/Auth/VerifyEmail';
 
 const Home = lazyLoad(() => import('../pages/Home/Home'));
 const SearchResults = lazyLoad(() => import('../pages/Search/SearchResults'));
@@ -34,7 +35,6 @@ const Login = lazyLoad(() => import('../pages/Auth/Login'));
 const Register = lazyLoad(() => import('../pages/Auth/Register'));
 const ForgotPassword = lazyLoad(() => import('../pages/Auth/ForgotPassword'));
 const ResetPassword = lazyLoad(() => import('../pages/Auth/ResetPassword'));
-const VerifyEmail = lazyLoad(() => import('../pages/Auth/VerifyEmail'));
 const AcceptInvitation = lazyLoad(() => import('../pages/Auth/AcceptInvitation'));
 const Profile = lazyLoad(() => import('../pages/Profile/Profile'));
 const Dashboard = lazyLoad(() => import('../pages/Dashboard/Dashboard'));
