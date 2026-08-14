@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireUserAuth } from '../middleware/auth.js';
+import { studentProductAuth } from '../middleware/requireUserCapability.js';
 import {
   getCareerDashboard,
   getDashboardLayoutPreference,
@@ -11,7 +11,7 @@ import {
 
 export const careerDashboardRouter = Router();
 
-const dashboardAuth = [requireAuth, requireUserAuth, requireCareerDashboardEnabled];
+const dashboardAuth = [...studentProductAuth, requireCareerDashboardEnabled];
 const personalizationAuth = [...dashboardAuth, requireDashboardPersonalization];
 
 careerDashboardRouter.get('/career/dashboard', ...dashboardAuth, getCareerDashboard);

@@ -11,7 +11,8 @@
  * - Admin review: separate /admin/institution routes
  */
 import { Router } from 'express';
-import { requireAuth, requireInstitutionAuth, requireUserAuth } from '../middleware/auth.js';
+import { requireAuth, requireInstitutionAuth } from '../middleware/auth.js';
+import { studentProductAuth } from '../middleware/requireUserCapability.js';
 import { requireStaff, requirePermission } from '../middleware/rbac.js';
 import { PERMISSIONS } from '../config/rbac.js';
 import { secureTrustedOrigin } from '../middleware/secureTrustedOrigin.js';
@@ -192,26 +193,22 @@ institutionPortalRouter.use('/institution', portal);
 
 institutionPortalRouter.post(
   '/student/institution-admissions',
-  requireAuth,
-  requireUserAuth,
+  ...studentProductAuth,
   portalCtrl.studentSubmitAdmission
 );
 institutionPortalRouter.get(
   '/student/institution-admissions',
-  requireAuth,
-  requireUserAuth,
+  ...studentProductAuth,
   portalCtrl.studentListAdmissions
 );
 institutionPortalRouter.post(
   '/student/institution-admissions/:applicationId/withdraw',
-  requireAuth,
-  requireUserAuth,
+  ...studentProductAuth,
   portalCtrl.studentWithdrawAdmission
 );
 institutionPortalRouter.post(
   '/student/institution-admissions/:applicationId/respond',
-  requireAuth,
-  requireUserAuth,
+  ...studentProductAuth,
   portalCtrl.studentRespondAdmission
 );
 

@@ -6,7 +6,7 @@
  * No cross-user access permitted.
  */
 import { Router } from 'express';
-import { requireAuth, requireUserAuth } from '../middleware/auth.js';
+import { studentProductAuth } from '../middleware/requireUserCapability.js';
 import {
   getDashboard,
   getJourney,
@@ -43,7 +43,7 @@ import {
 
 export const actionEngineRouter = Router();
 
-const auth = [requireAuth, requireUserAuth];
+const auth = [...studentProductAuth];
 
 // Dashboard
 actionEngineRouter.get('/journey/dashboard', ...auth, getDashboard);

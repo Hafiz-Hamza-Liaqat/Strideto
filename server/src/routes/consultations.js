@@ -1,9 +1,10 @@
 import { Router } from 'express';
-import { requireAgentAuth, requireAuth, requireUserAuth } from '../middleware/auth.js';
+import { requireAgentAuth, requireAuth } from '../middleware/auth.js';
+import { studentProductAuth } from '../middleware/requireUserCapability.js';
 import * as consultation from '../controllers/consultationController.js';
 
 export const consultationRouter = Router();
-const studentAuth = [requireAuth, requireUserAuth];
+const studentAuth = [...studentProductAuth];
 const agentAuth = [requireAuth, requireAgentAuth];
 
 consultationRouter.get('/consultations/availability/:serviceId', ...studentAuth, consultation.studentAvailability);

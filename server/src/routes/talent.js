@@ -1,6 +1,7 @@
 import { Router } from 'express';
-import { requireAuth, requireUserAuth } from '../middleware/auth.js';
+import { requireAuth } from '../middleware/auth.js';
 import { requireStaff } from '../middleware/rbac.js';
+import { studentProductAuth } from '../middleware/requireUserCapability.js';
 import {
   getMyTalentProfile,
   createMyTalentProfile,
@@ -65,7 +66,7 @@ import { uploadLimiter } from '../middleware/rateLimit.js';
 
 export const talentRouter = Router();
 
-const talentAuth = [requireAuth, requireUserAuth, requireTalentProfileEnabled];
+const talentAuth = [...studentProductAuth, requireTalentProfileEnabled];
 
 // Talent profile
 talentRouter.get('/talent/me', ...talentAuth, getMyTalentProfile);

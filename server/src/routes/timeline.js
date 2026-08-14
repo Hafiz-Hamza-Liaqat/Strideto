@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireUserAuth } from '../middleware/auth.js';
+import { studentProductAuth } from '../middleware/requireUserCapability.js';
 import {
   listMyTimeline,
   listApplicationTimeline,
@@ -8,7 +8,7 @@ import {
 
 export const timelineRouter = Router();
 
-const timelineAuth = [requireAuth, requireUserAuth, requireTimelineEnabled];
+const timelineAuth = [...studentProductAuth, requireTimelineEnabled];
 
 timelineRouter.get('/timeline', ...timelineAuth, listMyTimeline);
 timelineRouter.get('/timeline/applications/:applicationId', ...timelineAuth, listApplicationTimeline);

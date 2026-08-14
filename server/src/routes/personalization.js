@@ -6,7 +6,7 @@
  * No cross-user access permitted.
  */
 import { Router } from 'express';
-import { requireAuth, requireUserAuth } from '../middleware/auth.js';
+import { studentProductAuth } from '../middleware/requireUserCapability.js';
 import {
   getProgramEligibility,
   getScholarshipEligibility,
@@ -18,7 +18,7 @@ import {
 
 export const personalizationRouter = Router();
 
-const auth = [requireAuth, requireUserAuth];
+const auth = [...studentProductAuth];
 
 // Recommendations
 personalizationRouter.get('/personalization/recommendations/programs', ...auth, getProgramRecommendations);

@@ -14,9 +14,9 @@
 import { Router } from 'express';
 import {
   requireAuth,
-  requireUserAuth,
   requireEmployerAuth,
 } from '../middleware/auth.js';
+import { studentProductAuth } from '../middleware/requireUserCapability.js';
 import { requirePermission } from '../middleware/rbac.js';
 import { PERMISSIONS } from '../config/rbac.js';
 import {
@@ -33,7 +33,7 @@ import {
 
 export const skillClaimsRouter = Router();
 
-const applicantAuth = [requireAuth, requireUserAuth];
+const applicantAuth = [...studentProductAuth];
 
 // --- Applicant ------------------------------------------------------------
 skillClaimsRouter.get('/skill-claims', ...applicantAuth, listMySkillClaims);

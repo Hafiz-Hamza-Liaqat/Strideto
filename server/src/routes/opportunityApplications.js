@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireUserAuth } from '../middleware/auth.js';
+import { studentProductAuth } from '../middleware/requireUserCapability.js';
 import {
   listApplications,
   createApplication,
@@ -23,7 +23,7 @@ import {
 
 export const opportunityApplicationsRouter = Router();
 
-const appAuth = [requireAuth, requireUserAuth, requireOpportunityApplicationEnabled];
+const appAuth = [...studentProductAuth, requireOpportunityApplicationEnabled];
 
 opportunityApplicationsRouter.get('/applications/stage-templates', ...appAuth, listStageTemplatesHandler);
 opportunityApplicationsRouter.get('/applications/metrics', ...appAuth, getApplicationMetrics);

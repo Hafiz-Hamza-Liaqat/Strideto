@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireUserAuth } from '../middleware/auth.js';
+import { studentProductAuth } from '../middleware/requireUserCapability.js';
 import {
   listDocuments,
   getDocument,
@@ -14,7 +14,7 @@ import {
 
 export const documentsRouter = Router();
 
-const docAuth = [requireAuth, requireUserAuth, requireDocumentsPlatformEnabled];
+const docAuth = [...studentProductAuth, requireDocumentsPlatformEnabled];
 
 documentsRouter.get('/documents', ...docAuth, listDocuments);
 documentsRouter.post('/documents', ...docAuth, createDocument);

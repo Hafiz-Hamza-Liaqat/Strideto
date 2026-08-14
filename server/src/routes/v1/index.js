@@ -12,6 +12,7 @@ import { recordEvent, getDashboard as getAnalyticsDashboard } from '../../contro
 import { getNotificationsForUser } from '../../controllers/notificationsListController.js';
 import { saveJob, unsaveJob, saveScholarship, unsaveScholarship, saveAdmission, unsaveAdmission } from '../../controllers/savedController.js';
 import { requireAuth, requireUserAuth } from '../../middleware/auth.js';
+import { studentProductAuth } from '../../middleware/requireUserCapability.js';
 import { requireStaff, requirePermission } from '../../middleware/rbac.js';
 import { PERMISSIONS } from '../../config/rbac.js';
 
@@ -19,18 +20,18 @@ export const v1Router = Router();
 
 v1Router.get('/jobs', getJobs);
 v1Router.get('/jobs/:idOrSlug', getJobByIdOrSlug);
-v1Router.post('/jobs/:id/save', requireAuth, requireUserAuth, saveJob);
-v1Router.delete('/jobs/:id/save', requireAuth, requireUserAuth, unsaveJob);
+v1Router.post('/jobs/:id/save', ...studentProductAuth, saveJob);
+v1Router.delete('/jobs/:id/save', ...studentProductAuth, unsaveJob);
 
 v1Router.get('/scholarships', getScholarships);
 v1Router.get('/scholarships/:idOrSlug', getScholarshipByIdOrSlug);
-v1Router.post('/scholarships/:id/save', requireAuth, requireUserAuth, saveScholarship);
-v1Router.delete('/scholarships/:id/save', requireAuth, requireUserAuth, unsaveScholarship);
+v1Router.post('/scholarships/:id/save', ...studentProductAuth, saveScholarship);
+v1Router.delete('/scholarships/:id/save', ...studentProductAuth, unsaveScholarship);
 
 v1Router.get('/admissions', getAdmissions);
 v1Router.get('/admissions/:idOrSlug', getAdmissionByIdOrSlug);
-v1Router.post('/admissions/:id/save', requireAuth, requireUserAuth, saveAdmission);
-v1Router.delete('/admissions/:id/save', requireAuth, requireUserAuth, unsaveAdmission);
+v1Router.post('/admissions/:id/save', ...studentProductAuth, saveAdmission);
+v1Router.delete('/admissions/:id/save', ...studentProductAuth, unsaveAdmission);
 
 v1Router.get('/foreign-studies', getForeignStudies);
 v1Router.get('/foreign-studies/:idOrSlug', getForeignStudyByIdOrSlug);
@@ -40,7 +41,7 @@ v1Router.get('/trending/scholarships', getTrendingScholarships);
 v1Router.get('/trending/admissions', getTrendingAdmissions);
 
 v1Router.get('/recommendations/:userId', requireAuth, getRecommendations);
-v1Router.get('/bookmarks', requireAuth, requireUserAuth, getSaved);
+v1Router.get('/bookmarks', ...studentProductAuth, getSaved);
 v1Router.get('/notifications', requireAuth, requireUserAuth, getNotificationsForUser);
 
 v1Router.post('/alerts/telegram/send', requireAuth, requireStaff, requirePermission(PERMISSIONS.NOTIFICATIONS_SEND), sendTelegramAlert);

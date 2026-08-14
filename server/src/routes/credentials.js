@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireUserAuth } from '../middleware/auth.js';
+import { studentProductAuth } from '../middleware/requireUserCapability.js';
 import {
   listCredentials,
   getCredential,
@@ -12,7 +12,7 @@ import {
 
 export const credentialsRouter = Router();
 
-const credAuth = [requireAuth, requireUserAuth, requireDocumentsPlatformEnabled];
+const credAuth = [...studentProductAuth, requireDocumentsPlatformEnabled];
 
 credentialsRouter.get('/credentials', ...credAuth, listCredentials);
 credentialsRouter.post('/credentials', ...credAuth, issueCredential);

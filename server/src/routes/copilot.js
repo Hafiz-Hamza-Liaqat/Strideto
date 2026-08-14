@@ -10,7 +10,7 @@
  *   - Agent/Institution/Employer realms cannot invoke Student Copilot
  */
 import { Router } from 'express';
-import { requireAuth, requireUserAuth } from '../middleware/auth.js';
+import { studentProductAuth } from '../middleware/requireUserCapability.js';
 import { searchLimiter } from '../middleware/rateLimit.js';
 import {
   submitCopilotRequest,
@@ -20,7 +20,7 @@ import {
 
 export const copilotRouter = Router();
 
-const userAuth = [requireAuth, requireUserAuth];
+const userAuth = [...studentProductAuth];
 
 // POST /api/copilot/ask — main copilot endpoint, auth + rate limited
 copilotRouter.post('/copilot/ask', ...userAuth, searchLimiter, submitCopilotRequest);

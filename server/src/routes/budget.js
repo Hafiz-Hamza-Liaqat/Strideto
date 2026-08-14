@@ -25,7 +25,7 @@
  *   POST   /api/budget/plans/:planId/items/:itemId/refresh — refresh canonical item
  */
 import { Router } from 'express';
-import { requireAuth, requireUserAuth } from '../middleware/auth.js';
+import { studentProductAuth } from '../middleware/requireUserCapability.js';
 import { searchLimiter } from '../middleware/rateLimit.js';
 import {
   createPlanHandler,
@@ -44,7 +44,7 @@ import {
 
 export const budgetRouter = Router();
 
-const studentAuth = [requireAuth, requireUserAuth];
+const studentAuth = [...studentProductAuth];
 
 // Plan endpoints
 budgetRouter.get('/budget/plans', ...studentAuth, listPlansHandler);

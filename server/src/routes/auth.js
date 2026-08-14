@@ -21,6 +21,7 @@ import { recordRecentlyViewed } from '../controllers/recentlyViewedController.js
 import { registerFcmToken } from '../controllers/fcmController.js';
 import { getMyReferrals } from '../controllers/referralsController.js';
 import { requireAuth, requireUserAuth, optionalAuth } from '../middleware/auth.js';
+import { studentProductAuth } from '../middleware/requireUserCapability.js';
 import { secureTrustedOrigin } from '../middleware/secureTrustedOrigin.js';
 import { authLimiter, forgotPasswordLimiter, refreshLimiter, resendVerificationLimiter, verifyEmailLimiter } from '../middleware/rateLimit.js';
 import { requireTurnstileWhenEnabled } from '../middleware/turnstile.js';
@@ -44,9 +45,9 @@ authRouter.post('/auth/logout-all', secureTrustedOrigin, requireAuth, requireUse
 authRouter.post('/auth/refresh-token', refreshLimiter, secureTrustedOrigin, refreshToken);
 authRouter.get('/auth/profile', requireAuth, requireUserAuth, getProfile);
 authRouter.patch('/auth/profile', requireAuth, requireUserAuth, updateProfile);
-authRouter.get('/auth/saved', requireAuth, requireUserAuth, getSaved);
-authRouter.get('/auth/bookmarks', requireAuth, requireUserAuth, getSaved);
-authRouter.get('/auth/dashboard', requireAuth, requireUserAuth, getDashboard);
-authRouter.get('/auth/referrals', requireAuth, requireUserAuth, getMyReferrals);
-authRouter.post('/auth/recently-viewed', requireAuth, requireUserAuth, recordRecentlyViewed);
+authRouter.get('/auth/saved', ...studentProductAuth, getSaved);
+authRouter.get('/auth/bookmarks', ...studentProductAuth, getSaved);
+authRouter.get('/auth/dashboard', ...studentProductAuth, getDashboard);
+authRouter.get('/auth/referrals', ...studentProductAuth, getMyReferrals);
+authRouter.post('/auth/recently-viewed', ...studentProductAuth, recordRecentlyViewed);
 authRouter.post('/auth/fcm-token', requireAuth, requireUserAuth, registerFcmToken);

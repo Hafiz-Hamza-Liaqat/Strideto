@@ -1,5 +1,6 @@
 import { Router } from 'express';
-import { requireAuth, requireUserAuth, requireAdmin } from '../middleware/auth.js';
+import { requireAuth, requireAdmin } from '../middleware/auth.js';
+import { studentProductAuth } from '../middleware/requireUserCapability.js';
 import {
   listAssessmentCategories,
   listAssessments,
@@ -18,7 +19,7 @@ import {
 
 export const assessmentsRouter = Router();
 
-const talentAuth = [requireAuth, requireUserAuth, requireAssessmentsEnabled];
+const talentAuth = [...studentProductAuth, requireAssessmentsEnabled];
 const staffAuth = [requireAuth, requireAdmin, requireAssessmentsEnabled];
 
 assessmentsRouter.get('/assessments/categories', ...talentAuth, listAssessmentCategories);

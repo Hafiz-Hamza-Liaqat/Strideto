@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { requireAuth, requireUserAuth } from '../middleware/auth.js';
+import { studentProductAuth } from '../middleware/requireUserCapability.js';
 import {
   getLatestScore,
   getScoreHistory,
@@ -13,7 +13,7 @@ import {
 
 export const scoringRouter = Router();
 
-const scoringAuth = [requireAuth, requireUserAuth, requireScoringEnabled];
+const scoringAuth = [...studentProductAuth, requireScoringEnabled];
 
 scoringRouter.get('/scoring/latest', ...scoringAuth, getLatestScore);
 scoringRouter.get('/scoring/history', ...scoringAuth, getScoreHistory);

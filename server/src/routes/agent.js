@@ -11,7 +11,8 @@
  * VAULT: Agent auth alone grants zero Vault access.
  */
 import { Router } from 'express';
-import { requireAuth, requireAgentAuth, requireUserAuth } from '../middleware/auth.js';
+import { requireAuth, requireAgentAuth } from '../middleware/auth.js';
+import { studentProductAuth } from '../middleware/requireUserCapability.js';
 import { secureTrustedOrigin } from '../middleware/secureTrustedOrigin.js';
 import {
   employerAuthLimiter,
@@ -291,7 +292,7 @@ agentRouter.post('/agent/marketplace/:postId/archive', requireAuth, requireAgent
 
 agentRouter.get('/agents/marketplace/posts', marketplace.listPublic);
 agentRouter.get('/agents/marketplace/posts/:slug', marketplace.getPublic);
-agentRouter.post('/agents/marketplace/posts/:slug/interest', requireAuth, requireUserAuth, marketplace.interest);
-agentRouter.delete('/agents/marketplace/posts/:slug/interest', requireAuth, requireUserAuth, marketplace.withdraw);
+agentRouter.post('/agents/marketplace/posts/:slug/interest', ...studentProductAuth, marketplace.interest);
+agentRouter.delete('/agents/marketplace/posts/:slug/interest', ...studentProductAuth, marketplace.withdraw);
 agentRouter.get('/agents', agent.listPublicAgents);
 agentRouter.get('/agents/:slug', agent.getPublicProfile);
