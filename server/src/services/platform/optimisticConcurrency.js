@@ -1,58 +1,96 @@
-import { assertExpectedVersion } from '../../../../shared/platform/optimisticConcurrency.js';
 import { ProviderCapability } from '../../models/gbs/ProviderCapability.js';
 import { GBS_AUDIT_EVENTS, redactAuditMetadata } from '../../../../shared/security/gbsAuditEvents.js';
 import { logAudit } from '../auditService.js';
+import { OPTIMISTIC_CONCURRENCY_CODE } from '../../../../shared/platform/optimisticConcurrency.js';
+
+function invalidExpectedVersion(expectedVersion) {
+  const expected = Number(expectedVersion);
+  return !Number.isInteger(expected) || expected < 0;
+}
+
+function conflictError(currentVersion, expectedVersion) {
+  return Object.assign(new Error('Conflict'), {
+    status: 409,
+    code: OPTIMISTIC_CONCURRENCY_CODE,
+    currentVersion,
+    expectedVersion,
+  });
+}
+
+function notFoundError() {
+  return Object.assign(new Error('ProviderCapability not found'), {
+    status: 404,
+    code: 'provider_capability_not_found',
+  });
+}
 
 /**
- * Atomically apply a ProviderCapability mutation when expectedVersion matches.
- * Stale writes throw 409 and emit optimistic_concurrency_conflict.
+ * Database-atomic ProviderCapability mutation.
+ *
+ * Compare-and-swap on `_id + recordVersion + subject predicates` in a single
+ * findOneAndUpdate. Two replicas cannot both persist against the same version.
+ *
+ * Miss handling is scoped to the authorized subject. A second query never
+ * looks up a document by id alone, so a wrong-tenant caller cannot distinguish
+ * existence from authorization failure.
  */
 export async function mutateProviderCapabilityRecord({
   id,
   expectedVersion,
-  apply,
+  subjectType,
+  subjectId,
+  set = {},
   actor = {},
 }) {
-  const doc = await ProviderCapability.findById(id);
-  if (!doc) {
-    throw Object.assign(new Error('ProviderCapability not found'), {
-      status: 404,
-      code: 'provider_capability_not_found',
+  if (!id || !subjectType || subjectId == null || subjectId === '') {
+    throw Object.assign(new Error('ProviderCapability subject is required'), {
+      status: 400,
+      code: 'provider_capability_subject_required',
     });
   }
-  let nextVersion;
-  try {
-    nextVersion = assertExpectedVersion(doc.recordVersion, expectedVersion);
-  } catch (err) {
-    if (err.code === 'optimistic_concurrency_conflict') {
-      await logAudit({
-        action: GBS_AUDIT_EVENTS.OPTIMISTIC_CONCURRENCY_CONFLICT,
-        status: 'failure',
-        targetType: 'ProviderCapability',
-        targetId: String(id),
-        metadata: redactAuditMetadata({
-          expectedVersion,
-          currentVersion: doc.recordVersion,
-        }),
-        actor,
-      });
-    }
-    throw err;
+  if (invalidExpectedVersion(expectedVersion)) {
+    throw Object.assign(new Error('expectedVersion is required'), {
+      status: 400,
+      code: 'expected_version_required',
+    });
   }
 
-  apply(doc);
-  doc.recordVersion = nextVersion;
-  try {
-    await doc.save();
-  } catch (err) {
-    if (err?.name === 'VersionError') {
-      const conflict = Object.assign(new Error('Conflict'), {
-        status: 409,
-        code: 'optimistic_concurrency_conflict',
-      });
-      throw conflict;
-    }
-    throw err;
+  const expected = Number(expectedVersion);
+  const $set = { ...set };
+  delete $set.recordVersion;
+  delete $set._id;
+  delete $set.subjectType;
+  delete $set.subjectId;
+
+  const subjectFilter = {
+    _id: id,
+    subjectType,
+    subjectId: String(subjectId),
+  };
+
+  const updated = await ProviderCapability.findOneAndUpdate(
+    { ...subjectFilter, recordVersion: expected },
+    { $set, $inc: { recordVersion: 1 } },
+    { new: true }
+  );
+
+  if (updated) return updated;
+
+  const authorized = await ProviderCapability.findOne(subjectFilter).select('recordVersion').lean();
+  if (authorized) {
+    await logAudit({
+      action: GBS_AUDIT_EVENTS.OPTIMISTIC_CONCURRENCY_CONFLICT,
+      status: 'failure',
+      targetType: 'ProviderCapability',
+      targetId: String(id),
+      metadata: redactAuditMetadata({
+        expectedVersion: expected,
+        currentVersion: authorized.recordVersion,
+      }),
+      actor,
+    });
+    throw conflictError(authorized.recordVersion, expected);
   }
-  return doc;
+
+  throw notFoundError();
 }

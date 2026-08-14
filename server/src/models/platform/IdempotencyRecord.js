@@ -16,7 +16,7 @@ const idempotencyRecordSchema = new mongoose.Schema(
     resultRef: { type: String, default: '' },
     resultMeta: { type: mongoose.Schema.Types.Mixed, default: {} },
     createdAt: { type: Date, default: Date.now },
-    expiresAt: { type: Date, required: true, index: true },
+    expiresAt: { type: Date, required: true },
   },
   { timestamps: false }
 );

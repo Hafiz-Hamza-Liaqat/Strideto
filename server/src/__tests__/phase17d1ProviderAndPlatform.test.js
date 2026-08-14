@@ -21,7 +21,9 @@ import {
 } from '../../../shared/platform/optimisticConcurrency.js';
 import {
   createIdempotencyStore,
+  createInMemoryIdempotencyStore,
   IDEMPOTENCY_CODES,
+  IDEMPOTENCY_STORE_KINDS,
 } from '../../../shared/platform/idempotency.js';
 import { fingerprintRequest } from '../services/platform/idempotencyService.js';
 import { GBS_AUDIT_EVENTS } from '../../../shared/security/gbsAuditEvents.js';
@@ -202,6 +204,8 @@ function requestScope(overrides = {}) {
 // --- 30J idempotency ---
 {
   const store = createIdempotencyStore();
+  check(store.kind === IDEMPOTENCY_STORE_KINDS.IN_MEMORY, 'createIdempotencyStore remains the in-memory test adapter');
+  check(createInMemoryIdempotencyStore().kind === IDEMPOTENCY_STORE_KINDS.IN_MEMORY, 'explicit in-memory kind');
   let effects = 0;
   const fp = fingerprintRequest({ cmd: 'quote.accept', revision: 1 });
   const first = await store.execute({
