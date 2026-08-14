@@ -25,7 +25,7 @@ import { mutateProviderCapabilityRecord } from '../services/platform/optimisticC
 import {
   createProviderCapabilityReviewService,
 } from '../services/gbs/providerCapabilityReviewService.js';
-import { claimProviderCapability } from '../services/gbs/providerCapabilityClaimService.js';
+import { claimProviderCapability, submitCapabilityEvidenceMetadata } from '../services/gbs/providerCapabilityClaimService.js';
 import {
   createServiceListingDraft,
   submitServiceListingForReview,
@@ -105,24 +105,43 @@ async function makeAgency(name) {
 }
 
 async function staffAcceptEvidence(record) {
-  const updated = await mutateProviderCapabilityRecord({
-    id: record._id,
-    expectedVersion: record.recordVersion,
-    subjectType: record.subjectType,
-    subjectId: record.subjectId,
+  let current = record;
+  if (!(current.evidenceRefs || []).length) {
+    current = await mutateProviderCapabilityRecord({
+      id: record._id,
+      expectedVersion: record.recordVersion,
+      subjectType: record.subjectType,
+      subjectId: record.subjectId,
+      actor: staff,
+      set: {
+        evidenceRefs: [
+          {
+            evidenceType: 'authority_confirmation',
+            decision: EVIDENCE_DECISIONS.PENDING,
+            jurisdictionId: record.scope?.jurisdictionIds?.[0],
+          },
+        ],
+        trustStatus: PROVIDER_TRUST_STATUSES.EVIDENCE_SUBMITTED,
+      },
+    });
+  }
+  const svc = reviewService();
+  const reviewed = await svc.reviewEvidence({
+    id: current._id,
+    subjectType: current.subjectType,
+    subjectId: current.subjectId,
+    expectedVersion: current.recordVersion,
     actor: staff,
-    set: {
-      evidenceRefs: [
-        {
-          evidenceType: 'authority_confirmation',
-          decision: EVIDENCE_DECISIONS.ACCEPTED,
-          jurisdictionId: record.scope?.jurisdictionIds?.[0],
-        },
-      ],
-      trustStatus: PROVIDER_TRUST_STATUSES.EVIDENCE_SUBMITTED,
-    },
+    evidenceIndex: 0,
+    decision: EVIDENCE_DECISIONS.ACCEPTED,
   });
-  return updated;
+  return svc.markEvidenceBacked({
+    id: reviewed._id || current._id,
+    subjectType: reviewed.subjectType,
+    subjectId: reviewed.subjectId,
+    expectedVersion: reviewed.recordVersion,
+    actor: staff,
+  });
 }
 
 before(async () => {
@@ -426,3 +445,188 @@ test('reject does not publish; unknown education taxonomy cannot be approved', a
     (err) => err.code === 'gbs_listing_rejects_education_category' || err.code === 'unknown_capability_id' || err.code === 'invalid_listing_review_transition'
   );
 });
+
+test('staff evidence review is required before evidence-backed and verify; CAS and isolation hold', async () => {
+  const ameer = await makeAgent('evidence-17d4@example.test', 'Evidence Independent');
+  const actor = { agentAccountId: String(ameer._id), id: String(ameer._id), isStaff: false };
+  const subject = { subjectType: 'agent', subjectId: String(ameer._id) };
+  const claimed = await claimProviderCapability({
+    ...subject,
+    capabilityId: 'document_preparation',
+    scope: wyScope,
+    actor,
+  });
+  const submitted = await submitCapabilityEvidenceMetadata({
+    id: claimed.record._id,
+    ...subject,
+    expectedVersion: claimed.record.recordVersion,
+    evidence: {
+      evidenceType: 'authority_confirmation',
+      referenceNumber: 'WY-AUTH-17D4',
+      officialRegistryUrl: 'https://sos.wyo.gov/Business/example',
+      jurisdictionId: 'j:US-WY',
+    },
+    actor,
+  });
+  assert.equal(submitted.trustStatus, PROVIDER_TRUST_STATUSES.EVIDENCE_SUBMITTED);
+  assert.equal(submitted.evidenceRefs[0].decision, EVIDENCE_DECISIONS.PENDING);
+
+  const svc = reviewService();
+  await assert.rejects(
+    () => svc.verify({
+      id: submitted._id,
+      ...subject,
+      expectedVersion: submitted.recordVersion,
+      actor: staff,
+    }),
+    (err) => err.code === 'required_evidence_absent'
+  );
+  await assert.rejects(
+    () => svc.markEvidenceBacked({
+      id: submitted._id,
+      ...subject,
+      expectedVersion: submitted.recordVersion,
+      actor: staff,
+    }),
+    (err) => err.code === 'required_evidence_absent'
+  );
+  await assert.rejects(
+    () => svc.reviewEvidence({
+      id: submitted._id,
+      ...subject,
+      expectedVersion: submitted.recordVersion,
+      actor,
+      evidenceIndex: 0,
+      decision: EVIDENCE_DECISIONS.ACCEPTED,
+    }),
+    (err) => err.code === 'staff_review_required' || err.code === 'provider_self_review_forbidden'
+  );
+
+  const agency = await makeAgency('17D4 Evidence Isolation LLC');
+  const orgClaim = await claimProviderCapability({
+    subjectType: 'organization',
+    subjectId: String(agency._id),
+    capabilityId: 'document_preparation',
+    scope: wyScope,
+    actor,
+  });
+
+  const accepted = await svc.reviewEvidence({
+    id: submitted._id,
+    ...subject,
+    expectedVersion: submitted.recordVersion,
+    actor: staff,
+    evidenceIndex: 0,
+    decision: EVIDENCE_DECISIONS.ACCEPTED,
+  });
+  assert.equal(accepted.evidenceRefs[0].decision, EVIDENCE_DECISIONS.ACCEPTED);
+  assert.equal(accepted.subjectType, 'agent');
+  assert.equal(String(accepted.subjectId), String(ameer._id));
+  assert.equal(accepted.capabilityId, 'document_preparation');
+  assert.notEqual(accepted.trustStatus, PROVIDER_TRUST_STATUSES.VERIFIED);
+
+  const replay = await svc.reviewEvidence({
+    id: submitted._id,
+    ...subject,
+    expectedVersion: accepted.recordVersion,
+    actor: staff,
+    evidenceIndex: 0,
+    decision: EVIDENCE_DECISIONS.ACCEPTED,
+  });
+  assert.equal(replay.recordVersion, accepted.recordVersion);
+
+  await assert.rejects(
+    () => svc.reviewEvidence({
+      id: submitted._id,
+      ...subject,
+      expectedVersion: submitted.recordVersion,
+      actor: staff,
+      evidenceIndex: 0,
+      decision: EVIDENCE_DECISIONS.ACCEPTED,
+    }),
+    (err) => err.code === OPTIMISTIC_CONCURRENCY_CODE && err.status === 409
+  );
+
+  const backed = await svc.markEvidenceBacked({
+    id: submitted._id,
+    ...subject,
+    expectedVersion: accepted.recordVersion,
+    actor: staff,
+  });
+  assert.equal(backed.trustStatus, PROVIDER_TRUST_STATUSES.EVIDENCE_BACKED);
+  assert.notEqual(backed.trustStatus, PROVIDER_TRUST_STATUSES.VERIFIED);
+
+  const verified = await svc.verify({
+    id: submitted._id,
+    ...subject,
+    expectedVersion: backed.recordVersion,
+    actor: staff,
+  });
+  assert.equal(verified.trustStatus, PROVIDER_TRUST_STATUSES.VERIFIED);
+  assert.equal(verified.evidenceRefs[0].decision, EVIDENCE_DECISIONS.ACCEPTED);
+  assert.equal(verified.subjectType, 'agent');
+  assert.equal(String(verified.subjectId), String(ameer._id));
+
+  const agencyFresh = await ProviderCapability.findById(orgClaim.record._id);
+  assert.equal(agencyFresh.trustStatus, PROVIDER_TRUST_STATUSES.CLAIMED);
+  assert.equal((agencyFresh.evidenceRefs || []).length, 0);
+
+  const acceptAudits = await AuditLog.find({ action: GBS_AUDIT_EVENTS.PROVIDER_CAPABILITY_EVIDENCE_ACCEPTED });
+  assert.ok(acceptAudits.length >= 1);
+  assert.ok(!JSON.stringify(acceptAudits).includes('passport'));
+});
+
+test('needs-information evidence cannot be verified', async () => {
+  const agent = await makeAgent('needs-info-evidence-17d4@example.test', 'Needs Info Evidence');
+  const actor = { agentAccountId: String(agent._id), id: String(agent._id), isStaff: false };
+  const subject = { subjectType: 'agent', subjectId: String(agent._id) };
+  const claimed = await claimProviderCapability({
+    ...subject,
+    capabilityId: 'document_preparation',
+    scope: wyScope,
+    actor,
+  });
+  const submitted = await submitCapabilityEvidenceMetadata({
+    id: claimed.record._id,
+    ...subject,
+    expectedVersion: claimed.record.recordVersion,
+    evidence: {
+      evidenceType: 'authority_confirmation',
+      officialRegistryUrl: 'https://sos.wyo.gov/Business/needs-info',
+      jurisdictionId: 'j:US-WY',
+    },
+    actor,
+  });
+  const svc = reviewService();
+  const reviewed = await svc.reviewEvidence({
+    id: submitted._id,
+    ...subject,
+    expectedVersion: submitted.recordVersion,
+    actor: staff,
+    evidenceIndex: 0,
+    decision: EVIDENCE_DECISIONS.NEEDS_INFORMATION,
+    reasonCode: 'missing_authority_letter',
+  });
+  assert.equal(reviewed.evidenceRefs[0].decision, EVIDENCE_DECISIONS.NEEDS_INFORMATION);
+  await assert.rejects(
+    () => svc.markEvidenceBacked({
+      id: submitted._id,
+      ...subject,
+      expectedVersion: reviewed.recordVersion,
+      actor: staff,
+    }),
+    (err) => err.code === 'required_evidence_absent'
+  );
+  await assert.rejects(
+    () => svc.verify({
+      id: submitted._id,
+      ...subject,
+      expectedVersion: reviewed.recordVersion,
+      actor: staff,
+    }),
+    (err) => err.code === 'required_evidence_absent'
+  );
+  const fresh = await ProviderCapability.findById(submitted._id);
+  assert.notEqual(fresh.trustStatus, PROVIDER_TRUST_STATUSES.VERIFIED);
+});
+

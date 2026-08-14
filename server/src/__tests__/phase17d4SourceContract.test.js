@@ -20,7 +20,7 @@ import { ACTION_POLICY, POLICY_ACTIONS } from '../../../shared/capability/permis
 import { GRANT_STATUSES } from '../../../shared/capability/grantStatus.js';
 import { PROVIDER_TRUST_STATUSES } from '../../../shared/gbs/constants.js';
 import { BUSINESS_SERVICES_CAPABILITY_IDS } from '../../../shared/gbs/businessServicesCapabilities.js';
-import { parseAdminGbsReviewBody } from '../services/gbs/gbsAdminModerationValidation.js';
+import { parseAdminGbsReviewBody, parseEvidenceIndex, parseStaffEvidenceReviewAction } from '../services/gbs/gbsAdminModerationValidation.js';
 import { PERMISSIONS, hasPermission } from '../config/rbac.js';
 
 let count = 0;
@@ -58,10 +58,14 @@ check(gbsRoutes.includes("'/capabilities/queue'"), 'capability queue route');
 check(gbsRoutes.includes("'/listings/queue'"), 'listing queue route');
 check(gbsRoutes.includes("requirePermission(PERMISSIONS.VERIFICATION_READ)"), 'reads use verification:read');
 check(gbsRoutes.includes("requirePermission(PERMISSIONS.VERIFICATION_APPROVE)"), 'approve uses verification:approve');
+check(gbsRoutes.includes("'/capabilities/:id/evidence/:evidenceIndex/accept'"), 'evidence accept route');
+check(gbsRoutes.includes("'/capabilities/:id/evidence/:evidenceIndex/needs-information'"), 'evidence needs-information route');
+check(gbsRoutes.includes("'/capabilities/:id/evidence/:evidenceIndex/reject'"), 'evidence reject route');
+check(gbsRoutes.includes('ctrl.reviewCapabilityEvidence'), 'explicit evidence review handler');
 check(!/adminRouter\.(patch|put)\(/.test(gbsRoutes) && !gbsRoutes.includes('app.patch'), 'no mass-assignment PATCH');
 
 const agentRoutes = read('server/src/routes/agent.js');
-check(!/capabilities\/:id\/verify|listings\/:id\/approve/.test(agentRoutes), 'provider cannot self-review via Agent routes');
+check(!/capabilities\/:id\/verify|listings\/:id\/approve|evidence\/:evidenceIndex\/accept/.test(agentRoutes), 'provider cannot self-review via Agent routes');
 check(!agentRoutes.includes("'/business-services'"), 'no public business-services on agent router');
 
 const indexRoutes = read('server/src/routes/index.js');
@@ -97,6 +101,9 @@ check(ACTION_POLICY[POLICY_ACTIONS.ADMIN_PROVIDER_VERIFICATION].requireStaffRbac
 
 for (const ev of [
   'PROVIDER_CAPABILITY_REVIEWED',
+  'PROVIDER_CAPABILITY_EVIDENCE_REVIEWED',
+  'PROVIDER_CAPABILITY_EVIDENCE_ACCEPTED',
+  'PROVIDER_CAPABILITY_EVIDENCE_REJECTED',
   'PROVIDER_CAPABILITY_VERIFIED',
   'PROVIDER_CAPABILITY_NEEDS_INFORMATION',
   'PROVIDER_CAPABILITY_REJECTED',
@@ -122,6 +129,30 @@ try {
 } catch (err) {
   check(err.code === 'unknown_fields', 'unknown review body fields rejected');
 }
+try {
+  parseAdminGbsReviewBody({ expectedVersion: 1, subjectType: 'agent', subjectId: 'x', decision: 'accepted' }, { action: 'accept' });
+  check(false, 'body decision field must be rejected');
+} catch (err) {
+  check(err.code === 'unknown_fields', 'evidence decision is not a free-form body field');
+}
+try {
+  parseStaffEvidenceReviewAction('rubber_stamp');
+  check(false, 'unknown evidence action must be rejected');
+} catch (err) {
+  check(err.code === 'unknown_evidence_decision', 'unknown evidence action rejected');
+}
+check(parseStaffEvidenceReviewAction('accept') === 'accepted', 'accept maps to accepted');
+try {
+  parseEvidenceIndex('nope');
+  check(false, 'non-numeric evidence index must be rejected');
+} catch (err) {
+  check(err.code === 'invalid_evidence_index', 'invalid evidence index rejected');
+}
+
+const evidenceProj = read('shared/gbs/providerEvidence.js');
+check(evidenceProj.includes('hasVaultRef: Boolean(evidence.vaultRef)'), 'safe projection never returns vault contents');
+check(!/notes: evidence\.notes|officialRegistryUrl: evidence/.test(evidenceProj), 'safe projection omits notes and registry URL bodies');
+check(evidenceProj.includes("PENDING: 'pending'") && evidenceProj.includes("ACCEPTED: 'accepted'"), 'evidence decisions include pending and accepted');
 
 const wip = [
   'client/src/components/admin/AdminDataTable.jsx',

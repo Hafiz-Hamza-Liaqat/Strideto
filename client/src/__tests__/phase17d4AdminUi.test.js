@@ -65,7 +65,21 @@ check(!/import \{ AdminTableFilters \}/.test(capQueue + listQueue), 'does not us
 check(!capReview.includes('common/FormField') && !listReview.includes('common/FormField'), 'does not use protected FormField');
 
 check(api.includes('/admin/gbs/capabilities/queue') && api.includes('/admin/gbs/listings/queue'), 'admin GBS API client');
+check(api.includes('/admin/gbs/capabilities/${id}/evidence/${evidenceIndex}/${action}'), 'admin evidence review API client');
 check(!api.includes('/business-services'), 'admin API client has no public marketplace paths');
+
+check(capReview.includes('gbsAcceptEvidence') && capReview.includes('gbsRejectEvidence'), 'capability detail has evidence review controls');
+check(capReview.includes('gbsEvidenceDecision') && capReview.includes('gbsEvidencePendingReview'), 'capability detail shows evidence decision text');
+check(capReview.includes('gbsEvidenceAccepted'), 'capability detail can show accepted status');
+check(capReview.includes("disabled={busy || !canVerify}"), 'Verify is disabled before prerequisites');
+check(capReview.includes('gbsVerifyBlocked'), 'Verify unavailable reason is visible');
+check(capReview.includes("disabled={busy || !canMarkEvidenceBacked}"), 'Mark evidence-backed is disabled before accepted evidence');
+check(capReview.includes('role="alert"'), 'capability detail error state is announced');
+check(capReview.includes('gbsStaleConflict'), 'stale conflict handling');
+check(capReview.includes('gbsEvidenceMetadata'), 'safe evidence metadata section');
+check(capReview.includes('aria-describedby="gbs-cap-reason"'), 'evidence review reason is associated');
+check(capReview.includes('gbsEvidenceReviewControls'), 'evidence review controls are labelled');
+check(capReview.includes('open={Boolean(confirm)}') && listReview.includes('open={Boolean(confirm)}'), 'confirm dialogs default closed');
 
 check(listings.includes('adminReviewStatus'), 'provider listings show admin review status');
 check(editor.includes('adminReviewStatus'), 'provider editor shows admin review status');

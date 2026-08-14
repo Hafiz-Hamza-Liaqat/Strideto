@@ -107,7 +107,35 @@ check(
 }
 
 {
-  const { svc } = serviceWith(cap({ trustStatus: PROVIDER_TRUST_STATUSES.EVIDENCE_SUBMITTED, recordVersion: 1 }));
+  const { svc } = serviceWith(
+    cap({
+      trustStatus: PROVIDER_TRUST_STATUSES.EVIDENCE_SUBMITTED,
+      recordVersion: 1,
+      evidenceRefs: [{ evidenceType: 'regulatory_registration', decision: EVIDENCE_DECISIONS.PENDING }],
+    })
+  );
+  try {
+    await svc.markEvidenceBacked({
+      id: 'cap-1',
+      subjectType: 'agent',
+      subjectId: 'agent-A',
+      expectedVersion: 1,
+      actor: staff,
+    });
+    check(false, '40a. pending evidence cannot be marked backed');
+  } catch (err) {
+    check(err.code === 'required_evidence_absent', '40a. pending evidence cannot be marked backed');
+  }
+}
+
+{
+  const { svc } = serviceWith(
+    cap({
+      trustStatus: PROVIDER_TRUST_STATUSES.EVIDENCE_SUBMITTED,
+      recordVersion: 1,
+      evidenceRefs: [formationEvidence()],
+    })
+  );
   const backed = await svc.markEvidenceBacked({
     id: 'cap-1',
     subjectType: 'agent',
@@ -116,6 +144,175 @@ check(
     actor: staff,
   });
   check(backed.trustStatus === PROVIDER_TRUST_STATUSES.EVIDENCE_BACKED, '40. evidence backed → not VERIFIED unless approved');
+  check(backed.trustStatus !== PROVIDER_TRUST_STATUSES.VERIFIED, '40b. evidence backed is not verified');
+}
+
+{
+  const pendingCap = cap({
+    trustStatus: PROVIDER_TRUST_STATUSES.EVIDENCE_SUBMITTED,
+    recordVersion: 1,
+    evidenceRefs: [{ evidenceType: 'authority_confirmation', decision: EVIDENCE_DECISIONS.PENDING }],
+  });
+  const { svc, events } = serviceWith(pendingCap);
+  try {
+    await svc.verify({
+      id: 'cap-1',
+      subjectType: 'agent',
+      subjectId: 'agent-A',
+      expectedVersion: 1,
+      actor: staff,
+    });
+    check(false, '40c. verify while pending denied');
+  } catch (err) {
+    check(err.code === 'required_evidence_absent', '40c. verify while pending denied');
+  }
+  try {
+    await svc.reviewEvidence({
+      id: 'cap-1',
+      subjectType: 'agent',
+      subjectId: 'agent-A',
+      expectedVersion: 1,
+      actor: provider,
+      evidenceIndex: 0,
+      decision: EVIDENCE_DECISIONS.ACCEPTED,
+    });
+    check(false, '40d. provider cannot review own evidence');
+  } catch (err) {
+    check(
+      err.code === 'staff_review_required' || err.code === 'provider_self_review_forbidden',
+      '40d. provider cannot review own evidence'
+    );
+  }
+  try {
+    await svc.reviewEvidence({
+      id: 'cap-1',
+      subjectType: 'agent',
+      subjectId: 'agent-A',
+      expectedVersion: 1,
+      actor: staff,
+      evidenceIndex: 0,
+      decision: 'rubber_stamp',
+    });
+    check(false, '40e. unknown evidence decision denied');
+  } catch (err) {
+    check(err.code === 'unknown_evidence_decision', '40e. unknown evidence decision denied');
+  }
+  try {
+    await svc.reviewEvidence({
+      id: 'cap-1',
+      subjectType: 'agent',
+      subjectId: 'agent-A',
+      expectedVersion: 1,
+      actor: staff,
+      evidenceIndex: 9,
+      decision: EVIDENCE_DECISIONS.ACCEPTED,
+    });
+    check(false, '40f. unknown evidence item denied');
+  } catch (err) {
+    check(err.code === 'evidence_not_found' && err.status === 404, '40f. unknown evidence item denied');
+  }
+  const accepted = await svc.reviewEvidence({
+    id: 'cap-1',
+    subjectType: 'agent',
+    subjectId: 'agent-A',
+    expectedVersion: 1,
+    actor: staff,
+    evidenceIndex: 0,
+    decision: EVIDENCE_DECISIONS.ACCEPTED,
+  });
+  check(accepted.evidenceRefs[0].decision === EVIDENCE_DECISIONS.ACCEPTED, '40g. staff accept persists');
+  check(accepted.recordVersion === 2, '40g. accept bumps recordVersion');
+  check(accepted.subjectType === 'agent' && accepted.subjectId === 'agent-A', '40g. exact subject preserved');
+  check(
+    events.some((e) => e.action === GBS_AUDIT_EVENTS.PROVIDER_CAPABILITY_EVIDENCE_ACCEPTED),
+    '40g. accept is audited'
+  );
+  const replay = await svc.reviewEvidence({
+    id: 'cap-1',
+    subjectType: 'agent',
+    subjectId: 'agent-A',
+    expectedVersion: 2,
+    actor: staff,
+    evidenceIndex: 0,
+    decision: EVIDENCE_DECISIONS.ACCEPTED,
+  });
+  check(replay.recordVersion === 2, '40h. idempotent accept does not bump version');
+  try {
+    await svc.reviewEvidence({
+      id: 'cap-1',
+      subjectType: 'agent',
+      subjectId: 'agent-A',
+      expectedVersion: 1,
+      actor: staff,
+      evidenceIndex: 0,
+      decision: EVIDENCE_DECISIONS.ACCEPTED,
+    });
+    check(false, '40i. stale evidence review denied');
+  } catch (err) {
+    check(err.code === OPTIMISTIC_CONCURRENCY_CODE, '40i. stale evidence review denied');
+  }
+  try {
+    await svc.reviewEvidence({
+      id: 'cap-1',
+      subjectType: 'organization',
+      subjectId: 'org-ABC',
+      expectedVersion: 2,
+      actor: staff,
+      evidenceIndex: 0,
+      decision: EVIDENCE_DECISIONS.ACCEPTED,
+    });
+    check(false, '40j. evidence review cannot retarget subject');
+  } catch (err) {
+    check(err.status === 404, '40j. evidence review cannot retarget subject');
+  }
+}
+
+{
+  const { svc } = serviceWith(
+    cap({
+      trustStatus: PROVIDER_TRUST_STATUSES.EVIDENCE_SUBMITTED,
+      recordVersion: 1,
+      evidenceRefs: [{ evidenceType: 'authority_confirmation', decision: EVIDENCE_DECISIONS.PENDING }],
+    })
+  );
+  const rejected = await svc.reviewEvidence({
+    id: 'cap-1',
+    subjectType: 'agent',
+    subjectId: 'agent-A',
+    expectedVersion: 1,
+    actor: staff,
+    evidenceIndex: 0,
+    decision: EVIDENCE_DECISIONS.REJECTED,
+    reasonCode: 'insufficient_authority',
+  });
+  check(rejected.evidenceRefs[0].decision === EVIDENCE_DECISIONS.REJECTED, '40k. reject persists');
+  check(rejected.trustStatus !== PROVIDER_TRUST_STATUSES.VERIFIED, '40k. reject does not verify');
+  try {
+    await svc.markEvidenceBacked({
+      id: 'cap-1',
+      subjectType: 'agent',
+      subjectId: 'agent-A',
+      expectedVersion: rejected.recordVersion,
+      actor: staff,
+    });
+    check(false, '40l. rejected evidence cannot be marked backed');
+  } catch (err) {
+    check(err.code === 'required_evidence_absent', '40l. rejected evidence cannot be marked backed');
+  }
+  try {
+    await svc.reviewEvidence({
+      id: 'cap-1',
+      subjectType: 'agent',
+      subjectId: 'agent-A',
+      expectedVersion: rejected.recordVersion,
+      actor: staff,
+      evidenceIndex: 0,
+      decision: EVIDENCE_DECISIONS.ACCEPTED,
+    });
+    check(false, '40m. rejected → accepted is an invalid transition');
+  } catch (err) {
+    check(err.code === 'invalid_evidence_decision', '40m. rejected → accepted is an invalid transition');
+  }
 }
 
 {
