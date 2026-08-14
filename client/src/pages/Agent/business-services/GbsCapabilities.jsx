@@ -199,9 +199,10 @@ export default function GbsCapabilities() {
                 Evidence required: {cap.evidenceRequired ? 'yes' : 'no'}. Protected title: {cap.protectedTitleRequired ? 'yes' : 'no'}.
               </p>
               {protectedTitleCopy(cap) ? <p className={`mt-2 text-sm text-gray-800 dark:text-gray-100 ${wrap}`}>{protectedTitleCopy(cap)}</p> : null}
-              {cap.review?.reasonCode ? (
-                <p className={`${muted} ${wrap}`}>Review: {cap.review.decision || 'pending'} ({cap.review.reasonCode})</p>
-              ) : null}
+              <p className={`${muted} ${wrap}`}>
+                Staff review: {cap.review?.decision || 'none yet'}
+                {cap.review?.reasonCode ? ` (${cap.review.reasonCode})` : ''}
+              </p>
               {cap.protectedTitleRequired ? (
                 <p className={`mt-2 text-sm text-amber-800 dark:text-amber-200 ${wrap}`}>
                   Evidence submission requires additional verification support for documentary files. Metadata below is stored only and is not automatic verification.

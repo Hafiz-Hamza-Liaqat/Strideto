@@ -202,6 +202,7 @@ export default function GbsListingEditor() {
       {record ? (
         <div className="flex flex-wrap gap-2">
           <StatusBadge status={record.moderationStatus} />
+          <StatusBadge status={record.adminReviewStatus} label={`admin review: ${record.adminReviewStatus || 'pending'}`} />
           <StatusBadge status={record.publicationStatus} label={`publication: ${record.publicationStatus}`} />
         </div>
       ) : null}

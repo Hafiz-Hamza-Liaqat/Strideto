@@ -36,6 +36,15 @@ export const ADMIN_NAV_GROUPS = /** @type {AdminNavGroup[]} */ ([
     ],
   },
   {
+    id: 'business-services',
+    labelKey: 'navGroupBusinessServices',
+    icon: 'briefcase',
+    items: [
+      { path: `${ROUTES.ADMIN}/gbs/capabilities`, labelKey: 'gbsCapabilityReviews', perm: PERMISSIONS.VERIFICATION_READ, icon: 'shield' },
+      { path: `${ROUTES.ADMIN}/gbs/listings`, labelKey: 'gbsListingReviews', perm: PERMISSIONS.VERIFICATION_READ, icon: 'shield' },
+    ],
+  },
+  {
     id: 'system',
     labelKey: 'navGroupSystem',
     icon: 'settings',

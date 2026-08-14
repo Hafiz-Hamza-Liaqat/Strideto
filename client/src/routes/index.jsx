@@ -47,6 +47,10 @@ const ExecutiveDashboard = lazyLoad(() => import('../pages/Admin/ExecutiveDashbo
 const ModerationQueue = lazyLoad(() => import('../pages/Admin/ModerationQueue'));
 const AdminReviewQueue = lazyLoad(() => import('../pages/Admin/AdminReviewQueue'));
 const AdminVerificationQueue = lazyLoad(() => import('../pages/Admin/AdminVerificationQueue'));
+const AdminGbsCapabilityQueue = lazyLoad(() => import('../pages/Admin/AdminGbsCapabilityQueue'));
+const AdminGbsCapabilityReview = lazyLoad(() => import('../pages/Admin/AdminGbsCapabilityReview'));
+const AdminGbsListingQueue = lazyLoad(() => import('../pages/Admin/AdminGbsListingQueue'));
+const AdminGbsListingReview = lazyLoad(() => import('../pages/Admin/AdminGbsListingReview'));
 const AuditLogPage = lazyLoad(() => import('../pages/Admin/AuditLogPage'));
 const AlertsAdmin = lazyLoad(() => import('../pages/Admin/AlertsAdmin'));
 const JobsProvinceLanding = lazyLoad(() => import('../pages/Landing/JobsProvinceLanding'));
@@ -622,6 +626,10 @@ export const routes = [
           { path: 'review', element: <AdminReviewQueue /> },
           { path: 'audit', element: <AuditLogPage /> },
           { path: 'verification-queue', element: <AdminVerificationQueue /> },
+          { path: 'gbs/capabilities', element: <AdminGbsCapabilityQueue /> },
+          { path: 'gbs/capabilities/:id', element: <AdminGbsCapabilityReview /> },
+          { path: 'gbs/listings', element: <AdminGbsListingQueue /> },
+          { path: 'gbs/listings/:id', element: <AdminGbsListingReview /> },
           { path: 'agent-marketplace', element: (
             <AdminRouteGuard anyPermission={[PERMISSIONS.WORKFLOW_REVIEW, PERMISSIONS.WORKFLOW_APPROVE]}>
               <AdminAgentMarketplace />

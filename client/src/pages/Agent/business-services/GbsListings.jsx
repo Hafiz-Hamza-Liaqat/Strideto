@@ -59,6 +59,7 @@ export default function GbsListings() {
                 <p className={`${muted} ${wrap}`}>{row.capabilityId} · {row.jurisdictionId}</p>
                 <div className="mt-2 flex flex-wrap gap-2">
                   <StatusBadge status={row.moderationStatus} />
+                  <StatusBadge status={row.adminReviewStatus} label={`admin review: ${row.adminReviewStatus || 'pending'}`} />
                   <StatusBadge status={row.publicationStatus} label={`publication: ${row.publicationStatus}`} />
                 </div>
                 <Link
@@ -78,6 +79,7 @@ export default function GbsListings() {
                   <th className="py-2 pr-3">Capability</th>
                   <th className="py-2 pr-3">Jurisdiction</th>
                   <th className="py-2 pr-3">Moderation</th>
+                  <th className="py-2 pr-3">Admin review</th>
                   <th className="py-2 pr-3">Publication</th>
                   <th className="py-2">Action</th>
                 </tr>
@@ -89,6 +91,7 @@ export default function GbsListings() {
                     <td className={`py-3 pr-3 ${wrap}`}>{row.capabilityId}</td>
                     <td className={`py-3 pr-3 ${wrap}`}>{row.jurisdictionId}</td>
                     <td className="py-3 pr-3"><StatusBadge status={row.moderationStatus} /></td>
+                    <td className="py-3 pr-3"><StatusBadge status={row.adminReviewStatus || 'pending'} /></td>
                     <td className="py-3 pr-3"><StatusBadge status={row.publicationStatus} /></td>
                     <td className="py-3">
                       <Link to={`${ROUTES.AGENT_BUSINESS_SERVICES_LISTINGS}/${row.id}/edit`} className={ui.link}>
