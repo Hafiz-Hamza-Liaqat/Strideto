@@ -4,12 +4,13 @@ import { ROUTES } from '../constants';
  * Final Agent / Agency IA (Phase 5).
  * Team is shown only for agency accounts. No dead entries.
  */
-export function agentNavItems({ agentType } = {}) {
+export function agentNavItems({ agentType, gbsEnabled } = {}) {
   const items = [
     { path: ROUTES.AGENT_DASHBOARD, label: 'Dashboard', end: true },
     { path: ROUTES.AGENT_PROFILE, label: 'Profile' },
     { path: ROUTES.AGENT_VERIFICATION, label: 'Verification' },
     { path: ROUTES.AGENT_SERVICES, label: 'Services' },
+    gbsEnabled ? { path: ROUTES.AGENT_BUSINESS_SERVICES, label: 'Business Services' } : null,
     { path: ROUTES.AGENT_MARKETPLACE, label: 'Marketplace' },
     { path: ROUTES.AGENT_AVAILABILITY, label: 'Availability' },
     { path: ROUTES.AGENT_LEADS, label: 'Leads' },

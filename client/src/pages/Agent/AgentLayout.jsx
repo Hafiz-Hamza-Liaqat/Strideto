@@ -8,10 +8,11 @@ import { AgentNotificationBell } from '../../components/notifications/AgentNotif
 import { useOverlayA11y } from '../../a11y/useOverlayA11y';
 import { agentNavItems } from '../../config/agentNavConfig';
 import { agentApi } from '../../services/agentService';
+import { gbsProviderApi } from '../../services/gbsProviderApi';
 import { portalNavLinkClass } from '../../components/layout/portalNavClasses';
 
-function NavLinks({ location, onNavigate, agentType }) {
-  const menu = agentNavItems({ agentType });
+function NavLinks({ location, onNavigate, agentType, gbsEnabled }) {
+  const menu = agentNavItems({ agentType, gbsEnabled });
   const activePath = menu.reduce((best, { path, end }) => {
     const isMatch = end
       ? location.pathname === path || location.pathname === `${path}/`
@@ -39,11 +40,13 @@ export default function AgentLayout() {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [agentType, setAgentType] = useState(agent?.agentType || '');
+  const [gbsEnabled, setGbsEnabled] = useState(false);
   const panelRef = useRef(null);
   useOverlayA11y({ open: mobileOpen, onClose: () => setMobileOpen(false), containerRef: panelRef, trapFocus: true });
 
   useEffect(() => {
     agentApi.getProfile().then(({ data }) => setAgentType(data.profile?.agentType || '')).catch(() => {});
+    gbsProviderApi.getEnabled().then(({ data }) => setGbsEnabled(data?.enabled === true)).catch(() => setGbsEnabled(false));
   }, []);
 
   useEffect(() => {
@@ -93,7 +96,7 @@ export default function AgentLayout() {
               <button type="button" aria-label="Close" onClick={() => setMobileOpen(false)} className="min-h-[44px] min-w-[44px] rounded-lg text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800">✕</button>
             </div>
             <nav className="space-y-1 flex-1">
-              <NavLinks location={location} onNavigate={() => setMobileOpen(false)} agentType={agentType} />
+              <NavLinks location={location} onNavigate={() => setMobileOpen(false)} agentType={agentType} gbsEnabled={gbsEnabled} />
             </nav>
             <div className="pt-3 border-t border-gray-200 dark:border-gray-700 shrink-0">
               <p className="text-xs text-gray-500 truncate px-2 break-words-safe">{agent?.email || ''}</p>
@@ -110,7 +113,7 @@ export default function AgentLayout() {
           <PortalBrand role="agent" />
         </div>
         <nav className="p-2 flex-1 space-y-1 overflow-y-auto" aria-label="Agent navigation">
-          <NavLinks location={location} agentType={agentType} />
+          <NavLinks location={location} agentType={agentType} gbsEnabled={gbsEnabled} />
         </nav>
         <div className="p-3 border-t border-gray-200 dark:border-gray-700">
           <p className="text-xs text-gray-500 dark:text-gray-400 truncate px-2 break-words-safe">{agent?.email || ''}</p>

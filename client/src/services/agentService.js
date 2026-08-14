@@ -35,7 +35,7 @@ function isAgentNoRefreshUrl(url = '') {
   return AGENT_NO_REFRESH.some((path) => url.includes(path));
 }
 
-const agentAxios = axios.create({
+export const agentAxios = axios.create({
   // Agent endpoints below include the canonical `/api` prefix. Strip only a
   // trailing API segment from the configured base so runtime requests never
   // become `/api/api/...` behind the reverse proxy.

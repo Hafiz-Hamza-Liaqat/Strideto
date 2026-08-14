@@ -244,6 +244,12 @@ const ConsultationRequest = lazyLoad(() => import('../pages/Consultations/Consul
 const ConsultationDetail = lazyLoad(() => import('../pages/Consultations/ConsultationDetail'));
 const Cases = lazyLoad(() => import('../pages/Cases/Cases')); const CaseDetail = lazyLoad(() => import('../pages/Cases/CaseDetail')); const AgentCases = lazyLoad(() => import('../pages/Agent/AgentCases')); const AgentCaseDetail = lazyLoad(() => import('../pages/Agent/AgentCaseDetail'));
 const AgentTrust = lazyLoad(() => import('../pages/Agent/AgentTrust'));
+const GbsWorkspaceLayout = lazyLoad(() => import('../pages/Agent/business-services/GbsWorkspaceLayout'));
+const GbsOverview = lazyLoad(() => import('../pages/Agent/business-services/GbsOverview'));
+const GbsCapabilities = lazyLoad(() => import('../pages/Agent/business-services/GbsCapabilities'));
+const GbsJurisdictions = lazyLoad(() => import('../pages/Agent/business-services/GbsJurisdictions'));
+const GbsListings = lazyLoad(() => import('../pages/Agent/business-services/GbsListings'));
+const GbsListingEditor = lazyLoad(() => import('../pages/Agent/business-services/GbsListingEditor'));
 const TrustCenter = lazyLoad(() => import('../pages/Trust/TrustCenter'));
 const AgentCommerce = lazyLoad(() => import('../pages/Agent/AgentCommerce')); const CommerceHistory = lazyLoad(() => import('../pages/Commerce/CommerceHistory'));
 const MarketplaceCheckout = lazyLoad(() => import('../pages/Commerce/MarketplaceCheckout'));
@@ -325,6 +331,18 @@ export const routes = [
       { path: 'consultations/:consultationId', element: <AgentConsultationDetail /> },
       { path: 'cases', element: <AgentCases /> }, { path: 'cases/:caseId', element: <AgentCaseDetail /> },
       { path: 'trust', element: <AgentTrust /> },
+      {
+        path: 'business-services',
+        element: <GbsWorkspaceLayout />,
+        children: [
+          { index: true, element: <GbsOverview /> },
+          { path: 'capabilities', element: <GbsCapabilities /> },
+          { path: 'jurisdictions', element: <GbsJurisdictions /> },
+          { path: 'listings', element: <GbsListings /> },
+          { path: 'listings/new', element: <GbsListingEditor /> },
+          { path: 'listings/:listingId/edit', element: <GbsListingEditor /> },
+        ],
+      },
       { path: 'commerce', element: <AgentCommerce /> },
       { path: 'availability', element: <AgentAvailability /> },
       { path: 'verification', element: <AgentVerification /> },
