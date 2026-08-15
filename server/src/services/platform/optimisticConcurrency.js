@@ -2,6 +2,7 @@ import { ProviderCapability } from '../../models/gbs/ProviderCapability.js';
 import { GbsServiceListing } from '../../models/gbs/GbsServiceListing.js';
 import { GbsServiceRequest } from '../../models/gbs/GbsServiceRequest.js';
 import { GbsQuote } from '../../models/gbs/GbsQuote.js';
+import { GbsCase } from '../../models/gbs/GbsCase.js';
 import { GBS_AUDIT_EVENTS, redactAuditMetadata } from '../../../../shared/security/gbsAuditEvents.js';
 import { logAudit } from '../auditService.js';
 import { OPTIMISTIC_CONCURRENCY_CODE } from '../../../../shared/platform/optimisticConcurrency.js';
@@ -282,6 +283,77 @@ export async function mutateGbsQuoteRecord({
       action: GBS_AUDIT_EVENTS.OPTIMISTIC_CONCURRENCY_CONFLICT,
       status: 'failure',
       targetType: 'GbsQuote',
+      targetId: String(id),
+      metadata: redactAuditMetadata({
+        expectedVersion: expected,
+        currentVersion: authorized.recordVersion,
+      }),
+      actor,
+    });
+    throw conflictError(authorized.recordVersion, expected);
+  }
+
+  throw Object.assign(new Error('not_found'), {
+    status: 404,
+    code: 'not_found',
+  });
+}
+
+export async function mutateGbsCaseRecord({
+  id,
+  expectedVersion,
+  ownershipFilter = {},
+  extraFilter = {},
+  set = {},
+  push,
+  actor = {},
+}) {
+  if (!id) {
+    throw Object.assign(new Error('case id is required'), {
+      status: 400,
+      code: 'case_id_required',
+    });
+  }
+  if (invalidExpectedVersion(expectedVersion)) {
+    throw Object.assign(new Error('expectedVersion is required'), {
+      status: 400,
+      code: 'expected_version_required',
+    });
+  }
+
+  const expected = Number(expectedVersion);
+  const $set = { ...set };
+  delete $set.recordVersion;
+  delete $set._id;
+  delete $set.requesterUserId;
+  delete $set.quoteId;
+  delete $set.serviceRequestId;
+  delete $set.providerSubjectType;
+  delete $set.providerSubjectId;
+  delete $set.listingId;
+  delete $set.capabilityId;
+  delete $set.creationCommandId;
+  delete $set.publicCaseRef;
+
+  const update = { $set, $inc: { recordVersion: 1 } };
+  if (push && typeof push === 'object') {
+    update.$push = push;
+  }
+
+  const ownership = { _id: id, ...ownershipFilter };
+  const updated = await GbsCase.findOneAndUpdate(
+    { ...ownership, ...extraFilter, recordVersion: expected },
+    update,
+    { new: true }
+  );
+  if (updated) return updated;
+
+  const authorized = await GbsCase.findOne(ownership).select('recordVersion status').lean();
+  if (authorized) {
+    await logAudit({
+      action: GBS_AUDIT_EVENTS.OPTIMISTIC_CONCURRENCY_CONFLICT,
+      status: 'failure',
+      targetType: 'GbsCase',
       targetId: String(id),
       metadata: redactAuditMetadata({
         expectedVersion: expected,

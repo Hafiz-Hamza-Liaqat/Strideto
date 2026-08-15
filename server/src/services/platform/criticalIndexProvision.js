@@ -8,6 +8,7 @@
  */
 import { GbsServiceRequest } from '../../models/gbs/GbsServiceRequest.js';
 import { GbsQuote } from '../../models/gbs/GbsQuote.js';
+import { GbsCase } from '../../models/gbs/GbsCase.js';
 import { IdempotencyRecord } from '../../models/platform/IdempotencyRecord.js';
 import { logger } from '../../utils/logger.js';
 
@@ -85,6 +86,42 @@ export const GBS_QUOTE_CRITICAL_INDEXES = Object.freeze([
   Object.freeze({
     name: 'gbs_quote_status_expires',
     key: Object.freeze({ status: 1, expiresAt: 1 }),
+  }),
+]);
+
+export const GBS_CASE_CRITICAL_INDEXES = Object.freeze([
+  Object.freeze({
+    name: 'gbs_case_public_ref_unique',
+    key: Object.freeze({ publicCaseRef: 1 }),
+    unique: true,
+  }),
+  Object.freeze({
+    name: 'gbs_case_creation_command_unique',
+    key: Object.freeze({ creationCommandId: 1 }),
+    unique: true,
+    sparse: true,
+  }),
+  Object.freeze({
+    name: 'gbs_case_quote_unique',
+    key: Object.freeze({ quoteId: 1 }),
+    unique: true,
+  }),
+  Object.freeze({
+    name: 'gbs_case_requester_created',
+    key: Object.freeze({ requesterUserId: 1, createdAt: -1 }),
+  }),
+  Object.freeze({
+    name: 'gbs_case_provider_inbox',
+    key: Object.freeze({
+      providerSubjectType: 1,
+      providerSubjectId: 1,
+      status: 1,
+      updatedAt: -1,
+    }),
+  }),
+  Object.freeze({
+    name: 'gbs_case_status_updated',
+    key: Object.freeze({ status: 1, updatedAt: -1 }),
   }),
 ]);
 
@@ -260,6 +297,7 @@ export async function provisionMissingIndexes({
 export async function provisionCriticalIdempotencyIndexes({
   serviceRequestCollection = GbsServiceRequest.collection,
   quoteCollection = GbsQuote.collection,
+  caseCollection = GbsCase.collection,
   idempotencyCollection = IdempotencyRecord.collection,
 } = {}) {
   const serviceRequest = await provisionMissingIndexes({
@@ -270,6 +308,10 @@ export async function provisionCriticalIdempotencyIndexes({
     collection: quoteCollection,
     expected: GBS_QUOTE_CRITICAL_INDEXES,
   });
+  const gbsCase = await provisionMissingIndexes({
+    collection: caseCollection,
+    expected: GBS_CASE_CRITICAL_INDEXES,
+  });
   const idempotency = await provisionMissingIndexes({
     collection: idempotencyCollection,
     expected: IDEMPOTENCY_RECORD_CRITICAL_INDEXES,
@@ -277,7 +319,8 @@ export async function provisionCriticalIdempotencyIndexes({
   logger.info('critical_index_provision_ready', {
     serviceRequestCreated: serviceRequest.created,
     quoteCreated: quote.created,
+    caseCreated: gbsCase.created,
     idempotencyCreated: idempotency.created,
   });
-  return { serviceRequest, quote, idempotency };
+  return { serviceRequest, quote, case: gbsCase, idempotency };
 }

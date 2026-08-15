@@ -87,6 +87,14 @@ export const GBS_AUDIT_EVENTS = Object.freeze({
   GBS_QUOTE_DECLINED: 'gbs_quote_declined',
   GBS_QUOTE_WITHDRAWN: 'gbs_quote_withdrawn',
   GBS_QUOTE_EXPIRED: 'gbs_quote_expired',
+  GBS_CASE_CREATED: 'gbs_case_created',
+  GBS_CASE_STAGE_CHANGED: 'gbs_case_stage_changed',
+  GBS_CASE_CUSTOMER_ACTION_REQUESTED: 'gbs_case_customer_action_requested',
+  GBS_CASE_CUSTOMER_ACTION_COMPLETED: 'gbs_case_customer_action_completed',
+  GBS_CASE_CANCELLED: 'gbs_case_cancelled',
+  GBS_CASE_UNABLE_TO_PROCEED: 'gbs_case_unable_to_proceed',
+  GBS_CASE_READY_FOR_SUBMISSION: 'gbs_case_ready_for_submission',
+  GBS_CASE_GENERIC_SERVICE_COMPLETED: 'gbs_case_generic_service_completed',
 });
 
 const EVENT_SET = new Set(Object.values(GBS_AUDIT_EVENTS));
@@ -117,6 +125,9 @@ export const AUDIT_SECRET_KEYS = Object.freeze([
   'whatsapp',
   'providerTerms',
   'declineNote',
+  'customerValue',
+  'closureNote',
+  'cancellationNote',
 ]);
 
 export function redactAuditMetadata(metadata = {}) {
