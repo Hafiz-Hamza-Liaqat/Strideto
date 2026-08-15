@@ -70,8 +70,9 @@ export function evaluateListingPublicationGate({
   protectedTitleEvidence = null,
   claimedOfficialFacts = [],
   now = new Date(),
+  requireMarketplaceEnabled = true,
 } = {}) {
-  if (!isBusinessServicesPublicMarketplaceEnabled(env)) {
+  if (requireMarketplaceEnabled !== false && !isBusinessServicesPublicMarketplaceEnabled(env)) {
     return { allowed: false, reason: LISTING_PUBLICATION_DENY_REASONS.MARKETPLACE_DISABLED };
   }
   const moderationStatus = listing.moderationStatus;

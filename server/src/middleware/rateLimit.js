@@ -164,6 +164,20 @@ export const gbsListingWriteLimiter = limiter('gbs-listing-write', {
   message: { error: 'Too many Business Services listing requests. Please wait.' },
 });
 
+/** Business Client activate / create / cancel */
+export const gbsBuyerWriteLimiter = limiter('gbs-buyer-write', {
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 120 : 30,
+  message: { error: 'Too many Business Services requests. Please wait.' },
+});
+
+/** Agent GBS service-request review / decline / ready-for-quote */
+export const gbsRequestWriteLimiter = limiter('gbs-request-write', {
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 120 : 40,
+  message: { error: 'Too many Business Services request updates. Please wait.' },
+});
+
 /** Agent GBS catalog / overview reads */
 export const gbsProviderReadLimiter = limiter('gbs-provider-read', {
   windowMs: 60 * 1000,

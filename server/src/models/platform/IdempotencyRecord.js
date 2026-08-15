@@ -23,9 +23,12 @@ const idempotencyRecordSchema = new mongoose.Schema(
 
 idempotencyRecordSchema.index(
   { principalId: 1, tenantId: 1, commandType: 1, idempotencyKey: 1 },
-  { unique: true }
+  { unique: true, name: 'idempotency_record_command_unique' }
 );
-idempotencyRecordSchema.index({ expiresAt: 1 }, { expireAfterSeconds: 0 });
+idempotencyRecordSchema.index(
+  { expiresAt: 1 },
+  { expireAfterSeconds: 0, name: 'idempotency_record_ttl' }
+);
 
 export const IdempotencyRecord = mongoose.model(
   'IdempotencyRecord',

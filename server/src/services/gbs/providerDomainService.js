@@ -30,8 +30,8 @@ import {
 } from '../../../../shared/provider/providerDomainSelection.js';
 import {
   defaultPermissionsForInvite,
+  membershipSatisfiesDomainPermission,
   legacyEducationPermissionsForRole,
-  membershipHasDomainPermission,
   normalizeDomainAccessList,
   PROVIDER_DOMAIN_PERMISSIONS,
   viewPermissionForDomain,
@@ -454,7 +454,7 @@ export async function assertProviderDomainAccess({
 
   const access = membershipDomainAccessOrLegacy(membership, legacyEducation);
   const required = permissionId || viewPermissionForDomain(domainId);
-  if (!membershipHasDomainPermission(access, domainId, required)) {
+  if (!membershipSatisfiesDomainPermission({ ...membership, domainAccess: access }, domainId, required)) {
     await logAudit({
       actor,
       action: GBS_AUDIT_EVENTS.PROVIDER_DOMAIN_ACCESS_DENIED,

@@ -1,0 +1,120 @@
+import { setPrivateResponseHeaders } from '../middleware/privateResponse.js';
+import {
+  activateBusinessClient,
+  getBusinessClientEnabled,
+} from '../services/gbs/gbsBuyerActivationService.js';
+import {
+  cancelCustomerServiceRequest,
+  createCustomerServiceRequest,
+  getCustomerOverview,
+  getCustomerServiceRequest,
+  listCustomerServiceRequests,
+} from '../services/gbs/gbsServiceRequestService.js';
+
+function actorFrom(req) {
+  return {
+    id: req.user?.userId,
+    userId: req.user?.userId,
+    role: req.user?.role,
+    isStaff: false,
+  };
+}
+
+function sendError(res, err) {
+  const status = err.status || 500;
+  const payload = { error: err.code || err.message || 'server_error' };
+  if (err.currentVersion != null) payload.currentVersion = err.currentVersion;
+  if (err.expectedVersion != null) payload.expectedVersion = err.expectedVersion;
+  if (err.errors) payload.details = err.errors;
+  return res.status(status).json(payload);
+}
+
+export async function getEnabled(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const data = await getBusinessClientEnabled(req.user.userId);
+    return res.json(data);
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function activate(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const data = await activateBusinessClient({
+      userId: req.user.userId,
+      actor: actorFrom(req),
+      body: req.body,
+    });
+    return res.status(200).json(data);
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function overview(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const data = await getCustomerOverview({ userId: req.user.userId });
+    return res.json(data);
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function createRequest(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const item = await createCustomerServiceRequest({
+      userId: req.user.userId,
+      body: req.body,
+      headerCommandId: req.get('Idempotency-Key'),
+      actor: actorFrom(req),
+    });
+    return res.status(201).json({ item });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function listRequests(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const data = await listCustomerServiceRequests({
+      userId: req.user.userId,
+      query: req.query,
+    });
+    return res.json(data);
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function getRequest(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const item = await getCustomerServiceRequest({
+      userId: req.user.userId,
+      requestRef: req.params.requestRef,
+    });
+    return res.json({ item });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function cancelRequest(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const item = await cancelCustomerServiceRequest({
+      userId: req.user.userId,
+      requestRef: req.params.requestRef,
+      expectedVersion: req.body?.expectedVersion,
+      actor: actorFrom(req),
+    });
+    return res.json({ item });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}

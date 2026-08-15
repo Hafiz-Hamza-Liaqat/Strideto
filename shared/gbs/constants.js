@@ -64,6 +64,11 @@ export const GBS_COMMAND_IDS = Object.freeze({
   LISTING_CREATE: 'gbs.listing.create',
   LISTING_SUBMIT_REVIEW: 'gbs.listing.submit_review',
   LISTING_ADMIN_REVIEW: 'gbs.listing.admin_review',
+  SERVICE_REQUEST_CREATE: 'gbs.service_request.create',
+  SERVICE_REQUEST_REVIEW: 'gbs.service_request.review',
+  SERVICE_REQUEST_DECLINE: 'gbs.service_request.decline',
+  SERVICE_REQUEST_CANCEL: 'gbs.service_request.cancel',
+  SERVICE_REQUEST_READY_FOR_QUOTE: 'gbs.service_request.ready_for_quote',
 });
 
 export const GBS_LISTING_MODERATION_STATUSES = Object.freeze({
@@ -143,6 +148,67 @@ export const GBS_MARKETPLACE_BOUNDS = Object.freeze({
   CANDIDATE_WINDOW: 200,
   SLUG_MAX: 120,
 });
+
+/** Service request intake / transition bounds (Phase 17D-6). */
+export const GBS_SERVICE_REQUEST_BOUNDS = Object.freeze({
+  CUSTOMER_SUMMARY_MAX: 4000,
+  EXISTING_BUSINESS_NAME_MAX: 160,
+  PROVIDER_NOTE_MAX: 500,
+  DECLINE_NOTE_MAX: 500,
+  COMMAND_ID_MAX: 120,
+  LISTING_REF_MAX: 120,
+  REQUEST_REF_MAX: 64,
+  REASON_CODE_MAX: 64,
+  PAGE_DEFAULT: 20,
+  PAGE_MAX: 50,
+});
+
+export const GBS_SERVICE_REQUEST_SCHEMA_VERSION = '17d-6.0';
+
+export const GBS_SERVICE_REQUEST_STATUSES = Object.freeze({
+  SUBMITTED: 'submitted',
+  PROVIDER_REVIEWING: 'provider_reviewing',
+  READY_FOR_QUOTE: 'ready_for_quote',
+  DECLINED: 'declined',
+  CANCELLED: 'cancelled',
+});
+
+export const GBS_SERVICE_REQUEST_ACTING_FOR = Object.freeze({
+  SELF: 'self',
+  EXISTING_BUSINESS: 'existing_business',
+  FORMATION_INTENT: 'formation_intent',
+});
+
+export const GBS_SERVICE_REQUEST_DECLINE_REASON_CODES = Object.freeze({
+  CAPACITY: 'capacity',
+  OUT_OF_SCOPE: 'out_of_scope',
+  JURISDICTION_MISMATCH: 'jurisdiction_mismatch',
+  UNABLE_TO_SERVE: 'unable_to_serve',
+  OTHER: 'other',
+});
+
+export const GBS_SERVICE_REQUEST_LANGUAGES = Object.freeze(['en', 'ur', 'ar']);
+
+const STATUS_SET = new Set(Object.values(GBS_SERVICE_REQUEST_STATUSES));
+const ACTING_FOR_SET = new Set(Object.values(GBS_SERVICE_REQUEST_ACTING_FOR));
+const DECLINE_SET = new Set(Object.values(GBS_SERVICE_REQUEST_DECLINE_REASON_CODES));
+const LANG_SET = new Set(GBS_SERVICE_REQUEST_LANGUAGES);
+
+export function isValidServiceRequestStatus(value) {
+  return typeof value === 'string' && STATUS_SET.has(value);
+}
+
+export function isValidServiceRequestActingFor(value) {
+  return typeof value === 'string' && ACTING_FOR_SET.has(value);
+}
+
+export function isValidServiceRequestDeclineReason(value) {
+  return typeof value === 'string' && DECLINE_SET.has(value);
+}
+
+export function isValidServiceRequestLanguage(value) {
+  return typeof value === 'string' && LANG_SET.has(value);
+}
 
 export const GBS_FEATURE_FLAG = 'BUSINESS_SERVICES_ENABLED';
 export const GBS_PROVIDER_FEATURE_FLAG = 'BUSINESS_SERVICES_PROVIDER_ENABLED';

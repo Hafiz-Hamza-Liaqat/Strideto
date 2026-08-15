@@ -22,12 +22,14 @@ import {
   gbsCapabilityWriteLimiter,
   gbsListingWriteLimiter,
   gbsProviderReadLimiter,
+  gbsRequestWriteLimiter,
   providerDomainWriteLimiter,
   agentTeamInviteLimiter,
 } from '../middleware/rateLimit.js';
 import { requireBusinessServicesEnabled } from '../middleware/requireBusinessServices.js';
 import { requireProviderDomainReady } from '../middleware/requireProviderDomainReady.js';
 import * as gbsProvider from '../controllers/gbsProviderController.js';
+import * as gbsProviderRequests from '../controllers/gbsProviderRequestController.js';
 import * as providerDomain from '../controllers/providerDomainController.js';
 import { requireTurnstileWhenEnabled } from '../middleware/turnstile.js';
 import { requireAgentEmailVerified } from '../middleware/requireEmailVerified.js';
@@ -341,6 +343,11 @@ agentRouter.get('/agent/business-services/listings/:listingId', ...gbsEnabled, g
 agentRouter.patch('/agent/business-services/listings/:listingId', ...gbsEnabled, gbsListingWriteLimiter, gbsProvider.patchListing);
 agentRouter.post('/agent/business-services/listings/:listingId/submit', ...gbsEnabled, gbsListingWriteLimiter, gbsProvider.submitListing);
 agentRouter.post('/agent/business-services/listings/:listingId/archive', ...gbsEnabled, gbsListingWriteLimiter, gbsProvider.archiveListing);
+agentRouter.get('/agent/business-services/requests', ...gbsEnabled, gbsProviderReadLimiter, gbsProviderRequests.listRequests);
+agentRouter.get('/agent/business-services/requests/:requestRef', ...gbsEnabled, gbsProviderReadLimiter, gbsProviderRequests.getRequest);
+agentRouter.post('/agent/business-services/requests/:requestRef/review', ...gbsEnabled, gbsRequestWriteLimiter, gbsProviderRequests.reviewRequest);
+agentRouter.post('/agent/business-services/requests/:requestRef/ready-for-quote', ...gbsEnabled, gbsRequestWriteLimiter, gbsProviderRequests.readyForQuote);
+agentRouter.post('/agent/business-services/requests/:requestRef/decline', ...gbsEnabled, gbsRequestWriteLimiter, gbsProviderRequests.declineRequest);
 
 // ---------------------------------------------------------------------------
 // Public — no auth required

@@ -12,6 +12,7 @@ import { getHelmetOptions, PERMISSIONS_POLICY } from './config/security.js';
 import { startScraperCron } from './scheduler/cron.js';
 import { healthRouter, jobsRouter, scholarshipsRouter, admissionsRouter, blogsRouter, foreignStudiesRouter, authRouter, adminRouter, trendingRouter, newsletterRouter, notificationsRouter, monetizationRouter, usersRouter, v1Router, examsRouter, internshipsRouter, chatbotRouter, webinarsRouter, intlScholarshipsRouter, badgesRouter, seoRouter, resumesRouter, employerRouter, publicProfilesRouter, careerArticlesRouter, resumeTemplatesRouter, cmsRouter, contactRouter, feedbackRouter, institutionsRouter, supportRouter, userInboxRouter, formsRouter, dynamicContentRouter, searchRouter, analyticsRouter, talentRouter, opportunityApplicationsRouter, timelineRouter, documentsRouter, credentialsRouter, careerDashboardRouter, migrationRouter, scoringRouter, assessmentsRouter, employerIntelligenceRouter, organizationVerificationRouter, testsRouter, personalizationRouter, actionEngineRouter, vaultRouter, agentRouter, consultationRouter, caseRouter, professionalTrustRouter, commerceRouter, marketplacePaymentsRouter, institutionPortalRouter, copilotRouter, budgetRouter, skillClaimsRouter, privacyRouter, announcementsRouter } from './routes/index.js';
 import { gbsPublicRouter } from './routes/gbsPublic.js';
+import { gbsBuyerRouter } from './routes/gbsBuyer.js';
 import { registerCareerTimelineHandlers } from './services/career/careerEventHandlers.js';
 import { registerCareerNotificationHandlers } from './services/career/careerNotificationBridge.js';
 import { registerCareerScoringHandlers } from './services/career/careerScoringBridge.js';
@@ -167,6 +168,7 @@ app.use('/api', actionEngineRouter);
 app.use('/api', vaultRouter);
 app.use('/api', agentRouter);
 app.use('/api', gbsPublicRouter);
+app.use('/api', gbsBuyerRouter);
 app.use('/api', consultationRouter);
 app.use('/api', caseRouter);
 app.use('/api', professionalTrustRouter);
@@ -183,6 +185,13 @@ app.use(errorHandler);
 
 connectDB()
   .then(async () => {
+    const { provisionCriticalIdempotencyIndexes } = await import(
+      './services/platform/criticalIndexProvision.js'
+    );
+    await provisionCriticalIdempotencyIndexes().catch((e) => {
+      logger.error('critical_index_provision_failed', { error: e.message, code: e.code });
+    });
+
     const { seedJobPlans } = await import('./seed/jobPlans.js');
     const jobPlansResult = await seedJobPlans().catch((e) => {
       logger.warn('job_plans_seed_failed', { error: e.message });

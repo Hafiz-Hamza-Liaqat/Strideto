@@ -19,6 +19,7 @@ export const PROVIDER_DOMAIN_PERMISSIONS = Object.freeze({
   BUSINESS_CAPABILITIES_MANAGE: 'business_services.capabilities.manage',
   BUSINESS_JURISDICTIONS_MANAGE: 'business_services.jurisdictions.manage',
   BUSINESS_LISTINGS_MANAGE: 'business_services.listings.manage',
+  BUSINESS_REQUESTS_MANAGE: 'business_services.requests.manage',
 });
 
 const P = PROVIDER_DOMAIN_PERMISSIONS;
@@ -37,6 +38,7 @@ export const PROVIDER_DOMAIN_PERMISSION_GROUPS = Object.freeze({
     { permissionId: P.BUSINESS_CAPABILITIES_MANAGE, publicLabel: 'Manage capabilities/setup' },
     { permissionId: P.BUSINESS_JURISDICTIONS_MANAGE, publicLabel: 'Manage capabilities/setup' },
     { permissionId: P.BUSINESS_LISTINGS_MANAGE, publicLabel: 'Manage service listings' },
+    { permissionId: P.BUSINESS_REQUESTS_MANAGE, publicLabel: 'Manage service requests' },
   ]),
 });
 
@@ -117,4 +119,19 @@ export function membershipHasDomainPermission(domainAccess, domainId, permission
   if (!row) return false;
   const perms = Array.isArray(row.permissions) ? row.permissions : [];
   return perms.includes(viewPermissionForDomain(domainId)) && perms.includes(permissionId);
+}
+
+/**
+ * Owner/Admin receive the current domain permission catalog (full domain duty).
+ * Ordinary members use the stored snapshot only. Team duty never mints
+ * ProviderCapability.
+ */
+export function membershipSatisfiesDomainPermission(membership, domainId, permissionId) {
+  if (!membership || !isKnownProviderDomainId(domainId) || !isKnownProviderDomainPermission(permissionId)) {
+    return false;
+  }
+  if (membership.role === AGENT_MEMBER_ROLES.OWNER || membership.role === AGENT_MEMBER_ROLES.ADMIN) {
+    return permissionsForDomain(domainId).includes(permissionId);
+  }
+  return membershipHasDomainPermission(membership.domainAccess, domainId, permissionId);
 }

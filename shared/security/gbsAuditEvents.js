@@ -74,6 +74,12 @@ export const GBS_AUDIT_EVENTS = Object.freeze({
   TEAM_DOMAIN_ACCESS_UPDATED: 'team_domain_access_updated',
   TEAM_DOMAIN_ACCESS_REMOVED: 'team_domain_access_removed',
   PROVIDER_WORKSPACE_CONTEXT_DENIED: 'provider_workspace_context_denied',
+  GBS_BUSINESS_CLIENT_ACTIVATED: 'gbs_business_client_activated',
+  GBS_SERVICE_REQUEST_CREATED: 'gbs_service_request_created',
+  GBS_SERVICE_REQUEST_STATUS_UPDATED: 'gbs_service_request_status_updated',
+  GBS_SERVICE_REQUEST_DECLINED: 'gbs_service_request_declined',
+  GBS_SERVICE_REQUEST_CANCELLED: 'gbs_service_request_cancelled',
+  GBS_SERVICE_REQUEST_READY_FOR_QUOTE: 'gbs_service_request_ready_for_quote',
 });
 
 const EVENT_SET = new Set(Object.values(GBS_AUDIT_EVENTS));
@@ -97,6 +103,11 @@ export const AUDIT_SECRET_KEYS = Object.freeze([
   'nationalId',
   'documentContents',
   'documentContent',
+  'customerSummary',
+  'existingBusinessName',
+  'email',
+  'phone',
+  'whatsapp',
 ]);
 
 export function redactAuditMetadata(metadata = {}) {

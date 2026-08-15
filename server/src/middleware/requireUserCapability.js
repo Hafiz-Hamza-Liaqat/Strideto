@@ -6,6 +6,7 @@
  * must NOT use this middleware.
  */
 import { requireAuth, requireUserAuth } from './auth.js';
+import { requireNonStaffUser } from './requireNonStaffUser.js';
 import { USER_CAPABILITY_IDS } from '../../../shared/capability/userCapabilities.js';
 import {
   authorizeUserCapability,
@@ -40,4 +41,19 @@ export const studentProductAuth = [
   requireAuth,
   requireUserAuth,
   requireStudentCapability,
+];
+
+/** Explicit Business Client activation — ordinary User only, grant not required. */
+export const businessClientActivateAuth = [
+  requireAuth,
+  requireUserAuth,
+  requireNonStaffUser,
+];
+
+/** Canonical Business Client product auth chain. */
+export const businessClientProductAuth = [
+  requireAuth,
+  requireUserAuth,
+  requireNonStaffUser,
+  requireBusinessClientCapability,
 ];
