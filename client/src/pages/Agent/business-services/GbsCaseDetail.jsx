@@ -21,6 +21,7 @@ export default function GbsCaseDetail() {
   const { caseRef } = useParams();
   const { selected } = useGbsProvider();
   const [item, setItem] = useState(null);
+  const [docs, setDocs] = useState(null);
   const [error, setError] = useState('');
   const [missing, setMissing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -39,11 +40,14 @@ export default function GbsCaseDetail() {
     }
     let cancelled = false;
     setLoading(true);
-    gbsProviderApi
-      .getCase(selected, caseRef)
-      .then(({ data }) => {
+    Promise.all([
+      gbsProviderApi.getCase(selected, caseRef),
+      gbsProviderApi.listCaseDocumentRequirements(selected, caseRef).catch(() => ({ data: null })),
+    ])
+      .then(([caseRes, docsRes]) => {
         if (cancelled) return;
-        setItem(data.item);
+        setItem(caseRes.data.item);
+        setDocs(docsRes.data);
         setMissing(false);
         setError('');
       })
@@ -136,6 +140,30 @@ export default function GbsCaseDetail() {
           <p className="mt-1 whitespace-pre-wrap break-words-safe">{item.customerSummary}</p>
         </section>
       ) : null}
+
+      <section>
+        <h3 className="font-medium">Required documents</h3>
+        <p className={`mt-2 ${muted}`}>
+          {docs?.security?.providerMessage || 'Document security scanning is not configured.'}
+        </p>
+        {!docs?.canManageDocuments ? (
+          <p className={muted}>Case document review requires an explicit case documents duty. Owner or Admin role is not enough.</p>
+        ) : null}
+        {(docs?.items || []).length === 0 ? (
+          <p className={`mt-2 ${muted}`}>No document requirements are attached to this Case.</p>
+        ) : (
+          <ul className="mt-2 space-y-2">
+            {(docs.items || []).map((row) => (
+              <li key={row.publicRequirementRef} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                <p className="font-medium break-words-safe">{row.label}</p>
+                <p className={`${muted} whitespace-pre-wrap break-words-safe`}>{row.description}</p>
+                <p>{row.statusLabel}</p>
+                <p className={muted}>Scan: {row.scanState} · Review: {row.reviewState}</p>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
 
       <section>
         <h3 className="font-medium">Customer tasks</h3>

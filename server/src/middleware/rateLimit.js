@@ -192,6 +192,24 @@ export const gbsCaseWriteLimiter = limiter('gbs-case-write', {
   message: { error: 'Too many Business Services case updates. Please wait.' },
 });
 
+export const gbsCaseDocumentWriteLimiter = limiter('gbs-case-document-write', {
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 80 : 20,
+  message: { error: 'Too many Case document updates. Please wait.' },
+});
+
+export const gbsCaseDocumentUploadLimiter = limiter('gbs-case-document-upload', {
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 40 : 10,
+  message: { error: 'Too many Case document uploads. Please wait.' },
+});
+
+export const gbsCaseDocumentAccessLimiter = limiter('gbs-case-document-access', {
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 80 : 30,
+  message: { error: 'Too many Case document access requests. Please wait.' },
+});
+
 /** Agent GBS catalog / overview reads */
 export const gbsProviderReadLimiter = limiter('gbs-provider-read', {
   windowMs: 60 * 1000,

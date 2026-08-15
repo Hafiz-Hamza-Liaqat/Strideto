@@ -131,4 +131,8 @@ export const gbsProviderApi = {
       expectedVersion,
       ...extra,
     }),
+  listCaseDocumentRequirements: (subject, caseRef) =>
+    agentAxios.get(`${base}/cases/${encodeURIComponent(caseRef)}/document-requirements`, {
+      params: subjectParams(subject),
+    }),
 };

@@ -88,6 +88,7 @@ function TaskForm({ task, busy, onComplete }) {
 export default function BusinessClientCaseDetail() {
   const { caseRef } = useParams();
   const [item, setItem] = useState(null);
+  const [docs, setDocs] = useState(null);
   const [error, setError] = useState('');
   const [missing, setMissing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -99,11 +100,14 @@ export default function BusinessClientCaseDetail() {
   useEffect(() => {
     let cancelled = false;
     setLoading(true);
-    gbsBuyerApi
-      .getCase(caseRef)
-      .then(({ data }) => {
+    Promise.all([
+      gbsBuyerApi.getCase(caseRef),
+      gbsBuyerApi.listCaseDocumentRequirements(caseRef).catch(() => ({ data: null })),
+    ])
+      .then(([caseRes, docsRes]) => {
         if (!cancelled) {
-          setItem(data.item);
+          setItem(caseRes.data.item);
+          setDocs(docsRes.data);
           setMissing(false);
         }
       })
@@ -187,6 +191,27 @@ export default function BusinessClientCaseDetail() {
             <Link to={`${ROUTES.BUSINESS}/quotes/${item.publicQuoteRef}`} className={ui.link}>View accepted quote</Link>
           </p>
         ) : null}
+      </section>
+      <section>
+        <h3 className="font-medium">Required documents</h3>
+        <p className={`mt-2 ${ui.muted}`}>
+          {docs?.security?.message || 'Secure document upload is not available in this environment.'}
+        </p>
+        <p className={ui.muted}>Allowed types: PDF, JPEG, PNG. Maximum 20 MB per file.</p>
+        {(docs?.items || []).length === 0 ? (
+          <p className={`mt-2 ${ui.muted}`}>No document requirements are attached to this Case.</p>
+        ) : (
+          <ul className="mt-2 space-y-3">
+            {(docs.items || []).map((row) => (
+              <li key={row.publicRequirementRef} className="border border-gray-200 dark:border-gray-700 rounded-lg p-3">
+                <p className="font-medium break-words-safe">{row.label}</p>
+                <p className={`${ui.muted} whitespace-pre-wrap break-words-safe`}>{row.description}</p>
+                <p>{row.statusLabel}</p>
+                <p className={ui.muted}>{row.required ? 'Required' : 'Optional'} · {row.acceptedMimeTypes?.join(', ')}</p>
+              </li>
+            ))}
+          </ul>
+        )}
       </section>
       <section>
         <h3 className="font-medium">Customer actions</h3>

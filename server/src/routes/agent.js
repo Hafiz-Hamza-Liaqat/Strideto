@@ -25,6 +25,8 @@ import {
   gbsRequestWriteLimiter,
   gbsQuoteWriteLimiter,
   gbsCaseWriteLimiter,
+  gbsCaseDocumentWriteLimiter,
+  gbsCaseDocumentAccessLimiter,
   providerDomainWriteLimiter,
   agentTeamInviteLimiter,
 } from '../middleware/rateLimit.js';
@@ -34,6 +36,7 @@ import * as gbsProvider from '../controllers/gbsProviderController.js';
 import * as gbsProviderRequests from '../controllers/gbsProviderRequestController.js';
 import * as gbsProviderQuotes from '../controllers/gbsProviderQuoteController.js';
 import * as gbsProviderCases from '../controllers/gbsProviderCaseController.js';
+import * as gbsProviderCaseDocs from '../controllers/gbsProviderCaseDocumentController.js';
 import * as providerDomain from '../controllers/providerDomainController.js';
 import { requireTurnstileWhenEnabled } from '../middleware/turnstile.js';
 import { requireAgentEmailVerified } from '../middleware/requireEmailVerified.js';
@@ -425,6 +428,39 @@ agentRouter.post(
   secureTrustedOrigin,
   gbsCaseWriteLimiter,
   gbsProviderCases.completeService
+);
+agentRouter.get(
+  '/agent/business-services/cases/:caseRef/document-requirements',
+  ...gbsEnabled,
+  gbsProviderReadLimiter,
+  gbsProviderCaseDocs.listCaseDocumentRequirements
+);
+agentRouter.get(
+  '/agent/business-services/cases/:caseRef/document-requirements/:requirementRef/file',
+  ...gbsEnabled,
+  gbsCaseDocumentAccessLimiter,
+  gbsProviderCaseDocs.downloadDocument
+);
+agentRouter.post(
+  '/agent/business-services/cases/:caseRef/document-requirements/:requirementRef/review',
+  ...gbsEnabled,
+  secureTrustedOrigin,
+  gbsCaseDocumentWriteLimiter,
+  gbsProviderCaseDocs.reviewDocument
+);
+agentRouter.post(
+  '/agent/business-services/cases/:caseRef/document-requirements/:requirementRef/reject',
+  ...gbsEnabled,
+  secureTrustedOrigin,
+  gbsCaseDocumentWriteLimiter,
+  gbsProviderCaseDocs.rejectDocument
+);
+agentRouter.post(
+  '/agent/business-services/cases/:caseRef/document-requirements/:requirementRef/waive',
+  ...gbsEnabled,
+  secureTrustedOrigin,
+  gbsCaseDocumentWriteLimiter,
+  gbsProviderCaseDocs.waiveDocument
 );
 
 // ---------------------------------------------------------------------------

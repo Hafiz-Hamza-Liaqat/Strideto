@@ -450,6 +450,9 @@ export async function ensureGbsCaseForAcceptedQuote({
             ],
             recordVersion: 0,
             openedAt: now,
+            documentPackId: 'gbs.case_documents.empty',
+            documentPackVersion: 1,
+            documentConsentRequired: false,
           });
           performed = true;
           return { caseId: String(doc._id), publicCaseRef: doc.publicCaseRef };
@@ -627,6 +630,7 @@ async function runProviderMutation({
   apply,
   auditAction,
   notify,
+  preflight,
 }) {
   const parsed = commandType === GBS_COMMAND_IDS.CASE_REQUEST_CUSTOMER_ACTION
     ? allowlistedRequestTaskInput(body)
@@ -641,6 +645,9 @@ async function runProviderMutation({
     throw deny('invalid_status_transition', 409);
   }
   await assertProfessionalAuthority(record, env, now);
+  if (typeof preflight === 'function') {
+    await preflight(record);
+  }
   const commandId = commandKey(body, headerCommandId, `${caseRef}:${commandType}:${expected}`);
   const store = getMongoIdempotencyStore();
   let performed = false;
@@ -850,6 +857,19 @@ export async function markReadyForSubmission({
     commandType: GBS_COMMAND_IDS.CASE_READY_FOR_SUBMISSION,
     fingerprintExtra: () => ({}),
     extraFilter: () => ({ status: { $in: [C.IN_PROGRESS, C.AWAITING_CLIENT] } }),
+    preflight: async (record) => {
+      const { evaluateCaseFilingReadinessForRecord } = await import('./gbsCaseDocumentService.js');
+      const readiness = await evaluateCaseFilingReadinessForRecord(record, { env, now });
+      if (readiness.ready) return;
+      if (readiness.reasons.includes('document_required')) {
+        throw deny('document_requirements_unsatisfied', 409);
+      }
+      if (readiness.reasons.includes('filing_consent_pending')) {
+        throw deny('filing_consent_pending', 409);
+      }
+      if (!requiredTasksComplete(record)) throw deny('required_tasks_incomplete', 409);
+      throw deny('filing_readiness_failed', 409);
+    },
     apply: (record) => {
       if (!requiredTasksComplete(record)) throw deny('required_tasks_incomplete', 409);
       if (record.status === C.OPEN) throw deny('invalid_status_transition', 409);
