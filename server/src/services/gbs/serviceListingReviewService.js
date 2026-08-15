@@ -20,6 +20,7 @@ import { logAudit } from '../auditService.js';
 import { mutateGbsServiceListingRecord } from '../platform/optimisticConcurrency.js';
 import { sameProviderSubject } from '../../../../shared/gbs/providerCapability.js';
 import { assertExpectedVersion } from '../../../../shared/platform/optimisticConcurrency.js';
+import { assignListingPublicSlugIfAbsent } from '../../utils/gbsListingSlug.js';
 
 const APPROVE_FROM = new Set([
   GBS_LISTING_MODERATION_STATUSES.UNDER_REVIEW,
@@ -176,7 +177,8 @@ export async function approveServiceListing({ id, subjectType, subjectId, expect
       expectedVersion
     )
   ) {
-    return { listing: current, replay: true };
+    const listing = await assignListingPublicSlugIfAbsent(current);
+    return { listing, replay: true };
   }
   if (!APPROVE_FROM.has(current.moderationStatus)) {
     throw deny('invalid_listing_review_transition', 409);
@@ -191,12 +193,14 @@ export async function approveServiceListing({ id, subjectType, subjectId, expect
     reason,
     auditAction: GBS_AUDIT_EVENTS.GBS_LISTING_APPROVED,
   });
+  const withSlug = await assignListingPublicSlugIfAbsent(updated.toObject ? updated.toObject() : updated);
+  const listing = withSlug || updated;
   const publication = evaluateListingPublicationGate({
     env: process.env,
-    listing: updated.toObject ? updated.toObject() : updated,
+    listing: listing.toObject ? listing.toObject() : listing,
     capability,
   });
-  return { listing: updated, replay: false, publication };
+  return { listing, replay: false, publication };
 }
 
 export async function needsInformationServiceListing({

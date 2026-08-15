@@ -36,6 +36,8 @@ export const RESERVED_SLUGS = new Set([
   'new',
   'applications',
   'analytics',
+  'business-services',
+  'providers',
 ]);
 
 export function isReservedSlug(slug) {

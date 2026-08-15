@@ -36,7 +36,7 @@ import {
   PROVIDER_DOMAIN_PERMISSIONS,
   viewPermissionForDomain,
 } from '../../../../shared/provider/providerDomainPermissions.js';
-import { PROVIDER_SUBJECT_TYPES, isBusinessServicesProviderEnabled } from '../../../../shared/gbs/constants.js';
+import { PROVIDER_SUBJECT_TYPES, isBusinessServicesProviderEnabled, isBusinessServicesPublicMarketplaceEnabled } from '../../../../shared/gbs/constants.js';
 import { ORGANIZATION_TYPES } from '../../../../shared/international/organization.js';
 import { AGENT_MEMBER_ROLES, AGENT_SERVICE_STATUSES } from '../../../../shared/agent/constants.js';
 import { GBS_AUDIT_EVENTS, redactAuditMetadata } from '../../../../shared/security/gbsAuditEvents.js';
@@ -381,7 +381,7 @@ export async function resolveAccessibleWorkspaces(agentAccountId) {
     initializationState,
     needsOnboarding: pending,
     businessServicesProviderEnabled: isBusinessServicesProviderEnabled(process.env),
-    publicMarketplaceEnabled: false,
+    publicMarketplaceEnabled: isBusinessServicesPublicMarketplaceEnabled(process.env),
     workspaces,
     addableDomains: listAddableDomains(workspaces, isBusinessServicesProviderEnabled(process.env)),
   };

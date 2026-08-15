@@ -25,6 +25,7 @@ import {
 } from '../../../shared/agent/marketplace.js';
 import { AGENT_PROFILE_STATUSES } from '../../../shared/agent/constants.js';
 import { withFixtureExclusion } from '../../../shared/publicDiscovery/fixtureExclusion.js';
+import { listEligibleMarketplaceSitemapPaths } from '../services/gbs/gbsMarketplaceService.js';
 
 function getPublicOrigin() {
   return resolvePublicSiteOrigin(process.env.SITE_URL || process.env.FRONTEND_URL || '');
@@ -143,6 +144,9 @@ export const getSitemap = asyncHandler(async (_req, res) => {
   tests.filter(hasSlug).forEach((t) => addUrl(`/tests/${t.slug}`, { lastmod: t.updatedAt }));
   agentProfiles.filter(hasSlug).forEach((a) => addUrl(`/agents/${a.slug}`, { lastmod: a.updatedAt }));
   marketplacePosts.filter(hasSlug).forEach((p) => addUrl(`/agents/marketplace/${p.slug}`, { lastmod: p.updatedAt || p.publishedAt }));
+
+  const gbsPaths = await listEligibleMarketplaceSitemapPaths(process.env);
+  gbsPaths.forEach((p) => addUrl(p));
 
   const urls = [...urlMap.values()];
 

@@ -54,6 +54,12 @@ const schema = new mongoose.Schema(
     turnaroundIsProviderEstimate: { type: Boolean, default: true },
     consultationAvailable: { type: Boolean, default: false },
     recurringService: { type: Boolean, default: false },
+    publicSlug: {
+      type: String,
+      default: null,
+      lowercase: true,
+      trim: true,
+    },
     moderationStatus: {
       type: String,
       enum: Object.values(GBS_LISTING_MODERATION_STATUSES),
@@ -88,5 +94,6 @@ const schema = new mongoose.Schema(
 schema.index({ subjectType: 1, subjectId: 1, moderationStatus: 1, updatedAt: -1 });
 schema.index({ adminReviewStatus: 1, moderationStatus: 1, updatedAt: -1 });
 schema.index({ creationCommandId: 1 }, { unique: true, sparse: true });
+schema.index({ publicSlug: 1 }, { unique: true, sparse: true });
 
 export const GbsServiceListing = mongoose.model('GbsServiceListing', schema);

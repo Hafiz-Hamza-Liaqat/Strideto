@@ -93,7 +93,11 @@ check(listing.includes('gbs_listing_rejects_education_category'), 'GBS listing r
 
 const gbs = read('server/src/controllers/gbsProviderController.js');
 check(gbs.includes('assertProviderDomainAccess'), 'GBS ops require domain access');
-check(gbs.includes("publicMarketplaceEnabled: false"), 'enabled probe does not advertise public marketplace');
+check(
+  gbs.includes('isBusinessServicesPublicMarketplaceEnabled'),
+  'enabled probe reports the real marketplace helper rather than a hardcoded off value'
+);
+check(!/publicMarketplaceEnabled:\s*true/.test(gbs), 'provider probe does not hardcode marketplace ON');
 
 const clientReg = read('client/src/pages/Agent/AgentRegister.jsx');
 check(clientReg.includes('What services do you want to provide') || clientReg.includes('ProviderDomainCards'), 'registration domain question');

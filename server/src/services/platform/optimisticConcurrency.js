@@ -125,6 +125,7 @@ export async function mutateGbsServiceListingRecord({
   delete $set.subjectId;
   delete $set.creationCommandId;
   delete $set.publicationStatus;
+  delete $set.publicSlug;
   if (!actor?.isStaff) {
     if ($set.reviewedBy) delete $set.reviewedBy;
     if ($set.reviewedAt) delete $set.reviewedAt;

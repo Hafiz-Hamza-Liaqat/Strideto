@@ -1,4 +1,4 @@
-import { isBusinessServicesProviderEnabled } from '../../../shared/gbs/constants.js';
+import { isBusinessServicesProviderEnabled, isBusinessServicesPublicMarketplaceEnabled } from '../../../shared/gbs/constants.js';
 import { projectProviderCatalog } from '../../../shared/gbs/providerCatalogProjection.js';
 import {
   resolveAuthorizedProviderSubjects,
@@ -69,7 +69,7 @@ async function requireSubject(req, permissionId = PROVIDER_DOMAIN_PERMISSIONS.BU
 export async function getEnabled(_req, res) {
   return res.json({
     enabled: isBusinessServicesProviderEnabled(process.env),
-    publicMarketplaceEnabled: false,
+    publicMarketplaceEnabled: isBusinessServicesPublicMarketplaceEnabled(process.env),
   });
 }
 

@@ -135,6 +135,15 @@ export const GBS_PROVIDER_BOUNDS = Object.freeze({
   REFERENCE_MAX: 120,
 });
 
+/** Public marketplace read bounds (Phase 17D-5). */
+export const GBS_MARKETPLACE_BOUNDS = Object.freeze({
+  SEARCH_MAX: 80,
+  PAGE_DEFAULT: 20,
+  PAGE_MAX: 50,
+  CANDIDATE_WINDOW: 200,
+  SLUG_MAX: 120,
+});
+
 export const GBS_FEATURE_FLAG = 'BUSINESS_SERVICES_ENABLED';
 export const GBS_PROVIDER_FEATURE_FLAG = 'BUSINESS_SERVICES_PROVIDER_ENABLED';
 export const GBS_PUBLIC_MARKETPLACE_FEATURE_FLAG = 'BUSINESS_SERVICES_PUBLIC_MARKETPLACE_ENABLED';
@@ -158,7 +167,7 @@ export function isBusinessServicesProviderEnabled(env) {
   );
 }
 
-/** Public Business Services marketplace. Default OFF. No public routes in 17D-3R. */
+/** Public Business Services marketplace. Default OFF. Only this flag enables discovery. */
 export function isBusinessServicesPublicMarketplaceEnabled(env) {
   const source = env || (typeof process !== 'undefined' ? process.env : {});
   return source?.BUSINESS_SERVICES_PUBLIC_MARKETPLACE_ENABLED === '1';
