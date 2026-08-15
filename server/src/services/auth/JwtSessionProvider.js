@@ -1,5 +1,6 @@
 import crypto from 'crypto';
 import jwt from 'jsonwebtoken';
+import { isInsecureSigningSecret } from '../../config/validateEnv.js';
 import {
   REFRESH_SESSION_SUBJECT_TYPES,
   RefreshSessionContractError,
@@ -19,20 +20,13 @@ const ALLOWED_ALGORITHM = 'HS256';
 const ACCESS_TOKEN_TYPE = 'access';
 const REFRESH_TOKEN_TYPE = 'refresh';
 
-// Mirrors validateEnv.js's existing INSECURE_JWT_SECRETS policy — the same
-// list, not a diverging one — plus the same 32-character minimum.
-const INSECURE_SECRETS = new Set([
-  'change-me-in-production',
-  'your-super-secret-jwt-key-change-in-production',
-  'dev-only-jwt-secret-min-32-characters-long',
-]);
 const MIN_SECRET_LENGTH = 32;
 
 function isWeakSecret(secret) {
   return (
     typeof secret !== 'string' ||
     secret.length < MIN_SECRET_LENGTH ||
-    INSECURE_SECRETS.has(secret)
+    isInsecureSigningSecret(secret)
   );
 }
 

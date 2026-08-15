@@ -72,6 +72,24 @@ try {
     'a known ≥32-char placeholder secret is rejected by the blocklist, not just by length'
   );
   throws(
+    () =>
+      createJwtSessionProvider(
+        validConfig({
+          accessSecret: 'replace-with-openssl-rand-hex-32',
+        })
+      ),
+    'published JWT example placeholder is rejected as a signing secret'
+  );
+  throws(
+    () =>
+      createJwtSessionProvider(
+        validConfig({
+          refreshSecret: 'replace-with-a-different-openssl-rand-hex-32',
+        })
+      ),
+    'published REFRESH example placeholder is rejected as a signing secret'
+  );
+  throws(
     () => createJwtSessionProvider(validConfig({ accessSecret: 'short' })),
     'too-short secret is rejected'
   );
