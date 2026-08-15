@@ -1,9 +1,13 @@
 # STRIDETO PHASE 17D-7
 BUSINESS SERVICES QUOTES AND CUSTOMER DECISION
 
-**STRIDETO PHASE 17D-7 IMPLEMENTATION: COMPLETE**
+**PHASE 17D-7: FORMALLY CLOSED**
 
 **GBS QUOTE: PASS**
+
+**FINAL AUTHENTICATED VISUAL ACCEPTANCE: PASS**
+
+**KNOWN IMPLEMENTATION BLOCKERS: NONE**
 
 **QUOTE ORIGIN: ready_for_quote ONLY**
 
@@ -17,7 +21,29 @@ BUSINESS SERVICES QUOTES AND CUSTOMER DECISION
 
 **LAZY PERSISTED EXPIRATION: PASS**
 
+**ONE ACTIVE QUOTE: PASS**
+
 **ACCEPTED QUOTE FINAL: PASS**
+
+**REPLACEMENT AFTER DECLINE / WITHDRAW / EXPIRY: PASS**
+
+**REQUEST CANCELLATION CONSISTENCY: PASS**
+
+**EXACT-SUBJECT: PASS**
+
+**QUOTES.MANAGE: PASS**
+
+**IDEMPOTENCY: PASS**
+
+**CONCURRENT CREATE: PASS**
+
+**CAS: PASS**
+
+**RACES: PASS**
+
+**MARKETPLACE-OFF OPERATION: PASS**
+
+**AUTHORITY-LOSS FAIL-CLOSED: PASS**
 
 **PAYMENT: NOT_CONFIGURED**
 
@@ -31,25 +57,37 @@ BUSINESS SERVICES QUOTES AND CUSTOMER DECISION
 
 **QUOTE PDF: NOT IMPLEMENTED**
 
-**PUBLIC MARKETPLACE FINAL DEFAULT: OFF**
+**PUBLIC MARKETPLACE: OFF**
 
 **WORKER: STOPPED**
 
-**PHASE 17D-8: NOT STARTED**
+**AUTHENTICATED VISUAL MATRIX: PASS**
 
-**PHASE 18: NOT STARTED**
+**SYSTEM / LIGHT / DARK: PASS**
+
+**320 / 375 / 768 / 1024 / 1440: PASS**
+
+**BODY OVERFLOW: PASS**
+
+**CUSTOMER NO-SHELL-BLINK: PASS**
+
+**PROVIDER NO-SHELL-BLINK: PASS**
+
+**BROWSER-VERIFIABLE ACCESSIBILITY: PASS**
 
 **NATIVE 200% ZOOM: NOT PROVEN / USER MANUAL**
 
 **SCREEN READER: NOT PROVEN / USER MANUAL**
 
-**AUTHENTICATED VISUAL MATRIX: NOT PROVEN / USER MANUAL**
+**PHASE 17D-8: NOT STARTED**
+
+**PHASE 18: NOT STARTED**
 
 ---
 
 ## 1. Baseline HEAD
 
-Starting HEAD: `12af854f8621f3d6d615c514cb982ce973ae3d78`
+Starting HEAD for implementation: `12af854f8621f3d6d615c514cb982ce973ae3d78`
 
 `docs(release): record phase 17d-6 service request readiness`
 
@@ -75,7 +113,13 @@ Worker remained STOPPED (`edurozgaar-staging-worker-1` Exited). No push. No depl
 
 ## 2. Audited implementation HEAD
 
-The last application/test commit of 17D-7 is `2b226d1`. The docs sign-off commit that contains this file is the Final HEAD.
+Audited implementation HEAD: `02e962854978e92f528e35b4c6fd6a6f20f9ef9b`
+
+`docs(release): record phase 17d-7 quote readiness`
+
+This remains the application/test implementation baseline. No application, test, or config change was made after that commit. The final docs sign-off commit that contains this file is the formal final Phase 17D-7 HEAD.
+
+The last application/test commit of 17D-7 is `2b226d1`.
 
 ---
 
@@ -84,7 +128,8 @@ The last application/test commit of 17D-7 is `2b226d1`. The docs sign-off commit
 1. `5b623bb` `feat(gbs): add quote authority and commercial terms foundation`
 2. `0c01fc1` `feat(gbs): add provider and business client quote workflows`
 3. `2b226d1` `test(gbs): verify quote lifecycle money and isolation`
-4. docs sign-off commit created after this report
+4. `02e9628` `docs(release): record phase 17d-7 quote readiness`
+5. final docs sign-off commit created after this report (`docs(release): finalize phase 17d-7 acceptance and closure`)
 
 ---
 
@@ -122,6 +167,8 @@ Official fees are catalog-backed snapshots only. Provider selects approved catal
 Third-party fee lines remain empty. Provider input is rejected.
 
 No FX. Unlike currencies are never added. Official fees retain catalog currency and are grouped. Grand total exists only when every included fixed monetary component shares one currency and is summable. UI always separates Professional Service Fees from Official / Government Fees.
+
+Live mixed-currency visual fixture: **NOT PROVEN — NO SAFE EXISTING FIXTURE**. This is not a known product defect. Supporting implementation/test law remains: no FX; unlike currencies are never added; grand total is omitted unless every included fixed monetary component shares one currency and is summable. No live mixed-currency screenshot is claimed.
 
 ---
 
@@ -229,7 +276,9 @@ Disposable test databases used `strideto_17d7_*` / `strideto_17d6_*` / `strideto
 
 ## 11. Runtime
 
-Rebuilt only `api-a`, `api-b`, and `frontend` with `--no-deps`. Did not recreate mongodb, redis, or mailpit. Did not `docker compose down`. Worker was not started.
+Rebuilt only `api-a`, `api-b`, and `frontend` with `--no-deps` during implementation. Did not recreate mongodb, redis, or mailpit. Did not `docker compose down`. Worker was not started.
+
+Final authenticated visual/runtime acceptance used the same stack. Marketplace stayed OFF. Worker stayed STOPPED.
 
 - frontend: healthy
 - api-a `/api/health` 200, `/api/health/ready` 200
@@ -238,13 +287,25 @@ Rebuilt only `api-a`, `api-b`, and `frontend` with `--no-deps`. Did not recreate
 - redis healthy
 - mailpit healthy
 - caddy `https://localhost:8443/` 200
-- workerRunning=false (`edurozgaar-staging-worker-1` Exited 0, 11 days)
-- `BUSINESS_SERVICES_PUBLIC_MARKETPLACE_ENABLED=0` on api-a after rebuild
+- workerRunning=false (`edurozgaar-staging-worker-1` Exited 0)
+- `BUSINESS_SERVICES_PUBLIC_MARKETPLACE_ENABLED=0` on api-a and api-b
+- `GET /api/business-services/enabled` → `enabled=false`
+- Existing Quote workflow operated while marketplace was OFF
+- Marketplace remains OFF after acceptance
 - `MONGO_AUTO_INDEX` unset
 - Unauthenticated Quote routes: 401 `Authentication required` (not 5xx)
 - Quote critical indexes provisioned on api-a and api-b startup
+- Unexpected Quote-route 5xx during the visual acceptance window: **NONE**
 
-Queue: notification emails may remain queued. Queue was not drained.
+Acceptance-window queue (intentionally not drained):
+
+- `queuePending=129`
+- email=104
+- notification=25
+- `workerRunning=false`
+- `effectiveState=queued_worker_stopped`
+
+Queued notification/email work does not mean delivery occurred. Worker remained STOPPED.
 
 ---
 
@@ -252,12 +313,223 @@ Queue: notification emails may remain queued. Queue was not drained.
 
 Quote pages use nested routes (`path: 'quotes'`), `min-w-0`, `break-words-safe` / `break-all`, `overflow-x-auto` for tables, labelled money inputs, separate Professional vs Official headings, `AdminConfirmDialog` with explicit `open`, `role="alert"`, and `aria-busy`. Accept copy states that accepting does not take payment, does not create a Formation Case, does not submit to a government authority, and does not guarantee approval.
 
-Authenticated System/Light/Dark matrices at 320 / 375 / 768 / 1024 / 1440 were **not** driven in a logged-in browser during this phase. Native 200% zoom and a real screen reader were **not** available.
+**AUTHENTICATED VISUAL MATRIX: PASS**
 
-Recorded as **NOT PROVEN / USER MANUAL**.
+System / Light / Dark: **PASS**
+
+320 / 375 / 768 / 1024 / 1440: **PASS**
+
+Body overflow: **PASS**
+
+Customer no-shell-blink: **PASS**
+
+Provider no-shell-blink: **PASS**
+
+Browser-verifiable accessibility: **PASS**
+
+Native 200%: **NOT PROVEN / USER MANUAL**
+
+Real screen reader: **NOT PROVEN / USER MANUAL**
+
+### System theme proof
+
+Appearance = System was explicitly selected (`aria-pressed` on System). Saved preference was not changed to explicit Light merely to fake System proof.
+
+- System → OS Light: **PASS** (`pref=system`, emulated `prefers-color-scheme: light`, `html` class `light`)
+- System → OS Dark: **PASS** (`pref=system`, OS `prefers-color-scheme: dark`, `html` class `dark`)
+
+### Customer Quote UI
+
+**PASS**
+
+Covered:
+
+- Business Overview
+- Service Requests
+- Quotes list
+- Quote detail
+- Sent
+- Accepted
+- Declined
+- Withdrawn
+- Expired
+- Accept dialog
+- Decline dialog
+- Professional Service Fees
+- Official / Government Fees
+- No Pay Now
+- No Proceed to Payment
+- No Start Case
+- No Upload Documents
+- No Chat
+- No fake government-submission UI
+
+### Provider Quote UI
+
+**PASS**
+
+Covered:
+
+- Quotes list
+- Quote detail
+- draft editor
+- professional fee line controls
+- official fee selection
+- provider terms
+- valid-for days
+- Save Draft
+- Send Quote
+- Withdraw
+- Create Quote from `ready_for_quote` request
+- Independent exact-subject context
+- Agency exact-subject context
+- VIEW-only vs Quote-write visibility
+- No Case UI
+- No Payment UI
+
+### Responsive matrix
+
+Measured `document.documentElement.scrollWidth <= clientWidth + 1` on tested Quote pages. No body horizontal overflow.
+
+SYSTEM
+
+- 320 PASS
+- 375 PASS
+- 768 PASS
+- 1024 PASS
+- 1440 PASS
+
+LIGHT
+
+- 320 PASS
+- 375 PASS
+- 768 PASS
+- 1024 PASS
+- 1440 PASS
+
+DARK
+
+- 320 PASS
+- 375 PASS
+- 768 PASS
+- 1024 PASS
+- 1440 PASS
+
+### Dialogs
+
+Accept dialog: **PASS**. Copy: accepting does not take payment; does not create a Formation Case; does not submit to government; does not guarantee approval.
+
+Decline dialog: **PASS**. Labelled reason and optional note. No chat/negotiation UI.
+
+Withdraw dialog: **PASS**.
+
+Dialogs remained inside the mobile viewport. Escape close: **PASS** for tested dialogs.
+
+### Quote states
+
+Expired: **PASS**. Visible text `Expired`. Accept unavailable. Worker not required.
+
+Accepted: **PASS**. Visible text `Accepted`. No replacement Quote action. No Pay action. No Formation Case UI.
+
+### Mixed-currency live visual fixture
+
+**NOT PROVEN — NO SAFE EXISTING FIXTURE**
+
+This is not a known product defect. No live mixed-currency screenshot is claimed.
+
+### Accessibility
+
+Browser-verifiable accessibility: **PASS**
+
+- semantic h1/h2/h3 structure
+- labelled money fields
+- currency association
+- Professional / Official fee headings
+- status visible as text
+- `role=alert` errors
+- `aria-busy` loading
+- real buttons/links
+- accessible confirmation dialogs
+- plain-text `providerTerms`
+
+Keyboard/focus: **PASS** for tested dialog Escape and labelled controls. Every focus-visible state was not screenshot-proven.
+
+Native 200%: **NOT PROVEN / USER MANUAL**
+
+Real screen reader: **NOT PROVEN / USER MANUAL**
+
+### Shell stability
+
+Customer no-shell-blink: **PASS**. 110 samples: Business shell/navigation remained mounted.
+
+Provider no-shell-blink: **PASS**. 0 missing-shell samples: Agent Portal / current subject shell remained mounted during SPA navigation.
+
+Full document navigation may remount; in-SPA transitions did not blank the shell.
+
+### Error / security visual states
+
+- Unknown Quote ref: safe Quote not found
+- Other-customer Quote: generic Quote not found
+- No PII leakage
+- No stack trace
+- Agency subject: no Independent Quote leakage
+- Unexpected Quote route 5xx: **NONE**
 
 ---
 
 ## 13. What 17D-7 does not do
 
 No payment, payment intent, escrow, commission, payout, or refund. No Formation Case. No government filing. No document collection. No general messaging. No Mailroom. No Quote PDF. No Worker. No push. No deploy. 17D-8 is not started. Phase 18 is not started.
+
+Deferred:
+
+- Phase 17D-8 Formation Cases: **NOT STARTED**
+- Payment: **NOT_CONFIGURED**
+- Messaging: **NOT IMPLEMENTED**
+- Documents: **NOT IMPLEMENTED**
+- Mailroom: **NOT IMPLEMENTED**
+- Quote PDF: **NOT IMPLEMENTED**
+- FX: **NOT IMPLEMENTED**
+- Tax engine: **NOT IMPLEMENTED**
+- Production marketplace launch: **NOT PERFORMED**
+- Phase 18: **NOT STARTED**
+
+---
+
+# FINAL PHASE 17D-7 CLOSURE
+
+Functional implementation: **PASS**
+
+Money / pricing truthfulness: **PASS**
+
+Exact-subject authority: **PASS**
+
+Customer ownership: **PASS**
+
+Agency duty isolation: **PASS**
+
+Idempotency / multi-api: **PASS**
+
+Critical indexes: **PASS**
+
+CAS / race safety: **PASS**
+
+Marketplace-OFF operation: **PASS**
+
+Runtime: **PASS**
+
+Authenticated visual acceptance: **PASS**
+
+Responsive: **PASS**
+
+System / Light / Dark: **PASS**
+
+Browser accessibility: **PASS**
+
+Native 200%: **NOT PROVEN / USER MANUAL**
+
+Real screen reader: **NOT PROVEN / USER MANUAL**
+
+Known implementation blockers: **NONE**
+
+Phase 17D-7: **CLOSED**
