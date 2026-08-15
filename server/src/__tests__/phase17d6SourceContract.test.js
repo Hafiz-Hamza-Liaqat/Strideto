@@ -78,7 +78,8 @@ check(buyerRoutes.includes("'/business/activate'"), 'activate route');
 check(buyerRoutes.includes('secureTrustedOrigin'), 'buyer writes are origin-protected');
 check(buyerRoutes.includes('gbsBuyerWriteLimiter'), 'buyer write limiter');
 check(buyerRoutes.includes("'/business/requests/:requestRef/cancel'"), 'cancel route');
-check(!buyerRoutes.includes('/quotes') && !buyerRoutes.includes('/payments'), 'no quote/payment buyer routes');
+check(buyerRoutes.includes("'/business/quotes'"), 'buyer quote list exists after 17D-7');
+check(!buyerRoutes.includes('/payments') && !buyerRoutes.includes('/cases'), 'no payment/case buyer routes');
 
 const agentRoutes = read('server/src/routes/agent.js');
 check(agentRoutes.includes("'/agent/business-services/requests/:requestRef/review'"), 'explicit review route');
@@ -130,7 +131,8 @@ check(card.includes('View Details') && !card.includes('Request Service'), 'cards
 
 const buyerUi = read('client/src/pages/BusinessClient/BusinessClientLayout.jsx');
 check(buyerUi.includes('Activate Business Services'), 'explicit activation UX');
-check(!buyerUi.includes('Quote') || buyerUi.includes('does not create quotes'), 'no quote product UI');
+check(buyerUi.includes('Quotes'), 'Quotes nav is live after 17D-7');
+check(!/Payments|Formation Cases|Messages|Documents/.test(buyerUi), 'no later-product nav');
 
 const providerNav = read('client/src/pages/Agent/business-services/GbsWorkspaceLayout.jsx');
 check(providerNav.includes('Service Requests'), 'provider Business nav includes Service Requests');

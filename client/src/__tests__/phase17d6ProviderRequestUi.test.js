@@ -32,6 +32,7 @@ check(!/revenue|Quote value|payment state/i.test(inbox), 'no revenue/quote/payme
 check(inbox.includes('break-words-safe') || inbox.includes('wrap'), 'long names wrap');
 
 check(detail.includes('Mark Reviewing') && detail.includes('Ready for Quote') && detail.includes('Decline'), 'lifecycle actions');
+check(detail.includes('Create Quote'), 'ready-for-quote request can create a quote');
 check(detail.includes('AdminConfirmDialog') && detail.includes('decline-reason'), 'decline dialog');
 check(detail.includes('customerSummary') && detail.includes('whitespace-pre-wrap'), 'requirements as text');
 check(!detail.includes('Quote composer') && !/document upload|payment control|case control/i.test(detail), 'no later-product controls');

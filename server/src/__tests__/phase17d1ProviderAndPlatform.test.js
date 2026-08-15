@@ -12,7 +12,6 @@ import {
   nextQuoteRevision,
   assertQuoteRevisionMutable,
   QUOTE_STATUSES,
-  QUOTE_FEE_TYPES,
 } from '../../../shared/gbs/quoteContract.js';
 import {
   applyOptimisticMutation,
@@ -276,15 +275,11 @@ function requestScope(overrides = {}) {
 // --- Quote revision contract ---
 {
   const draft = validateQuoteContract({
-    quoteNumber: 'Q-100',
+    publicQuoteRef: 'opaqueQuoteRef_17d7_abc123XYZ',
     revision: 1,
     status: QUOTE_STATUSES.DRAFT,
     currency: 'USD',
-    lineItems: [{ label: 'Formation', feeType: QUOTE_FEE_TYPES.PROVIDER, amountMinor: 50000 }],
-    providerFee: 50000,
-    governmentFee: 10000,
-    thirdPartyFee: 0,
-    optionalFee: 0,
+    professionalFeeLines: [{ label: 'Formation', amountMinor: 50000, currency: 'USD' }],
     recordVersion: 0,
   });
   check(draft.ok, 'valid quote contract');

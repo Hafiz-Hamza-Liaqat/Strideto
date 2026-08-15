@@ -27,8 +27,8 @@ const card = read('pages/Public/GbsMarketplaceCard.jsx');
 check(layout.includes('Activate Business Services'), 'activation copy');
 check(layout.includes('does not verify your identity'), 'activation does not claim identity verification');
 check(layout.includes("error: 'unavailable'") || layout.includes('Business Services unavailable'), 'staff unavailable state');
-check(layout.includes('Overview') && layout.includes('Service Requests'), 'IA: overview + requests');
-check(!/Quotes|Payments|Formation Cases|Messages|Documents|My Businesses/.test(layout + home), 'no later-product nav');
+check(layout.includes('Overview') && layout.includes('Service Requests') && layout.includes('Quotes'), 'IA: overview + requests + quotes');
+check(!/Payments|Formation Cases|Messages|Documents|My Businesses/.test(layout + home), 'no later-product nav');
 
 check(home.includes('Active / pre-quote'), 'overview active count');
 check(home.includes('No service requests yet') || home.includes('empty'), 'empty state');

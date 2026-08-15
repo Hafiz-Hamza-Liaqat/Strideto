@@ -103,11 +103,13 @@ const nav = read('client/src/config/agentNavConfig.js');
 check(nav.includes("label: 'Service Listings'"), 'Business workspace has Service Listings');
 check(nav.includes("label: 'Education & Mobility Services'"), 'Education services labeled distinctly');
 check(nav.includes('gbsEnabled'), 'nav is feature-gated');
-check(!/Quotes|Mailroom/.test(nav), 'no fake GBS modules in nav');
+check(nav.includes("label: 'Quotes'"), 'Quotes nav is live after 17D-7');
+check(!/Mailroom/.test(nav), 'no fake mailroom module');
 
 const layout = read('client/src/pages/Agent/business-services/GbsWorkspaceLayout.jsx');
 check(layout.includes('Overview') && layout.includes('Capabilities') && layout.includes('Jurisdictions') && layout.includes('Service Listings'), 'subnav IA');
-check(!/Quotes|Formation Case|Mailroom|Payouts/.test(layout), 'no fake provider modules');
+check(layout.includes('Quotes'), 'Quotes subnav is live after 17D-7');
+check(!/Formation Case|Mailroom|Payouts/.test(layout), 'no fake provider modules');
 check(layout.includes('SearchableSelect'), 'subject switcher uses SearchableSelect');
 
 const overview = read('client/src/pages/Agent/business-services/GbsOverview.jsx');

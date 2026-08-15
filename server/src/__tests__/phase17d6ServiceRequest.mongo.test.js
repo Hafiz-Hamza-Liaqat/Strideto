@@ -532,7 +532,8 @@ test('activation, create eligibility, exact subject, idempotency, lifecycle, aut
   const historical = await getCustomerServiceRequest({ userId: customer._id, requestRef: created.publicRequestRef });
   assert.equal(historical.status, S.CANCELLED);
   const collections = await mongoose.connection.db.listCollections().toArray();
-  assert.equal(collections.some((c) => /quote|formationcase|mailroom/i.test(c.name)), false);
+  assert.equal(collections.some((c) => /formationcase|mailroom/i.test(c.name)), false);
+  assert.equal(collections.some((c) => c.name === 'quotes'), false, 'no sequential quotes collection');
 
   const notifCount = await UserNotification.countDocuments({
     type: 'gbs_service_request_submitted',

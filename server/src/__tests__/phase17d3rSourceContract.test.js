@@ -114,7 +114,8 @@ const nav = read('client/src/config/agentNavConfig.js');
 check(nav.includes('Education & Mobility Services'), 'education services labeled');
 check(nav.includes('Service Listings'), 'business listings labeled');
 check(nav.includes('hasBusiness ? BUSINESS : []'), 'business operational nav requires authorized workspace');
-check(!/Quotes|Mailroom|Formation Case/.test(nav), 'no fake future modules');
+check(nav.includes("label: 'Quotes'"), 'Quotes operational nav is live after 17D-7');
+check(!/Mailroom|Formation Case/.test(nav), 'no mailroom/formation case modules');
 
 const gbsLayout = read('client/src/pages/Agent/business-services/GbsWorkspaceLayout.jsx');
 check(gbsLayout.includes('urlSpecifiesSubject') && gbsLayout.includes('requestedMatch'), 'GBS chrome requires the exact requested subject to be enrolled');
