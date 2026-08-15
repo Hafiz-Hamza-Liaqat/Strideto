@@ -6,6 +6,19 @@ export const SERVICE_REQUEST_STATUS_LABELS = {
   cancelled: 'Cancelled',
 };
 
+export const QUOTE_STATUS_LABELS = {
+  draft: 'Draft',
+  sent: 'Sent',
+  accepted: 'Accepted',
+  declined: 'Declined',
+  withdrawn: 'Withdrawn',
+  expired: 'Expired',
+};
+
+export function quoteStatusLabel(status) {
+  return QUOTE_STATUS_LABELS[status] || String(status || '').replace(/_/g, ' ');
+}
+
 export function serviceRequestStatusLabel(status) {
   return SERVICE_REQUEST_STATUS_LABELS[status] || String(status || '').replace(/_/g, ' ');
 }

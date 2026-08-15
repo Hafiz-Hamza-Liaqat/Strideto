@@ -61,6 +61,10 @@ import { generatePublicRequestRef, isOpaqueRequestRef } from '../../utils/gbsReq
 import { getUserCapabilityService } from '../capability/userCapabilityRuntime.js';
 import { USER_CAPABILITY_IDS } from '../../../../shared/capability/userCapabilities.js';
 import { GRANT_STATUSES } from '../../../../shared/capability/grantStatus.js';
+import {
+  closeDraftsForCancelledRequest,
+  quotesBlockingRequestCancel,
+} from './gbsQuoteService.js';
 
 const S = GBS_SERVICE_REQUEST_STATUSES;
 
@@ -600,6 +604,9 @@ export async function cancelCustomerServiceRequest({ userId, requestRef, expecte
   assertExpected(current, expected);
   if (!customerCanCancel(current.status)) throw deny('invalid_status_transition', 409);
 
+  const quoteGate = await quotesBlockingRequestCancel(current._id);
+  if (quoteGate.blocked) throw deny(quoteGate.code, 409);
+
   const updated = await mutateGbsServiceRequestRecord({
     id: current._id,
     expectedVersion: expected,
@@ -610,6 +617,7 @@ export async function cancelCustomerServiceRequest({ userId, requestRef, expecte
     },
     actor,
   });
+  await closeDraftsForCancelledRequest(updated._id, actor);
 
   await logAudit({
     actor,

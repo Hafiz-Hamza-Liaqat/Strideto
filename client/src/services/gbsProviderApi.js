@@ -66,4 +66,30 @@ export const gbsProviderApi = {
       expectedVersion,
       ...extra,
     }),
+  listQuotes: (subject, params = {}) =>
+    agentAxios.get(`${base}/quotes`, { params: { ...subjectParams(subject), ...params } }),
+  getQuote: (subject, quoteRef) =>
+    agentAxios.get(`${base}/quotes/${encodeURIComponent(quoteRef)}`, { params: subjectParams(subject) }),
+  createQuote: (subject, requestRef, creationCommandId) =>
+    agentAxios.post(`${base}/requests/${encodeURIComponent(requestRef)}/quote`, {
+      ...subjectParams(subject),
+      creationCommandId,
+    }),
+  updateQuote: (subject, quoteRef, data) =>
+    agentAxios.patch(`${base}/quotes/${encodeURIComponent(quoteRef)}`, {
+      ...subjectParams(subject),
+      ...data,
+    }),
+  sendQuote: (subject, quoteRef, expectedVersion, extra = {}) =>
+    agentAxios.post(`${base}/quotes/${encodeURIComponent(quoteRef)}/send`, {
+      ...subjectParams(subject),
+      expectedVersion,
+      ...extra,
+    }),
+  withdrawQuote: (subject, quoteRef, expectedVersion, extra = {}) =>
+    agentAxios.post(`${base}/quotes/${encodeURIComponent(quoteRef)}/withdraw`, {
+      ...subjectParams(subject),
+      expectedVersion,
+      ...extra,
+    }),
 };

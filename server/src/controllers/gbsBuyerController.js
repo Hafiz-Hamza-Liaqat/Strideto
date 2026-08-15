@@ -10,6 +10,12 @@ import {
   getCustomerServiceRequest,
   listCustomerServiceRequests,
 } from '../services/gbs/gbsServiceRequestService.js';
+import {
+  acceptCustomerQuote,
+  declineCustomerQuote,
+  getCustomerQuote,
+  listCustomerQuotes,
+} from '../services/gbs/gbsQuoteService.js';
 
 function actorFrom(req) {
   return {
@@ -111,6 +117,66 @@ export async function cancelRequest(req, res) {
       userId: req.user.userId,
       requestRef: req.params.requestRef,
       expectedVersion: req.body?.expectedVersion,
+      actor: actorFrom(req),
+    });
+    return res.json({ item });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function listQuotes(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const data = await listCustomerQuotes({
+      userId: req.user.userId,
+      query: req.query,
+    });
+    return res.json(data);
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function getQuote(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const item = await getCustomerQuote({
+      userId: req.user.userId,
+      quoteRef: req.params.quoteRef,
+    });
+    return res.json({ item });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function acceptQuote(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const item = await acceptCustomerQuote({
+      userId: req.user.userId,
+      quoteRef: req.params.quoteRef,
+      expectedVersion: req.body?.expectedVersion,
+      body: req.body,
+      headerCommandId: req.get('Idempotency-Key'),
+      actor: actorFrom(req),
+    });
+    return res.json({ item });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function declineQuote(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const item = await declineCustomerQuote({
+      userId: req.user.userId,
+      quoteRef: req.params.quoteRef,
+      expectedVersion: req.body?.expectedVersion,
+      body: req.body,
+      headerCommandId: req.get('Idempotency-Key'),
       actor: actorFrom(req),
     });
     return res.json({ item });

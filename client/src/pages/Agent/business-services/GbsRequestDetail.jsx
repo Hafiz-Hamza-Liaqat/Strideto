@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import { AdminConfirmDialog } from '../../../components/admin/AdminConfirmDialog';
 import { ui } from '../../../design-system/surfaceClasses';
 import { ROUTES } from '../../../constants';
@@ -12,11 +12,13 @@ import { GBS_SERVICE_REQUEST_DECLINE_REASON_CODES } from '@shared/gbs/constants.
 export default function GbsRequestDetail() {
   const { requestRef } = useParams();
   const { selected } = useGbsProvider();
+  const navigate = useNavigate();
   const [item, setItem] = useState(null);
   const [error, setError] = useState('');
   const [missing, setMissing] = useState(false);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [createBusy, setCreateBusy] = useState(false);
   const [declineOpen, setDeclineOpen] = useState(false);
   const [reasonCode, setReasonCode] = useState(GBS_SERVICE_REQUEST_DECLINE_REASON_CODES.OUT_OF_SCOPE);
   const [declineNote, setDeclineNote] = useState('');
@@ -83,6 +85,25 @@ export default function GbsRequestDetail() {
 
   const actions = item.actions || {};
 
+  const createQuote = async () => {
+    if (!item || !selected) return;
+    setCreateBusy(true);
+    setError('');
+    try {
+      const commandId = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : `quote-${Date.now()}`;
+      const { data } = await gbsProviderApi.createQuote(selected, item.publicRequestRef, commandId);
+      navigate(`${ROUTES.AGENT_BUSINESS_SERVICES_QUOTES}/${data.item.publicQuoteRef}`);
+    } catch (err) {
+      if (err.response?.status === 403) setError('Quote writes require the quotes.manage duty.');
+      else if (err.response?.status === 409) setError('A quote already exists or this request cannot accept a new quote.');
+      else setError('Unable to create a quote.');
+    } finally {
+      setCreateBusy(false);
+    }
+  };
+
   return (
     <article className={`${card} space-y-4`}>
       <p className="text-xs uppercase tracking-wide text-primary">Service Request</p>
@@ -125,6 +146,11 @@ export default function GbsRequestDetail() {
             onClick={() => runAction(() => gbsProviderApi.readyForQuote(selected, item.publicRequestRef, item.recordVersion))}
           >
             Ready for Quote
+          </button>
+        ) : null}
+        {item.status === 'ready_for_quote' ? (
+          <button type="button" className={ui.primaryBtn} disabled={createBusy} onClick={createQuote}>
+            Create Quote
           </button>
         ) : null}
         {actions.decline ? (

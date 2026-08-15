@@ -34,3 +34,19 @@ gbsBuyerRouter.post(
   gbsBuyerWriteLimiter,
   buyer.cancelRequest
 );
+gbsBuyerRouter.get('/business/quotes', ...businessClientProductAuth, buyer.listQuotes);
+gbsBuyerRouter.get('/business/quotes/:quoteRef', ...businessClientProductAuth, buyer.getQuote);
+gbsBuyerRouter.post(
+  '/business/quotes/:quoteRef/accept',
+  ...businessClientProductAuth,
+  secureTrustedOrigin,
+  gbsBuyerWriteLimiter,
+  buyer.acceptQuote
+);
+gbsBuyerRouter.post(
+  '/business/quotes/:quoteRef/decline',
+  ...businessClientProductAuth,
+  secureTrustedOrigin,
+  gbsBuyerWriteLimiter,
+  buyer.declineQuote
+);

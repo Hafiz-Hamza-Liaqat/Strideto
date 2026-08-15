@@ -99,6 +99,7 @@ export const ROUTES = {
   AGENT_BUSINESS_SERVICES_LISTINGS: '/agent/business-services/listings',
   AGENT_BUSINESS_SERVICES_LISTING_NEW: '/agent/business-services/listings/new',
   AGENT_BUSINESS_SERVICES_REQUESTS: '/agent/business-services/requests',
+  AGENT_BUSINESS_SERVICES_QUOTES: '/agent/business-services/quotes',
   AGENT_COMMERCE: '/agent/commerce',
   AGENT_AVAILABILITY: '/agent/availability',
   AGENT_MESSAGES: '/agent/messages',

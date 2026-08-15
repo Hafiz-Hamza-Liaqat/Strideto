@@ -23,6 +23,7 @@ import {
   gbsListingWriteLimiter,
   gbsProviderReadLimiter,
   gbsRequestWriteLimiter,
+  gbsQuoteWriteLimiter,
   providerDomainWriteLimiter,
   agentTeamInviteLimiter,
 } from '../middleware/rateLimit.js';
@@ -30,6 +31,7 @@ import { requireBusinessServicesEnabled } from '../middleware/requireBusinessSer
 import { requireProviderDomainReady } from '../middleware/requireProviderDomainReady.js';
 import * as gbsProvider from '../controllers/gbsProviderController.js';
 import * as gbsProviderRequests from '../controllers/gbsProviderRequestController.js';
+import * as gbsProviderQuotes from '../controllers/gbsProviderQuoteController.js';
 import * as providerDomain from '../controllers/providerDomainController.js';
 import { requireTurnstileWhenEnabled } from '../middleware/turnstile.js';
 import { requireAgentEmailVerified } from '../middleware/requireEmailVerified.js';
@@ -348,6 +350,36 @@ agentRouter.get('/agent/business-services/requests/:requestRef', ...gbsEnabled, 
 agentRouter.post('/agent/business-services/requests/:requestRef/review', ...gbsEnabled, gbsRequestWriteLimiter, gbsProviderRequests.reviewRequest);
 agentRouter.post('/agent/business-services/requests/:requestRef/ready-for-quote', ...gbsEnabled, gbsRequestWriteLimiter, gbsProviderRequests.readyForQuote);
 agentRouter.post('/agent/business-services/requests/:requestRef/decline', ...gbsEnabled, gbsRequestWriteLimiter, gbsProviderRequests.declineRequest);
+agentRouter.post(
+  '/agent/business-services/requests/:requestRef/quote',
+  ...gbsEnabled,
+  secureTrustedOrigin,
+  gbsQuoteWriteLimiter,
+  gbsProviderQuotes.createQuote
+);
+agentRouter.get('/agent/business-services/quotes', ...gbsEnabled, gbsProviderReadLimiter, gbsProviderQuotes.listQuotes);
+agentRouter.get('/agent/business-services/quotes/:quoteRef', ...gbsEnabled, gbsProviderReadLimiter, gbsProviderQuotes.getQuote);
+agentRouter.patch(
+  '/agent/business-services/quotes/:quoteRef',
+  ...gbsEnabled,
+  secureTrustedOrigin,
+  gbsQuoteWriteLimiter,
+  gbsProviderQuotes.patchQuote
+);
+agentRouter.post(
+  '/agent/business-services/quotes/:quoteRef/send',
+  ...gbsEnabled,
+  secureTrustedOrigin,
+  gbsQuoteWriteLimiter,
+  gbsProviderQuotes.sendQuote
+);
+agentRouter.post(
+  '/agent/business-services/quotes/:quoteRef/withdraw',
+  ...gbsEnabled,
+  secureTrustedOrigin,
+  gbsQuoteWriteLimiter,
+  gbsProviderQuotes.withdrawQuote
+);
 
 // ---------------------------------------------------------------------------
 // Public — no auth required

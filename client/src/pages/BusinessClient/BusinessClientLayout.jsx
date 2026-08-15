@@ -82,8 +82,8 @@ export default function BusinessClientLayout() {
             <header className="space-y-2 min-w-0">
               <h1 className={ui.h1}>Business</h1>
               <p className={`${ui.muted} break-words-safe`}>
-                Request Business Services from approved providers. This workspace does not create quotes,
-                payments, or formation cases.
+                Request Business Services from approved providers. Review quotes in this workspace.
+                Payment and formation cases are not started here.
               </p>
             </header>
             <nav aria-label="Business sections" className="flex flex-wrap gap-2">
@@ -107,6 +107,16 @@ export default function BusinessClientLayout() {
                 }
               >
                 Service Requests
+              </NavLink>
+              <NavLink
+                to={`${ROUTES.BUSINESS}/quotes`}
+                className={({ isActive }) =>
+                  `inline-flex min-h-[44px] items-center rounded-lg px-3 py-2 text-sm font-medium ${
+                    isActive ? 'bg-blue-700 text-white dark:bg-blue-600' : 'border border-gray-200 dark:border-gray-600'
+                  }`
+                }
+              >
+                Quotes
               </NavLink>
             </nav>
             <Outlet />

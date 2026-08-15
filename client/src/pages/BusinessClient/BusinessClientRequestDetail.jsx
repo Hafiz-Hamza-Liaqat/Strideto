@@ -55,7 +55,11 @@ export default function BusinessClientRequestDetail() {
       setItem(data.item);
       setConfirmOpen(false);
     } catch (err) {
-      if (err.response?.status === 409) setError('This request changed. Refresh and try again.');
+      if (err.response?.data?.error === 'quote_decision_required') {
+        setError('An active quote is waiting. Accept or decline the quote instead of cancelling the request.');
+      } else if (err.response?.data?.error === 'quote_already_accepted') {
+        setError('This request already has an accepted quote and cannot be cancelled.');
+      } else if (err.response?.status === 409) setError('This request changed. Refresh and try again.');
       else setError('Unable to cancel this request.');
     } finally {
       setBusy(false);
@@ -111,6 +115,9 @@ export default function BusinessClientRequestDetail() {
         {item.requesterCancelledAt ? <li>Cancelled: {formatTimestamp(item.requesterCancelledAt)}</li> : null}
       </ul>
       {error ? <p className={ui.error} role="alert">{error}</p> : null}
+      <p>
+        <Link to={`${ROUTES.BUSINESS}/quotes`} className={ui.link}>View quotes</Link>
+      </p>
       {canCancel ? (
         <button type="button" className={ui.secondaryBtn} onClick={() => setConfirmOpen(true)}>
           Cancel request
@@ -119,7 +126,7 @@ export default function BusinessClientRequestDetail() {
       <AdminConfirmDialog
         open={confirmOpen}
         title="Cancel this request?"
-        message="This cannot be undone. No quote or refund is involved."
+        message="This cannot be undone. If a quote has already been sent, cancel the quote decision instead."
         confirmLabel="Cancel request"
         danger
         loading={busy}

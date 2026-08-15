@@ -18,4 +18,10 @@ export const gbsBuyerApi = {
   create: (data) => axiosInstance.post('/business/requests', data),
   cancel: (requestRef, expectedVersion) =>
     axiosInstance.post(`/business/requests/${encodeURIComponent(requestRef)}/cancel`, { expectedVersion }),
+  listQuotes: (params) => axiosInstance.get(`/business/quotes${buildParams(params)}`),
+  getQuote: (quoteRef) => axiosInstance.get(`/business/quotes/${encodeURIComponent(quoteRef)}`),
+  acceptQuote: (quoteRef, expectedVersion) =>
+    axiosInstance.post(`/business/quotes/${encodeURIComponent(quoteRef)}/accept`, { expectedVersion }),
+  declineQuote: (quoteRef, expectedVersion, extra = {}) =>
+    axiosInstance.post(`/business/quotes/${encodeURIComponent(quoteRef)}/decline`, { expectedVersion, ...extra }),
 };
