@@ -7,6 +7,7 @@
  * safe: identical createIndex specs are idempotent.
  */
 import { GbsServiceRequest } from '../../models/gbs/GbsServiceRequest.js';
+import { GbsQuote } from '../../models/gbs/GbsQuote.js';
 import { IdempotencyRecord } from '../../models/platform/IdempotencyRecord.js';
 import { logger } from '../../utils/logger.js';
 
@@ -50,6 +51,43 @@ export const GBS_SERVICE_REQUEST_CRITICAL_INDEXES = Object.freeze([
   }),
 ]);
 
+export const GBS_QUOTE_CRITICAL_INDEXES = Object.freeze([
+  Object.freeze({
+    name: 'gbs_quote_public_ref_unique',
+    key: Object.freeze({ publicQuoteRef: 1 }),
+    unique: true,
+  }),
+  Object.freeze({
+    name: 'gbs_quote_creation_command_unique',
+    key: Object.freeze({ creationCommandId: 1 }),
+    unique: true,
+    sparse: true,
+  }),
+  Object.freeze({
+    name: 'gbs_quote_active_slot_unique',
+    key: Object.freeze({ serviceRequestId: 1 }),
+    unique: true,
+    partialFilterExpression: Object.freeze({ status: { $in: ['draft', 'sent'] } }),
+  }),
+  Object.freeze({
+    name: 'gbs_quote_requester_created',
+    key: Object.freeze({ requesterUserId: 1, createdAt: -1 }),
+  }),
+  Object.freeze({
+    name: 'gbs_quote_provider_inbox',
+    key: Object.freeze({
+      providerSubjectType: 1,
+      providerSubjectId: 1,
+      status: 1,
+      createdAt: -1,
+    }),
+  }),
+  Object.freeze({
+    name: 'gbs_quote_status_expires',
+    key: Object.freeze({ status: 1, expiresAt: 1 }),
+  }),
+]);
+
 export const IDEMPOTENCY_RECORD_CRITICAL_INDEXES = Object.freeze([
   Object.freeze({
     name: 'idempotency_record_command_unique',
@@ -80,6 +118,7 @@ function relevantOptions(index = {}) {
     unique: index.unique === true,
     sparse: index.sparse === true,
     expireAfterSeconds: hasTtl ? Number(index.expireAfterSeconds) : null,
+    partialFilterExpression: index.partialFilterExpression || null,
   };
 }
 
@@ -89,6 +128,9 @@ function createIndexOptions(spec) {
   if (spec.sparse === true) options.sparse = true;
   if (Object.prototype.hasOwnProperty.call(spec, 'expireAfterSeconds')) {
     options.expireAfterSeconds = spec.expireAfterSeconds;
+  }
+  if (spec.partialFilterExpression) {
+    options.partialFilterExpression = spec.partialFilterExpression;
   }
   return options;
 }
@@ -113,6 +155,9 @@ export function compareCriticalIndexes(expected, actual = []) {
     if (expectedOpts.sparse !== actualOpts.sparse) differences.push('sparse');
     if (expectedOpts.expireAfterSeconds !== actualOpts.expireAfterSeconds) {
       differences.push('expireAfterSeconds');
+    }
+    if (!sameKey(expectedOpts.partialFilterExpression || {}, actualOpts.partialFilterExpression || {})) {
+      differences.push('partialFilterExpression');
     }
     if (differences.length > 0) mismatched.push({ expected: spec, differences });
     else matched.push(spec);
@@ -214,11 +259,16 @@ export async function provisionMissingIndexes({
 
 export async function provisionCriticalIdempotencyIndexes({
   serviceRequestCollection = GbsServiceRequest.collection,
+  quoteCollection = GbsQuote.collection,
   idempotencyCollection = IdempotencyRecord.collection,
 } = {}) {
   const serviceRequest = await provisionMissingIndexes({
     collection: serviceRequestCollection,
     expected: GBS_SERVICE_REQUEST_CRITICAL_INDEXES,
+  });
+  const quote = await provisionMissingIndexes({
+    collection: quoteCollection,
+    expected: GBS_QUOTE_CRITICAL_INDEXES,
   });
   const idempotency = await provisionMissingIndexes({
     collection: idempotencyCollection,
@@ -226,7 +276,8 @@ export async function provisionCriticalIdempotencyIndexes({
   });
   logger.info('critical_index_provision_ready', {
     serviceRequestCreated: serviceRequest.created,
+    quoteCreated: quote.created,
     idempotencyCreated: idempotency.created,
   });
-  return { serviceRequest, idempotency };
+  return { serviceRequest, quote, idempotency };
 }

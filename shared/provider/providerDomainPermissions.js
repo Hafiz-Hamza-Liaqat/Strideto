@@ -20,6 +20,7 @@ export const PROVIDER_DOMAIN_PERMISSIONS = Object.freeze({
   BUSINESS_JURISDICTIONS_MANAGE: 'business_services.jurisdictions.manage',
   BUSINESS_LISTINGS_MANAGE: 'business_services.listings.manage',
   BUSINESS_REQUESTS_MANAGE: 'business_services.requests.manage',
+  BUSINESS_QUOTES_MANAGE: 'business_services.quotes.manage',
 });
 
 const P = PROVIDER_DOMAIN_PERMISSIONS;
@@ -39,6 +40,7 @@ export const PROVIDER_DOMAIN_PERMISSION_GROUPS = Object.freeze({
     { permissionId: P.BUSINESS_JURISDICTIONS_MANAGE, publicLabel: 'Manage capabilities/setup' },
     { permissionId: P.BUSINESS_LISTINGS_MANAGE, publicLabel: 'Manage service listings' },
     { permissionId: P.BUSINESS_REQUESTS_MANAGE, publicLabel: 'Manage service requests' },
+    { permissionId: P.BUSINESS_QUOTES_MANAGE, publicLabel: 'Manage quotes' },
   ]),
 });
 

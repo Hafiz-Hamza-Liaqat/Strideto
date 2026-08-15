@@ -80,6 +80,13 @@ export const GBS_AUDIT_EVENTS = Object.freeze({
   GBS_SERVICE_REQUEST_DECLINED: 'gbs_service_request_declined',
   GBS_SERVICE_REQUEST_CANCELLED: 'gbs_service_request_cancelled',
   GBS_SERVICE_REQUEST_READY_FOR_QUOTE: 'gbs_service_request_ready_for_quote',
+  GBS_QUOTE_CREATED: 'gbs_quote_created',
+  GBS_QUOTE_UPDATED: 'gbs_quote_updated',
+  GBS_QUOTE_SENT: 'gbs_quote_sent',
+  GBS_QUOTE_ACCEPTED: 'gbs_quote_accepted',
+  GBS_QUOTE_DECLINED: 'gbs_quote_declined',
+  GBS_QUOTE_WITHDRAWN: 'gbs_quote_withdrawn',
+  GBS_QUOTE_EXPIRED: 'gbs_quote_expired',
 });
 
 const EVENT_SET = new Set(Object.values(GBS_AUDIT_EVENTS));
@@ -108,6 +115,8 @@ export const AUDIT_SECRET_KEYS = Object.freeze([
   'email',
   'phone',
   'whatsapp',
+  'providerTerms',
+  'declineNote',
 ]);
 
 export function redactAuditMetadata(metadata = {}) {

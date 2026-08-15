@@ -178,6 +178,13 @@ export const gbsRequestWriteLimiter = limiter('gbs-request-write', {
   message: { error: 'Too many Business Services request updates. Please wait.' },
 });
 
+/** Agent GBS quote create / draft / send / withdraw */
+export const gbsQuoteWriteLimiter = limiter('gbs-quote-write', {
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 120 : 40,
+  message: { error: 'Too many Business Services quote updates. Please wait.' },
+});
+
 /** Agent GBS catalog / overview reads */
 export const gbsProviderReadLimiter = limiter('gbs-provider-read', {
   windowMs: 60 * 1000,
