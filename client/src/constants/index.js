@@ -112,6 +112,8 @@ export const ROUTES = {
   AGENT_PUBLIC_PROFILE: '/agents/:slug',
   AGENT_PUBLIC_MARKETPLACE: '/agents/marketplace',
   AGENT_PUBLIC_MARKETPLACE_DETAIL: '/agents/marketplace/:slug',
+  BUSINESS_SERVICES: '/business-services',
+  BUSINESS_SERVICES_LISTING: '/business-services/:listingSlug',
   // Institution portal routes (Mission 18 UX closure)
   INSTITUTION_LOGIN: '/institution/login',
   INSTITUTION_FORGOT_PASSWORD: '/institution/forgot-password',

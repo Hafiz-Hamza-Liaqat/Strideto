@@ -214,6 +214,8 @@ const AgentMarketplace = lazyLoad(() => import('../pages/Agent/AgentMarketplace'
 const AgentMarketplaceForm = lazyLoad(() => import('../pages/Agent/AgentMarketplaceForm'));
 const AgentMarketplacePublic = lazyLoad(() => import('../pages/Public/AgentMarketplace'));
 const AgentMarketplaceDetail = lazyLoad(() => import('../pages/Public/AgentMarketplaceDetail'));
+const BusinessServicesMarketplace = lazyLoad(() => import('../pages/Public/BusinessServicesMarketplace'));
+const BusinessServicesListingDetail = lazyLoad(() => import('../pages/Public/BusinessServicesListingDetail'));
 const AdminAgentMarketplace = lazyLoad(() => import('../pages/Admin/AdminAgentMarketplace'));
 const AgentConsultations = lazyLoad(() => import('../pages/Agent/AgentConsultations'));
 const AgentConsultationDetail = lazyLoad(() => import('../pages/Agent/AgentConsultationDetail'));
@@ -470,6 +472,8 @@ export const routes = [
       { path: ROUTES.AGENT_PUBLIC_MARKETPLACE, element: <AgentMarketplacePublic /> },
       { path: ROUTES.AGENT_PUBLIC_MARKETPLACE_DETAIL, element: <AgentMarketplaceDetail /> },
       { path: ROUTES.AGENT_PUBLIC_PROFILE, element: <AgentPublicProfile /> },
+      { path: ROUTES.BUSINESS_SERVICES, element: <BusinessServicesMarketplace /> },
+      { path: ROUTES.BUSINESS_SERVICES_LISTING, element: <BusinessServicesListingDetail /> },
       { path: 'employer/:slug', element: <EmployerPublicGate /> },
       { path: `${ROUTES.COMPANY}/:slug`, element: <CompanyProfile /> },
       { path: `${ROUTES.UNIVERSITY}/:slug`, element: <UniversityProfile /> },
