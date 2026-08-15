@@ -36,7 +36,7 @@ check(detail.includes('<h2') && detail.includes('Service / Provider'), 'semantic
 check(detail.includes('Professional Service Fees') && detail.includes('Official / Government Fees'), 'fee sections separated');
 check(detail.includes('Currencies are shown separately'), 'mixed-currency grand total omitted');
 check(detail.includes('Accept quote') && detail.includes('Decline quote'), 'accept/decline actions');
-check(detail.includes('does not take payment') && detail.includes('does not create a formation case'), 'accept confirmation copy');
+check(detail.includes('does not take payment') && detail.includes('service Case'), 'accept confirmation copy');
 check(detail.includes('does not') && detail.includes('government approval'), 'no government-approval guarantee');
 check(detail.includes('AdminConfirmDialog') && detail.includes('open={acceptOpen}'), 'accessible accept dialog');
 check(detail.includes('open={declineOpen}') && detail.includes('htmlFor="quote-decline-reason"'), 'accessible decline dialog');

@@ -79,7 +79,7 @@ check(buyerRoutes.includes('secureTrustedOrigin'), 'buyer writes are origin-prot
 check(buyerRoutes.includes('gbsBuyerWriteLimiter'), 'buyer write limiter');
 check(buyerRoutes.includes("'/business/requests/:requestRef/cancel'"), 'cancel route');
 check(buyerRoutes.includes("'/business/quotes'"), 'buyer quote list exists after 17D-7');
-check(!buyerRoutes.includes('/payments') && !buyerRoutes.includes('/cases'), 'no payment/case buyer routes');
+check(!buyerRoutes.includes('/payments'), 'no payment buyer routes');
 
 const agentRoutes = read('server/src/routes/agent.js');
 check(agentRoutes.includes("'/agent/business-services/requests/:requestRef/review'"), 'explicit review route');
@@ -119,7 +119,7 @@ check(!clientRoutes.includes("path: '/business'"), 'no literal /business path st
 check(!clientRoutes.includes('ROUTES.BUSINESS_CLIENT'), 'no BUSINESS_CLIENT constant');
 check(clientRoutes.includes("pages/BusinessClient/"), 'pages live under BusinessClient');
 check(!clientRoutes.includes("pages/Business/"), 'does not use pages/Business/');
-check(!/business\/quotes|business\/cases|business\/payments/.test(clientRoutes), 'no later-product client routes');
+check(!/business\/payments/.test(clientRoutes), 'no payment client routes');
 
 const cta = read('client/src/pages/Public/GbsListingRequestCta.jsx');
 check(cta.includes('Request Service'), 'Request Service CTA exists');

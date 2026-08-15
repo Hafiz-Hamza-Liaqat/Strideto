@@ -18,6 +18,7 @@ import { ProviderDomainEnrollment } from '../models/gbs/ProviderDomainEnrollment
 import { GbsServiceListing } from '../models/gbs/GbsServiceListing.js';
 import { GbsServiceRequest } from '../models/gbs/GbsServiceRequest.js';
 import { GbsQuote } from '../models/gbs/GbsQuote.js';
+import { GbsCase } from '../models/gbs/GbsCase.js';
 import { IdempotencyRecord } from '../models/platform/IdempotencyRecord.js';
 import { UserNotification } from '../models/UserNotification.js';
 import { AuditLog } from '../models/AuditLog.js';
@@ -99,6 +100,7 @@ before(async () => {
     GbsServiceListing.init(),
     GbsServiceRequest.init(),
     GbsQuote.init(),
+    GbsCase.init(),
     IdempotencyRecord.init(),
     UserNotification.init(),
     AuditLog.init(),

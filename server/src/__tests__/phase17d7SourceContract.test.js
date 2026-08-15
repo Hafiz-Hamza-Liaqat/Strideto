@@ -183,7 +183,7 @@ const buyerRoutes = read('server/src/routes/gbsBuyer.js');
 check(buyerRoutes.includes("'/business/quotes/:quoteRef/accept'"), 'customer accept route');
 check(buyerRoutes.includes("'/business/quotes/:quoteRef/decline'"), 'customer decline route');
 check(buyerRoutes.includes('secureTrustedOrigin') && buyerRoutes.includes('gbsBuyerWriteLimiter'), 'buyer mutations origin + limiter');
-check(!buyerRoutes.includes('/pay') && !buyerRoutes.includes('/cases'), 'no payment/case buyer routes');
+check(!buyerRoutes.includes('/pay') && !buyerRoutes.includes('/payments'), 'no payment buyer routes');
 check(buyerRoutes.includes('businessClientProductAuth'), 'buyer quotes use business client product auth');
 
 const agentRoutes = read('server/src/routes/agent.js');
@@ -231,7 +231,7 @@ check(!/FormationCase|Mailroom|QuotePdf|quote PDF/i.test(clientRoutes), 'no case
 const buyerDetail = read('client/src/pages/BusinessClient/BusinessClientQuoteDetail.jsx');
 check(buyerDetail.includes('Professional Service Fees') && buyerDetail.includes('Official / Government Fees'), 'fee sections separated');
 check(buyerDetail.includes('does not take payment'), 'accept copy denies payment');
-check(buyerDetail.includes('does not create a formation case'), 'accept copy denies case creation');
+check(buyerDetail.includes('service Case'), 'accept copy starts a service Case');
 check(!/Pay now|Proceed to Payment|Upload Documents|Start Formation|innerHTML/i.test(buyerDetail), 'no pay/docs/case/html');
 check(buyerDetail.includes('whitespace-pre-wrap'), 'provider terms rendered as text');
 
