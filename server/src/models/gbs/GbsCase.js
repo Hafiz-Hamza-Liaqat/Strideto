@@ -130,6 +130,9 @@ const schema = new mongoose.Schema(
     cancelledAt: { type: Date, default: null },
     unableToProceedAt: { type: Date, default: null },
     completedAt: { type: Date, default: null },
+    documentPackId: { type: String, default: 'gbs.case_documents.empty' },
+    documentPackVersion: { type: Number, default: 1, min: 1 },
+    documentConsentRequired: { type: Boolean, default: false },
   },
   { timestamps: true }
 );

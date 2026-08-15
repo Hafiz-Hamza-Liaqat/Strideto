@@ -22,6 +22,7 @@ export const PROVIDER_DOMAIN_PERMISSIONS = Object.freeze({
   BUSINESS_REQUESTS_MANAGE: 'business_services.requests.manage',
   BUSINESS_QUOTES_MANAGE: 'business_services.quotes.manage',
   BUSINESS_CASES_MANAGE: 'business_services.cases.manage',
+  BUSINESS_CASE_DOCUMENTS_MANAGE: 'business_services.case_documents.manage',
 });
 
 const P = PROVIDER_DOMAIN_PERMISSIONS;
@@ -43,8 +44,24 @@ export const PROVIDER_DOMAIN_PERMISSION_GROUPS = Object.freeze({
     { permissionId: P.BUSINESS_REQUESTS_MANAGE, publicLabel: 'Manage service requests' },
     { permissionId: P.BUSINESS_QUOTES_MANAGE, publicLabel: 'Manage quotes' },
     { permissionId: P.BUSINESS_CASES_MANAGE, publicLabel: 'Manage cases' },
+    {
+      permissionId: P.BUSINESS_CASE_DOCUMENTS_MANAGE,
+      publicLabel: 'Manage case documents',
+      explicitAssignment: true,
+    },
   ]),
 });
+
+/** Sensitive duties that Owner/Admin must never inherit from role alone. */
+export const EXPLICIT_ASSIGNMENT_PERMISSIONS = Object.freeze([
+  P.BUSINESS_CASE_DOCUMENTS_MANAGE,
+]);
+
+const EXPLICIT_ASSIGNMENT_SET = new Set(EXPLICIT_ASSIGNMENT_PERMISSIONS);
+
+export function permissionRequiresExplicitAssignment(permissionId) {
+  return EXPLICIT_ASSIGNMENT_SET.has(permissionId);
+}
 
 const PERMISSION_SET = new Set(Object.values(PROVIDER_DOMAIN_PERMISSIONS));
 
@@ -65,9 +82,11 @@ export function viewPermissionForDomain(domainId) {
 export function defaultPermissionsForInvite({ domainId, role } = {}) {
   if (!isKnownProviderDomainId(domainId)) return [];
   const view = viewPermissionForDomain(domainId);
-  const all = permissionsForDomain(domainId);
+  const operational = permissionsForDomain(domainId).filter(
+    (id) => !permissionRequiresExplicitAssignment(id)
+  );
   if (role === AGENT_MEMBER_ROLES.OWNER || role === AGENT_MEMBER_ROLES.ADMIN) {
-    return [...all];
+    return [...operational];
   }
   if (domainId === PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY) {
     return [
@@ -126,13 +145,17 @@ export function membershipHasDomainPermission(domainAccess, domainId, permission
 }
 
 /**
- * Owner/Admin receive the current domain permission catalog (full domain duty).
- * Ordinary members use the stored snapshot only. Team duty never mints
+ * Owner/Admin receive operational domain duties from the catalog, except
+ * explicit-assignment permissions (Case documents). Those require the
+ * permission to be stored on membership.domainAccess. Team duty never mints
  * ProviderCapability.
  */
 export function membershipSatisfiesDomainPermission(membership, domainId, permissionId) {
   if (!membership || !isKnownProviderDomainId(domainId) || !isKnownProviderDomainPermission(permissionId)) {
     return false;
+  }
+  if (permissionRequiresExplicitAssignment(permissionId)) {
+    return membershipHasDomainPermission(membership.domainAccess, domainId, permissionId);
   }
   if (membership.role === AGENT_MEMBER_ROLES.OWNER || membership.role === AGENT_MEMBER_ROLES.ADMIN) {
     return permissionsForDomain(domainId).includes(permissionId);

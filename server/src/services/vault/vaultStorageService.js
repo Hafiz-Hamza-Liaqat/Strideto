@@ -40,7 +40,7 @@ function computeChecksum(buffer) {
  * Upload a file buffer to private vault storage.
  * Returns { storageKey, storageProvider, checksum } — never a public URL.
  */
-export async function vaultUploadFile({ buffer, mimeType, userId }) {
+export async function vaultUploadFile({ buffer, mimeType, userId, keyNamespace } = {}) {
   if (!buffer?.length) {
     const err = new Error('Empty file');
     err.status = 400;
@@ -49,7 +49,9 @@ export async function vaultUploadFile({ buffer, mimeType, userId }) {
 
   const checksum = computeChecksum(buffer);
   const uniquePart = `${Date.now()}_${crypto.randomBytes(12).toString('hex')}`;
-  const folder = `vault/${String(userId)}`;
+  const folder = keyNamespace === 'gbs_case'
+    ? `gbs-cases/${crypto.randomBytes(16).toString('hex')}`
+    : `vault/${String(userId)}`;
 
   const cld = await getCloudinary();
   if (cld) {

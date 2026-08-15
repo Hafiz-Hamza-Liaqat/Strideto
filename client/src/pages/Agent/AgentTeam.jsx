@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react';
 import { agentApi } from '../../services/agentService';
 import { ROUTES } from '../../constants';
-import { PROVIDER_DOMAIN_PERMISSION_GROUPS, defaultPermissionsForInvite } from '@shared/provider/providerDomainPermissions.js';
-import { publicProviderDomainProjection } from '@shared/provider/providerDomains.js';
+import { PROVIDER_DOMAIN_PERMISSION_GROUPS, PROVIDER_DOMAIN_PERMISSIONS, defaultPermissionsForInvite } from '@shared/provider/providerDomainPermissions.js';
+import { PROVIDER_DOMAIN_IDS, publicProviderDomainProjection } from '@shared/provider/providerDomains.js';
 
 const inputClass = 'mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 px-3 py-2';
 
@@ -18,6 +18,7 @@ export default function AgentTeam() {
   const [q, setQ] = useState('');
   const [agencyDomains, setAgencyDomains] = useState([]);
   const [selectedDomains, setSelectedDomains] = useState([]);
+  const [grantCaseDocuments, setGrantCaseDocuments] = useState(false);
 
   const load = async () => {
     const [teamRes, inviteRes, ctxRes] = await Promise.all([
@@ -60,10 +61,17 @@ export default function AgentTeam() {
       return;
     }
     try {
-      const domainAccess = selectedDomains.map((domainId) => ({
-        domainId,
-        permissions: defaultPermissionsForInvite({ domainId, role }),
-      }));
+      const domainAccess = selectedDomains.map((domainId) => {
+        const permissions = defaultPermissionsForInvite({ domainId, role });
+        if (
+          grantCaseDocuments
+          && domainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES
+          && !permissions.includes(PROVIDER_DOMAIN_PERMISSIONS.BUSINESS_CASE_DOCUMENTS_MANAGE)
+        ) {
+          permissions.push(PROVIDER_DOMAIN_PERMISSIONS.BUSINESS_CASE_DOCUMENTS_MANAGE);
+        }
+        return { domainId, permissions };
+      });
       const { data } = await agentApi.createTeamInvite({ email, role, domainAccess });
       const link = `${window.location.origin}${ROUTES.AGENT_ACCEPT_INVITATION}?token=${data.token}`;
       setInviteLink(link);
@@ -87,7 +95,7 @@ export default function AgentTeam() {
       <div>
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Agency team</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-gray-400">
-          Roles remain owner, admin, and member. Last owner cannot be deactivated. Domain access is required on every invite and does not grant professional verification.
+          Roles remain owner, admin, and member. Last owner cannot be deactivated. Domain access is required on every invite and does not grant professional verification. Case document access is a separate sensitive duty and is never granted by owner or admin role alone.
         </p>
       </div>
       {error && <p className="rounded-lg bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300" role="alert">{error}</p>}
@@ -162,6 +170,16 @@ export default function AgentTeam() {
             );
           })}
         </fieldset>
+        {selectedDomains.includes(PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES) ? (
+          <label className="flex items-start gap-2 text-sm text-gray-900 dark:text-white">
+            <input
+              type="checkbox"
+              checked={grantCaseDocuments}
+              onChange={(e) => setGrantCaseDocuments(e.target.checked)}
+            />
+            <span>Grant Case document review duty (sensitive). Not included for owner or admin by default.</span>
+          </label>
+        ) : null}
         <button disabled={busy === 'invite' || selectedDomains.length === 0} className="rounded-lg bg-primary px-4 py-2 text-sm text-white min-h-[44px] disabled:opacity-50">Send invite</button>
         <p className="text-xs text-slate-500">Email delivery is not configured. Share the one-time link locally. Duplicate pending invites are rejected. Invite access is not professional verification.</p>
         {inviteLink ? <p className="text-xs break-words-safe text-gray-800 dark:text-gray-200">Invite link: {inviteLink}</p> : null}

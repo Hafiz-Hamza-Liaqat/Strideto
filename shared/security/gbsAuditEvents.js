@@ -95,6 +95,16 @@ export const GBS_AUDIT_EVENTS = Object.freeze({
   GBS_CASE_UNABLE_TO_PROCEED: 'gbs_case_unable_to_proceed',
   GBS_CASE_READY_FOR_SUBMISSION: 'gbs_case_ready_for_submission',
   GBS_CASE_GENERIC_SERVICE_COMPLETED: 'gbs_case_generic_service_completed',
+  GBS_CASE_DOCUMENT_REQUIREMENT_CREATED: 'gbs_case_document_requirement_created',
+  GBS_CASE_DOCUMENT_UPLOAD_INITIALIZED: 'gbs_case_document_upload_initialized',
+  GBS_CASE_DOCUMENT_UPLOADED: 'gbs_case_document_uploaded',
+  GBS_CASE_DOCUMENT_SCAN_COMPLETED: 'gbs_case_document_scan_completed',
+  GBS_CASE_DOCUMENT_REVIEWED: 'gbs_case_document_reviewed',
+  GBS_CASE_DOCUMENT_REJECTED: 'gbs_case_document_rejected',
+  GBS_CASE_DOCUMENT_SUPERSEDED: 'gbs_case_document_superseded',
+  GBS_CASE_DOCUMENT_WAIVED: 'gbs_case_document_waived',
+  GBS_CASE_DOCUMENT_ACCESSED: 'gbs_case_document_accessed',
+  GBS_CASE_FILING_READINESS_CHANGED: 'gbs_case_filing_readiness_changed',
 });
 
 const EVENT_SET = new Set(Object.values(GBS_AUDIT_EVENTS));
@@ -128,6 +138,11 @@ export const AUDIT_SECRET_KEYS = Object.freeze([
   'customerValue',
   'closureNote',
   'cancellationNote',
+  'storageKey',
+  'signedUrl',
+  'originalFilename',
+  'filename',
+  'displayName',
 ]);
 
 export function redactAuditMetadata(metadata = {}) {

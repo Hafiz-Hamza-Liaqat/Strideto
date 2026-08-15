@@ -63,3 +63,4 @@ Thumbs.db
 .cache/
 .turbo/
 qa-artifacts/
+server/vault-storage/

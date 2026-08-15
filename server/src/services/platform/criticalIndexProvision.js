@@ -9,6 +9,8 @@
 import { GbsServiceRequest } from '../../models/gbs/GbsServiceRequest.js';
 import { GbsQuote } from '../../models/gbs/GbsQuote.js';
 import { GbsCase } from '../../models/gbs/GbsCase.js';
+import { GbsCaseDocumentRequirement } from '../../models/gbs/GbsCaseDocumentRequirement.js';
+import { GbsCaseDocumentGrant } from '../../models/gbs/GbsCaseDocumentGrant.js';
 import { IdempotencyRecord } from '../../models/platform/IdempotencyRecord.js';
 import { logger } from '../../utils/logger.js';
 
@@ -86,6 +88,39 @@ export const GBS_QUOTE_CRITICAL_INDEXES = Object.freeze([
   Object.freeze({
     name: 'gbs_quote_status_expires',
     key: Object.freeze({ status: 1, expiresAt: 1 }),
+  }),
+]);
+
+export const GBS_CASE_DOCUMENT_REQUIREMENT_CRITICAL_INDEXES = Object.freeze([
+  Object.freeze({
+    name: 'gbs_case_doc_req_public_ref_unique',
+    key: Object.freeze({ publicRequirementRef: 1 }),
+    unique: true,
+  }),
+  Object.freeze({
+    name: 'gbs_case_doc_req_case_key_unique',
+    key: Object.freeze({ caseId: 1, requirementKey: 1 }),
+    unique: true,
+  }),
+  Object.freeze({
+    name: 'gbs_case_doc_req_case_status',
+    key: Object.freeze({ caseId: 1, status: 1 }),
+  }),
+  Object.freeze({
+    name: 'gbs_case_doc_req_requester',
+    key: Object.freeze({ requesterUserId: 1, createdAt: -1 }),
+  }),
+]);
+
+export const GBS_CASE_DOCUMENT_GRANT_CRITICAL_INDEXES = Object.freeze([
+  Object.freeze({
+    name: 'gbs_case_doc_grant_version_subject_unique',
+    key: Object.freeze({ requirementId: 1, vaultVersionId: 1, granteeSubjectId: 1 }),
+    unique: true,
+  }),
+  Object.freeze({
+    name: 'gbs_case_doc_grant_case_status',
+    key: Object.freeze({ caseId: 1, status: 1 }),
   }),
 ]);
 
@@ -298,6 +333,8 @@ export async function provisionCriticalIdempotencyIndexes({
   serviceRequestCollection = GbsServiceRequest.collection,
   quoteCollection = GbsQuote.collection,
   caseCollection = GbsCase.collection,
+  caseDocumentRequirementCollection = GbsCaseDocumentRequirement.collection,
+  caseDocumentGrantCollection = GbsCaseDocumentGrant.collection,
   idempotencyCollection = IdempotencyRecord.collection,
 } = {}) {
   const serviceRequest = await provisionMissingIndexes({
@@ -312,6 +349,14 @@ export async function provisionCriticalIdempotencyIndexes({
     collection: caseCollection,
     expected: GBS_CASE_CRITICAL_INDEXES,
   });
+  const caseDocuments = await provisionMissingIndexes({
+    collection: caseDocumentRequirementCollection,
+    expected: GBS_CASE_DOCUMENT_REQUIREMENT_CRITICAL_INDEXES,
+  });
+  const caseDocumentGrants = await provisionMissingIndexes({
+    collection: caseDocumentGrantCollection,
+    expected: GBS_CASE_DOCUMENT_GRANT_CRITICAL_INDEXES,
+  });
   const idempotency = await provisionMissingIndexes({
     collection: idempotencyCollection,
     expected: IDEMPOTENCY_RECORD_CRITICAL_INDEXES,
@@ -320,7 +365,16 @@ export async function provisionCriticalIdempotencyIndexes({
     serviceRequestCreated: serviceRequest.created,
     quoteCreated: quote.created,
     caseCreated: gbsCase.created,
+    caseDocumentCreated: caseDocuments.created,
+    caseDocumentGrantCreated: caseDocumentGrants.created,
     idempotencyCreated: idempotency.created,
   });
-  return { serviceRequest, quote, case: gbsCase, idempotency };
+  return {
+    serviceRequest,
+    quote,
+    case: gbsCase,
+    caseDocuments,
+    caseDocumentGrants,
+    idempotency,
+  };
 }
