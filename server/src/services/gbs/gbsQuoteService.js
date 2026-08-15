@@ -2,9 +2,11 @@
  * GBS Quote lifecycle (Phase 17D-7).
  *
  * Quotes originate only from ready_for_quote Service Requests.
- * No payment, Formation Case, messaging, or documents.
+ * No payment, government filing, messaging, or documents.
+ * Accepting a quote ensures a GbsCase for pre-submission tracking.
  */
 import { GbsQuote } from '../../models/gbs/GbsQuote.js';
+import { GbsCase } from '../../models/gbs/GbsCase.js';
 import { GbsServiceRequest } from '../../models/gbs/GbsServiceRequest.js';
 import { GbsServiceListing } from '../../models/gbs/GbsServiceListing.js';
 import { ProviderCapability } from '../../models/gbs/ProviderCapability.js';
@@ -924,6 +926,12 @@ async function customerDecision({
   return customerQuoteProjection(updated, await customerExtras(updated), now);
 }
 
+async function publicCaseRefForQuote(quoteId) {
+  if (!quoteId) return undefined;
+  const gbsCase = await GbsCase.findOne({ quoteId }).select('publicCaseRef').lean();
+  return gbsCase?.publicCaseRef;
+}
+
 async function customerExtras(record) {
   const capDef = getBusinessServicesCapability(record.capabilityId);
   return {
@@ -934,6 +942,7 @@ async function customerExtras(record) {
       capDef,
       record.jurisdictionNameSnapshot
     ),
+    publicCaseRef: record.status === Q.ACCEPTED ? await publicCaseRefForQuote(record._id) : undefined,
   };
 }
 
@@ -951,7 +960,7 @@ export async function acceptCustomerQuote({
   if (!parsed.ok) throw deny(parsed.error, 400);
   const expected = expectedVersion ?? body.expectedVersion;
   const commandId = commandKey(body, headerCommandId, `${quoteRef}:accept:${parseExpectedVersion(expected)}`);
-  return customerDecision({
+  const item = await customerDecision({
     userId,
     quoteRef,
     expectedVersion: expected,
@@ -973,6 +982,18 @@ export async function acceptCustomerQuote({
       });
     },
   });
+  const accepted = await GbsQuote.findOne({ publicQuoteRef: quoteRef, requesterUserId: userId });
+  if (accepted?.status === Q.ACCEPTED) {
+    const { ensureGbsCaseForAcceptedQuote } = await import('./gbsCaseService.js');
+    const gbsCase = await ensureGbsCaseForAcceptedQuote({
+      quote: accepted,
+      actor,
+      env,
+      now,
+    });
+    return { ...item, publicCaseRef: gbsCase.publicCaseRef };
+  }
+  return item;
 }
 
 export async function declineCustomerQuote({
@@ -1077,7 +1098,10 @@ export async function getProviderQuote({ subject, quoteRef, now = new Date() } =
   const displayName = await safeCustomerName(record.requesterUserId);
   const listing = await GbsServiceListing.findById(record.listingId).lean();
   return {
-    ...providerQuoteProjection(record, { displayName }, now),
+    ...providerQuoteProjection(record, {
+      displayName,
+      publicCaseRef: record.status === Q.ACCEPTED ? await publicCaseRefForQuote(record._id) : undefined,
+    }, now),
     availableOfficialFees: listing ? catalogOfficialFeesForListing(listing, now) : [],
   };
 }

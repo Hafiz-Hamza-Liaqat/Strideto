@@ -92,4 +92,43 @@ export const gbsProviderApi = {
       expectedVersion,
       ...extra,
     }),
+  ensureCase: (subject, quoteRef, extra = {}) =>
+    agentAxios.post(`${base}/quotes/${encodeURIComponent(quoteRef)}/case`, {
+      ...subjectParams(subject),
+      ...extra,
+    }),
+  listCases: (subject, params = {}) =>
+    agentAxios.get(`${base}/cases`, { params: { ...subjectParams(subject), ...params } }),
+  getCase: (subject, caseRef) =>
+    agentAxios.get(`${base}/cases/${encodeURIComponent(caseRef)}`, { params: subjectParams(subject) }),
+  startPreparation: (subject, caseRef, expectedVersion, extra = {}) =>
+    agentAxios.post(`${base}/cases/${encodeURIComponent(caseRef)}/start-preparation`, {
+      ...subjectParams(subject),
+      expectedVersion,
+      ...extra,
+    }),
+  requestCustomerAction: (subject, caseRef, expectedVersion, extra = {}) =>
+    agentAxios.post(`${base}/cases/${encodeURIComponent(caseRef)}/request-customer-action`, {
+      ...subjectParams(subject),
+      expectedVersion,
+      ...extra,
+    }),
+  markReadyForSubmission: (subject, caseRef, expectedVersion, extra = {}) =>
+    agentAxios.post(`${base}/cases/${encodeURIComponent(caseRef)}/ready-for-submission`, {
+      ...subjectParams(subject),
+      expectedVersion,
+      ...extra,
+    }),
+  markUnableToProceed: (subject, caseRef, expectedVersion, extra = {}) =>
+    agentAxios.post(`${base}/cases/${encodeURIComponent(caseRef)}/unable-to-proceed`, {
+      ...subjectParams(subject),
+      expectedVersion,
+      ...extra,
+    }),
+  completeGenericService: (subject, caseRef, expectedVersion, extra = {}) =>
+    agentAxios.post(`${base}/cases/${encodeURIComponent(caseRef)}/complete-service`, {
+      ...subjectParams(subject),
+      expectedVersion,
+      ...extra,
+    }),
 };

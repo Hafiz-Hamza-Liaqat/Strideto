@@ -16,6 +16,7 @@ const COUNTER_CARDS = [
   ['draftListings', 'Draft listings'],
   ['listingsUnderReview', 'Listings under review'],
   ['approvedInternalListings', 'Approved internal listings'],
+  ['openCases', 'Open service Cases'],
 ];
 
 export default function GbsOverview() {
@@ -90,6 +91,9 @@ export default function GbsOverview() {
           </Link>
           <Link to={ROUTES.AGENT_BUSINESS_SERVICES_LISTINGS} className={`${ui.secondaryBtn} ${wrap}`}>
             Open listings
+          </Link>
+          <Link to={ROUTES.AGENT_BUSINESS_SERVICES_CASES} className={`${ui.secondaryBtn} ${wrap}`}>
+            Open cases
           </Link>
         </div>
       </section>

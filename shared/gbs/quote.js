@@ -244,6 +244,7 @@ export function customerQuoteProjection(record, extras = {}, now = new Date()) {
     providerDisplayName: extras.providerDisplayName || record.providerDisplayNameSnapshot || 'Provider',
     providerKind: extras.providerKind || record.providerKindSnapshot || 'independent',
     verificationBadge: extras.verificationBadge || null,
+    publicCaseRef: extras.publicCaseRef || undefined,
   };
 }
 
@@ -257,6 +258,7 @@ export function providerQuoteProjection(record, customerSafe = {}, now = new Dat
     preferredLanguage: record.preferredLanguageSnapshot || undefined,
     customerSummary: record.customerSummarySnapshot,
     officialFeeIds: (record.officialFeeLines || []).map((line) => line.feeId).filter(Boolean),
+    publicCaseRef: customerSafe.publicCaseRef || undefined,
   };
 }
 

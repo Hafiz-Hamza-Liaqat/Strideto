@@ -50,3 +50,26 @@ gbsBuyerRouter.post(
   gbsBuyerWriteLimiter,
   buyer.declineQuote
 );
+gbsBuyerRouter.post(
+  '/business/quotes/:quoteRef/case',
+  ...businessClientProductAuth,
+  secureTrustedOrigin,
+  gbsBuyerWriteLimiter,
+  buyer.ensureCase
+);
+gbsBuyerRouter.get('/business/cases', ...businessClientActivateAuth, buyer.listCases);
+gbsBuyerRouter.get('/business/cases/:caseRef', ...businessClientActivateAuth, buyer.getCase);
+gbsBuyerRouter.post(
+  '/business/cases/:caseRef/tasks/:taskRef/complete',
+  ...businessClientProductAuth,
+  secureTrustedOrigin,
+  gbsBuyerWriteLimiter,
+  buyer.completeCaseTask
+);
+gbsBuyerRouter.post(
+  '/business/cases/:caseRef/cancel',
+  ...businessClientProductAuth,
+  secureTrustedOrigin,
+  gbsBuyerWriteLimiter,
+  buyer.cancelCase
+);

@@ -262,6 +262,8 @@ const GbsRequests = lazyLoad(() => import('../pages/Agent/business-services/GbsR
 const GbsRequestDetail = lazyLoad(() => import('../pages/Agent/business-services/GbsRequestDetail'));
 const GbsQuotes = lazyLoad(() => import('../pages/Agent/business-services/GbsQuotes'));
 const GbsQuoteDetail = lazyLoad(() => import('../pages/Agent/business-services/GbsQuoteDetail'));
+const GbsCases = lazyLoad(() => import('../pages/Agent/business-services/GbsCases'));
+const GbsCaseDetail = lazyLoad(() => import('../pages/Agent/business-services/GbsCaseDetail'));
 const BusinessClientLayout = lazyLoad(() => import('../pages/BusinessClient/BusinessClientLayout'));
 const BusinessClientOverview = lazyLoad(() => import('../pages/BusinessClient/BusinessClientOverview'));
 const BusinessClientRequests = lazyLoad(() => import('../pages/BusinessClient/BusinessClientRequests'));
@@ -269,6 +271,8 @@ const BusinessClientRequestForm = lazyLoad(() => import('../pages/BusinessClient
 const BusinessClientRequestDetail = lazyLoad(() => import('../pages/BusinessClient/BusinessClientRequestDetail'));
 const BusinessClientQuotes = lazyLoad(() => import('../pages/BusinessClient/BusinessClientQuotes'));
 const BusinessClientQuoteDetail = lazyLoad(() => import('../pages/BusinessClient/BusinessClientQuoteDetail'));
+const BusinessClientCases = lazyLoad(() => import('../pages/BusinessClient/BusinessClientCases'));
+const BusinessClientCaseDetail = lazyLoad(() => import('../pages/BusinessClient/BusinessClientCaseDetail'));
 const TrustCenter = lazyLoad(() => import('../pages/Trust/TrustCenter'));
 const AgentCommerce = lazyLoad(() => import('../pages/Agent/AgentCommerce')); const CommerceHistory = lazyLoad(() => import('../pages/Commerce/CommerceHistory'));
 const MarketplaceCheckout = lazyLoad(() => import('../pages/Commerce/MarketplaceCheckout'));
@@ -365,6 +369,8 @@ export const routes = [
           { path: 'requests/:requestRef', element: <GbsRequestDetail /> },
           { path: 'quotes', element: <GbsQuotes /> },
           { path: 'quotes/:quoteRef', element: <GbsQuoteDetail /> },
+          { path: 'cases', element: <GbsCases /> },
+          { path: 'cases/:caseRef', element: <GbsCaseDetail /> },
         ],
       },
       { path: 'commerce', element: <AgentCommerce /> },
@@ -518,6 +524,8 @@ export const routes = [
           { path: 'requests/:requestRef', element: <BusinessClientRequestDetail /> },
           { path: 'quotes', element: <BusinessClientQuotes /> },
           { path: 'quotes/:quoteRef', element: <BusinessClientQuoteDetail /> },
+          { path: 'cases', element: <BusinessClientCases /> },
+          { path: 'cases/:caseRef', element: <BusinessClientCaseDetail /> },
         ],
       },
       {

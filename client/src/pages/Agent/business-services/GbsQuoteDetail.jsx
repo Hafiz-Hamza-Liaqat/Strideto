@@ -301,6 +301,13 @@ export default function GbsQuoteDetail() {
               Withdraw quote
             </button>
           ) : null}
+          {item.status === 'accepted' && item.publicCaseRef ? (
+            <p>
+              <Link to={`${ROUTES.AGENT_BUSINESS_SERVICES_CASES}/${item.publicCaseRef}`} className={ui.link}>
+                View service Case
+              </Link>
+            </p>
+          ) : null}
         </>
       )}
       <AdminConfirmDialog

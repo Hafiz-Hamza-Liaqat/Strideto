@@ -24,6 +24,7 @@ import {
   gbsProviderReadLimiter,
   gbsRequestWriteLimiter,
   gbsQuoteWriteLimiter,
+  gbsCaseWriteLimiter,
   providerDomainWriteLimiter,
   agentTeamInviteLimiter,
 } from '../middleware/rateLimit.js';
@@ -32,6 +33,7 @@ import { requireProviderDomainReady } from '../middleware/requireProviderDomainR
 import * as gbsProvider from '../controllers/gbsProviderController.js';
 import * as gbsProviderRequests from '../controllers/gbsProviderRequestController.js';
 import * as gbsProviderQuotes from '../controllers/gbsProviderQuoteController.js';
+import * as gbsProviderCases from '../controllers/gbsProviderCaseController.js';
 import * as providerDomain from '../controllers/providerDomainController.js';
 import { requireTurnstileWhenEnabled } from '../middleware/turnstile.js';
 import { requireAgentEmailVerified } from '../middleware/requireEmailVerified.js';
@@ -379,6 +381,50 @@ agentRouter.post(
   secureTrustedOrigin,
   gbsQuoteWriteLimiter,
   gbsProviderQuotes.withdrawQuote
+);
+agentRouter.post(
+  '/agent/business-services/quotes/:quoteRef/case',
+  ...gbsEnabled,
+  secureTrustedOrigin,
+  gbsCaseWriteLimiter,
+  gbsProviderCases.ensureCase
+);
+agentRouter.get('/agent/business-services/cases', ...gbsEnabled, gbsProviderReadLimiter, gbsProviderCases.listCases);
+agentRouter.get('/agent/business-services/cases/:caseRef', ...gbsEnabled, gbsProviderReadLimiter, gbsProviderCases.getCase);
+agentRouter.post(
+  '/agent/business-services/cases/:caseRef/start-preparation',
+  ...gbsEnabled,
+  secureTrustedOrigin,
+  gbsCaseWriteLimiter,
+  gbsProviderCases.startPrep
+);
+agentRouter.post(
+  '/agent/business-services/cases/:caseRef/request-customer-action',
+  ...gbsEnabled,
+  secureTrustedOrigin,
+  gbsCaseWriteLimiter,
+  gbsProviderCases.requestAction
+);
+agentRouter.post(
+  '/agent/business-services/cases/:caseRef/ready-for-submission',
+  ...gbsEnabled,
+  secureTrustedOrigin,
+  gbsCaseWriteLimiter,
+  gbsProviderCases.readyForSubmission
+);
+agentRouter.post(
+  '/agent/business-services/cases/:caseRef/unable-to-proceed',
+  ...gbsEnabled,
+  secureTrustedOrigin,
+  gbsCaseWriteLimiter,
+  gbsProviderCases.unableToProceed
+);
+agentRouter.post(
+  '/agent/business-services/cases/:caseRef/complete-service',
+  ...gbsEnabled,
+  secureTrustedOrigin,
+  gbsCaseWriteLimiter,
+  gbsProviderCases.completeService
 );
 
 // ---------------------------------------------------------------------------

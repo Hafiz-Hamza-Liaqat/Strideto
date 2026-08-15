@@ -1,5 +1,6 @@
 import { ProviderCapability } from '../../models/gbs/ProviderCapability.js';
 import { GbsServiceListing } from '../../models/gbs/GbsServiceListing.js';
+import { GbsCase } from '../../models/gbs/GbsCase.js';
 import { GRANT_STATUSES } from '../../../../shared/capability/grantStatus.js';
 import {
   GBS_LISTING_MODERATION_STATUSES,
@@ -10,6 +11,11 @@ export async function getProviderWorkspaceSummary({ subjectType, subjectId } = {
   const sid = String(subjectId);
   const caps = await ProviderCapability.find({ subjectType, subjectId: sid }).lean();
   const listings = await GbsServiceListing.find({ subjectType, subjectId: sid }).lean();
+  const openCases = await GbsCase.countDocuments({
+    providerSubjectType: subjectType,
+    providerSubjectId: sid,
+    status: { $in: ['open', 'in_progress', 'awaiting_client', 'ready_for_submission'] },
+  });
 
   const verified = caps.filter(
     (c) => c.status === GRANT_STATUSES.ACTIVE && c.trustStatus === PROVIDER_TRUST_STATUSES.VERIFIED
@@ -32,6 +38,7 @@ export async function getProviderWorkspaceSummary({ subjectType, subjectId } = {
       draftListings: listings.filter((l) => l.moderationStatus === GBS_LISTING_MODERATION_STATUSES.DRAFT).length,
       listingsUnderReview: listings.filter((l) => l.moderationStatus === GBS_LISTING_MODERATION_STATUSES.UNDER_REVIEW).length,
       approvedInternalListings: listings.filter((l) => l.moderationStatus === GBS_LISTING_MODERATION_STATUSES.APPROVED).length,
+      openCases,
     },
   };
 }

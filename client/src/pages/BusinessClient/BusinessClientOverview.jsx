@@ -32,6 +32,7 @@ export default function BusinessClientOverview() {
   if (error) return <div className={ui.error} role="alert">{error}</div>;
 
   const counts = data?.counts || {};
+  const caseCounts = data?.caseCounts || {};
   const recent = data?.recent || [];
 
   return (
@@ -53,6 +54,24 @@ export default function BusinessClientOverview() {
             </li>
           ))}
         </ul>
+      </section>
+      <section aria-labelledby="business-case-heading">
+        <h2 id="business-case-heading" className="text-lg font-semibold">Service Cases</h2>
+        <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+          {[
+            ['active', 'Active Cases'],
+            ['awaiting_client', 'Awaiting your action'],
+            ['ready_for_submission', 'Ready for submission'],
+          ].map(([key, label]) => (
+            <li key={key} className={`${ui.card} p-4`}>
+              <p className={ui.muted}>{label}</p>
+              <p className="mt-1 text-2xl font-semibold">{caseCounts[key] ?? 0}</p>
+            </li>
+          ))}
+        </ul>
+        <p className="mt-3">
+          <Link to={`${ROUTES.BUSINESS}/cases`} className={ui.link}>View Cases</Link>
+        </p>
       </section>
       <section aria-labelledby="business-recent-heading">
         <h2 id="business-recent-heading" className="text-lg font-semibold">Recent requests</h2>

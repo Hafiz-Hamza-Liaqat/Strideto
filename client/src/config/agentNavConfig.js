@@ -32,6 +32,7 @@ const BUSINESS = [
   { path: ROUTES.AGENT_BUSINESS_SERVICES_LISTINGS, label: 'Service Listings' },
   { path: ROUTES.AGENT_BUSINESS_SERVICES_REQUESTS, label: 'Service Requests' },
   { path: ROUTES.AGENT_BUSINESS_SERVICES_QUOTES, label: 'Quotes' },
+  { path: ROUTES.AGENT_BUSINESS_SERVICES_CASES, label: 'Cases' },
 ];
 
 export function resolveProviderNavDomain(pathname = '') {

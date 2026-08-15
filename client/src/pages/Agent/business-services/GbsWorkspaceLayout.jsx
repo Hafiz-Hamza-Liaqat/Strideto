@@ -14,6 +14,7 @@ const SUBNAV = [
   { to: ROUTES.AGENT_BUSINESS_SERVICES_LISTINGS, label: 'Service Listings' },
   { to: ROUTES.AGENT_BUSINESS_SERVICES_REQUESTS, label: 'Service Requests' },
   { to: ROUTES.AGENT_BUSINESS_SERVICES_QUOTES, label: 'Quotes' },
+  { to: ROUTES.AGENT_BUSINESS_SERVICES_CASES, label: 'Cases' },
 ];
 
 function SubjectSwitcher() {

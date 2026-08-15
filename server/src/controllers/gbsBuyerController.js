@@ -16,6 +16,14 @@ import {
   getCustomerQuote,
   listCustomerQuotes,
 } from '../services/gbs/gbsQuoteService.js';
+import {
+  cancelCustomerCase,
+  completeCustomerTask,
+  countCustomerCases,
+  ensureCustomerCaseForQuote,
+  getCustomerCase,
+  listCustomerCases,
+} from '../services/gbs/gbsCaseService.js';
 
 function actorFrom(req) {
   return {
@@ -63,7 +71,8 @@ export async function overview(req, res) {
   try {
     setPrivateResponseHeaders(res);
     const data = await getCustomerOverview({ userId: req.user.userId });
-    return res.json(data);
+    const caseCounts = await countCustomerCases({ userId: req.user.userId });
+    return res.json({ ...data, caseCounts });
   } catch (err) {
     return sendError(res, err);
   }
@@ -174,6 +183,83 @@ export async function declineQuote(req, res) {
     const item = await declineCustomerQuote({
       userId: req.user.userId,
       quoteRef: req.params.quoteRef,
+      expectedVersion: req.body?.expectedVersion,
+      body: req.body,
+      headerCommandId: req.get('Idempotency-Key'),
+      actor: actorFrom(req),
+    });
+    return res.json({ item });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function listCases(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const data = await listCustomerCases({
+      userId: req.user.userId,
+      query: req.query,
+    });
+    return res.json(data);
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function getCase(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const item = await getCustomerCase({
+      userId: req.user.userId,
+      caseRef: req.params.caseRef,
+    });
+    return res.json({ item });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function ensureCase(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const item = await ensureCustomerCaseForQuote({
+      userId: req.user.userId,
+      quoteRef: req.params.quoteRef,
+      body: req.body,
+      headerCommandId: req.get('Idempotency-Key'),
+      actor: actorFrom(req),
+    });
+    return res.status(200).json({ item });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function completeCaseTask(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const item = await completeCustomerTask({
+      userId: req.user.userId,
+      caseRef: req.params.caseRef,
+      taskRef: req.params.taskRef,
+      expectedVersion: req.body?.expectedVersion,
+      body: req.body,
+      headerCommandId: req.get('Idempotency-Key'),
+      actor: actorFrom(req),
+    });
+    return res.json({ item });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function cancelCase(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const item = await cancelCustomerCase({
+      userId: req.user.userId,
+      caseRef: req.params.caseRef,
       expectedVersion: req.body?.expectedVersion,
       body: req.body,
       headerCommandId: req.get('Idempotency-Key'),

@@ -195,6 +195,11 @@ export default function BusinessClientQuoteDetail() {
         {item.expiresAt ? <li>Expires: {formatTimestamp(item.expiresAt)}</li> : null}
       </ul>
       {error ? <p className={ui.error} role="alert">{error}</p> : null}
+      {item.status === 'accepted' && item.publicCaseRef ? (
+        <p>
+          <Link to={`${ROUTES.BUSINESS}/cases/${item.publicCaseRef}`} className={ui.link}>View service Case</Link>
+        </p>
+      ) : null}
       {canDecide ? (
         <div className="flex flex-wrap gap-2">
           <button type="button" className={ui.primaryBtn} onClick={() => setAcceptOpen(true)}>Accept quote</button>
@@ -204,7 +209,7 @@ export default function BusinessClientQuoteDetail() {
       <AdminConfirmDialog
         open={acceptOpen}
         title="Accept this quote?"
-        message="Accepting this quote does not take payment at this step. It does not create a formation case, submit anything to a government authority, or guarantee government approval."
+        message="Accepting this quote starts a STRIDETO service Case for operational tracking. It does not take payment, submit anything to a government authority, or guarantee government approval."
         confirmLabel="Accept quote"
         loading={busy}
         onCancel={() => setAcceptOpen(false)}

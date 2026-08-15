@@ -24,4 +24,15 @@ export const gbsBuyerApi = {
     axiosInstance.post(`/business/quotes/${encodeURIComponent(quoteRef)}/accept`, { expectedVersion }),
   declineQuote: (quoteRef, expectedVersion, extra = {}) =>
     axiosInstance.post(`/business/quotes/${encodeURIComponent(quoteRef)}/decline`, { expectedVersion, ...extra }),
+  ensureCase: (quoteRef, extra = {}) =>
+    axiosInstance.post(`/business/quotes/${encodeURIComponent(quoteRef)}/case`, extra),
+  listCases: (params) => axiosInstance.get(`/business/cases${buildParams(params)}`),
+  getCase: (caseRef) => axiosInstance.get(`/business/cases/${encodeURIComponent(caseRef)}`),
+  completeCaseTask: (caseRef, taskRef, expectedVersion, extra = {}) =>
+    axiosInstance.post(
+      `/business/cases/${encodeURIComponent(caseRef)}/tasks/${encodeURIComponent(taskRef)}/complete`,
+      { expectedVersion, ...extra }
+    ),
+  cancelCase: (caseRef, expectedVersion, extra = {}) =>
+    axiosInstance.post(`/business/cases/${encodeURIComponent(caseRef)}/cancel`, { expectedVersion, ...extra }),
 };
