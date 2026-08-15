@@ -44,4 +44,26 @@ export const gbsProviderApi = {
       ...subjectParams(subject),
       expectedVersion,
     }),
+  listRequests: (subject, params = {}) =>
+    agentAxios.get(`${base}/requests`, { params: { ...subjectParams(subject), ...params } }),
+  getRequest: (subject, requestRef) =>
+    agentAxios.get(`${base}/requests/${encodeURIComponent(requestRef)}`, { params: subjectParams(subject) }),
+  reviewRequest: (subject, requestRef, expectedVersion, extra = {}) =>
+    agentAxios.post(`${base}/requests/${encodeURIComponent(requestRef)}/review`, {
+      ...subjectParams(subject),
+      expectedVersion,
+      ...extra,
+    }),
+  readyForQuote: (subject, requestRef, expectedVersion, extra = {}) =>
+    agentAxios.post(`${base}/requests/${encodeURIComponent(requestRef)}/ready-for-quote`, {
+      ...subjectParams(subject),
+      expectedVersion,
+      ...extra,
+    }),
+  declineRequest: (subject, requestRef, expectedVersion, extra = {}) =>
+    agentAxios.post(`${base}/requests/${encodeURIComponent(requestRef)}/decline`, {
+      ...subjectParams(subject),
+      expectedVersion,
+      ...extra,
+    }),
 };

@@ -230,6 +230,9 @@ export function UserAccountMenu() {
                 </MenuLink>
                 <MenuLink to={ROUTES.TALENT_PROFILE} onClose={close}>{t('navbar:talentProfile')}</MenuLink>
                 <MenuLink to={ROUTES.APPLICATIONS} onClose={close}>{t('navbar:myApplications')}</MenuLink>
+                {!STAFF_ROLES.includes(user?.role) ? (
+                  <MenuLink to={ROUTES.BUSINESS} onClose={close}>Business</MenuLink>
+                ) : null}
                 {STAFF_ROLES.includes(user?.role) ? (
                   <MenuLink to={ROUTES.ADMIN} onClose={close}>{t('common:admin')}</MenuLink>
                 ) : null}

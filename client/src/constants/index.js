@@ -98,6 +98,7 @@ export const ROUTES = {
   AGENT_BUSINESS_SERVICES_JURISDICTIONS: '/agent/business-services/jurisdictions',
   AGENT_BUSINESS_SERVICES_LISTINGS: '/agent/business-services/listings',
   AGENT_BUSINESS_SERVICES_LISTING_NEW: '/agent/business-services/listings/new',
+  AGENT_BUSINESS_SERVICES_REQUESTS: '/agent/business-services/requests',
   AGENT_COMMERCE: '/agent/commerce',
   AGENT_AVAILABILITY: '/agent/availability',
   AGENT_MESSAGES: '/agent/messages',
@@ -114,6 +115,7 @@ export const ROUTES = {
   AGENT_PUBLIC_MARKETPLACE_DETAIL: '/agents/marketplace/:slug',
   BUSINESS_SERVICES: '/business-services',
   BUSINESS_SERVICES_LISTING: '/business-services/:listingSlug',
+  BUSINESS: '/business',
   // Institution portal routes (Mission 18 UX closure)
   INSTITUTION_LOGIN: '/institution/login',
   INSTITUTION_FORGOT_PASSWORD: '/institution/forgot-password',

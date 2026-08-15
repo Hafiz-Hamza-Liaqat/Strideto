@@ -28,5 +28,6 @@ Disallow: /journey
 Disallow: /personalization
 Disallow: /notifications
 Disallow: /exam-prep/quiz/
+Disallow: /business
 
 Sitemap: https://strideto.com/sitemap.xml

@@ -13,6 +13,7 @@ import {
   providerKindLabel,
   turnaroundLabel,
 } from './gbsMarketplaceFormat';
+import { GbsListingRequestCta } from './GbsListingRequestCta';
 import { formatMoney } from '@shared/international/dateDisplay.js';
 
 function offerJsonLd(item, canonical) {
@@ -203,7 +204,7 @@ export default function BusinessServicesListingDetail() {
           </section>
         ) : null}
 
-        <section className={`${ui.card} p-6 space-y-2`}>
+        <section className={`${ui.card} p-6 space-y-3`}>
           {turnaround ? (
             <p className="text-sm text-gray-700 dark:text-gray-200">
               Estimated turnaround: {turnaround}
@@ -212,6 +213,7 @@ export default function BusinessServicesListingDetail() {
           ) : null}
           {item.recurringService ? <p className="text-sm text-gray-700 dark:text-gray-200">This is a recurring service.</p> : null}
           {item.consultationAvailable ? <p className="text-sm text-gray-700 dark:text-gray-200">Consultation is listed as available. Requesting it through Strideto is not offered on this page yet.</p> : null}
+          <GbsListingRequestCta listingSlug={item.slug} />
         </section>
       </div>
     </>

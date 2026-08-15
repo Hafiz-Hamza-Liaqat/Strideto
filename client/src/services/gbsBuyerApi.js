@@ -1,0 +1,21 @@
+import axiosInstance from './axiosBase';
+
+function buildParams(params) {
+  const searchParams = new URLSearchParams();
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value != null && value !== '') searchParams.set(key, String(value));
+  });
+  const qs = searchParams.toString();
+  return qs ? `?${qs}` : '';
+}
+
+export const gbsBuyerApi = {
+  enabled: () => axiosInstance.get('/business/enabled'),
+  activate: () => axiosInstance.post('/business/activate', {}),
+  overview: () => axiosInstance.get('/business/overview'),
+  list: (params) => axiosInstance.get(`/business/requests${buildParams(params)}`),
+  get: (requestRef) => axiosInstance.get(`/business/requests/${encodeURIComponent(requestRef)}`),
+  create: (data) => axiosInstance.post('/business/requests', data),
+  cancel: (requestRef, expectedVersion) =>
+    axiosInstance.post(`/business/requests/${encodeURIComponent(requestRef)}/cancel`, { expectedVersion }),
+};

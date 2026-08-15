@@ -258,6 +258,13 @@ const GbsCapabilities = lazyLoad(() => import('../pages/Agent/business-services/
 const GbsJurisdictions = lazyLoad(() => import('../pages/Agent/business-services/GbsJurisdictions'));
 const GbsListings = lazyLoad(() => import('../pages/Agent/business-services/GbsListings'));
 const GbsListingEditor = lazyLoad(() => import('../pages/Agent/business-services/GbsListingEditor'));
+const GbsRequests = lazyLoad(() => import('../pages/Agent/business-services/GbsRequests'));
+const GbsRequestDetail = lazyLoad(() => import('../pages/Agent/business-services/GbsRequestDetail'));
+const BusinessClientLayout = lazyLoad(() => import('../pages/BusinessClient/BusinessClientLayout'));
+const BusinessClientOverview = lazyLoad(() => import('../pages/BusinessClient/BusinessClientOverview'));
+const BusinessClientRequests = lazyLoad(() => import('../pages/BusinessClient/BusinessClientRequests'));
+const BusinessClientRequestForm = lazyLoad(() => import('../pages/BusinessClient/BusinessClientRequestForm'));
+const BusinessClientRequestDetail = lazyLoad(() => import('../pages/BusinessClient/BusinessClientRequestDetail'));
 const TrustCenter = lazyLoad(() => import('../pages/Trust/TrustCenter'));
 const AgentCommerce = lazyLoad(() => import('../pages/Agent/AgentCommerce')); const CommerceHistory = lazyLoad(() => import('../pages/Commerce/CommerceHistory'));
 const MarketplaceCheckout = lazyLoad(() => import('../pages/Commerce/MarketplaceCheckout'));
@@ -350,6 +357,8 @@ export const routes = [
           { path: 'listings', element: <GbsListings /> },
           { path: 'listings/new', element: <GbsListingEditor /> },
           { path: 'listings/:listingId/edit', element: <GbsListingEditor /> },
+          { path: 'requests', element: <GbsRequests /> },
+          { path: 'requests/:requestRef', element: <GbsRequestDetail /> },
         ],
       },
       { path: 'commerce', element: <AgentCommerce /> },
@@ -488,6 +497,20 @@ export const routes = [
             <Profile />
           </ProtectedRoute>
         ),
+      },
+      {
+        path: ROUTES.BUSINESS,
+        element: (
+          <ProtectedRoute>
+            <BusinessClientLayout />
+          </ProtectedRoute>
+        ),
+        children: [
+          { index: true, element: <BusinessClientOverview /> },
+          { path: 'requests', element: <BusinessClientRequests /> },
+          { path: 'requests/new', element: <BusinessClientRequestForm /> },
+          { path: 'requests/:requestRef', element: <BusinessClientRequestDetail /> },
+        ],
       },
       {
         path: ROUTES.TALENT_PROFILE,
