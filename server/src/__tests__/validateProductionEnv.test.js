@@ -60,6 +60,9 @@ function captureValidation(overrides) {
     'FRONTEND_URL',
     'APP_URL',
     'CLOUDINARY_CLOUD_NAME',
+    'GBS_HSI_DOCUMENTS_ENABLED',
+    'VAULT_DEV_MODE',
+    'HSI_SKIP_ENCRYPTION',
   ];
   try {
     for (const key of keys) delete process.env[key];
@@ -211,6 +214,44 @@ function assertNoSecretEcho(errors, secret, label) {
   const result = captureValidation(BASE_PRODUCTION);
   check(result.passed === true, 'two distinct strong test secrets → validation PASSES');
   check(result.exitCode === undefined, 'passing validation does not process.exit');
+}
+
+// --- 8. HSI off does not require HSI secrets --------------------------------
+{
+  const result = captureValidation({ ...BASE_PRODUCTION, GBS_HSI_DOCUMENTS_ENABLED: '0' });
+  check(result.passed === true, 'HSI disabled → production validation does not require MinIO/Vault/ClamAV');
+}
+
+// --- 9. HSI on without config / with test adapters fails closed -------------
+{
+  const missing = captureValidation({ ...BASE_PRODUCTION, GBS_HSI_DOCUMENTS_ENABLED: '1' });
+  check(missing.passed === false && missing.exitCode === 1, 'HSI enabled without config → FAIL');
+  check(/missing configuration/.test(missing.errors), 'HSI missing-config fatal names the gap');
+
+  const devVault = captureValidation({
+    ...BASE_PRODUCTION,
+    GBS_HSI_DOCUMENTS_ENABLED: '1',
+    VAULT_DEV_MODE: '1',
+    CLAMAV_CLAMD_HOST: 'clamav',
+    HSI_MINIO_ENDPOINT: 'http://minio:9000',
+    HSI_MINIO_ACCESS_KEY: 'a'.repeat(20),
+    HSI_MINIO_SECRET_KEY: 'b'.repeat(20),
+    HSI_MINIO_QUARANTINE_BUCKET: 'hsi-q',
+    HSI_MINIO_CLEAN_BUCKET: 'hsi-c',
+    VAULT_ADDR: 'http://vault:8200',
+    VAULT_TOKEN: 'c'.repeat(20),
+    VAULT_TRANSIT_KEY_NAME: 'hsi-prod',
+    GBS_HSI_RETENTION_POLICY_JSON: '{"unused_upload":1}',
+  });
+  check(devVault.passed === false, 'Vault dev mode refused in production HSI');
+  check(/dev mode/.test(devVault.errors), 'dev-mode fatal is explicit');
+
+  const skip = captureValidation({
+    ...BASE_PRODUCTION,
+    GBS_HSI_DOCUMENTS_ENABLED: '1',
+    HSI_SKIP_ENCRYPTION: '1',
+  });
+  check(skip.passed === false, 'HSI_SKIP_ENCRYPTION refused in production');
 }
 
 console.log(`validateProductionEnv.test.js: ${count} assertions passed`);
