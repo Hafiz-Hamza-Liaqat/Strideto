@@ -189,8 +189,16 @@ export default function AgentVerification() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Verification</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-gray-400">Registration or license numbers alone are not proof. Maps/Business is supporting evidence only and can never alone result in VERIFIED.</p>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Professional Verification</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-gray-400">
+          Submit identity, organization, and professional credential evidence for Education & Mobility review.
+          Registration or license numbers alone are not proof. Maps/Business is supporting evidence only and can never alone result in VERIFIED.
+        </p>
+        <p className="mt-2 text-sm text-gray-800 dark:text-gray-200">
+          <a href="#professional-credentials" className="text-primary underline-offset-2 hover:underline">
+            Jump to professional credentials &amp; evidence
+          </a>
+        </p>
       </div>
       {error && <p className="rounded-lg bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300 break-words" role="alert">{error}</p>}
       {message && <p className="rounded-lg bg-green-50 dark:bg-green-950/40 p-3 text-sm text-green-800 break-words" role="status">{message}</p>}
@@ -247,7 +255,12 @@ export default function AgentVerification() {
           <label className="text-sm text-gray-900 dark:text-white">Registration authority<input value={profile.registrationAuthority} onChange={set('registrationAuthority')} className={inputClass} /></label>
           <label className="text-sm text-gray-900 dark:text-white">Registration number{isAgency && policy === 'required' ? ' (required for agencies where applicable)' : ' (optional if not applicable)'}<input value={profile.registrationNumber} onChange={set('registrationNumber')} className={inputClass} /></label>
           <label className="text-sm text-gray-900 dark:text-white">Business / tax identifier<input value={profile.taxIdentifier} onChange={set('taxIdentifier')} className={inputClass} /></label>
-          <h2 className="md:col-span-2 font-semibold text-gray-900 dark:text-white">Professional credential</h2>
+          <h2 id="professional-credentials" className="md:col-span-2 font-semibold text-gray-900 dark:text-white scroll-mt-24">
+            Professional credentials &amp; evidence
+          </h2>
+          <p className="md:col-span-2 text-xs text-slate-500 dark:text-gray-400">
+            Credential fields are review evidence only. Providers cannot self-mark Professional Credential Verified.
+          </p>
           <label className="text-sm text-gray-900 dark:text-white">Profession / regulator<input value={profile.profession} onChange={set('profession')} className={inputClass} /></label>
           <label className="text-sm text-gray-900 dark:text-white">Credential / license type<input value={profile.credentialType} onChange={set('credentialType')} className={inputClass} /></label>
           <label className="text-sm text-gray-900 dark:text-white">Issuing authority<input value={profile.licenseIssuer} onChange={set('licenseIssuer')} className={inputClass} /></label>

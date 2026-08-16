@@ -5,16 +5,17 @@ import { ROUTES } from '../../constants';
 import { SeoHead } from '../../components/seo';
 import { ui } from '../../design-system/surfaceClasses';
 import { CountrySelect } from '../../components/forms/CountrySelect';
+import { humanizeSpecialtySlug } from '../../utils/availabilityWindows';
 
 function chipList(values, limit = 4) {
-  const list = (values || []).filter(Boolean);
+  const list = (values || []).filter(Boolean).map(humanizeSpecialtySlug);
   if (!list.length) return null;
   const shown = list.slice(0, limit);
   const extra = list.length - shown.length;
   return (
     <div className="mt-2 flex flex-wrap gap-1.5">
       {shown.map((v) => (
-        <span key={v} className="rounded-md bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-xs text-gray-700 dark:text-gray-300">
+        <span key={v} className="rounded-md bg-gray-100 dark:bg-gray-800 px-2 py-0.5 text-xs text-gray-700 dark:text-gray-300 break-words-safe">
           {v}
         </span>
       ))}

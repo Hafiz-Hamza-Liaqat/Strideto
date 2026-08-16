@@ -40,7 +40,7 @@ const BUSINESS = [
   { path: ROUTES.AGENT_BUSINESS_SERVICES_CAPABILITIES, label: 'Capabilities' },
   { path: ROUTES.AGENT_BUSINESS_SERVICES_JURISDICTIONS, label: 'Jurisdictions' },
   { path: ROUTES.AGENT_BUSINESS_SERVICES_LISTINGS, label: 'My Services' },
-  { path: ROUTES.AGENT_VERIFICATION, label: 'Business Verification' },
+  { path: ROUTES.AGENT_BUSINESS_SERVICES_CAPABILITIES, label: 'Business Verification' },
 ];
 
 const EDUCATION_GROUPS = [
@@ -102,7 +102,7 @@ const BUSINESS_GROUPS = [
   {
     id: 'business-trust',
     label: 'Trust & Eligibility',
-    items: BUSINESS.filter((item) => item.path === ROUTES.AGENT_VERIFICATION),
+    items: BUSINESS.filter((item) => item.label === 'Business Verification'),
   },
 ];
 

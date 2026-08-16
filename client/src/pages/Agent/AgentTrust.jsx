@@ -46,18 +46,30 @@ export default function AgentTrust() {
       <section className={cardClass}>
         <h2 className="font-semibold text-gray-900 dark:text-white">Professional domains</h2>
         <p className={`mt-2 ${muted}`}>Only activated domains appear here. Adding a domain does not verify capabilities.</p>
-        <p className="mt-2 text-sm">
-          Education & Mobility professional verification:{' '}
-          {verification?.verificationStatus || 'unknown'}
-        </p>
-        <Link to={ROUTES.AGENT_VERIFICATION} className="mt-2 inline-block text-sm text-primary">Manage Education Verification →</Link>
+        <div className="mt-3 space-y-2 text-sm text-gray-800 dark:text-gray-200">
+          <p className="font-medium text-gray-900 dark:text-white">Education &amp; Mobility</p>
+          <p>Professional verification status: {verification?.verificationStatus || 'unknown'}</p>
+          <p>
+            Credential / evidence status:{' '}
+            {(verification?.trustBadges || []).length
+              ? (verification.trustBadges || []).map((b) => String(b).replaceAll('_', ' ')).join(', ')
+              : 'no approved credential badges'}
+          </p>
+          <Link to={`${ROUTES.AGENT_VERIFICATION}#professional-credentials`} className="inline-block text-sm text-primary">
+            Manage Education Verification (credentials &amp; evidence) →
+          </Link>
+        </div>
         {hasBusinessWorkspace ? (
-          <>
-            <p className="mt-3 text-sm">
-              Business Formation & Corporate Services capabilities are managed in the Business workspace. Capability trust is not granted by domain enrollment.
+          <div className="mt-4 space-y-2 text-sm text-gray-800 dark:text-gray-200">
+            <p className="font-medium text-gray-900 dark:text-white">Business Formation &amp; Corporate Services</p>
+            <p>
+              Capability and jurisdiction evidence are managed in the Business workspace. Protected titles remain evidence-gated.
+              Domain enrollment is not verification.
             </p>
-            <Link to={ROUTES.AGENT_BUSINESS_SERVICES_CAPABILITIES} className="mt-2 inline-block text-sm text-primary">Manage Business Verification →</Link>
-          </>
+            <Link to={ROUTES.AGENT_BUSINESS_SERVICES_CAPABILITIES} className="inline-block text-sm text-primary">
+              Manage Business Verification →
+            </Link>
+          </div>
         ) : canAddBusiness ? (
           <>
             <p className="mt-3 text-sm">
