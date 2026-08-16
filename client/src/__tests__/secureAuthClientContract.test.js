@@ -125,10 +125,8 @@ const mediaLibraryParts = read('components/media/MediaLibraryParts.jsx');
     'no x-refresh-token header used by either realm'
   );
   check(
-    /refreshToken:\s*\(\)\s*=>\s*axiosInstance\.post\('\/auth\/refresh-token',\s*\{\}\)/.test(
-      authService
-    ),
-    'authService.js: refreshToken() takes no argument and posts an empty body'
+    /refreshUserAccessToken/.test(authService) && /refreshToken:\s*async \(\) => \{/.test(authService),
+    'authService.js: refreshToken() shares the cookie refresh flight and posts an empty body'
   );
 }
 

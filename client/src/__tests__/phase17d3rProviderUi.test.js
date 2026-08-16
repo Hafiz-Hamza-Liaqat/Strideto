@@ -28,7 +28,7 @@ check(cards.includes('aria-required'), 'required domain group is announced');
 check(cards.includes('aria-describedby'), 'hint is associated with the required group');
 check(cards.includes('Selected'), 'selected state not color-only');
 check(cards.includes('Coming soon'), 'coming soon state');
-check(cards.includes('md:grid-cols-2'), 'cards stack then two columns');
+check(cards.includes('lg:grid-cols-2'), 'cards stack then two columns on desktop');
 check(cards.includes('break-words'), 'long labels wrap');
 
 const home = read('pages/Agent/ProviderHome.jsx');

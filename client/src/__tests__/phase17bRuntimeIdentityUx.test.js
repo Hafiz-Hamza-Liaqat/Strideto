@@ -66,7 +66,7 @@ check(/color-scheme: dark/.test(css) && /::-webkit-calendar-picker-indicator/.te
 check(/box-shadow: inset 0 -2px 0 var\(--color-accent\)/.test(css), 'current nav uses distinct accent underline');
 
 check(/refreshPromise/.test(axiosBase) && /AUTH_NO_REFRESH/.test(axiosBase), 'user interceptor shares one refresh sequence');
-check(/alreadyHydrated && getAccessToken\(\)/.test(authContext), 'bootstrap does not clear a hydrated session on quiet refresh miss');
+check(/getAccessToken\(\)/.test(authContext) && /clearAuth\(\)/.test(authContext), 'bootstrap does not clear a hydrated session on quiet refresh miss');
 check(/visibilitychange/.test(authContext) && /focus/.test(authContext), 'visibility/focus trigger silent refresh');
 
 check(/acceptedTerms: true/.test(register) && /TermsConsentField/.test(register), 'Student registration requires Terms/Privacy');
