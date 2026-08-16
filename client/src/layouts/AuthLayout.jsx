@@ -32,9 +32,12 @@ export function withAuthLayout(element, realmTitle) {
   return <AuthLayout realmTitle={realmTitle}>{element}</AuthLayout>;
 }
 
-export function AuthCard({ title, subtitle, children }) {
+export function AuthCard({ title, subtitle, children, size = 'md' }) {
+  const widthClass = size === 'wide'
+    ? 'max-w-3xl lg:max-w-4xl'
+    : 'max-w-md';
   return (
-    <div className="max-w-md mx-auto px-4 sm:px-6 py-8 md:py-12">
+    <div className={`${widthClass} mx-auto px-4 sm:px-6 py-8 md:py-12`}>
       <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 sm:p-8 shadow-sm">
         {title ? <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{title}</h1> : null}
         {subtitle ? <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{subtitle}</p> : null}

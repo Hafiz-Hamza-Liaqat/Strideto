@@ -98,6 +98,7 @@ export default function AgentRegister() {
 
   return (
     <AuthCard
+      size="wide"
       title="Join Strideto as a Service Provider"
       subtitle="Choose the professional services you offer. Education & Mobility and Business Formation & Corporate Services are separate provider domains — not automatic professional verification."
     >

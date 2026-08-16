@@ -28,7 +28,7 @@ export function ProviderDomainCards({
       <p id={`${name}-hint`} className="mt-1 text-sm text-gray-600 dark:text-gray-400">
         Select one or both. This configures your Provider Workspace. It does not verify professional credentials.
       </p>
-      <div className="mt-3 grid grid-cols-1 gap-3 md:grid-cols-2">
+      <div className="mt-3 grid grid-cols-1 gap-3 lg:grid-cols-2">
         {domains.map((domain) => {
           const checked = selected.has(domain.domainId);
           const comingSoon = domain.comingSoon || domain.selectable === false;
