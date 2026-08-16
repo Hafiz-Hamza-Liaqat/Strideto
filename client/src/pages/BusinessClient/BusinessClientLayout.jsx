@@ -4,6 +4,7 @@ import { SeoHead } from '../../components/seo';
 import { ROUTES } from '../../constants';
 import { ui } from '../../design-system/surfaceClasses';
 import { gbsBuyerApi } from '../../services/gbsBuyerApi';
+import { writeUserWorkspacePreference } from '../../auth/userCapabilityWorkspace';
 
 function ActivationCard({ onActivated, busy, error }) {
   return (
@@ -48,12 +49,18 @@ export default function BusinessClientLayout() {
     load();
   }, [load]);
 
+  useEffect(() => {
+    if (activated) writeUserWorkspacePreference('business_client');
+  }, [activated]);
+
   const activate = async () => {
     setBusy(true);
     setError('');
     try {
       await gbsBuyerApi.activate();
       setActivated(true);
+      writeUserWorkspacePreference('business_client');
+      // Soft UX preference only — capability already granted by activate API.
     } catch (err) {
       if (err.response?.status === 403) setUnavailable(true);
       else setError('Unable to activate Business Services.');

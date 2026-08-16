@@ -4,8 +4,18 @@
  * Stored value is only: student | employer | agent | institution.
  * It is NOT security authority. Authenticated UI requires the matching
  * realm's in-memory access token + authoritative /me (or equivalent).
+ *
+ * Within the User cookie realm (`student` key historically), display labels
+ * and default href follow server capabilities + UX-only user workspace mode.
  */
 import { ROUTES } from '../constants';
+import {
+  pathHintForUserWorkspace,
+  readUserCapabilities,
+  readUserWorkspacePreference,
+  resolveUserWorkspaceMode,
+  userWorkspacePresentation,
+} from './userCapabilityWorkspace';
 
 export const ACTIVE_WORKSPACE_STORAGE_KEY = 'strideto-active-workspace';
 export const ACTIVE_WORKSPACE_EVENT = 'strideto-active-workspace';
@@ -125,23 +135,36 @@ export function guestWorkspaceIdentity() {
   };
 }
 
-export function projectStudentIdentity(user) {
+/**
+ * User-realm identity projection. Auth preference realm key remains `student`
+ * (User cookie). roleLabel / workspaceHref follow server capabilities + UX mode.
+ */
+export function projectStudentIdentity(user, options = {}) {
   if (!user) return null;
   const dest = destinationsFor('student');
-  const displayName = String(user.name || '').trim() || dest.roleLabel;
+  const caps = readUserCapabilities(user);
+  const preference = options.modePreference ?? readUserWorkspacePreference();
+  const pathHint = options.pathHint ?? pathHintForUserWorkspace(options.pathname);
+  const mode = resolveUserWorkspaceMode(caps, preference, pathHint);
+  const presentation = userWorkspacePresentation(mode);
+  const displayName = String(user.name || '').trim() || presentation.roleLabel;
   return {
     realm: 'student',
     displayName,
     organizationName: '',
-    roleLabel: dest.roleLabel,
+    roleLabel: presentation.roleLabel,
     verifiedLabel: '',
     avatarUrl: publicSafeAvatarUrl(user.avatarUrl || user.avatar),
-    workspaceHref: dest.workspace,
+    workspaceHref: presentation.workspaceHref,
     settingsHref: dest.settings,
     helpHref: dest.help,
     notificationsHref: dest.notifications,
     loginHref: dest.login,
     isAuthenticated: true,
+    userWorkspace: mode,
+    capabilities: caps.active,
+    hasStudentCapability: caps.student,
+    hasBusinessClientCapability: caps.businessClient,
   };
 }
 

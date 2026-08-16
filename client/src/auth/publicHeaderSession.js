@@ -3,6 +3,9 @@ import { projectStudentIdentity } from './activeWorkspace';
 /**
  * Public chrome must follow canonical User session when no B2B workspace is
  * active. Do not invent a separate isLoggedIn flag.
+ *
+ * kind `student` here means User-realm chrome (historical), not that the
+ * account necessarily has the student capability.
  */
 export function resolvePublicHeaderSession({
   workspaceIdentity,
@@ -11,6 +14,7 @@ export function resolvePublicHeaderSession({
   user,
   userAuthenticated,
   userLoading,
+  pathname,
 }) {
   const realm = workspaceIdentity?.realm;
   const b2b = workspaceAuthenticated && realm && realm !== 'student' && realm !== 'guest';
@@ -21,14 +25,19 @@ export function resolvePublicHeaderSession({
   if (userAuthenticated && user) {
     return {
       kind: 'student',
-      identity: projectStudentIdentity(user),
+      identity: projectStudentIdentity(user, { pathname }),
       hydrating: false,
       user,
     };
   }
 
   if (workspaceAuthenticated && realm === 'student') {
-    return { kind: 'student', identity: workspaceIdentity, hydrating: false, user };
+    return {
+      kind: 'student',
+      identity: projectStudentIdentity(user, { pathname }) || workspaceIdentity,
+      hydrating: false,
+      user,
+    };
   }
 
   if (userLoading || workspaceHydrating) {

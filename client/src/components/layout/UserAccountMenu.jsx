@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ROUTES, STAFF_ROLES } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
@@ -11,6 +11,12 @@ import { restartProductTour } from '../../onboarding';
 import { useOverlayA11y } from '../../a11y/useOverlayA11y';
 import { useActiveWorkspace } from '../../context/ActiveWorkspaceContext';
 import { resolvePublicHeaderSession } from '../../auth/publicHeaderSession';
+import {
+  USER_WORKSPACE_EVENT,
+  readUserCapabilities,
+  readUserWorkspacePreference,
+  writeUserWorkspacePreference,
+} from '../../auth/userCapabilityWorkspace';
 
 const itemClass =
   'block w-[calc(100%-0.5rem)] mx-1 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary min-h-[44px]';
@@ -70,6 +76,7 @@ function RoleBadge({ label, verifiedLabel }) {
 export function UserAccountMenu() {
   const { t } = useTranslation(['navbar', 'common']);
   const navigate = useNavigate();
+  const { pathname } = useLocation();
   const { user, logout, isAuthenticated: userAuthenticated, loading: userLoading } = useAuth();
   const {
     identity,
@@ -85,8 +92,19 @@ export function UserAccountMenu() {
   const [careerHeadline, setCareerHeadline] = useState('');
   const [switchOpen, setSwitchOpen] = useState(false);
   const [discovering, setDiscovering] = useState(false);
+  const [userWorkspaceTick, setUserWorkspaceTick] = useState(0);
   const ref = useRef(null);
   const panelRef = useRef(null);
+
+  useEffect(() => {
+    const sync = () => setUserWorkspaceTick((n) => n + 1);
+    window.addEventListener(USER_WORKSPACE_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(USER_WORKSPACE_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
 
   const headerSession = resolvePublicHeaderSession({
     workspaceIdentity: identity,
@@ -95,11 +113,30 @@ export function UserAccountMenu() {
     user,
     userAuthenticated,
     userLoading,
+    pathname,
   });
+  void userWorkspaceTick;
   const sessionIdentity = headerSession.identity || identity;
   const showUserSession = headerSession.kind === 'student';
   const showB2bSession = headerSession.kind === 'b2b';
   const chromeAuthenticated = showUserSession || showB2bSession;
+  const caps = readUserCapabilities(user);
+  const userWorkspace = sessionIdentity?.userWorkspace || readUserWorkspacePreference() || 'account';
+  const dualUserWorkspaces = caps.student && caps.businessClient;
+
+  const openUserWorkspace = (mode) => {
+    if (mode === 'student' && caps.student) {
+      writeUserWorkspacePreference('student');
+      close();
+      navigate(ROUTES.DASHBOARD);
+      return;
+    }
+    if (mode === 'business_client' && caps.businessClient) {
+      writeUserWorkspacePreference('business_client');
+      close();
+      navigate(ROUTES.BUSINESS);
+    }
+  };
 
   useOverlayA11y({
     open,
@@ -109,14 +146,14 @@ export function UserAccountMenu() {
   });
 
   useEffect(() => {
-    if (!showUserSession || !shouldUseTalentProfileApi()) {
+    if (!showUserSession || !caps.student || !shouldUseTalentProfileApi()) {
       setCareerHeadline('');
       return;
     }
     talentApi.getSummary()
       .then(({ data }) => setCareerHeadline(data?.career?.headline || ''))
       .catch(() => setCareerHeadline(''));
-  }, [showUserSession]);
+  }, [showUserSession, caps.student]);
 
   useEffect(() => {
     const onDoc = (e) => {
@@ -236,16 +273,49 @@ export function UserAccountMenu() {
                   ) : null}
                 </div>
                 <MenuSectionLabel>{t('navbar:openWorkspace', { defaultValue: 'Open workspace' })}</MenuSectionLabel>
-                <MenuLink to={ROUTES.DASHBOARD} onClose={close}>
-                  {t('navbar:myWorkspace', { defaultValue: 'My Workspace' })}
-                </MenuLink>
-                <MenuLink to={ROUTES.TALENT_PROFILE} onClose={close}>{t('navbar:talentProfile')}</MenuLink>
-                <MenuLink to={ROUTES.APPLICATIONS} onClose={close}>{t('navbar:myApplications')}</MenuLink>
-                {!STAFF_ROLES.includes(user?.role) ? (
-                  <MenuLink to={ROUTES.BUSINESS} onClose={close}>Business</MenuLink>
+                {caps.student ? (
+                  <MenuButton
+                    onClick={() => openUserWorkspace('student')}
+                    aria-current={userWorkspace === 'student' ? 'true' : undefined}
+                    className={userWorkspace === 'student' ? 'font-semibold' : ''}
+                  >
+                    Student
+                    {userWorkspace === 'student' ? (
+                      <span className="ms-2 text-xs text-gray-500 dark:text-gray-400">(current)</span>
+                    ) : null}
+                  </MenuButton>
                 ) : null}
+                {caps.businessClient ? (
+                  <MenuButton
+                    onClick={() => openUserWorkspace('business_client')}
+                    aria-current={userWorkspace === 'business_client' ? 'true' : undefined}
+                    className={userWorkspace === 'business_client' ? 'font-semibold' : ''}
+                  >
+                    Business
+                    {userWorkspace === 'business_client' ? (
+                      <span className="ms-2 text-xs text-gray-500 dark:text-gray-400">(current)</span>
+                    ) : null}
+                  </MenuButton>
+                ) : null}
+                {!caps.student && !caps.businessClient ? (
+                  <MenuLink to={ROUTES.PROFILE} onClose={close}>
+                    Account
+                  </MenuLink>
+                ) : null}
+                {caps.student && userWorkspace !== 'business_client' ? (
+                  <>
+                    <MenuLink to={ROUTES.TALENT_PROFILE} onClose={close}>{t('navbar:talentProfile')}</MenuLink>
+                    <MenuLink to={ROUTES.APPLICATIONS} onClose={close}>{t('navbar:myApplications')}</MenuLink>
+                  </>
+                ) : null}
+                {!caps.businessClient && !STAFF_ROLES.includes(user?.role) ? null : null}
                 {STAFF_ROLES.includes(user?.role) ? (
                   <MenuLink to={ROUTES.ADMIN} onClose={close}>{t('common:admin')}</MenuLink>
+                ) : null}
+                {dualUserWorkspaces ? (
+                  <p className="px-4 pb-1 text-xs text-gray-500 dark:text-gray-400">
+                    Workspace choice is display only. Capabilities come from the server.
+                  </p>
                 ) : null}
                 <MenuSectionLabel>{t('navbar:accountGroup', { defaultValue: 'Account' })}</MenuSectionLabel>
                 <MenuLink to={ROUTES.PROFILE} onClose={close}>{t('navbar:profile')}</MenuLink>

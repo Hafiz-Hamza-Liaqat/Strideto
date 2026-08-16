@@ -22,11 +22,32 @@ import {
   writeActiveWorkspacePreference,
 } from '../auth/activeWorkspace';
 import {
+  clearUserWorkspacePreference,
+  defaultUserWorkspaceMode,
+  readUserCapabilities,
+  readUserWorkspacePreference,
+  resolveUserWorkspaceMode,
+  writeUserWorkspacePreference,
+} from '../auth/userCapabilityWorkspace';
+import {
   bindTabIdentity,
   clearTabIdentity,
   compareTabIdentity,
   readTabIdentity,
 } from '../auth/tabIdentity';
+
+function syncUserWorkspaceUx(user) {
+  const caps = readUserCapabilities(user);
+  const mode = resolveUserWorkspaceMode(caps, readUserWorkspacePreference(), null);
+  if (mode === 'student' || mode === 'business_client') {
+    writeUserWorkspacePreference(mode);
+  } else {
+    clearUserWorkspacePreference();
+  }
+  // User auth realm preference key remains `student` (cookie realm). Mode is separate.
+  writeActiveWorkspacePreference('student');
+  return defaultUserWorkspaceMode(caps);
+}
 
 /**
  * SEC-3E — the access token lives in `axiosBase.js`'s in-memory store
@@ -111,7 +132,7 @@ export function AuthProvider({ children }) {
       const { data } = await authApi.login({ email, password });
       setAccessToken(data.accessToken);
       bindLocalUser(data.user, { mustChangePassword: !!data.mustChangePassword });
-      writeActiveWorkspacePreference('student');
+      syncUserWorkspaceUx(data.user);
       return { user: data.user, mustChangePassword: !!data.mustChangePassword };
     },
     [bindLocalUser]
@@ -133,7 +154,7 @@ export function AuthProvider({ children }) {
       }
       setAccessToken(data.accessToken);
       bindLocalUser(data.user);
-      writeActiveWorkspacePreference('student');
+      syncUserWorkspaceUx(data.user);
       return { user: data.user, requiresVerification: false };
     },
     [bindLocalUser]
@@ -151,6 +172,7 @@ export function AuthProvider({ children }) {
     clearTabIdentity('user');
     clearAuth();
     clearActiveWorkspacePreferenceIfRealm('student');
+    clearUserWorkspacePreference();
   }, [clearAuth]);
 
   const logoutAll = useCallback(async () => {
@@ -161,6 +183,7 @@ export function AuthProvider({ children }) {
       clearTabIdentity('user');
       clearAuth();
       clearActiveWorkspacePreferenceIfRealm('student');
+      clearUserWorkspacePreference();
     }
   }, [clearAuth]);
 
@@ -227,7 +250,9 @@ export function AuthProvider({ children }) {
       })
       .then((res) => {
         if (cancelled || epoch !== authEpoch.current || !res) return;
-        acceptUserSubject(res.data.user);
+        if (acceptUserSubject(res.data.user)) {
+          syncUserWorkspaceUx(res.data.user);
+        }
       })
       .catch(() => {
         if (!cancelled && epoch === authEpoch.current) clearAuth();
@@ -250,7 +275,9 @@ export function AuthProvider({ children }) {
         if (!token && !getAccessToken()) return;
         try {
           const res = await authApi.me();
-          if (res?.data?.user) acceptUserSubject(res.data.user);
+          if (res?.data?.user && acceptUserSubject(res.data.user)) {
+            syncUserWorkspaceUx(res.data.user);
+          }
         } catch {
           /* interceptor / session-expired handler owns terminal failure */
         }

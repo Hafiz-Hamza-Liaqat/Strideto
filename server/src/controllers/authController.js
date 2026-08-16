@@ -60,6 +60,21 @@ function toSafeUser(user) {
   return u;
 }
 
+/** Additive capability projection for User-realm UX. Never invents grants. */
+async function withActiveCapabilities(safeUser) {
+  if (!safeUser) return null;
+  try {
+    const { getUserCapabilityService } = await import('../services/capability/userCapabilityRuntime.js');
+    const resolved = await getUserCapabilityService().resolveUserCapabilities(safeUser);
+    return {
+      ...safeUser,
+      capabilities: Array.isArray(resolved?.active) ? resolved.active : [],
+    };
+  } catch {
+    return { ...safeUser, capabilities: [] };
+  }
+}
+
 const RESET_TOKEN_EXPIRY_MS = 60 * 60 * 1000; // 1 hour
 const FRONTEND_BASE = frontendBaseUrl();
 
@@ -173,7 +188,7 @@ export const login = asyncHandler(async (req, res) => {
   }
   user.lastLoginAt = new Date();
   await user.save({ validateBeforeSave: false });
-  const safe = toSafeUser(await User.findById(user._id));
+  const safe = await withActiveCapabilities(toSafeUser(await User.findById(user._id)));
   await logAudit({
     actor: { userId: user._id.toString(), email: user.email, role: user.role },
     action: 'auth.login',
@@ -205,7 +220,7 @@ export const login = asyncHandler(async (req, res) => {
 export const me = asyncHandler(async (req, res) => {
   const user = await User.findById(req.user.userId);
   if (!user) return res.status(404).json({ error: 'User not found' });
-  const safe = toSafeUser(user);
+  const safe = await withActiveCapabilities(toSafeUser(user));
   res.json({
     user: safe,
     permissions: getPermissionsForRole(user.role),

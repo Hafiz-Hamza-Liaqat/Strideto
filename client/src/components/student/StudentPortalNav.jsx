@@ -10,6 +10,11 @@ import {
   STUDENT_PORTAL_NAV_CORE,
   STUDENT_PORTAL_NAV_OVERFLOW,
 } from '../../config/studentNavConfig';
+import {
+  USER_WORKSPACE_EVENT,
+  readUserCapabilities,
+  readUserWorkspacePreference,
+} from '../../auth/userCapabilityWorkspace';
 
 function navLinkClass(current) {
   return `inline-flex items-center min-h-[44px] px-3 text-sm rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
@@ -109,9 +114,25 @@ function WorkspaceOverflowMenu({ items, pathname, label, currentInMenu, menuId, 
 export function StudentPortalNav() {
   const { t } = useTranslation(['student']);
   const { pathname } = useLocation();
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, user } = useAuth();
+  const [userWorkspace, setUserWorkspace] = useState(readUserWorkspacePreference);
+  const caps = readUserCapabilities(user);
+  const hasStudentCapability = !Array.isArray(user?.capabilities) || caps.student;
 
-  if (!isStudentPortalNavVisible(pathname, isAuthenticated)) return null;
+  useEffect(() => {
+    const sync = () => setUserWorkspace(readUserWorkspacePreference());
+    window.addEventListener(USER_WORKSPACE_EVENT, sync);
+    window.addEventListener('storage', sync);
+    return () => {
+      window.removeEventListener(USER_WORKSPACE_EVENT, sync);
+      window.removeEventListener('storage', sync);
+    };
+  }, []);
+
+  if (!isStudentPortalNavVisible(pathname, isAuthenticated, {
+    hasStudentCapability,
+    userWorkspace,
+  })) return null;
 
   const overflowHasCurrent = STUDENT_PORTAL_NAV_OVERFLOW.some((item) =>
     isStudentNavItemCurrent(pathname, item)
