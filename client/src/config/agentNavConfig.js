@@ -20,27 +20,27 @@ const SHARED = [
 ];
 
 const EDUCATION = [
-  { path: ROUTES.AGENT_EDUCATION, label: 'Overview' },
+  { path: ROUTES.AGENT_EDUCATION, label: 'Overview', end: true },
   { path: ROUTES.AGENT_LEADS, label: 'Student Leads' },
   { path: ROUTES.AGENT_CLIENTS, label: 'Clients' },
   { path: ROUTES.AGENT_CONSULTATIONS, label: 'Consultations' },
   { path: ROUTES.AGENT_CASES, label: 'Cases' },
-  { path: ROUTES.AGENT_SERVICES, label: 'Education & Mobility Services' },
+  { path: ROUTES.AGENT_SERVICES, label: 'My Education Services' },
   { path: ROUTES.AGENT_MARKETPLACE, label: 'Marketplace' },
   { path: ROUTES.AGENT_AVAILABILITY, label: 'Availability' },
   { path: ROUTES.AGENT_VERIFICATION, label: 'Professional Verification' },
-  { path: ROUTES.AGENT_TRUST, label: 'Reviews' },
+  { path: ROUTES.AGENT_REVIEWS, label: 'Reviews' },
 ];
 
 const BUSINESS = [
-  { path: ROUTES.AGENT_BUSINESS_SERVICES, label: 'Overview' },
+  { path: ROUTES.AGENT_BUSINESS_SERVICES, label: 'Overview', end: true },
   { path: ROUTES.AGENT_BUSINESS_SERVICES_REQUESTS, label: 'Requests' },
   { path: ROUTES.AGENT_BUSINESS_SERVICES_QUOTES, label: 'Quotes' },
   { path: ROUTES.AGENT_BUSINESS_SERVICES_CASES, label: 'Cases' },
   { path: ROUTES.AGENT_BUSINESS_SERVICES_CAPABILITIES, label: 'Capabilities' },
   { path: ROUTES.AGENT_BUSINESS_SERVICES_JURISDICTIONS, label: 'Jurisdictions' },
   { path: ROUTES.AGENT_BUSINESS_SERVICES_LISTINGS, label: 'My Services' },
-  { path: ROUTES.AGENT_BUSINESS_SERVICES_CAPABILITIES, label: 'Business Verification' },
+  { path: ROUTES.AGENT_BUSINESS_SERVICES_VERIFICATION, label: 'Business Verification' },
 ];
 
 const EDUCATION_GROUPS = [
@@ -71,7 +71,7 @@ const EDUCATION_GROUPS = [
   {
     id: 'education-trust',
     label: 'Trust',
-    items: EDUCATION.filter((item) => item.path === ROUTES.AGENT_VERIFICATION || item.label === 'Reviews'),
+    items: EDUCATION.filter((item) => item.path === ROUTES.AGENT_VERIFICATION || item.path === ROUTES.AGENT_REVIEWS),
   },
 ];
 
@@ -102,9 +102,33 @@ const BUSINESS_GROUPS = [
   {
     id: 'business-trust',
     label: 'Trust & Eligibility',
-    items: BUSINESS.filter((item) => item.label === 'Business Verification'),
+    items: BUSINESS.filter((item) => item.path === ROUTES.AGENT_BUSINESS_SERVICES_VERIFICATION),
   },
 ];
+
+/**
+ * Resolve which single nav leaf should be active across all visible items.
+ * Longest path wins; Overview/home use end semantics.
+ */
+export function resolveActiveNavPath(location, items = []) {
+  const pathname = String(location?.pathname || '').replace(/\/$/, '') || '/';
+  const search = location?.search || '';
+  let best = null;
+  for (const item of items) {
+    const itemPath = String(item.path || '').split('?')[0].replace(/\/$/, '') || '/';
+    const isHome = item.home && isProviderDashboardPath(pathname, search);
+    const isMatch = item.home
+      ? isHome
+      : item.end
+        ? pathname === itemPath
+        : pathname === itemPath || pathname.startsWith(`${itemPath}/`);
+    if (!isMatch) continue;
+    if (!best || itemPath.length > (best.split('?')[0].replace(/\/$/, '') || '/').length) {
+      best = item.path;
+    }
+  }
+  return best;
+}
 
 export function resolveProviderNavDomain(pathname = '') {
   if (pathname.startsWith('/agent/business-services')) return PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES;
@@ -116,7 +140,9 @@ export function resolveProviderNavDomain(pathname = '') {
     pathname.startsWith('/agent/leads') ||
     pathname.startsWith('/agent/clients') ||
     pathname.startsWith('/agent/consultations') ||
-    pathname.startsWith('/agent/cases')
+    pathname.startsWith('/agent/cases') ||
+    pathname.startsWith('/agent/verification') ||
+    pathname.startsWith('/agent/reviews')
   ) {
     return PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY;
   }
@@ -212,8 +238,6 @@ export function agentNavGroups({
     preferredDomainId,
   });
 
-  // URL path is not authority. Business operational nav is only for an authorized
-  // business_services workspace on an exact subject.
   let domainNav = [];
   if (operationalDomainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES) {
     domainNav = hasBusiness ? BUSINESS : [];

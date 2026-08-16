@@ -10,6 +10,7 @@ import { useOverlayA11y } from '../../a11y/useOverlayA11y';
 import {
   agentNavGroups,
   isProviderDashboardPath,
+  resolveActiveNavPath,
   resolveProviderNavDomain,
 } from '../../config/agentNavConfig';
 import {
@@ -28,28 +29,17 @@ import { agentApi } from '../../services/agentService';
 import { gbsProviderApi } from '../../services/gbsProviderApi';
 import { portalNavLinkClass } from '../../components/layout/portalNavClasses';
 
-function NavLinks({ location, onNavigate, items, subject }) {
-  const activePath = items.reduce((best, { path, end, home }) => {
-    const pathname = path.split('?')[0];
-    const isHome = home && isProviderDashboardPath(location.pathname, location.search);
-    const isMatch = home
-      ? isHome
-      : end
-        ? location.pathname === pathname || location.pathname === `${pathname}/`
-        : location.pathname === pathname || location.pathname.startsWith(`${pathname}/`);
-    if (!isMatch) return best;
-    return !best || pathname.length > (best.split('?')[0].length) ? path : best;
-  }, null);
-
+function NavLinks({ onNavigate, items, subject, activePath }) {
   return items.map(({ path, label }) => {
     const to = withProviderSubject(path, subject);
+    const isActive = path === activePath;
     return (
       <Link
         key={`${path}-${label}`}
         to={to}
         onClick={onNavigate}
-        aria-current={path === activePath ? 'page' : undefined}
-        className={portalNavLinkClass(path === activePath)}
+        aria-current={isActive ? 'page' : undefined}
+        className={portalNavLinkClass(isActive)}
       >
         <span className="break-words">{label}</span>
       </Link>
@@ -58,15 +48,30 @@ function NavLinks({ location, onNavigate, items, subject }) {
 }
 
 function AgentNavTree({ location, onNavigate, groups, accountGroup, subject }) {
+  const allItems = [
+    ...groups.flatMap((group) => group.items || []),
+    ...(accountGroup?.items || []),
+  ];
+  const activePath = resolveActiveNavPath(location, allItems);
   return (
     <>
       {groups.map((group) => (
         <AgentNavSection key={group.id} id={group.id} label={group.label}>
-          <NavLinks location={location} onNavigate={onNavigate} items={group.items} subject={subject} />
+          <NavLinks
+            onNavigate={onNavigate}
+            items={group.items}
+            subject={subject}
+            activePath={activePath}
+          />
         </AgentNavSection>
       ))}
       <AgentNavSection id={accountGroup.id} label={accountGroup.label}>
-        <NavLinks location={location} onNavigate={onNavigate} items={accountGroup.items} subject={subject} />
+        <NavLinks
+          onNavigate={onNavigate}
+          items={accountGroup.items}
+          subject={subject}
+          activePath={activePath}
+        />
       </AgentNavSection>
     </>
   );
@@ -255,7 +260,6 @@ export default function AgentLayout() {
       <aside className="hidden lg:flex w-64 shrink-0 bg-white dark:bg-gray-900 border-r border-gray-200 dark:border-gray-700 flex-col min-w-0">
         <div className="p-4 border-b border-gray-200 dark:border-gray-700">
           <PortalBrand role="agent" />
-          <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Agent Portal</p>
         </div>
         <div className="pt-3">{chrome}</div>
         <nav className="p-2 flex-1 overflow-y-auto min-w-0" aria-label="Provider navigation">

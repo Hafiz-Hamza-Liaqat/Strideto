@@ -1,21 +1,11 @@
 import { useEffect, useState } from 'react';
-import { Link, NavLink, Outlet, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, Outlet, useNavigate, useSearchParams } from 'react-router-dom';
 import { SearchableSelect } from '../../../components/forms/SearchableSelect';
 import { ROUTES } from '../../../constants';
 import { PROVIDER_DOMAIN_IDS } from '@shared/provider/providerDomains.js';
 import { agentApi } from '../../../services/agentService';
 import { GbsProviderContextProvider, useGbsProvider } from './GbsProviderContext';
 import { card, errorBox, h1, muted, page, skeleton, wrap } from './gbsUi';
-
-const SUBNAV = [
-  { to: ROUTES.AGENT_BUSINESS_SERVICES, label: 'Overview', end: true },
-  { to: ROUTES.AGENT_BUSINESS_SERVICES_CAPABILITIES, label: 'Capabilities' },
-  { to: ROUTES.AGENT_BUSINESS_SERVICES_JURISDICTIONS, label: 'Jurisdictions' },
-  { to: ROUTES.AGENT_BUSINESS_SERVICES_LISTINGS, label: 'My Services' },
-  { to: ROUTES.AGENT_BUSINESS_SERVICES_REQUESTS, label: 'Requests' },
-  { to: ROUTES.AGENT_BUSINESS_SERVICES_QUOTES, label: 'Quotes' },
-  { to: ROUTES.AGENT_BUSINESS_SERVICES_CASES, label: 'Cases' },
-];
 
 function SubjectSwitcher() {
   const { subjects, selected, selectSubject } = useGbsProvider();
@@ -180,36 +170,16 @@ function GbsWorkspaceShell() {
         ) : null}
       </header>
       {authorized ? (
-        <>
-          <nav aria-label="Business Services sections" className="flex flex-wrap gap-2">
-            {SUBNAV.map((item) => (
-              <NavLink
-                key={item.to}
-                to={item.to}
-                end={item.end}
-                className={({ isActive }) =>
-                  `inline-flex min-h-[44px] items-center rounded-lg px-3 py-2 text-sm font-medium ${wrap} ${
-                    isActive
-                      ? 'bg-blue-700 text-white dark:bg-blue-600'
-                      : 'border border-gray-200 dark:border-gray-600 text-gray-800 dark:text-gray-100'
-                  }`
-                }
-              >
-                {item.label}
-              </NavLink>
-            ))}
-          </nav>
-          <div className="min-w-0">
-            {loading ? (
-              <div className={`${card} space-y-3`} aria-busy="true">
-                <div className="h-4 w-1/2 rounded bg-gray-200 dark:bg-gray-700" />
-                <div className="h-4 w-2/3 rounded bg-gray-200 dark:bg-gray-700" />
-              </div>
-            ) : (
-              <Outlet />
-            )}
-          </div>
-        </>
+        <div className="min-w-0">
+          {loading ? (
+            <div className={`${card} space-y-3`} aria-busy="true">
+              <div className="h-4 w-1/2 rounded bg-gray-200 dark:bg-gray-700" />
+              <div className="h-4 w-2/3 rounded bg-gray-200 dark:bg-gray-700" />
+            </div>
+          ) : (
+            <Outlet />
+          )}
+        </div>
       ) : loading ? null : (
         <GbsSetupState enabled={enabled} loadError={error} />
       )}

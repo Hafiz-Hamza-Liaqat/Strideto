@@ -252,6 +252,7 @@ const ConsultationRequest = lazyLoad(() => import('../pages/Consultations/Consul
 const ConsultationDetail = lazyLoad(() => import('../pages/Consultations/ConsultationDetail'));
 const Cases = lazyLoad(() => import('../pages/Cases/Cases')); const CaseDetail = lazyLoad(() => import('../pages/Cases/CaseDetail')); const AgentCases = lazyLoad(() => import('../pages/Agent/AgentCases')); const AgentCaseDetail = lazyLoad(() => import('../pages/Agent/AgentCaseDetail'));
 const AgentTrust = lazyLoad(() => import('../pages/Agent/AgentTrust'));
+const AgentReviews = lazyLoad(() => import('../pages/Agent/AgentReviews'));
 const GbsWorkspaceLayout = lazyLoad(() => import('../pages/Agent/business-services/GbsWorkspaceLayout'));
 const GbsOverview = lazyLoad(() => import('../pages/Agent/business-services/GbsOverview'));
 const GbsCapabilities = lazyLoad(() => import('../pages/Agent/business-services/GbsCapabilities'));
@@ -264,6 +265,7 @@ const GbsQuotes = lazyLoad(() => import('../pages/Agent/business-services/GbsQuo
 const GbsQuoteDetail = lazyLoad(() => import('../pages/Agent/business-services/GbsQuoteDetail'));
 const GbsCases = lazyLoad(() => import('../pages/Agent/business-services/GbsCases'));
 const GbsCaseDetail = lazyLoad(() => import('../pages/Agent/business-services/GbsCaseDetail'));
+const GbsVerification = lazyLoad(() => import('../pages/Agent/business-services/GbsVerification'));
 const BusinessClientLayout = lazyLoad(() => import('../pages/BusinessClient/BusinessClientLayout'));
 const BusinessClientOverview = lazyLoad(() => import('../pages/BusinessClient/BusinessClientOverview'));
 const BusinessClientRequests = lazyLoad(() => import('../pages/BusinessClient/BusinessClientRequests'));
@@ -361,6 +363,7 @@ export const routes = [
       { path: 'consultations/:consultationId', element: <AgentConsultationDetail /> },
       { path: 'cases', element: <AgentCases /> }, { path: 'cases/:caseId', element: <AgentCaseDetail /> },
       { path: 'trust', element: <AgentTrust /> },
+      { path: 'reviews', element: <AgentReviews /> },
       {
         path: 'business-services',
         element: <GbsWorkspaceLayout />,
@@ -377,6 +380,7 @@ export const routes = [
           { path: 'quotes/:quoteRef', element: <GbsQuoteDetail /> },
           { path: 'cases', element: <GbsCases /> },
           { path: 'cases/:caseRef', element: <GbsCaseDetail /> },
+          { path: 'verification', element: <GbsVerification /> },
         ],
       },
       { path: 'commerce', element: <AgentCommerce /> },
