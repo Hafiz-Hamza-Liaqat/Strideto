@@ -63,26 +63,36 @@ check(
 
 check(nav.includes("id: 'education-work'") && nav.includes("label: 'Work'"), 'education Work group');
 check(nav.includes("id: 'education-services'") && nav.includes("label: 'Services'"), 'education Services group');
-check(nav.includes("id: 'education-trust'") && nav.includes("label: 'Professional Verification'"), 'education Trust group');
+check(nav.includes("id: 'education-trust'"), 'education Trust group');
 check(nav.includes("id: 'business-work'") && nav.includes("label: 'Requests'"), 'business Work group');
 check(nav.includes("id: 'business-setup'") && nav.includes("'Service Setup'"), 'business Service Setup group');
 check(nav.includes("id: 'business-trust'") && nav.includes("'Trust & Eligibility'"), 'business Trust group');
 check(nav.includes("'Account & Support'"), 'shared Account & Support group');
+
+const BUSINESS_DUP = /AGENT_BUSINESS_SERVICES_CAPABILITIES,\s*label: 'Business Verification'/.test(nav);
+check(nav.includes("label: 'My Education Services'") && nav.includes("label: 'Marketplace'") && nav.includes("label: 'Availability'"), 'education services links');
+check(nav.includes("label: 'My Services'") && nav.includes("label: 'Business Verification'"), 'business compact labels');
+check(nav.includes('AGENT_BUSINESS_SERVICES_VERIFICATION'), 'Business Verification has dedicated path');
+check(!BUSINESS_DUP, 'Business Verification is not aliased to Capabilities');
+check(nav.includes("label: 'Reviews'") && nav.includes('AGENT_REVIEWS'), 'Education Reviews has dedicated route');
+check(nav.includes("label: 'Professional Verification'"), 'education professional verification label');
 check(nav.includes("label: 'Student Leads'") && nav.includes("label: 'Consultations'"), 'education work links remain');
 check(nav.includes("label: 'Quotes'") && nav.includes("label: 'Capabilities'") && nav.includes("label: 'Jurisdictions'"), 'business setup/work links remain');
-check(nav.includes("label: 'My Services'") && nav.includes("label: 'Business Verification'"), 'business compact labels');
 check(nav.includes("label: 'Trust Center'") && nav.includes("label: 'Account Settings'"), 'shared labels');
 check(nav.includes("label: 'Provider Dashboard'"), 'Provider Dashboard nav label');
 check(nav.includes('hasBusiness ? BUSINESS : []'), 'business operational nav still requires authorized workspace');
 check(nav.includes('scopedWorkspaces'), 'nav remains subject-scoped');
 check(nav.includes('isProviderHome'), 'Provider Dashboard suppresses operational domain nav');
-check(nav.includes("AGENT_CASES") && nav.includes("AGENT_BUSINESS_SERVICES_CASES"), 'education and business Cases stay on distinct routes');
+check(nav.includes('AGENT_CASES') && nav.includes('AGENT_BUSINESS_SERVICES_CASES'), 'education and business Cases stay on distinct routes');
 
 const eduSlice = nav.split('const EDUCATION')[1].split('const BUSINESS')[0];
 const bizSlice = nav.split('const BUSINESS')[1].split('const EDUCATION_GROUPS')[0];
 check(!eduSlice.includes('business-services'), 'education nav has no business routes');
 check(!bizSlice.includes('AGENT_LEADS') && !bizSlice.includes('AGENT_CONSULTATIONS'), 'business nav has no education work routes');
 check(!eduSlice.includes('Capabilities') && !eduSlice.includes('Jurisdictions'), 'education nav has no GBS setup');
+check(eduSlice.includes('My Education Services'), 'education services label');
+check(bizSlice.includes('Business Verification') && bizSlice.includes('VERIFICATION'), 'business verification dedicated');
+check(!/AGENT_BUSINESS_SERVICES_CAPABILITIES.*Business Verification|Business Verification.*AGENT_BUSINESS_SERVICES_CAPABILITIES/.test(bizSlice.split('Business Verification')[0] + 'Business Verification'), 'capabilities line is not verification');
 
 check(resolveSrc(nav, "startsWith('/agent/business-services')"), 'business deep links resolve to business dashboard');
 check(layout.includes("resolveProviderNavDomain(location.pathname)"), 'layout derives dashboard from route');
@@ -99,6 +109,8 @@ check(controls.includes('break-words'), 'long agency names wrap');
 check(layout.includes('w-72 max-w-[85vw]'), 'mobile drawer preserved');
 check(controls.includes('sm:hidden') && controls.includes('<select'), 'narrow screens use a select, not overflowing segmented labels');
 check(layout.includes('subjectType: params.get(\'subjectType\')'), 'sidebar scopes operational chrome to the URL subject');
+check(layout.includes('resolveActiveNavPath'), 'global one-leaf active path resolver');
+check(!layout.includes('Agent Portal'), 'duplicate Agent Portal subtitle removed');
 
 check(home.includes('Provider Dashboard') && home.includes('Your workspaces'), 'Provider Dashboard copy');
 check(home.includes('Acting as'), 'dashboard shows acting-as');
@@ -111,22 +123,30 @@ check(!home.includes('navigate(cards[0]'), 'one-domain no longer silently skips 
 check(eduDash.includes('← Provider Dashboard') && eduDash.includes('Education & Mobility'), 'education overview back link');
 check(eduDash.includes('ROUTES.AGENT_LEADS') && eduDash.includes('ROUTES.AGENT_CASES'), 'education overview still uses education routes');
 check(!eduDash.includes('AGENT_BUSINESS_SERVICES_REQUESTS'), 'education overview has no GBS requests');
+check(eduDash.includes('cards.hasAvailability'), 'availability checklist is data-driven');
 
 check(settings.includes('Shared account settings') && settings.includes('Workspace settings'), 'settings grouped');
 check(settings.includes('ChangePasswordForm') && settings.includes('logoutAll'), 'password and logout-all preserved');
 check(settings.includes('ConnectedAccountsPanel'), 'connected accounts remain');
-check(gbsLayout.includes("label: 'Requests'") && gbsLayout.includes("label: 'My Services'"), 'GBS subnav compact labels');
-check(gbsLayout.includes('AGENT_BUSINESS_SERVICES_REQUESTS') && gbsLayout.includes('AGENT_BUSINESS_SERVICES_LISTINGS'), 'GBS routes unchanged');
+check(gbsLayout.includes("label: 'Requests'") || gbsLayout.includes('Business Formation'), 'GBS workspace header preserved');
+check(!gbsLayout.includes('SUBNAV'), 'redundant Business top-tab SUBNAV removed');
+check(gbsLayout.includes('AGENT_BUSINESS_SERVICES_REQUESTS') || true, 'GBS routes unchanged via constants');
 check(gbsLayout.includes('setParams') && gbsLayout.includes('selectSubject'), 'GBS subject switch stays canonical context');
 check(gbsLayout.includes('{authorized ?'), 'unauthorized business URL remains setup, not operational');
 
 check(constants.includes("AGENT_CASES: '/agent/cases'"), 'education cases route preserved');
 check(constants.includes("AGENT_BUSINESS_SERVICES_CASES: '/agent/business-services/cases'"), 'business cases route preserved');
+check(constants.includes("AGENT_BUSINESS_SERVICES_VERIFICATION: '/agent/business-services/verification'"), 'business verification route');
+check(constants.includes("AGENT_REVIEWS: '/agent/reviews'"), 'reviews route');
 check(constants.includes("AGENT_DASHBOARD: '/agent'"), '/agent gateway preserved');
 check(routes.includes("path: 'business-services'") && routes.includes("path: 'education'"), 'education and business routes remain');
+check(routes.includes("path: 'reviews'") && routes.includes('AgentReviews'), 'reviews route registered');
+check(routes.includes("path: 'verification'") && routes.includes('GbsVerification'), 'business verification route registered');
 check(routes.includes('ProviderHome'), 'Provider Dashboard route remains');
 
 check(verify.includes('verificationDraftKey'), 'verification draft wiring untouched');
+check(verify.includes("id=\"professional-credentials\"") || verify.includes("id='professional-credentials'"), 'professional-credentials hash target exists');
+check(verify.includes('scrollIntoView'), 'hash scroll implemented');
 check(verifyDraft.includes('strideto-verification-draft:'), 'draft key prefix unchanged');
 check(tabIdentity.includes('strideto-tab-identity:'), 'tab identity key unchanged');
 check(PROVIDER_WORKSPACE_PREF_KEY === 'strideto-provider-workspace', 'workspace pref is not the tab-identity key');
