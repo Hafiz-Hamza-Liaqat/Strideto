@@ -1,7 +1,19 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { agentApi } from '../../services/agentService';
 import { PhoneInput } from '../../components/forms/PhoneInput';
 import { storedPhoneFromInput } from '@shared/international/phone.js';
+import { useAgentAuth } from '../../context/AgentAuthContext';
+import { AdminConfirmDialog } from '../../components/admin/AdminConfirmDialog';
+import {
+  applySafeDraftToProfile,
+  clearVerificationDraft,
+  extractSafeVerificationDraft,
+  extractSensitiveVerificationSnapshot,
+  readVerificationDraft,
+  verificationDraftKey,
+  writeVerificationDraft,
+} from '../../auth/verificationDraft';
 
 const EMPTY = {
   legalName: '', displayName: '', countryCode: '', officialEmail: '', officialWebsite: '', phone: '',
@@ -15,6 +27,8 @@ const EMPTY = {
 const inputClass = 'mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 placeholder:text-gray-400 px-3 py-2';
 
 export default function AgentVerification() {
+  const navigate = useNavigate();
+  const { agent } = useAgentAuth();
   const [summary, setSummary] = useState(null);
   const [details, setDetails] = useState(null);
   const [profile, setProfile] = useState(EMPTY);
@@ -24,33 +38,131 @@ export default function AgentVerification() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [message, setMessage] = useState('');
+  const [draftNotice, setDraftNotice] = useState(false);
+  const [leaveOpen, setLeaveOpen] = useState(false);
+  const pendingHref = useRef(null);
+  const sensitiveBaseline = useRef('');
+  const skipNextDraftWrite = useRef(false);
 
-  const load = async () => {
+  const accountId = agent?._id || agent?.id || '';
+  const subjectType = summary?.accountType === 'agency' ? 'agency' : 'agent';
+  const subjectId = summary?.organizationId || '';
+  const draftKey = useMemo(() => {
+    if (!accountId || !subjectId) return '';
+    return verificationDraftKey({
+      realm: 'agent',
+      accountId,
+      subjectType,
+      subjectId,
+    });
+  }, [accountId, subjectId, subjectType]);
+
+  const captureSensitive = (nextProfile, nextPhone) => JSON.stringify(
+    extractSensitiveVerificationSnapshot(
+      nextProfile,
+      nextPhone,
+      nextProfile.registeredAddress || {},
+      nextProfile.authorizedRepresentative || {}
+    )
+  );
+
+  const load = async ({ restoreDraft = true } = {}) => {
     const { data } = await agentApi.getVerification();
     setSummary(data);
     const response = await agentApi.getVerificationDetails(data.organizationId);
     setDetails(response.data);
     const existing = response.data?.profile || {};
-    setProfile({
+    let next = {
       ...EMPTY,
       ...existing,
       registeredAddress: { ...EMPTY.registeredAddress, ...(existing.registeredAddress || {}) },
       authorizedRepresentative: typeof existing.authorizedRepresentative === 'object'
         ? { ...EMPTY.authorizedRepresentative, ...existing.authorizedRepresentative }
         : { ...EMPTY.authorizedRepresentative, fullName: existing.authorizedRepresentative || '' },
+    };
+    let restored = false;
+    const key = verificationDraftKey({
+      realm: 'agent',
+      accountId,
+      subjectType: data.accountType === 'agency' ? 'agency' : 'agent',
+      subjectId: data.organizationId,
     });
+    if (restoreDraft && accountId && key) {
+      const draft = readVerificationDraft(key);
+      const serverVersion = Number(response.data?.verificationVersion || data.verificationVersion || 0);
+      if (draft && serverVersion > draft.verificationVersion) {
+        clearVerificationDraft(key);
+      } else if (draft) {
+        next = applySafeDraftToProfile(next, draft.fields);
+        restored = true;
+      }
+    }
+    skipNextDraftWrite.current = true;
+    setProfile(next);
     setPhoneValue(existing.phone || '');
     setPhoneError('');
+    sensitiveBaseline.current = captureSensitive(next, existing.phone || '');
+    setDraftNotice(restored);
   };
 
   useEffect(() => {
     load().catch((err) => setError(err.response?.data?.error || 'Unable to load verification.')).finally(() => setLoading(false));
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [accountId]);
+
+  useEffect(() => {
+    if (!draftKey || loading || skipNextDraftWrite.current) {
+      skipNextDraftWrite.current = false;
+      return undefined;
+    }
+    const timer = setTimeout(() => {
+      writeVerificationDraft(draftKey, {
+        verificationStatus: details?.status || summary?.verificationStatus || '',
+        verificationVersion: details?.verificationVersion || summary?.verificationVersion || 0,
+        fields: extractSafeVerificationDraft(profile, profile.registeredAddress || {}),
+      });
+      setDraftNotice(true);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [draftKey, loading, profile, details, summary]);
+
+  const sensitiveDirty = captureSensitive(profile, phoneValue) !== sensitiveBaseline.current;
+
+  useEffect(() => {
+    if (!sensitiveDirty) return undefined;
+    const onBeforeUnload = (event) => {
+      event.preventDefault();
+      event.returnValue = '';
+    };
+    window.addEventListener('beforeunload', onBeforeUnload);
+    return () => window.removeEventListener('beforeunload', onBeforeUnload);
+  }, [sensitiveDirty]);
+
+  useEffect(() => {
+    if (!sensitiveDirty) return undefined;
+    const onClick = (event) => {
+      const anchor = event.target.closest?.('a[href]');
+      if (!anchor || event.defaultPrevented || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+      const href = anchor.getAttribute('href');
+      if (!href || href.startsWith('http') || href.startsWith('mailto:') || href.startsWith('tel:')) return;
+      event.preventDefault();
+      pendingHref.current = href;
+      setLeaveOpen(true);
+    };
+    document.addEventListener('click', onClick, true);
+    return () => document.removeEventListener('click', onClick, true);
+  }, [sensitiveDirty]);
 
   const set = (key) => (event) => setProfile((current) => ({ ...current, [key]: event.target.value }));
   const canEdit = ['draft', 'email_verified', 'needs_information', 'rejected', 'expired', 'revoked'].includes(details?.status || summary?.verificationStatus);
   const isAgency = summary?.accountType === 'agency';
   const policy = summary?.credentialPolicy || details?.credentialPolicyHint || 'optional';
+
+  const discardDraft = () => {
+    if (draftKey) clearVerificationDraft(draftKey);
+    setDraftNotice(false);
+    load({ restoreDraft: false }).catch(() => {});
+  };
 
   const submit = async (event) => {
     event.preventDefault();
@@ -63,7 +175,9 @@ export default function AgentVerification() {
     try {
       const method = details?.status === 'needs_information' ? agentApi.respondToVerification : agentApi.submitVerification;
       await method(summary.organizationId, { ...profile, phone: stored.e164 });
-      await load();
+      if (draftKey) clearVerificationDraft(draftKey);
+      setDraftNotice(false);
+      await load({ restoreDraft: false });
       setMessage('Verification submitted for review. Admin will review the dossier. Maps/Business cannot alone verify you.');
     } catch (err) {
       setError(err.response?.data?.error || 'Unable to submit verification.');
@@ -78,8 +192,13 @@ export default function AgentVerification() {
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Verification</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-gray-400">Registration or license numbers alone are not proof. Maps/Business is supporting evidence only and can never alone result in VERIFIED.</p>
       </div>
-      {error && <p className="rounded-lg bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300" role="alert">{error}</p>}
-      {message && <p className="rounded-lg bg-green-50 dark:bg-green-950/40 p-3 text-sm text-green-800">{message}</p>}
+      {error && <p className="rounded-lg bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300 break-words" role="alert">{error}</p>}
+      {message && <p className="rounded-lg bg-green-50 dark:bg-green-950/40 p-3 text-sm text-green-800 break-words" role="status">{message}</p>}
+      {draftNotice && canEdit ? (
+        <p className="text-xs text-slate-500 dark:text-gray-400" aria-live="polite">
+          Draft saved for this browser tab. This is not a submitted verification.
+        </p>
+      ) : null}
       <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
         <p className="text-sm text-gray-900 dark:text-white">Status: <strong>{details?.status || summary?.verificationStatus || 'draft'}</strong></p>
         <p className="text-sm mt-1">Account type: {summary?.accountType || 'professional'} · Credential policy: {policy}</p>
@@ -150,7 +269,17 @@ export default function AgentVerification() {
           <label className="text-sm text-gray-900 dark:text-white md:col-span-2">Government / company registry URL<input value={profile.governmentRegistryUrl} onChange={set('governmentRegistryUrl')} className={inputClass} /></label>
           <label className="text-sm text-gray-900 dark:text-white md:col-span-2">Professional regulator URL<input value={profile.professionalRegulatorUrl} onChange={set('professionalRegulatorUrl')} className={inputClass} /></label>
           <label className="text-sm text-gray-900 dark:text-white md:col-span-2">Accreditation / licensing page URL<input value={profile.accreditationPageUrl} onChange={set('accreditationPageUrl')} className={inputClass} /></label>
-          <button disabled={busy} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-50 md:col-span-2 min-h-[44px]">{busy ? 'Submitting…' : 'Submit for verification'}</button>
+          <div className="md:col-span-2 flex flex-col sm:flex-row gap-3">
+            <button type="submit" disabled={busy} aria-busy={busy} className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-white disabled:opacity-50 min-h-[44px]">{busy ? 'Submitting…' : 'Submit for verification'}</button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={discardDraft}
+              className="rounded-lg border border-gray-300 dark:border-gray-600 px-4 py-2 text-sm min-h-[44px] text-gray-800 dark:text-gray-200"
+            >
+              Discard draft
+            </button>
+          </div>
         </form>
       )}
       {(details?.evidence || []).length ? (
@@ -161,6 +290,24 @@ export default function AgentVerification() {
           ))}
         </section>
       ) : null}
+      <AdminConfirmDialog
+        open={leaveOpen}
+        title="You have unsaved verification changes."
+        message="Sensitive fields are kept only in this page until you submit. Stay to keep them, or discard the sensitive edits and leave."
+        confirmLabel="Discard changes"
+        danger
+        onCancel={() => {
+          pendingHref.current = null;
+          setLeaveOpen(false);
+        }}
+        onConfirm={() => {
+          const href = pendingHref.current;
+          pendingHref.current = null;
+          setLeaveOpen(false);
+          sensitiveBaseline.current = captureSensitive(profile, phoneValue);
+          if (href) navigate(href);
+        }}
+      />
     </div>
   );
 }
