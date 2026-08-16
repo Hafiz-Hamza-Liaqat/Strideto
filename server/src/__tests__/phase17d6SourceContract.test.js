@@ -135,7 +135,7 @@ check(buyerUi.includes('Quotes'), 'Quotes nav is live after 17D-7');
 check(!/Payments|Formation Cases|Messages|Documents/.test(buyerUi), 'no later-product nav');
 
 const providerNav = read('client/src/pages/Agent/business-services/GbsWorkspaceLayout.jsx');
-check(providerNav.includes('Service Requests'), 'provider Business nav includes Service Requests');
+check(providerNav.includes("label: 'Requests'"), 'provider Business nav includes Service Requests');
 const eduNav = read('client/src/config/agentNavConfig.js');
 check(eduNav.includes("label: 'Consultations'"), 'education consultations remain');
 check(!eduNav.split('const EDUCATION')[1].split('const BUSINESS')[0].includes('Service Requests'), 'education nav has no Service Requests');

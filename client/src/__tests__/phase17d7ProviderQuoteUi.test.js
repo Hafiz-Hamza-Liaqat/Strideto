@@ -23,7 +23,7 @@ const request = read('pages/Agent/business-services/GbsRequestDetail.jsx');
 const routes = read('routes/index.jsx');
 
 check(nav.includes("label: 'Quotes'"), 'Business nav Quotes');
-check(layout.includes('Quotes') && layout.includes('Service Requests'), 'workspace subnav includes Quotes after Requests');
+check(layout.includes('Quotes') && layout.includes("label: 'Requests'"), 'workspace subnav includes Quotes after Requests');
 check(!/Payout|Mailroom|Formation Case|PDF/.test(nav + layout), 'no payment/payout/case/PDF nav');
 
 check(list.includes('No quotes for this subject'), 'empty state');

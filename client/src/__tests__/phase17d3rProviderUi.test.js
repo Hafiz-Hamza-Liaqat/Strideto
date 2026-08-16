@@ -32,7 +32,7 @@ check(cards.includes('lg:grid-cols-2'), 'cards stack then two columns on desktop
 check(cards.includes('break-words'), 'long labels wrap');
 
 const home = read('pages/Agent/ProviderHome.jsx');
-check(home.includes('Provider Home'), 'provider home heading');
+check(home.includes('Provider Dashboard'), 'provider home heading');
 check(home.includes('Add another provider category'), 'add category');
 check(home.includes('kind === \'independent\'') || home.includes('group.label'), 'groups by subject');
 check(home.includes('addableDomainsForGroup'), 'addable domains are computed per subject group');
@@ -42,9 +42,10 @@ check(!/addDomain\(domain\.domainId, independent\)/.test(home), 'Add Domain does
 check(home.includes('This changes {group.label} only'), 'Add CTA names the subject being modified');
 
 const layout = read('pages/Agent/AgentLayout.jsx');
-check(layout.includes('WorkspaceSwitcher'), 'workspace switcher');
-check(layout.includes('break-words'), 'long agency/domain names wrap');
-check(layout.includes('aria-haspopup="listbox"'), 'switcher keyboard/a11y');
+const controls = read('components/agent/ProviderWorkspaceControls.jsx');
+check(layout.includes('ActingAsControl') && layout.includes('ActiveDashboardControl'), 'workspace switcher');
+check(layout.includes('break-words') && controls.includes('break-words'), 'long agency/domain names wrap');
+check(controls.includes('aria-haspopup="listbox"'), 'switcher keyboard/a11y');
 
 const team = read('pages/Agent/AgentTeam.jsx');
 check(team.includes('What should this team member work on'), 'invite domain question');

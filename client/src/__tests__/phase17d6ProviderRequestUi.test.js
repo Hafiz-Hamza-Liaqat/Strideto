@@ -21,10 +21,10 @@ const inbox = read('pages/Agent/business-services/GbsRequests.jsx');
 const detail = read('pages/Agent/business-services/GbsRequestDetail.jsx');
 const eduDash = read('pages/Agent/AgentDashboard.jsx');
 
-check(nav.includes("label: 'Service Requests'"), 'Business nav Service Requests');
+check(nav.includes("label: 'Requests'"), 'Business nav Requests');
 check(nav.includes("label: 'Business Verification'"), 'Business Verification placement preserved');
 check(!eduDash.includes('Service Requests'), 'Education dashboard does not add GBS requests');
-check(layout.includes('Service Requests') && layout.includes('Service Listings'), 'workspace subnav');
+check(layout.includes("label: 'Requests'") && layout.includes("label: 'My Services'"), 'workspace subnav');
 
 check(inbox.includes('customerDisplayName') && inbox.includes('htmlFor="gbs-request-status"'), 'inbox customer + status filter');
 check(inbox.includes('Pagination') && inbox.includes('View request'), 'pagination and view');

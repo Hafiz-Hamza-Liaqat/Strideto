@@ -76,7 +76,7 @@ check(agentCtrl.includes('requireAgentAuth') || agentRoutes.includes('requireAge
 check(agentRoutes.includes("requireAuth,\n  requireAgentAuth,\n  agent.getDashboard") || agentRoutes.includes('agent.getDashboard'), 'dashboard is agent-authed');
 
 // NAV IA
-['Provider Home', 'Profile', 'Identity & Organization / Trust Center', 'Messages', 'Notifications', 'Account Settings', 'Help', 'Education & Mobility Services', 'Marketplace', 'Availability', 'Student Leads', 'Clients', 'Consultations', 'Cases'].forEach((label) => {
+['Provider Dashboard', 'Profile', 'Trust Center', 'Messages', 'Notifications', 'Account Settings', 'Help', 'Education & Mobility Services', 'Marketplace', 'Availability', 'Student Leads', 'Clients', 'Consultations', 'Cases'].forEach((label) => {
   check(navSrc.includes(`label: '${label}'`), `nav has ${label}`);
 });
 check(navSrc.includes("agentType === 'agency'") && navSrc.includes("label: 'Team'"), 'Team only for agency');

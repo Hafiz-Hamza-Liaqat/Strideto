@@ -112,7 +112,7 @@ check(!/addDomain\(domain\.domainId, independent\)/.test(home), 'Provider Home A
 
 const nav = read('client/src/config/agentNavConfig.js');
 check(nav.includes('Education & Mobility Services'), 'education services labeled');
-check(nav.includes('Service Listings'), 'business listings labeled');
+check(nav.includes('My Services'), 'business listings labeled');
 check(nav.includes('hasBusiness ? BUSINESS : []'), 'business operational nav requires authorized workspace');
 check(nav.includes("label: 'Quotes'"), 'Quotes operational nav is live after 17D-7');
 check(!/Mailroom|Formation Case/.test(nav), 'no mailroom/formation case modules');
