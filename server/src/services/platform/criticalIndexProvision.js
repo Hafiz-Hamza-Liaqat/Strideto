@@ -15,6 +15,7 @@ import { GbsDocumentScanJob } from '../../models/gbs/GbsDocumentScanJob.js';
 import { GbsCaseFilingAuthorization } from '../../models/gbs/GbsCaseFilingAuthorization.js';
 import { GbsExternalFilingSubmission } from '../../models/gbs/GbsExternalFilingSubmission.js';
 import { IdempotencyRecord } from '../../models/platform/IdempotencyRecord.js';
+import { AgentEducationMarketplaceFreeEntitlement } from '../../models/agent/AgentEducationMarketplaceFreeEntitlement.js';
 import { logger } from '../../utils/logger.js';
 
 export class CriticalIndexProvisionError extends Error {
@@ -269,6 +270,22 @@ export const IDEMPOTENCY_RECORD_CRITICAL_INDEXES = Object.freeze([
   }),
 ]);
 
+export const EDU_MARKETPLACE_FREE_ENTITLEMENT_CRITICAL_INDEXES = Object.freeze([
+  Object.freeze({
+    name: 'edu_marketplace_free_entitlement_subject_unique',
+    key: Object.freeze({
+      providerSubjectType: 1,
+      providerSubjectId: 1,
+      domainId: 1,
+    }),
+    unique: true,
+  }),
+  Object.freeze({
+    name: 'edu_marketplace_free_entitlement_org_status',
+    key: Object.freeze({ organizationId: 1, status: 1 }),
+  }),
+]);
+
 function sameKey(left = {}, right = {}) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
@@ -430,6 +447,7 @@ export async function provisionCriticalIdempotencyIndexes({
   filingAuthorizationCollection = GbsCaseFilingAuthorization.collection,
   externalFilingCollection = GbsExternalFilingSubmission.collection,
   idempotencyCollection = IdempotencyRecord.collection,
+  educationFreeEntitlementCollection = AgentEducationMarketplaceFreeEntitlement.collection,
 } = {}) {
   const serviceRequest = await provisionMissingIndexes({
     collection: serviceRequestCollection,
@@ -467,6 +485,10 @@ export async function provisionCriticalIdempotencyIndexes({
     collection: idempotencyCollection,
     expected: IDEMPOTENCY_RECORD_CRITICAL_INDEXES,
   });
+  const educationFreeEntitlement = await provisionMissingIndexes({
+    collection: educationFreeEntitlementCollection,
+    expected: EDU_MARKETPLACE_FREE_ENTITLEMENT_CRITICAL_INDEXES,
+  });
   logger.info('critical_index_provision_ready', {
     serviceRequestCreated: serviceRequest.created,
     quoteCreated: quote.created,
@@ -477,6 +499,7 @@ export async function provisionCriticalIdempotencyIndexes({
     filingAuthorizationCreated: filingAuthorizations.created,
     externalFilingCreated: externalFilings.created,
     idempotencyCreated: idempotency.created,
+    educationFreeEntitlementCreated: educationFreeEntitlement.created,
   });
   return {
     serviceRequest,
@@ -488,5 +511,6 @@ export async function provisionCriticalIdempotencyIndexes({
     filingAuthorizations,
     externalFilings,
     idempotency,
+    educationFreeEntitlement,
   };
 }

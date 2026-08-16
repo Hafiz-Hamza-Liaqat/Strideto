@@ -17,6 +17,12 @@ import { CanonicalInstitution } from '../models/education/CanonicalInstitution.j
 import { logAudit } from './auditService.js';
 import { notifyAgentOrganizationOwners } from './agentInboxNotificationBridge.js';
 import { assertApprovedVerification } from './agentProfileService.js';
+import {
+  assertEducationFreeEntitlementAvailable,
+  assertNoOffPlatformFreePromotionContent,
+  consumeEducationFreeEntitlementOnPublish,
+  getEducationFreeEntitlementStatus,
+} from './educationMarketplaceFreeEntitlementService.js';
 import { deriveBadges, VERIFICATION_STATUSES } from '../../../shared/international/verification.js';
 import { deriveFreshness, FRESHNESS_STATES, SOURCE_STATUS as _SOURCE_STATUS } from '../../../shared/trust/sourceVerification.js';
 import {
@@ -127,7 +133,8 @@ async function sourceState(data) {
   return { sourceIds: [...ids], freshness: states.sort((a, b) => order.indexOf(a) - order.indexOf(b))[0] || FRESHNESS_STATES.UNKNOWN };
 }
 
-const editableFields = ['postType','title','summary','contentKind','agentStatement','factualClaims','canonicalReferences','relatedAgentServiceId','targetCountries','destinationCountries','degreeCategories','careerCategories','journeyCategories','languages','sourceIds','effectiveAt','startsAt','endsAt'];
+// Agent-writable content only. publishedAt / endsAt / promotionKind / moderation are server-authoritative.
+const editableFields = ['postType','title','summary','contentKind','agentStatement','factualClaims','canonicalReferences','relatedAgentServiceId','targetCountries','destinationCountries','degreeCategories','careerCategories','journeyCategories','languages','sourceIds','effectiveAt','startsAt'];
 function normalizedInput(data) {
   const out = {};
   for (const key of editableFields) if (key in data) out[key] = data[key];
@@ -148,21 +155,39 @@ async function event(post, toStatus, action, actorId, actorRealm, reason = '') {
 
 export async function createDraft(agentAccountId, data) {
   const { profile } = await resolveAgentScope(agentAccountId);
-  const input = await enrichProvenanceFromReferences(normalizedInput(data)); validateMarketplaceContent(input);
+  await assertApprovedVerification(profile.organizationId);
+  await assertEducationFreeEntitlementAvailable(profile, agentAccountId);
+  const input = await enrichProvenanceFromReferences(normalizedInput(data));
+  validateMarketplaceContent(input);
+  assertNoOffPlatformFreePromotionContent(input);
   await validateRelatedRecords(input, profile.organizationId);
   const sources = await sourceState(input);
-  const post = await AgentMarketplacePost.create({ ...input, organizationId: profile.organizationId, authorAgentAccountId: agentAccountId, slug: await uniqueSlug(input.title), sourceIds: sources.sourceIds, sourceFreshnessState: sources.freshness, policySignals: [] });
-  await audit('agent_marketplace_draft_created', { userId: agentAccountId, role: 'agent' }, { postId: post._id, organizationId: profile.organizationId, postType: post.postType });
+  const post = await AgentMarketplacePost.create({
+    ...input,
+    organizationId: profile.organizationId,
+    authorAgentAccountId: agentAccountId,
+    slug: await uniqueSlug(input.title),
+    sourceIds: sources.sourceIds,
+    sourceFreshnessState: sources.freshness,
+    policySignals: [],
+    promotionKind: 'free_education',
+    endsAt: null,
+    publishedAt: null,
+  });
+  await audit('agent_marketplace_draft_created', { userId: agentAccountId, role: 'agent' }, { postId: post._id, organizationId: profile.organizationId, postType: post.postType, promotionKind: 'free_education' });
   return post.toObject();
 }
 
 export async function updateDraft(agentAccountId, postId, data) {
   assertObjectId(postId, 'marketplace post id');
   const { profile } = await resolveAgentScope(agentAccountId);
+  await assertApprovedVerification(profile.organizationId);
   const post = await AgentMarketplacePost.findOne({ _id: postId, organizationId: profile.organizationId });
   if (!post) throw error('Marketplace post not found', 404);
   if (![[PS.DRAFT, MS.NOT_SUBMITTED], [PS.SUBMITTED, MS.NEEDS_CHANGES]].some(([p, m]) => post.publicationStatus === p && post.moderationStatus === m)) throw error('Post cannot be edited in its current state', 409);
-  const input = await enrichProvenanceFromReferences({ ...post.toObject(), ...normalizedInput(data) }); validateMarketplaceContent(input);
+  const input = await enrichProvenanceFromReferences({ ...post.toObject(), ...normalizedInput(data) });
+  validateMarketplaceContent(input);
+  if (post.promotionKind === 'free_education') assertNoOffPlatformFreePromotionContent(input);
   await validateRelatedRecords(input, profile.organizationId); const sources = await sourceState(input);
   for (const [key, value] of Object.entries(normalizedInput(data))) post[key] = value;
   post.sourceIds = sources.sourceIds; post.sourceFreshnessState = sources.freshness;
@@ -172,11 +197,15 @@ export async function updateDraft(agentAccountId, postId, data) {
 }
 
 export async function submitPost(agentAccountId, postId) {
-  const { profile } = await resolveAgentScope(agentAccountId); await assertApprovedVerification(profile.organizationId);
+  const { profile } = await resolveAgentScope(agentAccountId);
+  await assertApprovedVerification(profile.organizationId);
+  await assertEducationFreeEntitlementAvailable(profile, agentAccountId);
   const post = await AgentMarketplacePost.findOne({ _id: postId, organizationId: profile.organizationId });
   if (!post) throw error('Marketplace post not found', 404);
   if (!((post.publicationStatus === PS.DRAFT && post.moderationStatus === MS.NOT_SUBMITTED) || post.moderationStatus === MS.NEEDS_CHANGES)) throw error('Post cannot be submitted in its current state', 409);
-  validateMarketplaceContent(post.toObject(), { forPublication: true }); await validateRelatedRecords(post.toObject(), profile.organizationId);
+  validateMarketplaceContent(post.toObject(), { forPublication: true });
+  if (post.promotionKind === 'free_education') assertNoOffPlatformFreePromotionContent(post.toObject());
+  await validateRelatedRecords(post.toObject(), profile.organizationId);
   const sources = await sourceState(post.toObject());
   if (requiresMarketplaceProvenance(post) && [FRESHNESS_STATES.BROKEN, FRESHNESS_STATES.UNKNOWN].includes(sources.freshness)) throw error('Factual claims require verified, available provenance', 422);
   await event(post, MS.PENDING, 'submitted', agentAccountId, 'agent');
@@ -203,7 +232,39 @@ export async function listOwnPosts(agentAccountId, { status, q, page = 1, limit 
   return { posts, total, page: p, limit: l, pages: Math.ceil(total/l) };
 }
 export async function getOwnPost(agentAccountId, postId) { const { profile } = await resolveAgentScope(agentAccountId); const post = await AgentMarketplacePost.findOne({ _id: postId, organizationId: profile.organizationId }).lean(); if (!post) throw error('Marketplace post not found', 404); return post; }
-export async function marketplaceCounts(agentAccountId) { const { profile } = await resolveAgentScope(agentAccountId); const rows = await AgentMarketplacePost.aggregate([{ $match: { organizationId: profile.organizationId } }, { $group: { _id: '$moderationStatus', count: { $sum: 1 } } }]); return Object.fromEntries(rows.map((r) => [r._id, r.count])); }
+export async function marketplaceCounts(agentAccountId) {
+  const { profile } = await resolveAgentScope(agentAccountId);
+  const orgFilter = { organizationId: profile.organizationId };
+  const now = new Date();
+  const [rows, publiclyEligible, drafts, pendingReview, expired] = await Promise.all([
+    AgentMarketplacePost.aggregate([{ $match: orgFilter }, { $group: { _id: '$moderationStatus', count: { $sum: 1 } } }]),
+    AgentMarketplacePost.countDocuments({
+      ...orgFilter,
+      publicationStatus: PS.PUBLISHED,
+      moderationStatus: MS.APPROVED,
+      $or: [{ endsAt: null }, { endsAt: { $gt: now } }],
+    }),
+    AgentMarketplacePost.countDocuments({ ...orgFilter, publicationStatus: PS.DRAFT }),
+    AgentMarketplacePost.countDocuments({ ...orgFilter, moderationStatus: { $in: [MS.PENDING, MS.UNDER_REVIEW] } }),
+    AgentMarketplacePost.countDocuments({
+      ...orgFilter,
+      publicationStatus: PS.PUBLISHED,
+      endsAt: { $ne: null, $lte: now },
+    }),
+  ]);
+  const byStatus = Object.fromEntries(rows.map((r) => [r._id, r.count]));
+  const entitlement = await getEducationFreeEntitlementStatus(profile, agentAccountId).catch(() => null);
+  return {
+    ...byStatus,
+    approved: publiclyEligible,
+    publiclyEligible,
+    drafts,
+    pendingReview,
+    expired,
+    freeEntitlement: entitlement,
+    paidPublishingPlans: 'not_configured',
+  };
+}
 
 async function publicProjection(post) {
   const [profile, org, evidence, service, sources, refs] = await Promise.all([
@@ -259,7 +320,37 @@ export async function withdrawInterest(userId, slug) { const post = await AgentM
 export async function listModerationQueue(filters = {}) { const query = {}; if (filters.status) query.moderationStatus = filters.status; else query.moderationStatus = { $in: [MS.PENDING, MS.UNDER_REVIEW, MS.NEEDS_CHANGES] }; if (filters.organizationId) query.organizationId = filters.organizationId; if (filters.postType) query.postType = filters.postType; if (filters.country) query.destinationCountries = filters.country.toUpperCase(); if (filters.sourceStatus) query.sourceFreshnessState = filters.sourceStatus; const p=Math.max(1,parseInt(filters.page,10)||1),l=Math.min(50,Math.max(1,parseInt(filters.limit,10)||20)); const [posts,total]=await Promise.all([AgentMarketplacePost.find(query).sort({updatedAt:1}).skip((p-1)*l).limit(l).populate('organizationId','displayName organizationType countryCode').lean(),AgentMarketplacePost.countDocuments(query)]); return { posts,total,page:p,limit:l,pages:Math.ceil(total/l) }; }
 export async function getModerationPost(postId) { const post=await AgentMarketplacePost.findById(postId).populate('organizationId','displayName organizationType countryCode').lean(); if(!post) throw error('Marketplace post not found',404); const [history,verification,evidence,sources]=await Promise.all([AgentMarketplaceModerationEvent.find({postId}).sort({createdAt:1}).lean(),OrganizationVerification.findOne({organizationId:post.organizationId._id}).select('status').lean(),VerificationEvidence.find({organizationId:post.organizationId._id,status:'accepted'}).select('evidenceType status').lean(),CanonicalSource.find({_id:{$in:post.sourceIds||[]}}).select('url label status authorityType lastVerifiedAt nextReviewAt').lean()]); return {post,history,verificationStatus:verification?.status||'draft',trustBadges:deriveBadges(evidence),sources,policySignals:marketplaceClaimSignals(post.title,post.summary,post.agentStatement,(post.factualClaims||[]).map(c=>c.statement))}; }
 export async function moderatePost(adminId, postId, action, reason='') { const post=await AgentMarketplacePost.findById(postId); if(!post) throw error('Marketplace post not found',404); const negative=['request_changes','reject','suspend','archive']; if(negative.includes(action)&&!reason.trim()) throw error('A moderation reason is required',422); const transitions={begin_review:{from:[MS.PENDING],to:MS.UNDER_REVIEW},request_changes:{from:[MS.PENDING,MS.UNDER_REVIEW],to:MS.NEEDS_CHANGES},approve:{from:[MS.PENDING,MS.UNDER_REVIEW],to:MS.APPROVED},reject:{from:[MS.PENDING,MS.UNDER_REVIEW],to:MS.REJECTED},suspend:{from:[MS.APPROVED],to:MS.SUSPENDED},archive:{from:[MS.APPROVED,MS.REJECTED,MS.SUSPENDED],to:MS.ARCHIVED}}; const transition=transitions[action]; if(!transition||!transition.from.includes(post.moderationStatus)) throw error('Invalid moderation transition',409);
-  if(action==='approve'){ await assertApprovedVerification(post.organizationId); validateMarketplaceContent(post.toObject(),{forPublication:true}); const sources=await sourceState(post.toObject()); if(requiresMarketplaceProvenance(post)&&[FRESHNESS_STATES.BROKEN,FRESHNESS_STATES.UNKNOWN].includes(sources.freshness)) throw error('Factual claims lack publishable provenance',422); post.publicationStatus=PS.PUBLISHED;post.publishedAt=new Date();post.sourceFreshnessState=sources.freshness; post.launchEligible=assignLaunchEligibleOnAuthorityPublish(post.toObject()); }
+  if (action === 'approve') {
+    await assertApprovedVerification(post.organizationId);
+    validateMarketplaceContent(post.toObject(), { forPublication: true });
+    if (post.promotionKind === 'free_education') assertNoOffPlatformFreePromotionContent(post.toObject());
+    const sources = await sourceState(post.toObject());
+    if (requiresMarketplaceProvenance(post) && [FRESHNESS_STATES.BROKEN, FRESHNESS_STATES.UNKNOWN].includes(sources.freshness)) {
+      throw error('Factual claims lack publishable provenance', 422);
+    }
+    const publishedAt = new Date();
+    // Paid plans are not configured — every Education promotion uses the one-time free entitlement.
+    const promotionKind = post.promotionKind || 'free_education';
+    post.promotionKind = promotionKind;
+    if (promotionKind === 'free_education') {
+      const authorProfile = await AgentProfile.findOne({ agentAccountId: post.authorAgentAccountId }).lean()
+        || await AgentProfile.findOne({ organizationId: post.organizationId }).lean();
+      if (!authorProfile) throw error('Provider profile required for free promotion entitlement', 422);
+      const { expiresAt } = await consumeEducationFreeEntitlementOnPublish({
+        profile: authorProfile,
+        agentAccountId: post.authorAgentAccountId,
+        postId: post._id,
+        publishedAt,
+        actorId: adminId,
+        actorRole: 'admin',
+      });
+      post.endsAt = expiresAt;
+    }
+    post.publicationStatus = PS.PUBLISHED;
+    post.publishedAt = publishedAt;
+    post.sourceFreshnessState = sources.freshness;
+    post.launchEligible = assignLaunchEligibleOnAuthorityPublish(post.toObject());
+  }
   if(action==='request_changes') post.publicationStatus=PS.SUBMITTED; if(action==='reject') post.publicationStatus=PS.SUBMITTED; if(action==='suspend') post.publicationStatus=PS.SUSPENDED; if(action==='archive'){post.publicationStatus=PS.ARCHIVED;post.archivedAt=new Date();}
   await event(post,transition.to,action,adminId,'admin',reason);post.moderationStatus=transition.to;post.moderationFeedback=reason;await post.save();await audit(`agent_marketplace_${action}`,{userId:adminId,role:'admin'},{postId:post._id,organizationId:post.organizationId,reason});return post.toObject(); }
 

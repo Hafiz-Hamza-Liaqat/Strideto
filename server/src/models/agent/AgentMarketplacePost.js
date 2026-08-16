@@ -46,6 +46,12 @@ const postSchema = new mongoose.Schema({
   endsAt: { type: Date, default: null, index: true },
   publishedAt: { type: Date, default: null },
   archivedAt: { type: Date, default: null },
+  /** free_education = one-time Education Marketplace promotion (7-day public window). */
+  promotionKind: {
+    type: String,
+    default: null,
+    index: true,
+  },
   isFixture: { type: Boolean, default: false, index: true },
   dataClass: { type: String, trim: true, lowercase: true },
   environment: { type: String, trim: true, lowercase: true },
