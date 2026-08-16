@@ -1,28 +1,21 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { agentApi } from '../../services/agentService';
 import { ROUTES } from '../../constants';
 import { PROVIDER_DOMAIN_IDS, publicProviderDomainProjection } from '@shared/provider/providerDomains.js';
 import { btnPrimary, btnSecondary, cardClass, muted } from './agentUi';
 import { PortalWelcomeBanner } from '../../components/welcome/PortalWelcomeBanner';
 import { useAgentAuth } from '../../context/AgentAuthContext';
-
-const PREF_KEY = 'strideto-provider-workspace';
-
-function readPref() {
-  try {
-    return JSON.parse(localStorage.getItem(PREF_KEY) || 'null');
-  } catch {
-    return null;
-  }
-}
+import {
+  kindLabel,
+  subjectKey,
+  withProviderSubject,
+  writeProviderWorkspacePref,
+} from '../../config/providerWorkspacePref';
+// Workspace preference remains UX-only (strideto-provider-workspace).
 
 function workspaceKey(row) {
   return `${row.subjectType}:${row.subjectId}:${row.domainId}`;
-}
-
-function subjectKey(row) {
-  return `${row.subjectType}:${row.subjectId}`;
 }
 
 function addableDomainsForGroup(items, businessEnabled) {
@@ -34,11 +27,14 @@ function addableDomainsForGroup(items, businessEnabled) {
     .filter((domain) => domain && !have.has(domain.domainId));
 }
 
+function domainCardTitle(card) {
+  if (card.domainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES) return 'Business Services';
+  return 'Education & Mobility';
+}
+
 export default function ProviderHome() {
   const { agent } = useAgentAuth();
   const navigate = useNavigate();
-  const [params] = useSearchParams();
-  const stayHome = params.get('home') === '1';
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
@@ -46,13 +42,13 @@ export default function ProviderHome() {
 
   const load = () => agentApi.getProviderHome()
     .then(({ data: payload }) => setData(payload))
-    .catch((err) => setError(err.response?.data?.error || 'Unable to load Provider Home.'));
+    .catch((err) => setError(err.response?.data?.error || 'Unable to load Provider Dashboard.'));
 
   useEffect(() => {
     load().finally(() => setLoading(false));
   }, []);
 
-  const cards = data?.cards || [];
+  const cards = useMemo(() => data?.cards || [], [data]);
   const groups = useMemo(() => {
     const map = new Map();
     for (const card of cards) {
@@ -73,21 +69,11 @@ export default function ProviderHome() {
   }, [cards]);
 
   useEffect(() => {
-    if (!data || stayHome || data.needsOnboarding) return;
+    if (!data) return;
     if (data.needsOnboarding) {
       navigate(ROUTES.AGENT_DOMAIN_ONBOARDING, { replace: true });
-      return;
     }
-    if (cards.length === 1) {
-      navigate(cards[0].path + `?subjectType=${cards[0].subjectType}&subjectId=${cards[0].subjectId}`, { replace: true });
-      return;
-    }
-    const pref = readPref();
-    if (pref && cards.length > 1) {
-      const match = cards.find((c) => workspaceKey(c) === `${pref.subjectType}:${pref.subjectId}:${pref.domainId}`);
-      if (match) navigate(`${match.path}?subjectType=${match.subjectType}&subjectId=${match.subjectId}`, { replace: true });
-    }
-  }, [data, stayHome, cards, navigate]);
+  }, [data, navigate]);
 
   const addDomain = async (domainId, subject) => {
     setBusy(`${subject.subjectType}:${subject.subjectId}:${domainId}`);
@@ -120,49 +106,59 @@ export default function ProviderHome() {
     );
   }
 
+  const displayName = agent?.professionalName || agent?.displayName || 'Provider';
+  const bothDomains = cards.some((c) => c.domainId === PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY)
+    && cards.some((c) => c.domainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES);
+
   return (
     <div className="space-y-6 min-w-0">
       <PortalWelcomeBanner
         realm="agent"
         userId={agent?._id || agent?.agentProfileId}
-        displayName={agent?.professionalName || agent?.displayName}
+        displayName={displayName}
       />
       <header className="min-w-0">
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Provider Home</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Provider Dashboard</h1>
+        <p className="mt-2 text-lg text-gray-900 dark:text-white break-words">Welcome back, {displayName}</p>
         <p className={`${muted} mt-1 break-words`}>
-          Choose the professional area you are managing. Independent and Agency identities stay separate.
+          Choose who you are acting as, then open a professional dashboard. Independent and Agency identities stay separate.
         </p>
       </header>
       {error ? <p className="rounded-lg bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300" role="alert">{error}</p> : null}
 
       {groups.map((group) => {
         const addable = addableDomainsForGroup(group.items, data?.businessServicesProviderEnabled);
+        const subject = { subjectType: group.subjectType, subjectId: group.subjectId };
         return (
           <section key={group.key} className="space-y-3 min-w-0">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white break-words">{group.label}</h2>
-            <div className="grid gap-3 md:grid-cols-2">
+            <div>
+              <p className="text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Acting as</p>
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white break-words">{group.label}</h2>
+              <p className={`${muted} break-words`}>{kindLabel(group.kind)}</p>
+            </div>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Your workspaces</h3>
+            <div className={`grid gap-3 ${bothDomains || group.items.length > 1 ? 'md:grid-cols-2' : 'md:grid-cols-1'}`}>
               {group.items.map((card) => (
                 <article key={workspaceKey(card)} className={`${cardClass} min-w-0`}>
-                  <h3 className="font-semibold text-gray-900 dark:text-white break-words">{card.domain?.publicName}</h3>
+                  <h3 className="font-semibold text-gray-900 dark:text-white break-words">{domainCardTitle(card)}</h3>
+                  <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 break-words">{card.domain?.publicName}</p>
                   <p className={`mt-1 ${muted} break-words`}>
                     {card.domainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES
                       ? `Verified capabilities: ${card.counters?.verifiedCapabilities ?? 0} · Listings: ${card.counters?.listings ?? 0}`
                       : `Verification: ${card.counters?.verificationStatus || 'draft'} · Active services: ${card.counters?.activeServices ?? 0} · Leads: ${card.counters?.leads ?? 0}`}
                   </p>
                   <Link
-                    to={`${card.path}?subjectType=${card.subjectType}&subjectId=${card.subjectId}`}
+                    to={withProviderSubject(card.path, subject)}
                     className={`${btnPrimary} mt-4`}
                     onClick={() => {
-                      try {
-                        localStorage.setItem(PREF_KEY, JSON.stringify({
-                          subjectType: card.subjectType,
-                          subjectId: card.subjectId,
-                          domainId: card.domainId,
-                        }));
-                      } catch { /* UX only */ }
+                      writeProviderWorkspacePref({
+                        subjectType: card.subjectType,
+                        subjectId: card.subjectId,
+                        domainId: card.domainId,
+                      });
                     }}
                   >
-                    Open {card.domain?.shortName || 'workspace'}
+                    Open {domainCardTitle(card)}
                   </Link>
                 </article>
               ))}

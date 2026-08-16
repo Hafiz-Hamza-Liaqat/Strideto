@@ -11,14 +11,15 @@ const SUBNAV = [
   { to: ROUTES.AGENT_BUSINESS_SERVICES, label: 'Overview', end: true },
   { to: ROUTES.AGENT_BUSINESS_SERVICES_CAPABILITIES, label: 'Capabilities' },
   { to: ROUTES.AGENT_BUSINESS_SERVICES_JURISDICTIONS, label: 'Jurisdictions' },
-  { to: ROUTES.AGENT_BUSINESS_SERVICES_LISTINGS, label: 'Service Listings' },
-  { to: ROUTES.AGENT_BUSINESS_SERVICES_REQUESTS, label: 'Service Requests' },
+  { to: ROUTES.AGENT_BUSINESS_SERVICES_LISTINGS, label: 'My Services' },
+  { to: ROUTES.AGENT_BUSINESS_SERVICES_REQUESTS, label: 'Requests' },
   { to: ROUTES.AGENT_BUSINESS_SERVICES_QUOTES, label: 'Quotes' },
   { to: ROUTES.AGENT_BUSINESS_SERVICES_CASES, label: 'Cases' },
 ];
 
 function SubjectSwitcher() {
   const { subjects, selected, selectSubject } = useGbsProvider();
+  const [params, setParams] = useSearchParams();
   if (!selected || subjects.length <= 1) return null;
   return (
     <div className="min-w-0 max-w-xl">
@@ -31,7 +32,12 @@ function SubjectSwitcher() {
         value={`${selected.subjectType}:${selected.subjectId}`}
         onChange={(next) => {
           const match = subjects.find((s) => `${s.subjectType}:${s.subjectId}` === next);
-          if (match) selectSubject(match);
+          if (!match) return;
+          selectSubject(match);
+          const nextParams = new URLSearchParams(params);
+          nextParams.set('subjectType', match.subjectType);
+          nextParams.set('subjectId', String(match.subjectId));
+          setParams(nextParams, { replace: true });
         }}
         options={subjects.map((s) => ({
           value: `${s.subjectType}:${s.subjectId}`,
@@ -94,7 +100,7 @@ function GbsSetupState({ enabled, loadError }) {
           Business Formation & Corporate Services is not available in this environment.
         </p>
         <Link to={`${ROUTES.AGENT_DASHBOARD}?home=1`} className="mt-4 inline-flex min-h-[44px] items-center text-sm font-medium text-primary">
-          Back to Provider Home
+          Back to Provider Dashboard
         </Link>
       </div>
     );
@@ -121,7 +127,7 @@ function GbsSetupState({ enabled, loadError }) {
           to={`${ROUTES.AGENT_DASHBOARD}?home=1`}
           className="inline-flex min-h-[44px] items-center rounded-lg border border-gray-200 dark:border-gray-600 px-4 py-2 text-sm font-medium text-gray-900 dark:text-white"
         >
-          Provider Home
+          Provider Dashboard
         </Link>
       </div>
     </div>
@@ -156,6 +162,9 @@ function GbsWorkspaceShell() {
   return (
     <div className={page}>
       <header className="space-y-3 min-w-0">
+        <Link to={`${ROUTES.AGENT_DASHBOARD}?home=1`} className="text-sm font-medium text-primary hover:underline">
+          ← Provider Dashboard
+        </Link>
         <h1 className={h1}>Business Formation & Corporate Services</h1>
         <p className={`${muted} ${wrap}`}>
           Company formation and corporate-services provider workspace. This is not the Education & Mobility Services catalog,

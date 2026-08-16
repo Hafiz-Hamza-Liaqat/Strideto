@@ -63,9 +63,31 @@ export default function GbsOverview() {
   }
 
   const counters = summary?.counters || {};
+  const attention = [
+    Number(counters.capabilitiesNeedingInformation) > 0
+      ? { to: ROUTES.AGENT_BUSINESS_SERVICES_CAPABILITIES, label: 'Capabilities needing information', value: counters.capabilitiesNeedingInformation }
+      : null,
+    Number(counters.listingsUnderReview) > 0
+      ? { to: ROUTES.AGENT_BUSINESS_SERVICES_LISTINGS, label: 'Listings under review', value: counters.listingsUnderReview }
+      : null,
+  ].filter(Boolean);
 
   return (
     <div className="space-y-6">
+      {attention.length ? (
+        <section className={card} aria-labelledby="gbs-attention-heading">
+          <h2 id="gbs-attention-heading" className={h2}>Needs your attention</h2>
+          <ul className="mt-3 space-y-2">
+            {attention.map((item) => (
+              <li key={item.label}>
+                <Link to={item.to} className="text-sm font-medium text-primary hover:underline">
+                  {item.label}: {item.value}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      ) : null}
       <section aria-labelledby="gbs-counters-heading">
         <h2 id="gbs-counters-heading" className={h2}>Workspace status</h2>
         <p className={`${muted} mt-1`}>Counts are server-authoritative for the selected subject only.</p>

@@ -106,7 +106,10 @@ export default function AgentDashboard() {
         </ul>
       </section>
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Education & Mobility</h1>
+        <Link to={`${ROUTES.AGENT_DASHBOARD}?home=1`} className="text-sm font-medium text-primary hover:underline">
+          ← Provider Dashboard
+        </Link>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white mt-2">Education & Mobility</h1>
         <p className="text-slate-500 dark:text-gray-400 text-sm mt-1">
           Education-specific workspace. Student leads and education services are separate from Business Formation & Corporate Services. Empty cards show 0 or not configured — they are not missing data.
         </p>

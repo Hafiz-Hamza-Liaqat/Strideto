@@ -29,7 +29,7 @@ export default function AgentTrust() {
   return (
     <div className="space-y-8">
       <header>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Trust & Verification</h1>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Trust Center</h1>
         <p className={muted}>Identity, organization, and professional-domain verification are separate. Identity Verified is not Registered Agent capability verified.</p>
       </header>
       {error ? <p className="rounded bg-red-50 dark:bg-red-950/40 p-3 text-red-700 dark:text-red-300" role="alert">{error}</p> : null}
