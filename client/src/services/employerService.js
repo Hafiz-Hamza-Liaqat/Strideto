@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../constants';
+import { createRefreshFlight } from '../auth/refreshFlight.js';
 
 /**
  * SEC-3E — secure Employer-realm client contract, mirroring
@@ -41,10 +42,23 @@ const employerAxios = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-let employerRefreshPromise = null;
+const employerRefreshPromise = createRefreshFlight();
 
 export function resetEmployerAxiosAuthState() {
-  employerRefreshPromise = null;
+  employerRefreshPromise.reset();
+}
+
+export function refreshEmployerAccessToken() {
+  return employerRefreshPromise.run(async () => {
+    const res = await axios.post(
+      `${API_BASE_URL}/auth/employer/refresh-token`,
+      {},
+      { withCredentials: true }
+    );
+    const { accessToken } = res.data;
+    setEmployerAccessToken(accessToken);
+    return accessToken;
+  });
 }
 
 employerAxios.interceptors.request.use(
@@ -74,21 +88,8 @@ employerAxios.interceptors.response.use(
 
     original._retry = true;
 
-    if (!employerRefreshPromise) {
-      employerRefreshPromise = axios
-        .post(`${API_BASE_URL}/auth/employer/refresh-token`, {}, { withCredentials: true })
-        .then((res) => {
-          const { accessToken } = res.data;
-          setEmployerAccessToken(accessToken);
-          return accessToken;
-        })
-        .finally(() => {
-          employerRefreshPromise = null;
-        });
-    }
-
     try {
-      const newToken = await employerRefreshPromise;
+      const newToken = await refreshEmployerAccessToken();
       original.headers.Authorization = `Bearer ${newToken}`;
       return employerAxios(original);
     } catch (refreshErr) {
@@ -108,7 +109,10 @@ export const employerAuthApi = {
   changePassword: (payload) => employerAxios.post('/auth/employer/change-password', payload),
   forgotPassword: (email) => employerAxios.post('/auth/employer/forgot-password', { email }),
   resetPassword: (data) => employerAxios.post('/auth/employer/reset-password', data),
-  refresh: () => employerAxios.post('/auth/employer/refresh-token', {}),
+  refresh: async () => {
+    const accessToken = await refreshEmployerAccessToken();
+    return { data: { accessToken } };
+  },
 };
 
 export const employerApi = {

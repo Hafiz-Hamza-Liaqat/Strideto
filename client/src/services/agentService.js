@@ -7,6 +7,7 @@ import axios from 'axios';
 import userAxios from './axiosBase';
 import { API_BASE_URL } from '../constants';
 import { notifySessionExpired } from '../auth/sessionExpired.js';
+import { createRefreshFlight } from '../auth/refreshFlight.js';
 
 let inMemoryAgentAccessToken = null;
 
@@ -45,10 +46,23 @@ export const agentAxios = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
-let agentRefreshPromise = null;
+const agentRefreshPromise = createRefreshFlight();
 
 export function resetAgentAxiosAuthState() {
-  agentRefreshPromise = null;
+  agentRefreshPromise.reset();
+}
+
+export function refreshAgentAccessToken() {
+  return agentRefreshPromise.run(async () => {
+    const res = await axios.post(
+      `${API_BASE_URL}/auth/agent/refresh-token`,
+      {},
+      { withCredentials: true }
+    );
+    const { accessToken } = res.data;
+    setAgentAccessToken(accessToken);
+    return accessToken;
+  });
 }
 
 agentAxios.interceptors.request.use(
@@ -68,21 +82,13 @@ agentAxios.interceptors.response.use(
     const status = err.response?.status;
     if (status === 401 && !original._agentRetry && !isAgentNoRefreshUrl(original.url || '')) {
       original._agentRetry = true;
-      if (!agentRefreshPromise) {
-        agentRefreshPromise = agentAxios
-          .post('/api/auth/agent/refresh-token')
-          .then((r) => {
-            setAgentAccessToken(r.data.accessToken);
-            agentRefreshPromise = null;
-          })
-          .catch(() => {
-            clearAgentAccessToken();
-            localStorage.removeItem('strideto-agent');
-            agentRefreshPromise = null;
-            notifySessionExpired('agent');
-          });
+      try {
+        await refreshAgentAccessToken();
+      } catch {
+        clearAgentAccessToken();
+        localStorage.removeItem('strideto-agent');
+        notifySessionExpired('agent');
       }
-      await agentRefreshPromise;
       if (inMemoryAgentAccessToken) {
         original.headers.Authorization = `Bearer ${inMemoryAgentAccessToken}`;
         return agentAxios(original);
@@ -99,7 +105,10 @@ export const agentAuthApi = {
   providerDomainCatalog: () => agentAxios.get('/api/auth/agent/provider-domains'),
   logout: () => agentAxios.post('/api/auth/agent/logout'),
   logoutAll: () => agentAxios.post('/api/auth/agent/logout-all'),
-  refreshToken: () => agentAxios.post('/api/auth/agent/refresh-token'),
+  refreshToken: async () => {
+    const accessToken = await refreshAgentAccessToken();
+    return { data: { accessToken } };
+  },
   changePassword: (payload) =>
     agentAxios.post('/api/auth/agent/change-password', payload),
   forgotPassword: (email) => agentAxios.post('/api/auth/agent/forgot-password', { email }),

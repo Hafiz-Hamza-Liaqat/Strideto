@@ -1,14 +1,28 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../constants';
 import { notifySessionExpired } from '../auth/sessionExpired.js';
+import { createRefreshFlight } from '../auth/refreshFlight.js';
 
 let institutionAccessToken = null;
-let refreshPromise = null;
+const refreshPromise = createRefreshFlight();
 
 export const getInstitutionAccessToken = () => institutionAccessToken;
 export const setInstitutionAccessToken = (token) => { institutionAccessToken = token || null; };
 export const clearInstitutionAccessToken = () => { institutionAccessToken = null; };
-export const resetInstitutionAuthState = () => { refreshPromise = null; };
+export const resetInstitutionAuthState = () => { refreshPromise.reset(); };
+
+export function refreshInstitutionAccessToken() {
+  return refreshPromise.run(async () => {
+    const res = await axios.post(
+      `${API_BASE_URL}/auth/institution/refresh-token`,
+      {},
+      { withCredentials: true }
+    );
+    const { accessToken } = res.data;
+    setInstitutionAccessToken(accessToken);
+    return accessToken;
+  });
+}
 
 const client = axios.create({
   baseURL: API_BASE_URL,
@@ -40,17 +54,13 @@ client.interceptors.response.use(
     if (!mayRefresh) return Promise.reject(error);
 
     original._institutionRetry = true;
-    if (!refreshPromise) {
-      refreshPromise = client.post('/auth/institution/refresh-token')
-        .then(({ data }) => setInstitutionAccessToken(data.accessToken))
-        .catch(() => {
-          clearInstitutionAccessToken();
-          localStorage.removeItem('strideto-institution');
-          notifySessionExpired('institution');
-        })
-        .finally(() => { refreshPromise = null; });
+    try {
+      await refreshInstitutionAccessToken();
+    } catch {
+      clearInstitutionAccessToken();
+      localStorage.removeItem('strideto-institution');
+      notifySessionExpired('institution');
     }
-    await refreshPromise;
     if (!institutionAccessToken) return Promise.reject(error);
     original.headers.Authorization = `Bearer ${institutionAccessToken}`;
     return client(original);
@@ -61,7 +71,10 @@ export const institutionAuthApi = {
   register: (payload) => client.post('/auth/institution/register', payload),
   login: (email, password) => client.post('/auth/institution/login', { email, password }),
   me: () => client.get('/auth/institution/me'),
-  refresh: () => client.post('/auth/institution/refresh-token'),
+  refresh: async () => {
+    const accessToken = await refreshInstitutionAccessToken();
+    return { data: { accessToken } };
+  },
   logout: () => client.post('/auth/institution/logout'),
   logoutAll: () => client.post('/auth/institution/logout-all'),
   changePassword: (payload) => client.post('/auth/institution/change-password', payload),

@@ -1,4 +1,4 @@
-import axiosInstance from './axiosBase';
+import axiosInstance, { refreshUserAccessToken } from './axiosBase';
 
 export const authApi = {
   register: (data) => axiosInstance.post('/auth/register', data),
@@ -6,7 +6,10 @@ export const authApi = {
   logout: () => axiosInstance.post('/auth/logout'),
   logoutAll: () => axiosInstance.post('/auth/logout-all'),
   me: () => axiosInstance.get('/auth/me'),
-  refreshToken: () => axiosInstance.post('/auth/refresh-token', {}),
+  refreshToken: async () => {
+    const accessToken = await refreshUserAccessToken();
+    return { data: { accessToken } };
+  },
   forgotPassword: (email) =>
     axiosInstance.post('/auth/forgot-password', { email }),
   resetPassword: (data) => axiosInstance.post('/auth/reset-password', data),

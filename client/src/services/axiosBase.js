@@ -1,6 +1,7 @@
 import axios from 'axios';
 import { API_BASE_URL } from '../constants';
 import { notifySessionExpired } from '../auth/sessionExpired.js';
+import { createRefreshFlight } from '../auth/refreshFlight.js';
 
 /**
  * SEC-3E — secure User-realm client contract. The access token lives in
@@ -54,10 +55,24 @@ const axiosInstance = axios.create({
   },
 });
 
-let refreshPromise = null;
+const refreshPromise = createRefreshFlight();
 
 export function resetAxiosAuthState() {
-  refreshPromise = null;
+  refreshPromise.reset();
+}
+
+/** Cookie refresh shared by bootstrap, interceptor, and visibility refresh. */
+export function refreshUserAccessToken() {
+  return refreshPromise.run(async () => {
+    const res = await axios.post(
+      `${API_BASE_URL}/auth/refresh-token`,
+      {},
+      { withCredentials: true }
+    );
+    const { accessToken } = res.data;
+    setAccessToken(accessToken);
+    return accessToken;
+  });
 }
 
 axiosInstance.interceptors.request.use(
@@ -102,25 +117,8 @@ axiosInstance.interceptors.response.use(
 
     original._retry = true;
 
-    if (!refreshPromise) {
-      refreshPromise = axios
-        .post(
-          `${API_BASE_URL}/auth/refresh-token`,
-          {},
-          { withCredentials: true }
-        )
-        .then((res) => {
-          const { accessToken } = res.data;
-          setAccessToken(accessToken);
-          return accessToken;
-        })
-        .finally(() => {
-          refreshPromise = null;
-        });
-    }
-
     try {
-      const newToken = await refreshPromise;
+      const newToken = await refreshUserAccessToken();
       original.headers.Authorization = `Bearer ${newToken}`;
       return axiosInstance(original);
     } catch (refreshErr) {
