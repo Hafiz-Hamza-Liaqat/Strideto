@@ -133,6 +133,10 @@ const schema = new mongoose.Schema(
     documentPackId: { type: String, default: 'gbs.case_documents.empty' },
     documentPackVersion: { type: Number, default: 1, min: 1 },
     documentConsentRequired: { type: Boolean, default: false },
+    requirementPackSnapshot: { type: mongoose.Schema.Types.Mixed, default: undefined },
+    requirementFacts: { type: [mongoose.Schema.Types.Mixed], default: undefined },
+    requirementChecks: { type: [mongoose.Schema.Types.Mixed], default: undefined },
+    raConsentAttestation: { type: mongoose.Schema.Types.Mixed, default: undefined },
   },
   { timestamps: true }
 );

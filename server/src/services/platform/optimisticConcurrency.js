@@ -334,6 +334,7 @@ export async function mutateGbsCaseRecord({
   delete $set.capabilityId;
   delete $set.creationCommandId;
   delete $set.publicCaseRef;
+  delete $set.requirementPackSnapshot;
 
   const update = { $set, $inc: { recordVersion: 1 } };
   if (push && typeof push === 'object') {

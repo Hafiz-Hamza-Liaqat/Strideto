@@ -107,6 +107,10 @@ export const GBS_AUDIT_EVENTS = Object.freeze({
   GBS_HSI_DOCUMENT_PROMOTED: 'gbs_hsi_document_promoted',
   GBS_HSI_DOCUMENT_DESTROYED: 'gbs_hsi_document_destroyed',
   GBS_CASE_FILING_READINESS_CHANGED: 'gbs_case_filing_readiness_changed',
+  GBS_CASE_REQUIREMENT_PACK_ATTACHED: 'gbs_case_requirement_pack_attached',
+  GBS_CASE_REQUIREMENT_FACT_UPDATED: 'gbs_case_requirement_fact_updated',
+  GBS_CASE_REQUIREMENT_CHECK_UPDATED: 'gbs_case_requirement_check_updated',
+  GBS_CASE_RA_CONSENT_ATTESTED: 'gbs_case_ra_consent_attested',
 });
 
 const EVENT_SET = new Set(Object.values(GBS_AUDIT_EVENTS));
@@ -156,6 +160,17 @@ export const AUDIT_SECRET_KEYS = Object.freeze([
   'authTag',
   'nonce',
   'plaintext',
+  'line1',
+  'line2',
+  'postalCode',
+  'street',
+  'mailingAddress',
+  'entityEmail',
+  'raEmail',
+  'raPhone',
+  'filingContact',
+  'organizerPrintName',
+  'factValue',
 ]);
 
 export function redactAuditMetadata(metadata = {}) {
