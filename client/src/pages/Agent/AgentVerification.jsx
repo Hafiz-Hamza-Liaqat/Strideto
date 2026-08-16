@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { agentApi } from '../../services/agentService';
 import { PhoneInput } from '../../components/forms/PhoneInput';
 import { storedPhoneFromInput } from '@shared/international/phone.js';
@@ -28,6 +28,7 @@ const inputClass = 'mt-1 w-full rounded-lg border border-gray-200 dark:border-gr
 
 export default function AgentVerification() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { agent } = useAgentAuth();
   const [summary, setSummary] = useState(null);
   const [details, setDetails] = useState(null);
@@ -158,6 +159,21 @@ export default function AgentVerification() {
   const isAgency = summary?.accountType === 'agency';
   const policy = summary?.credentialPolicy || details?.credentialPolicyHint || 'optional';
 
+  useEffect(() => {
+    if (loading) return undefined;
+    if (location.hash !== '#professional-credentials') return undefined;
+    const el = document.getElementById('professional-credentials');
+    if (!el) return undefined;
+    const reduceMotion = typeof window !== 'undefined'
+      && window.matchMedia
+      && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const timer = window.setTimeout(() => {
+      el.scrollIntoView({ behavior: reduceMotion ? 'auto' : 'smooth', block: 'start' });
+      if (typeof el.focus === 'function') el.focus({ preventScroll: true });
+    }, 50);
+    return () => window.clearTimeout(timer);
+  }, [loading, location.hash, canEdit]);
+
   const discardDraft = () => {
     if (draftKey) clearVerificationDraft(draftKey);
     setDraftNotice(false);
@@ -222,6 +238,22 @@ export default function AgentVerification() {
         </div>
         <p className="mt-3 text-xs text-slate-500">Self-approval is denied. AI cannot approve. {summary?.verificationSources?.manualVerificationNote}</p>
       </section>
+      {!canEdit ? (
+        <section
+          id="professional-credentials"
+          tabIndex={-1}
+          className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 scroll-mt-24 outline-none"
+        >
+          <h2 className="font-semibold text-gray-900 dark:text-white">Professional credentials &amp; evidence</h2>
+          <p className="mt-2 text-sm text-slate-600 dark:text-gray-300">
+            Credential evidence for this Education &amp; Mobility verification attempt is under review or locked for editing.
+            Status: <strong>{details?.status || summary?.verificationStatus || 'draft'}</strong>.
+          </p>
+          <p className="mt-2 text-xs text-slate-500">
+            Credential fields are review evidence only. Providers cannot self-mark Professional Credential Verified.
+          </p>
+        </section>
+      ) : null}
       {canEdit && (
         <form onSubmit={submit} className="grid gap-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 md:grid-cols-2">
           <h2 className="md:col-span-2 font-semibold text-gray-900 dark:text-white">Identity</h2>
@@ -255,7 +287,7 @@ export default function AgentVerification() {
           <label className="text-sm text-gray-900 dark:text-white">Registration authority<input value={profile.registrationAuthority} onChange={set('registrationAuthority')} className={inputClass} /></label>
           <label className="text-sm text-gray-900 dark:text-white">Registration number{isAgency && policy === 'required' ? ' (required for agencies where applicable)' : ' (optional if not applicable)'}<input value={profile.registrationNumber} onChange={set('registrationNumber')} className={inputClass} /></label>
           <label className="text-sm text-gray-900 dark:text-white">Business / tax identifier<input value={profile.taxIdentifier} onChange={set('taxIdentifier')} className={inputClass} /></label>
-          <h2 id="professional-credentials" className="md:col-span-2 font-semibold text-gray-900 dark:text-white scroll-mt-24">
+          <h2 id="professional-credentials" tabIndex={-1} className="md:col-span-2 font-semibold text-gray-900 dark:text-white scroll-mt-24 outline-none">
             Professional credentials &amp; evidence
           </h2>
           <p className="md:col-span-2 text-xs text-slate-500 dark:text-gray-400">

@@ -61,7 +61,11 @@ export default function AgentServices() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Education & Mobility Services</h1>
-        <p className={muted}>Create truthful draft education services. This form never includes LLC formation, Registered Agent, registered office, or EIN assistance. Activation requires approved Education & Mobility professional verification.</p>
+        <p className={muted}>
+          Create truthful draft education services. This form never includes LLC formation, Registered Agent, registered office, or EIN assistance.
+          Activation requires approved Education &amp; Mobility professional verification.
+          An active service does not create a Marketplace promotional post — manage promotions separately under Marketplace.
+        </p>
       </div>
       {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300" role="alert">{error}</p> : null}
       {message ? <p className="rounded-lg bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950/40 dark:text-green-300">{message}</p> : null}

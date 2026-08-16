@@ -39,6 +39,7 @@ import { canExercisePrivilegedCapability } from '../../../shared/international/v
 import { resolveCredentialPolicy } from '../services/credentialPolicyService.js';
 import { resolveVerificationSources } from '../../../shared/agent/verificationSources.js';
 import { marketplaceCounts } from '../services/agentMarketplaceService.js';
+import { AgentAvailability } from '../models/consultation/AgentAvailability.js';
 import { providerReadiness } from '../services/marketplacePaymentService.js';
 import { marketplaceStripeConfiguration } from '../services/payments/StripeConnectProvider.js';
 import { getCommissionPolicy } from '../../../shared/commerce/contracts.js';
@@ -97,6 +98,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
     unreadNotifications,
     providerAccount,
     payoutReadiness,
+    availabilityDoc,
   ] = await Promise.all([
     marketplaceCounts(agentAccountId),
     Consultation.aggregate([
@@ -138,7 +140,20 @@ export const getDashboard = asyncHandler(async (req, res) => {
     }),
     MarketplaceProviderAccount.findOne(orgFilter).lean(),
     CommercePayoutReadiness.findOne(orgFilter).lean(),
+    membership
+      ? AgentAvailability.findOne({
+        membershipId: membership._id,
+        organizationId: profile.organizationId,
+        active: true,
+      }).select('windows').lean()
+      : null,
   ]);
+
+  const hasAvailability = Boolean(
+    availabilityDoc
+    && Array.isArray(availabilityDoc.windows)
+    && availabilityDoc.windows.length > 0
+  );
 
   const consultations = Object.fromEntries(consultationCounts.map((item) => [item._id, item.count]));
   const providerState = marketplaceStripeConfiguration();
@@ -155,7 +170,8 @@ export const getDashboard = asyncHandler(async (req, res) => {
       verification: { value: verificationStatus, source: 'GET /api/agent/verification → OrganizationVerification.status', href: '/agent/verification' },
       profileCompleteness: { value: profile.completenessScore || 0, source: 'AgentProfile.completenessScore', href: '/agent/profile' },
       activeServices: { value: servicesActive, source: 'AgentService count status=active', href: '/agent/services' },
-      marketplacePosts: { value: marketplace.approved || 0, source: 'agentMarketplaceService.marketplaceCounts', href: '/agent/marketplace' },
+      marketplacePosts: { value: marketplace.publiclyEligible ?? marketplace.approved ?? 0, source: 'agentMarketplaceService.marketplaceCounts publiclyEligible', href: '/agent/marketplace' },
+      hasAvailability: { value: hasAvailability, source: 'AgentAvailability windows for current membership', href: '/agent/availability' },
       newLeads: { value: leadsCount, source: 'AgentLead count by organizationId', href: '/agent/leads' },
       upcomingConsultations: { value: consultations.confirmed || 0, source: 'Consultation aggregate status=confirmed', href: '/agent/consultations' },
       activeCases: { value: casesActive, source: 'ProfessionalCase lifecycle in awaiting_student_acceptance|active', href: '/agent/cases' },

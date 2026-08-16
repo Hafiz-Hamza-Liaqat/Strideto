@@ -3,13 +3,12 @@ import { Link } from 'react-router-dom';
 import { agentApi } from '../../services/agentService';
 import { ROUTES } from '../../constants';
 import { PROVIDER_DOMAIN_IDS } from '@shared/provider/providerDomains.js';
-import { btnPrimary, cardClass, inputClass, muted } from './agentUi';
+import { cardClass, muted } from './agentUi';
 
 export default function AgentTrust() {
   const [data, setData] = useState({ reviews: [], reports: [], disputes: [] });
   const [verification, setVerification] = useState(null);
   const [domainContext, setDomainContext] = useState({ workspaces: [], addableDomains: [] });
-  const [reply, setReply] = useState({});
   const [error, setError] = useState('');
   const load = () => Promise.all([
     agentApi.getReviews(),
@@ -66,7 +65,7 @@ export default function AgentTrust() {
               Capability and jurisdiction evidence are managed in the Business workspace. Protected titles remain evidence-gated.
               Domain enrollment is not verification.
             </p>
-            <Link to={ROUTES.AGENT_BUSINESS_SERVICES_CAPABILITIES} className="inline-block text-sm text-primary">
+            <Link to={ROUTES.AGENT_BUSINESS_SERVICES_VERIFICATION} className="inline-block text-sm text-primary">
               Manage Business Verification →
             </Link>
           </div>
@@ -89,18 +88,17 @@ export default function AgentTrust() {
         <Link to={ROUTES.AGENT_VERIFICATION} className="mt-3 inline-block text-sm text-primary">Open verification →</Link>
       </section>
       <section>
-        <h2 className="font-semibold text-gray-900 dark:text-white">Verified-interaction reviews</h2>
-        {(data.reviews || []).length === 0 ? <p className={`${cardClass} mt-3 ${muted}`}>No reviews yet.</p> : data.reviews.map((x) => (
-          <article key={x._id} className={`${cardClass} mt-3`}>
-            <p className="text-gray-900 dark:text-white">{x.rating}/5 · {x.body}</p>
-            {x.response ? <p className={`mt-2 ${muted}`}>Agent response: {x.response.body}</p> : (
-              <form className="mt-3 flex flex-wrap gap-2" onSubmit={async (e) => { e.preventDefault(); await agentApi.respondToReview(x._id, reply[x._id]); load(); }}>
-                <input aria-label="Professional response" maxLength={1500} className={`${inputClass} flex-1`} onChange={(e) => setReply({ ...reply, [x._id]: e.target.value })} />
-                <button type="submit" className={btnPrimary}>Respond</button>
-              </form>
-            )}
-          </article>
-        ))}
+        <h2 className="font-semibold text-gray-900 dark:text-white">Reviews / reports / disputes</h2>
+        <p className={`mt-2 ${muted}`}>
+          Education verified-interaction reviews live on the dedicated Reviews page.
+          Trust Center remains the shared summary.
+        </p>
+        <Link to={ROUTES.AGENT_REVIEWS} className="mt-3 inline-block text-sm text-primary">
+          Open Education Reviews →
+        </Link>
+        <p className="mt-4 text-sm text-gray-800 dark:text-gray-200">
+          Reports: {(data.reports || []).length} · Disputes: {(data.disputes || []).length}
+        </p>
       </section>
       <section>
         <h2 className="font-semibold text-gray-900 dark:text-white">Reports</h2>

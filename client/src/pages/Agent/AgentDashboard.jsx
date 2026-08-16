@@ -92,10 +92,10 @@ export default function AgentDashboard() {
           {[
             { done: (dashboard?.profileCompleteness || 0) >= 80, label: 'Complete professional profile', to: ROUTES.AGENT_PROFILE },
             { done: agent?.emailVerified === true, label: 'Verify email', to: ROUTES.AGENT_SETTINGS },
-            { done: vs === 'approved' || vs === 'under_review' || vs === 'verification_pending', label: 'Complete verification dossier', to: ROUTES.AGENT_VERIFICATION },
-            { done: Number(cards.activeServices?.value || 0) > 0, label: 'Define services', to: ROUTES.AGENT_SERVICES },
-            { done: false, label: 'Set availability', to: ROUTES.AGENT_AVAILABILITY },
-            { done: vs === 'approved', label: 'Use marketplace when eligible', to: ROUTES.AGENT_MARKETPLACE },
+            { done: vs === 'approved' || vs === 'under_review' || vs === 'verification_pending', label: 'Complete Education professional verification', to: ROUTES.AGENT_VERIFICATION },
+            { done: Number(cards.activeServices?.value || 0) > 0, label: 'Create Education service', to: ROUTES.AGENT_SERVICES },
+            { done: cards.hasAvailability?.value === true, label: 'Set availability', to: ROUTES.AGENT_AVAILABILITY },
+            { done: vs === 'approved', label: 'Use Marketplace when eligible', to: ROUTES.AGENT_MARKETPLACE },
           ].map((item) => (
             <li key={item.label}>
               <Link to={item.to} className="text-primary hover:underline">
