@@ -107,7 +107,15 @@ export const GBS_CASE_DOCUMENT_BOUNDS = Object.freeze({
 export const GBS_DOCUMENT_SECURITY_CODES = Object.freeze({
   NOT_CONFIGURED: 'case_document_security_not_configured',
   HSI_NOT_CONFIGURED: 'hsi_documents_not_configured',
+  HSI_DISABLED: 'hsi_documents_disabled',
+  HSI_NOT_READY: 'hsi_security_not_ready',
   SCAN_NOT_CLEAN: 'document_scan_not_clean',
+  SCAN_PENDING: 'document_scan_pending',
+  SCAN_FAILED: 'document_scan_failed',
+  MALWARE_REJECTED: 'document_malware_rejected',
+  ENCRYPTION_FAILED: 'document_encryption_failed',
+  KMS_UNAVAILABLE: 'document_kms_unavailable',
+  STORAGE_UNAVAILABLE: 'document_storage_unavailable',
   DUTY_REQUIRED: 'case_documents_manage_required',
 });
 

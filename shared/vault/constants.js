@@ -33,6 +33,7 @@ export const VAULT_VERSION_SCAN_STATUSES = [
   'clean',
   'rejected',
   'failed',
+  'timeout',
   'not_configured',
 ];
 

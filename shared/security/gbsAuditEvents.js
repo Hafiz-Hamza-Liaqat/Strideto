@@ -104,6 +104,8 @@ export const GBS_AUDIT_EVENTS = Object.freeze({
   GBS_CASE_DOCUMENT_SUPERSEDED: 'gbs_case_document_superseded',
   GBS_CASE_DOCUMENT_WAIVED: 'gbs_case_document_waived',
   GBS_CASE_DOCUMENT_ACCESSED: 'gbs_case_document_accessed',
+  GBS_HSI_DOCUMENT_PROMOTED: 'gbs_hsi_document_promoted',
+  GBS_HSI_DOCUMENT_DESTROYED: 'gbs_hsi_document_destroyed',
   GBS_CASE_FILING_READINESS_CHANGED: 'gbs_case_filing_readiness_changed',
 });
 
@@ -143,6 +145,17 @@ export const AUDIT_SECRET_KEYS = Object.freeze([
   'originalFilename',
   'filename',
   'displayName',
+  'wrappedDek',
+  'wrappeddek',
+  'ciphertext',
+  'vaultToken',
+  'minioSecret',
+  'minioAccess',
+  'secretKey',
+  'accessKey',
+  'authTag',
+  'nonce',
+  'plaintext',
 ]);
 
 export function redactAuditMetadata(metadata = {}) {

@@ -4,6 +4,8 @@
  * found in env examples, Docker templates, and deployment docs.
  * JwtSessionProvider must reuse this helper — do not fork a second list.
  */
+import { isInsecureHsiCredential } from './hsiSecurityConfig.js';
+
 export const INSECURE_SIGNING_SECRETS = new Set([
   'change-me-in-production',
   'your-super-secret-jwt-key-change-in-production',
@@ -107,5 +109,49 @@ export function validateProductionEnv() {
       '\n❌ FATAL: Set REDIS_URL in production — the secure access-token denylist requires a shared store; no process-local fallback is permitted once secure auth is active.\n'
     );
     process.exit(1);
+  }
+
+  if (process.env.GBS_HSI_DOCUMENTS_ENABLED === '1') {
+    if (process.env.VAULT_DEV_MODE === '1' || process.env.HSI_VAULT_DEV_MODE === '1') {
+      console.error('\n❌ FATAL: Vault Transit dev mode is not permitted when HSI is enabled in production.\n');
+      process.exit(1);
+    }
+    if (
+      process.env.HSI_SKIP_ENCRYPTION === '1'
+      || process.env.HSI_FAKE_KMS === '1'
+      || process.env.HSI_ALLOW_PLAINTEXT === '1'
+    ) {
+      console.error('\n❌ FATAL: HSI encryption-bypass flags are not permitted in production.\n');
+      process.exit(1);
+    }
+    const hsiRequired = [
+      'CLAMAV_CLAMD_HOST',
+      'HSI_MINIO_ENDPOINT',
+      'HSI_MINIO_ACCESS_KEY',
+      'HSI_MINIO_SECRET_KEY',
+      'HSI_MINIO_QUARANTINE_BUCKET',
+      'HSI_MINIO_CLEAN_BUCKET',
+      'VAULT_ADDR',
+      'VAULT_TOKEN',
+      'VAULT_TRANSIT_KEY_NAME',
+      'GBS_HSI_RETENTION_POLICY_JSON',
+    ];
+    const missingHsi = hsiRequired.filter((key) => !process.env[key]);
+    if (missingHsi.length) {
+      console.error(`\n❌ FATAL: HSI is enabled but missing configuration: ${missingHsi.join(', ')}\n`);
+      process.exit(1);
+    }
+    if (
+      isInsecureHsiCredential(process.env.HSI_MINIO_ACCESS_KEY)
+      || isInsecureHsiCredential(process.env.HSI_MINIO_SECRET_KEY)
+      || isInsecureHsiCredential(process.env.VAULT_TOKEN)
+    ) {
+      console.error('\n❌ FATAL: HSI storage/KMS credentials are placeholders or insecure test values.\n');
+      process.exit(1);
+    }
+    if (process.env.HSI_MINIO_QUARANTINE_BUCKET === process.env.HSI_MINIO_CLEAN_BUCKET) {
+      console.error('\n❌ FATAL: HSI quarantine and clean buckets must be distinct.\n');
+      process.exit(1);
+    }
   }
 }

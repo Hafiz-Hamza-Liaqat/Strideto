@@ -4,7 +4,7 @@ import {
   GBS_CASE_DOCUMENT_SCHEMA_VERSION,
   GBS_DOCUMENT_REQUIREMENT_STATUSES,
   GBS_DOCUMENT_REVIEW_STATES,
-  GBS_DOCUMENT_SENSITIVITY_ALLOWED_B1,
+  GBS_DOCUMENT_SENSITIVITY,
   GBS_DOCUMENT_TYPES,
   GBS_DOCUMENT_WHO_PROVIDES,
 } from '../../../../shared/gbs/caseDocumentContract.js';
@@ -46,7 +46,7 @@ const schema = new mongoose.Schema(
     sensitivityClass: {
       type: String,
       required: true,
-      enum: GBS_DOCUMENT_SENSITIVITY_ALLOWED_B1,
+      enum: Object.values(GBS_DOCUMENT_SENSITIVITY),
     },
     whoProvides: {
       type: String,
