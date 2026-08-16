@@ -5,6 +5,7 @@ import { ROUTES } from '../../constants';
 import { ui } from '../../design-system/surfaceClasses';
 import { gbsBuyerApi } from '../../services/gbsBuyerApi';
 import { CaseRequirementPackPanel } from '../../components/gbs/CaseRequirementPackPanel';
+import { CaseFilingAuthorizationPanel } from '../../components/gbs/CaseFilingAuthorizationPanel';
 import {
   actingForLabel,
   caseMilestoneLabel,
@@ -90,6 +91,7 @@ export default function BusinessClientCaseDetail() {
   const { caseRef } = useParams();
   const [item, setItem] = useState(null);
   const [docs, setDocs] = useState(null);
+  const [filingAuth, setFilingAuth] = useState(null);
   const [error, setError] = useState('');
   const [missing, setMissing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -104,11 +106,13 @@ export default function BusinessClientCaseDetail() {
     Promise.all([
       gbsBuyerApi.getCase(caseRef),
       gbsBuyerApi.listCaseDocumentRequirements(caseRef).catch(() => ({ data: null })),
+      gbsBuyerApi.getFilingAuthorization(caseRef).catch(() => ({ data: { item: null } })),
     ])
-      .then(([caseRes, docsRes]) => {
+      .then(([caseRes, docsRes, filingRes]) => {
         if (!cancelled) {
           setItem(caseRes.data.item);
           setDocs(docsRes.data);
+          setFilingAuth(filingRes.data?.item || null);
           setMissing(false);
         }
       })
@@ -144,6 +148,28 @@ export default function BusinessClientCaseDetail() {
       } else if (code === 'business_client_required') setError('Your Business Services access is not active. You can still read this Case history.');
       else if (err.response?.status === 409) setError('This Case changed or is no longer available to update.');
       else setError('Unable to update this Case.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const runFiling = async (fn) => {
+    setBusy(true);
+    setError('');
+    try {
+      const { data } = await fn();
+      setFilingAuth(data.item);
+    } catch (err) {
+      const code = err.response?.data?.error;
+      if (code === 'filing_authorization_text_changed') {
+        setError('The authorization text changed. Reload this page and review the current text before authorizing.');
+      } else if (code === 'business_client_required') {
+        setError('A new filing authorization cannot be granted without active Business Services access.');
+      } else if (err.response?.status === 409) {
+        setError('Filing authorization could not be updated.');
+      } else {
+        setError('Unable to update filing authorization.');
+      }
     } finally {
       setBusy(false);
     }
@@ -185,6 +211,16 @@ export default function BusinessClientCaseDetail() {
           onSaveFact={({ factKey, value, expectedVersion }) => run(() => gbsBuyerApi.updateRequirementFact(item.publicCaseRef, expectedVersion, { factKey, value }))}
         />
       ) : null}
+      <div aria-busy={busy ? 'true' : undefined}>
+        <CaseFilingAuthorizationPanel
+          auth={filingAuth}
+          caseRecordVersion={item.recordVersion}
+          busy={busy}
+          error={error}
+          onGrant={(payload) => runFiling(() => gbsBuyerApi.grantFilingAuthorization(item.publicCaseRef, payload.expectedVersion, payload))}
+          onRevoke={(payload) => runFiling(() => gbsBuyerApi.revokeFilingAuthorization(item.publicCaseRef, payload.expectedVersion, payload))}
+        />
+      </div>
       <section>
         <h3 className="font-medium">Service / Provider</h3>
         <p className="mt-1 break-words-safe">

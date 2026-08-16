@@ -154,4 +154,14 @@ export const gbsProviderApi = {
       attested: true,
       ...extra,
     }),
+  getFilingAuthorization: (subject, caseRef) =>
+    agentAxios.get(`${base}/cases/${encodeURIComponent(caseRef)}/filing-authorization`, {
+      params: subjectParams(subject),
+    }),
+  attestExternalFiling: (subject, caseRef, expectedVersion, extra = {}) =>
+    agentAxios.post(`${base}/cases/${encodeURIComponent(caseRef)}/external-filing/submit-attestation`, {
+      ...subjectParams(subject),
+      expectedVersion,
+      ...extra,
+    }),
 };

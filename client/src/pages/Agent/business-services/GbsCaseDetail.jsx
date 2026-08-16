@@ -8,6 +8,7 @@ import { gbsProviderApi } from '../../../services/gbsProviderApi';
 import { useGbsProvider } from './GbsProviderContext';
 import { StatusBadge, card, emptyBox, errorBox, input, label, muted, wrap } from './gbsUi';
 import { ProviderRequirementPackPanel } from '../../../components/gbs/ProviderRequirementPackPanel';
+import { ProviderFilingAuthorizationPanel } from '../../../components/gbs/ProviderFilingAuthorizationPanel';
 import {
   caseMilestoneLabel,
   caseStatusLabel,
@@ -23,6 +24,7 @@ export default function GbsCaseDetail() {
   const { selected } = useGbsProvider();
   const [item, setItem] = useState(null);
   const [docs, setDocs] = useState(null);
+  const [filingAuth, setFilingAuth] = useState(null);
   const [error, setError] = useState('');
   const [missing, setMissing] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -44,11 +46,13 @@ export default function GbsCaseDetail() {
     Promise.all([
       gbsProviderApi.getCase(selected, caseRef),
       gbsProviderApi.listCaseDocumentRequirements(selected, caseRef).catch(() => ({ data: null })),
+      gbsProviderApi.getFilingAuthorization(selected, caseRef).catch(() => ({ data: { item: null } })),
     ])
-      .then(([caseRes, docsRes]) => {
+      .then(([caseRes, docsRes, filingRes]) => {
         if (cancelled) return;
         setItem(caseRes.data.item);
         setDocs(docsRes.data);
+        setFilingAuth(filingRes.data?.item || null);
         setMissing(false);
         setError('');
       })
@@ -83,6 +87,24 @@ export default function GbsCaseDetail() {
       else if (code === 'invalid_status_transition') setError('This Case is not in a stage that allows that action.');
       else if (err.response?.status === 409) setError('This Case changed or professional authority is no longer current.');
       else setError('Unable to update this Case.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const runFiling = async (fn) => {
+    if (!selected) return;
+    setBusy(true);
+    setError('');
+    try {
+      const { data } = await fn();
+      setFilingAuth(data.item);
+    } catch (err) {
+      const code = err.response?.data?.error;
+      if (err.response?.status === 403) setError('Recording an external filing requires the cases.manage duty.');
+      else if (code === 'provider_authority_lost') setError('Provider authority is no longer current.');
+      else if (err.response?.status === 409) setError('External filing could not be recorded.');
+      else setError('Unable to record external filing.');
     } finally {
       setBusy(false);
     }
@@ -153,6 +175,16 @@ export default function GbsCaseDetail() {
           onAttestRaConsent={({ expectedVersion }) => run(() => gbsProviderApi.attestRaConsent(selected, item.publicCaseRef, expectedVersion))}
         />
       ) : null}
+
+      <div aria-busy={busy ? 'true' : undefined}>
+        <ProviderFilingAuthorizationPanel
+          auth={filingAuth}
+          caseRecordVersion={item.recordVersion}
+          busy={busy}
+          error={error}
+          onAttest={(payload) => runFiling(() => gbsProviderApi.attestExternalFiling(selected, item.publicCaseRef, payload.expectedVersion, payload))}
+        />
+      </div>
 
       <section>
         <h3 className="font-medium">Required documents</h3>

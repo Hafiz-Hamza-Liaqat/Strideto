@@ -42,4 +42,16 @@ export const gbsBuyerApi = {
       expectedVersion,
       ...extra,
     }),
+  getFilingAuthorization: (caseRef) =>
+    axiosInstance.get(`/business/cases/${encodeURIComponent(caseRef)}/filing-authorization`),
+  grantFilingAuthorization: (caseRef, expectedVersion, extra = {}) =>
+    axiosInstance.post(`/business/cases/${encodeURIComponent(caseRef)}/filing-authorization/grant`, {
+      expectedVersion,
+      ...extra,
+    }),
+  revokeFilingAuthorization: (caseRef, expectedVersion, extra = {}) =>
+    axiosInstance.post(`/business/cases/${encodeURIComponent(caseRef)}/filing-authorization/revoke`, {
+      expectedVersion,
+      ...extra,
+    }),
 };
