@@ -7,6 +7,7 @@ import { loginLocationState } from '../../utils/loginReturn.js';
 import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
 import { AGENT_NON_AUTHORITY_DISCLAIMER, NO_GUARANTEE_DISCLAIMER } from '@shared/publicDiscovery/publicTruth.js';
 import { PublicTrustBadge } from '../../components/public/PublicTrustBadge';
+import { StridetoVerifiedMark } from '../../components/agent/StridetoVerifiedMark';
 import { AUTHORITY_KINDS } from '@shared/publicDiscovery/publicTruth.js';
 import { SeoHead } from '../../components/seo';
 import { humanizeSpecialtySlug } from '../../utils/availabilityWindows';
@@ -91,7 +92,10 @@ export default function AgentPublicProfile() {
               <p className="mt-2 text-sm text-slate-500 dark:text-gray-400 break-words-safe">
                 {profile.countryCode}{profile.officeLocation?.city ? ` · ${profile.officeLocation.city}` : ''}
               </p>
-              <div className="mt-2"><PublicTrustBadge kind={AUTHORITY_KINDS.AGENT_STATEMENT} /></div>
+              <div className="mt-3 flex flex-wrap gap-2">
+                <StridetoVerifiedMark scope="education_mobility" />
+                <div className="mt-0"><PublicTrustBadge kind={AUTHORITY_KINDS.AGENT_STATEMENT} /></div>
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               {(profile.trustBadges || []).map((badge) => (
