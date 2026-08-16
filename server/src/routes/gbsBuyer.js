@@ -116,3 +116,22 @@ gbsBuyerRouter.get(
   gbsCaseDocumentAccessLimiter,
   buyerDocs.downloadDocument
 );
+gbsBuyerRouter.get(
+  '/business/cases/:caseRef/filing-authorization',
+  ...businessClientActivateAuth,
+  buyer.getFilingAuthorization
+);
+gbsBuyerRouter.post(
+  '/business/cases/:caseRef/filing-authorization/grant',
+  ...businessClientProductAuth,
+  secureTrustedOrigin,
+  gbsBuyerWriteLimiter,
+  buyer.grantFilingAuthorization
+);
+gbsBuyerRouter.post(
+  '/business/cases/:caseRef/filing-authorization/revoke',
+  ...businessClientActivateAuth,
+  secureTrustedOrigin,
+  gbsBuyerWriteLimiter,
+  buyer.revokeFilingAuthorization
+);

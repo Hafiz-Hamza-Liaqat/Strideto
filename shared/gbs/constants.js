@@ -83,6 +83,10 @@ export const GBS_COMMAND_IDS = Object.freeze({
   CASE_REQUIREMENT_PROVIDER_CHECK_UPDATE: 'gbs.case_requirement_provider_check.update',
   CASE_RA_CONSENT_ATTEST: 'gbs.case_ra_consent.attest',
   CASE_REQUIREMENT_PACK_UPGRADE: 'gbs.case_requirement_pack.upgrade',
+  CASE_FILING_AUTHORIZATION_GRANT: 'gbs.case_filing_authorization.grant',
+  CASE_FILING_AUTHORIZATION_REVOKE: 'gbs.case_filing_authorization.revoke',
+  CASE_FILING_AUTHORIZATION_CLAIM: 'gbs.case_filing_authorization.claim',
+  CASE_EXTERNAL_FILING_ATTEST: 'gbs.case_external_filing.attest',
   LISTING_CREATE: 'gbs.listing.create',
   LISTING_SUBMIT_REVIEW: 'gbs.listing.submit_review',
   LISTING_ADMIN_REVIEW: 'gbs.listing.admin_review',
@@ -260,3 +264,10 @@ export function isBusinessServicesPublicMarketplaceEnabled(env) {
   const source = env || (typeof process !== 'undefined' ? process.env : {});
   return source?.BUSINESS_SERVICES_PUBLIC_MARKETPLACE_ENABLED === '1';
 }
+
+export {
+  GBS_FILING_AUTHORIZATION_FEATURE_FLAG,
+  GBS_EXTERNAL_FILING_ATTESTATION_FEATURE_FLAG,
+  isGbsFilingAuthorizationEnabled,
+  isGbsExternalFilingAttestationEnabled,
+} from './filingAuthorizationContract.js';

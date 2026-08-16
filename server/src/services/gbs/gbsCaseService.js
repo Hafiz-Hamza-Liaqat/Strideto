@@ -89,17 +89,50 @@ function notFound() {
 
 async function customerCaseDto(record) {
   const { projectCustomerRequirementPack } = await import('./gbsRequirementPackService.js');
+  const { deriveFilingReadiness } = await import('./gbsFilingAuthorizationService.js');
+  const requirementPack = await projectCustomerRequirementPack(record);
+  const derived = await deriveFilingReadiness({ record });
+  if (requirementPack?.readiness) {
+    requirementPack.readiness = {
+      ...requirementPack.readiness,
+      authorizedForExternalFiling: derived.authorizedForExternalFiling === true,
+      filingAuthorizationActive: derived.filingAuthorizationActive === true,
+      externalSubmissionState: derived.externalSubmissionState,
+    };
+  }
   return {
     ...customerCaseProjection(record),
-    requirementPack: await projectCustomerRequirementPack(record),
+    requirementPack,
+    filingAuthorization: {
+      authorizedForExternalFiling: derived.authorizedForExternalFiling === true,
+      filingAuthorizationActive: derived.filingAuthorizationActive === true,
+      externalSubmissionState: derived.externalSubmissionState,
+    },
   };
 }
 
 async function providerCaseDto(record, extras = {}) {
   const { projectProviderRequirementPack } = await import('./gbsRequirementPackService.js');
+  const { deriveFilingReadiness } = await import('./gbsFilingAuthorizationService.js');
+  const requirementPack = await projectProviderRequirementPack(record);
+  const derived = await deriveFilingReadiness({ record });
+  if (requirementPack?.readiness) {
+    requirementPack.readiness = {
+      ...requirementPack.readiness,
+      authorizedForExternalFiling: derived.authorizedForExternalFiling === true,
+      filingAuthorizationActive: derived.filingAuthorizationActive === true,
+      externalSubmissionState: derived.externalSubmissionState,
+    };
+  }
   return {
     ...providerCaseProjection(record, extras),
-    requirementPack: await projectProviderRequirementPack(record),
+    requirementPack,
+    filingAuthorization: {
+      authorizedForExternalFiling: derived.authorizedForExternalFiling === true,
+      filingAuthorizationActive: derived.filingAuthorizationActive === true,
+      externalSubmissionEligible: derived.externalSubmissionEligible === true,
+      externalSubmissionState: derived.externalSubmissionState,
+    },
   };
 }
 

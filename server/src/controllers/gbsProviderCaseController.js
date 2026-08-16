@@ -245,3 +245,37 @@ export async function attestRaConsent(req, res) {
     return sendError(res, err);
   }
 }
+
+export async function getFilingAuthorization(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const subject = await requireSubject(req, PROVIDER_DOMAIN_PERMISSIONS.BUSINESS_VIEW);
+    const { getProviderFilingAuthorization } = await import('../services/gbs/gbsFilingAuthorizationService.js');
+    const item = await getProviderFilingAuthorization({
+      subject,
+      caseRef: req.params.caseRef,
+    });
+    return res.json({ item });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function attestExternalFiling(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const subject = await requireSubject(req, PROVIDER_DOMAIN_PERMISSIONS.BUSINESS_CASES_MANAGE);
+    const { attestProviderExternalFiling } = await import('../services/gbs/gbsExternalFilingService.js');
+    const item = await attestProviderExternalFiling({
+      subject,
+      caseRef: req.params.caseRef,
+      expectedVersion: req.body?.expectedVersion,
+      body: req.body,
+      headerCommandId: req.get('Idempotency-Key'),
+      actor: actorFrom(req),
+    });
+    return res.json({ item });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}

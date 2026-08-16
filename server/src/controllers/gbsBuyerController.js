@@ -292,3 +292,53 @@ export async function updateRequirementFact(req, res) {
     return sendError(res, err);
   }
 }
+
+export async function getFilingAuthorization(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const { getCustomerFilingAuthorization } = await import('../services/gbs/gbsFilingAuthorizationService.js');
+    const item = await getCustomerFilingAuthorization({
+      userId: req.user.userId,
+      caseRef: req.params.caseRef,
+    });
+    return res.json({ item });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function grantFilingAuthorization(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const { grantCustomerFilingAuthorization } = await import('../services/gbs/gbsFilingAuthorizationService.js');
+    const item = await grantCustomerFilingAuthorization({
+      userId: req.user.userId,
+      caseRef: req.params.caseRef,
+      expectedVersion: req.body?.expectedVersion,
+      body: req.body,
+      headerCommandId: req.get('Idempotency-Key'),
+      actor: actorFrom(req),
+    });
+    return res.json({ item });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function revokeFilingAuthorization(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const { revokeCustomerFilingAuthorization } = await import('../services/gbs/gbsFilingAuthorizationService.js');
+    const item = await revokeCustomerFilingAuthorization({
+      userId: req.user.userId,
+      caseRef: req.params.caseRef,
+      expectedVersion: req.body?.expectedVersion,
+      body: req.body,
+      headerCommandId: req.get('Idempotency-Key'),
+      actor: actorFrom(req),
+    });
+    return res.json({ item });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}

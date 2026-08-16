@@ -12,6 +12,8 @@ import { GbsCase } from '../../models/gbs/GbsCase.js';
 import { GbsCaseDocumentRequirement } from '../../models/gbs/GbsCaseDocumentRequirement.js';
 import { GbsCaseDocumentGrant } from '../../models/gbs/GbsCaseDocumentGrant.js';
 import { GbsDocumentScanJob } from '../../models/gbs/GbsDocumentScanJob.js';
+import { GbsCaseFilingAuthorization } from '../../models/gbs/GbsCaseFilingAuthorization.js';
+import { GbsExternalFilingSubmission } from '../../models/gbs/GbsExternalFilingSubmission.js';
 import { IdempotencyRecord } from '../../models/platform/IdempotencyRecord.js';
 import { logger } from '../../utils/logger.js';
 
@@ -183,6 +185,69 @@ export const GBS_CASE_CRITICAL_INDEXES = Object.freeze([
   Object.freeze({
     name: 'gbs_case_status_updated',
     key: Object.freeze({ status: 1, updatedAt: -1 }),
+  }),
+]);
+
+export const GBS_FILING_AUTHORIZATION_CRITICAL_INDEXES = Object.freeze([
+  Object.freeze({
+    name: 'gbs_filing_auth_public_ref_unique',
+    key: Object.freeze({ publicAuthorizationRef: 1 }),
+    unique: true,
+  }),
+  Object.freeze({
+    name: 'gbs_filing_auth_case_history',
+    key: Object.freeze({ caseId: 1, createdAt: -1 }),
+  }),
+  Object.freeze({
+    name: 'gbs_filing_auth_provider_case',
+    key: Object.freeze({ providerSubjectType: 1, providerSubjectId: 1, caseId: 1 }),
+  }),
+  Object.freeze({
+    name: 'gbs_filing_auth_effective_unique',
+    key: Object.freeze({
+      caseId: 1,
+      providerSubjectType: 1,
+      providerSubjectId: 1,
+      packId: 1,
+      packVersion: 1,
+      sourceSnapshotHash: 1,
+      purpose: 1,
+    }),
+    unique: true,
+    partialFilterExpression: Object.freeze({
+      status: { $in: ['active', 'claimed_for_submission', 'used'] },
+    }),
+  }),
+  Object.freeze({
+    name: 'gbs_filing_auth_case_status',
+    key: Object.freeze({ caseId: 1, status: 1 }),
+  }),
+  Object.freeze({
+    name: 'gbs_filing_auth_claim_ref_unique',
+    key: Object.freeze({ claimRef: 1 }),
+    unique: true,
+    sparse: true,
+  }),
+]);
+
+export const GBS_EXTERNAL_FILING_CRITICAL_INDEXES = Object.freeze([
+  Object.freeze({
+    name: 'gbs_ext_filing_public_ref_unique',
+    key: Object.freeze({ publicSubmissionRef: 1 }),
+    unique: true,
+  }),
+  Object.freeze({
+    name: 'gbs_ext_filing_authorization_unique',
+    key: Object.freeze({ authorizationId: 1 }),
+    unique: true,
+  }),
+  Object.freeze({
+    name: 'gbs_ext_filing_case_auth',
+    key: Object.freeze({ caseId: 1, authorizationId: 1 }),
+  }),
+  Object.freeze({
+    name: 'gbs_ext_filing_provider_case',
+    key: Object.freeze({ providerSubjectType: 1, providerSubjectId: 1, caseId: 1 }),
   }),
 ]);
 
@@ -362,6 +427,8 @@ export async function provisionCriticalIdempotencyIndexes({
   caseDocumentRequirementCollection = GbsCaseDocumentRequirement.collection,
   caseDocumentGrantCollection = GbsCaseDocumentGrant.collection,
   scanJobCollection = GbsDocumentScanJob.collection,
+  filingAuthorizationCollection = GbsCaseFilingAuthorization.collection,
+  externalFilingCollection = GbsExternalFilingSubmission.collection,
   idempotencyCollection = IdempotencyRecord.collection,
 } = {}) {
   const serviceRequest = await provisionMissingIndexes({
@@ -388,6 +455,14 @@ export async function provisionCriticalIdempotencyIndexes({
     collection: scanJobCollection,
     expected: GBS_DOCUMENT_SCAN_JOB_CRITICAL_INDEXES,
   });
+  const filingAuthorizations = await provisionMissingIndexes({
+    collection: filingAuthorizationCollection,
+    expected: GBS_FILING_AUTHORIZATION_CRITICAL_INDEXES,
+  });
+  const externalFilings = await provisionMissingIndexes({
+    collection: externalFilingCollection,
+    expected: GBS_EXTERNAL_FILING_CRITICAL_INDEXES,
+  });
   const idempotency = await provisionMissingIndexes({
     collection: idempotencyCollection,
     expected: IDEMPOTENCY_RECORD_CRITICAL_INDEXES,
@@ -399,6 +474,8 @@ export async function provisionCriticalIdempotencyIndexes({
     caseDocumentCreated: caseDocuments.created,
     caseDocumentGrantCreated: caseDocumentGrants.created,
     scanJobCreated: scanJobs.created,
+    filingAuthorizationCreated: filingAuthorizations.created,
+    externalFilingCreated: externalFilings.created,
     idempotencyCreated: idempotency.created,
   });
   return {
@@ -408,6 +485,8 @@ export async function provisionCriticalIdempotencyIndexes({
     caseDocuments,
     caseDocumentGrants,
     scanJobs,
+    filingAuthorizations,
+    externalFilings,
     idempotency,
   };
 }

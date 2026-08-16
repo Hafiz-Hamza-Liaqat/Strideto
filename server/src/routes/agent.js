@@ -483,6 +483,19 @@ agentRouter.post(
   gbsCaseDocumentWriteLimiter,
   gbsProviderCaseDocs.waiveDocument
 );
+agentRouter.get(
+  '/agent/business-services/cases/:caseRef/filing-authorization',
+  ...gbsEnabled,
+  gbsProviderReadLimiter,
+  gbsProviderCases.getFilingAuthorization
+);
+agentRouter.post(
+  '/agent/business-services/cases/:caseRef/external-filing/submit-attestation',
+  ...gbsEnabled,
+  secureTrustedOrigin,
+  gbsCaseWriteLimiter,
+  gbsProviderCases.attestExternalFiling
+);
 
 // ---------------------------------------------------------------------------
 // Public — no auth required

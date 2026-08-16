@@ -111,6 +111,13 @@ export const GBS_AUDIT_EVENTS = Object.freeze({
   GBS_CASE_REQUIREMENT_FACT_UPDATED: 'gbs_case_requirement_fact_updated',
   GBS_CASE_REQUIREMENT_CHECK_UPDATED: 'gbs_case_requirement_check_updated',
   GBS_CASE_RA_CONSENT_ATTESTED: 'gbs_case_ra_consent_attested',
+  GBS_CASE_FILING_AUTHORIZATION_GRANTED: 'gbs_case_filing_authorization_granted',
+  GBS_CASE_FILING_AUTHORIZATION_REVOKED: 'gbs_case_filing_authorization_revoked',
+  GBS_CASE_FILING_AUTHORIZATION_INVALIDATED: 'gbs_case_filing_authorization_invalidated',
+  GBS_CASE_FILING_AUTHORIZATION_CLAIMED: 'gbs_case_filing_authorization_claimed_for_submission',
+  GBS_CASE_FILING_AUTHORIZATION_USED: 'gbs_case_filing_authorization_used',
+  GBS_CASE_EXTERNAL_FILING_ATTESTED: 'gbs_case_external_filing_attested',
+  GBS_CASE_EXTERNAL_FILING_SUBMISSION_CREATED: 'gbs_case_external_filing_submission_created',
 });
 
 const EVENT_SET = new Set(Object.values(GBS_AUDIT_EVENTS));
@@ -171,6 +178,15 @@ export const AUDIT_SECRET_KEYS = Object.freeze([
   'filingContact',
   'organizerPrintName',
   'factValue',
+  'password',
+  'otp',
+  'mfa',
+  'governmentSession',
+  'wyobiz',
+  'signature',
+  'paragraphs',
+  'legalTextBody',
+  'legalTextParagraphs',
 ]);
 
 export function redactAuditMetadata(metadata = {}) {
