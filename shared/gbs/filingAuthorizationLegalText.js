@@ -122,6 +122,36 @@ export function resolveEligibleLegalText({
   return approved[0];
 }
 
+export function lookupLegalTextByIdentity({
+  legalTextId,
+  legalTextVersion,
+  legalTextHash,
+  registry = productionLegalTextRegistry,
+} = {}) {
+  return (registry || []).find((entry) => (
+    entry.legalTextId === legalTextId
+    && Number(entry.legalTextVersion) === Number(legalTextVersion)
+    && entry.legalTextHash === legalTextHash
+  )) || null;
+}
+
+/**
+ * Unclaimed future use requires the exact granted artifact to still be
+ * approved in the current registry. Missing, superseded, withdrawn, or
+ * draft rows are not effective. Claimed/used historical rows are not
+ * mutated by this check.
+ */
+export function isGrantedLegalTextEffectiveForFutureUse(auth, registry = productionLegalTextRegistry) {
+  if (!auth) return false;
+  const entry = lookupLegalTextByIdentity({
+    legalTextId: auth.legalTextId,
+    legalTextVersion: auth.legalTextVersion,
+    legalTextHash: auth.legalTextHash,
+    registry,
+  });
+  return Boolean(entry && entry.status === LEGAL_TEXT_STATUSES.APPROVED);
+}
+
 if (PRODUCTION_FILING_AUTHORIZATION_LEGAL_TEXT_V1.status !== LEGAL_TEXT_STATUSES.DRAFT) {
   throw new Error('production filing-authorization legal text must remain draft');
 }

@@ -230,7 +230,7 @@ async function sentAcceptedQuote({ customer, listing, subject, actor, customerAc
     expectedVersion: sent.recordVersion,
     body: { expectedVersion: sent.recordVersion },
     actor: customerActor,
-    env: OFF,
+    env: { ...OFF, GBS_WYOMING_FORMATION_ENABLED: '1' },
     requirementPackRegistry: registry,
   });
   return { accepted, listing, subject };
@@ -379,6 +379,7 @@ test('draft invisibility, active snapshot, facts, checks, readiness, isolation',
   const again = await ensureGbsCaseForAcceptedQuote({
     quote: await GbsQuote.findOne({ publicQuoteRef: activeDemo.accepted.publicQuoteRef }),
     requirementPackRegistry: activeRegistry,
+    env: { ...OFF, GBS_WYOMING_FORMATION_ENABLED: '1' },
   });
   assert.equal(String(again._id), String(activeCase._id));
   assert.equal(again.requirementPackSnapshot.packVersion, 1);
@@ -390,6 +391,7 @@ test('draft invisibility, active snapshot, facts, checks, readiness, isolation',
       registry: registryWithPacks([v2]),
       expectedVersion: (await GbsCase.findById(activeCase._id)).recordVersion,
       actor,
+      env: { GBS_WYOMING_FORMATION_ENABLED: '1' },
     }),
     (err) => err.code === 'requirement_pack_upgrade_required'
   );

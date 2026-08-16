@@ -25,6 +25,7 @@ import {
   isFilingAuthorizationRevocableStatus,
   isGbsExternalFilingAttestationEnabled,
   isGbsFilingAuthorizationEnabled,
+  isGbsWyomingFormationEnabled,
 } from '../../../../shared/gbs/filingAuthorizationContract.js';
 import {
   allowlistedFilingAuthorizationGrantInput,
@@ -34,11 +35,13 @@ import {
 } from '../../../../shared/gbs/filingAuthorization.js';
 import { EXTERNAL_SUBMISSION_STATE } from '../../../../shared/gbs/externalFilingContract.js';
 import {
+  isGrantedLegalTextEffectiveForFutureUse,
   productionLegalTextRegistry,
   resolveEligibleLegalText,
 } from '../../../../shared/gbs/filingAuthorizationLegalText.js';
 import {
   REQUIREMENT_PACK_ACTIVATION,
+  REQUIREMENT_PACK_IDS,
   resolveRequirementPack,
 } from '../../../../shared/gbs/requirementPackContract.js';
 import { CATALOG_REVIEW_STATUSES } from '../../../../shared/gbs/catalogConstants.js';
@@ -236,6 +239,15 @@ export async function resolveCaseFilingAuthorizationAvailability({
   if (selectable.reviewStatus !== CATALOG_REVIEW_STATUSES.REVIEWED) {
     return { available: false, reason: R.REQUIREMENT_PACK_NOT_REVIEWED, canGrant: false, eligibleLegalText: null, packSelectable: false };
   }
+  if (selectable.packId === REQUIREMENT_PACK_IDS.US_WY_LLC && !isGbsWyomingFormationEnabled(env)) {
+    return {
+      available: false,
+      reason: R.WYOMING_PRODUCT_DISABLED,
+      canGrant: false,
+      eligibleLegalText: null,
+      packSelectable: true,
+    };
+  }
   const snap = snapshotOf(record);
   if (!snap) {
     return { available: false, reason: R.REQUIREMENT_PACK_NOT_ATTACHED, canGrant: false, eligibleLegalText: null, packSelectable: true };
@@ -369,6 +381,7 @@ export async function deriveFilingReadiness({
   now = new Date(),
   authorization = null,
   submission = null,
+  legalTextRegistry = productionLegalTextRegistry,
 } = {}) {
   const snap = snapshotOf(record);
   const providerOk = await professionalAuthorityAllowed(record, env, now);
@@ -397,21 +410,30 @@ export async function deriveFilingReadiness({
   const active = auth?.status === FILING_AUTHORIZATION_STATUSES.ACTIVE;
   const claimed = auth?.status === FILING_AUTHORIZATION_STATUSES.CLAIMED_FOR_SUBMISSION;
   const expired = isExpired(auth, now);
+  const grantedTextStillApproved = !active || isGrantedLegalTextEffectiveForFutureUse(auth, legalTextRegistry);
+  const productEnabled = isGbsWyomingFormationEnabled(env);
+  const filingEnabled = isGbsFilingAuthorizationEnabled(env);
   const authorizedForExternalFiling = Boolean(
     requirementsReady
     && providerOk
+    && productEnabled
+    && filingEnabled
     && !isCaseTerminal(record.status)
     && active
     && matches
     && !expired
+    && grantedTextStillApproved
     && snap
   );
   const externalSubmissionEligible = Boolean(
     requirementsReady
     && providerOk
+    && productEnabled
+    && filingEnabled
     && !isCaseTerminal(record.status)
     && matches
     && !expired
+    && grantedTextStillApproved
     && snap
     && !sub
     && (active || claimed)
@@ -448,7 +470,13 @@ export async function getCustomerFilingAuthorization({
     registry,
     legalTextRegistry,
   });
-  const derived = await deriveFilingReadiness({ record, env, now, authorization: availability.conflicting || null });
+  const derived = await deriveFilingReadiness({
+    record,
+    env,
+    now,
+    authorization: availability.conflicting || null,
+    legalTextRegistry,
+  });
   const current = derived.authorization && String(derived.authorization.customerUserId) === String(userId)
     ? derived.authorization
     : null;
@@ -491,9 +519,10 @@ export async function getProviderFilingAuthorization({
   caseRef,
   env = process.env,
   now = new Date(),
+  legalTextRegistry = productionLegalTextRegistry,
 } = {}) {
   const record = await loadExactProviderCase(subject, caseRef);
-  const derived = await deriveFilingReadiness({ record, env, now });
+  const derived = await deriveFilingReadiness({ record, env, now, legalTextRegistry });
   const current = derived.authorization;
   const matchesProvider = current
     && current.providerSubjectType === subject.subjectType
@@ -867,10 +896,17 @@ export async function claimAuthorizationForSubmission({
   env = process.env,
   now = new Date(),
   expectedVersion = null,
+  legalTextRegistry = productionLegalTextRegistry,
 } = {}) {
   const current = await GbsCaseFilingAuthorization.findById(authorizationId);
   if (!current) throw notFound();
   if (current.status !== FILING_AUTHORIZATION_STATUSES.ACTIVE) {
+    throw deny(FILING_AUTHORIZATION_ERROR_CODES.NOT_CLAIMABLE, 409);
+  }
+  if (!isGbsWyomingFormationEnabled(env) || !isGbsFilingAuthorizationEnabled(env)) {
+    throw deny(FILING_AUTHORIZATION_ERROR_CODES.NOT_CLAIMABLE, 409);
+  }
+  if (!isGrantedLegalTextEffectiveForFutureUse(current, legalTextRegistry)) {
     throw deny(FILING_AUTHORIZATION_ERROR_CODES.NOT_CLAIMABLE, 409);
   }
   if (isExpired(current, now)) throw deny(R.EXPIRED, 409);

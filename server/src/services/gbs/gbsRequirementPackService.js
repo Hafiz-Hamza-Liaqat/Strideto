@@ -15,6 +15,7 @@ import { parseExpectedVersion } from '../../../../shared/gbs/case.js';
 import {
   DERIVED_CHECK_KEYS,
   RA_CONSENT_KEY,
+  REQUIREMENT_PACK_IDS,
   buildCasePackSnapshot,
   derivedCheckStatus,
   evaluateRequirementPackReadiness,
@@ -32,6 +33,7 @@ import {
 } from '../../../../shared/gbs/requirementPack.js';
 import { USER_CAPABILITY_IDS } from '../../../../shared/capability/userCapabilities.js';
 import { GRANT_STATUSES } from '../../../../shared/capability/grantStatus.js';
+import { isGbsWyomingFormationEnabled } from '../../../../shared/gbs/filingAuthorizationContract.js';
 import { GBS_AUDIT_EVENTS, redactAuditMetadata } from '../../../../shared/security/gbsAuditEvents.js';
 import { logAudit } from '../auditService.js';
 import { mutateGbsCaseRecord } from '../platform/optimisticConcurrency.js';
@@ -85,11 +87,20 @@ export function resolveSelectableRequirementPack({
   });
 }
 
+export function runtimeMayAttachRequirementPack(pack, env = process.env) {
+  if (!pack) return false;
+  if (pack.packId === REQUIREMENT_PACK_IDS.US_WY_LLC) {
+    return isGbsWyomingFormationEnabled(env);
+  }
+  return true;
+}
+
 export function snapshotFieldsForNewCase({
   quote,
   listing,
   registry = productionRequirementPackRegistry,
   now = new Date(),
+  env = process.env,
 } = {}) {
   const listingEntities = Array.isArray(listing?.entityTypeIds) ? listing.entityTypeIds : [];
   const entityTypeId = quote?.entityTypeId
@@ -101,7 +112,7 @@ export function snapshotFieldsForNewCase({
     registry,
     now,
   });
-  if (!pack) return {};
+  if (!runtimeMayAttachRequirementPack(pack, env)) return {};
   return {
     requirementPackSnapshot: buildCasePackSnapshot(pack),
     requirementFacts: [],
@@ -219,6 +230,7 @@ export async function attachRequirementPackSnapshot({
   expectedVersion,
   actor = {},
   now = new Date(),
+  env = process.env,
 } = {}) {
   const listing = record.listingId
     ? await GbsServiceListing.findById(record.listingId).lean()
@@ -235,6 +247,7 @@ export async function attachRequirementPackSnapshot({
     now,
   });
   if (!pack) return record;
+  if (!runtimeMayAttachRequirementPack(pack, env)) return record;
   const snapshot = buildCasePackSnapshot(pack);
   const existing = record.requirementPackSnapshot;
   if (existing) {

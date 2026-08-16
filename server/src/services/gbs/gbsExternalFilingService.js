@@ -16,6 +16,7 @@ import {
   FILING_AUTHORIZATION_STATUSES,
   FILING_AUTHORIZATION_UNAVAILABLE_REASONS as R,
   isGbsExternalFilingAttestationEnabled,
+  isGbsWyomingFormationEnabled,
 } from '../../../../shared/gbs/filingAuthorizationContract.js';
 import { GBS_AUDIT_EVENTS } from '../../../../shared/security/gbsAuditEvents.js';
 import { OPTIMISTIC_CONCURRENCY_CODE } from '../../../../shared/platform/optimisticConcurrency.js';
@@ -26,6 +27,7 @@ import {
 } from '../platform/idempotencyService.js';
 import { IDEMPOTENCY_CODES } from '../../../../shared/platform/idempotency.js';
 import { generatePublicSubmissionRef } from '../../utils/gbsFilingRef.js';
+import { productionLegalTextRegistry } from '../../../../shared/gbs/filingAuthorizationLegalText.js';
 import {
   claimAuthorizationForSubmission,
   deriveFilingReadiness,
@@ -62,8 +64,9 @@ export async function attestProviderExternalFiling({
   actor = {},
   env = process.env,
   now = new Date(),
+  legalTextRegistry = productionLegalTextRegistry,
 } = {}) {
-  if (!isGbsExternalFilingAttestationEnabled(env)) {
+  if (!isGbsExternalFilingAttestationEnabled(env) || !isGbsWyomingFormationEnabled(env)) {
     throw deny('external_filing_not_available', 409);
   }
   const expected = parseExpectedVersion(expectedVersion ?? body.expectedVersion);
@@ -80,7 +83,7 @@ export async function attestProviderExternalFiling({
       expectedVersion: expected,
     });
   }
-  const derived = await deriveFilingReadiness({ record, env, now });
+  const derived = await deriveFilingReadiness({ record, env, now, legalTextRegistry });
   if (!derived.requirementsReady) throw deny('requirements_not_ready', 409);
   const providerOk = await professionalAuthorityAllowed(record, env, now);
   if (!providerOk) throw deny(R.PROVIDER_AUTHORITY_LOST, 409);
@@ -136,6 +139,7 @@ export async function attestProviderExternalFiling({
             env,
             now,
             expectedVersion: working.recordVersion,
+            legalTextRegistry,
           });
           claimedHere = true;
         }
@@ -241,7 +245,7 @@ export async function attestProviderExternalFiling({
         throw auditErr;
       }
     }
-    return getProviderFilingAuthorization({ subject, caseRef, env, now });
+    return getProviderFilingAuthorization({ subject, caseRef, env, now, legalTextRegistry });
   } catch (err) {
     if (err.code === IDEMPOTENCY_CODES.CONFLICT) throw deny('idempotency_conflict', 409);
     if (isMongoDuplicateKey(err)) throw deny('external_filing_already_recorded', 409);

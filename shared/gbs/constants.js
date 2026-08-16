@@ -268,6 +268,8 @@ export function isBusinessServicesPublicMarketplaceEnabled(env) {
 export {
   GBS_FILING_AUTHORIZATION_FEATURE_FLAG,
   GBS_EXTERNAL_FILING_ATTESTATION_FEATURE_FLAG,
+  GBS_WYOMING_FORMATION_FEATURE_FLAG,
   isGbsFilingAuthorizationEnabled,
   isGbsExternalFilingAttestationEnabled,
+  isGbsWyomingFormationEnabled,
 } from './filingAuthorizationContract.js';

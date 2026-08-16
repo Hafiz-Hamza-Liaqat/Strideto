@@ -97,6 +97,7 @@ const ON = { BUSINESS_SERVICES_PUBLIC_MARKETPLACE_ENABLED: '1' };
 const OFF = { BUSINESS_SERVICES_PUBLIC_MARKETPLACE_ENABLED: '0' };
 const FLAGS = {
   BUSINESS_SERVICES_ENABLED: '1',
+  GBS_WYOMING_FORMATION_ENABLED: '1',
   GBS_FILING_AUTHORIZATION_ENABLED: '1',
   GBS_EXTERNAL_FILING_ATTESTATION_ENABLED: '1',
 };
@@ -247,7 +248,7 @@ async function sentAcceptedQuote({ customer, listing, subject, actor, customerAc
     expectedVersion: sent.recordVersion,
     body: { expectedVersion: sent.recordVersion },
     actor: customerActor,
-    env: OFF,
+    env: { ...OFF, ...(registry ? { GBS_WYOMING_FORMATION_ENABLED: '1' } : {}) },
     requirementPackRegistry: registry,
   });
   return { accepted, listing, subject };
@@ -333,6 +334,7 @@ async function seedReadyCase({ prefix, customer, listing, subject, actor, custom
   await ensureGbsCaseForAcceptedQuote({
     quote: await GbsQuote.findOne({ publicQuoteRef: demo.accepted.publicQuoteRef }),
     requirementPackRegistry: activeRegistry,
+    env: FLAGS,
   });
   const record = await GbsCase.findOne({ publicCaseRef: demo.accepted.publicCaseRef });
   await completeMandatory({ customer, subject, actor, caseRef: record.publicCaseRef });
@@ -533,6 +535,7 @@ test('synthetic grant, revoke, isolation, claim/attest, races, and fail-closed a
     subject: indSubject,
     caseRef: record.publicCaseRef,
     env: FLAGS,
+    legalTextRegistry: legalRegistry,
   });
   assert.equal(providerView.current.status, 'active');
   assert.equal(providerView.canGrant, false);
@@ -737,6 +740,7 @@ test('synthetic grant, revoke, isolation, claim/attest, races, and fail-closed a
       },
       actor,
       env: FLAGS,
+      legalTextRegistry: legalRegistry,
     }),
     (err) => err.code === 'provider_authority_lost' || err.code === 'filing_authorization_not_claimable' || err.code === 'requirements_not_ready'
   );
@@ -810,6 +814,7 @@ test('synthetic grant, revoke, isolation, claim/attest, races, and fail-closed a
     },
     actor,
     env: FLAGS,
+    legalTextRegistry: legalRegistry,
   });
   assert.equal(attested.externalSubmissionState, 'submitted_externally');
   assert.equal(attested.current.status, 'used');
@@ -830,6 +835,7 @@ test('synthetic grant, revoke, isolation, claim/attest, races, and fail-closed a
       },
       actor,
       env: FLAGS,
+      legalTextRegistry: legalRegistry,
     }),
     (err) => err.code === 'external_filing_already_recorded' || err.code === 'filing_authorization_not_claimable'
   );
@@ -846,6 +852,7 @@ test('synthetic grant, revoke, isolation, claim/attest, races, and fail-closed a
     },
     actor,
     env: FLAGS,
+    legalTextRegistry: legalRegistry,
   });
   assert.equal(attestReplay.submission.publicSubmissionRef, attested.submission.publicSubmissionRef);
 
@@ -900,6 +907,7 @@ test('synthetic grant, revoke, isolation, claim/attest, races, and fail-closed a
       },
       actor,
       env: FLAGS,
+      legalTextRegistry: legalRegistry,
     }),
     (err) => err.code === 'filing_authorization_not_claimable' || err.code === 'external_filing_not_available'
   );
@@ -937,6 +945,7 @@ test('synthetic grant, revoke, isolation, claim/attest, races, and fail-closed a
       actor,
       env: FLAGS,
       expectedVersion: raceAuth.recordVersion,
+      legalTextRegistry: legalRegistry,
     }),
   ]);
   const revokeWon = revokeResult.status === 'fulfilled' && revokeResult.value.current?.status === 'revoked';

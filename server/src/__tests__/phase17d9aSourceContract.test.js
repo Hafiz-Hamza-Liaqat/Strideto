@@ -17,6 +17,7 @@ import {
   LEGAL_TEXT_STATUSES,
   isGbsExternalFilingAttestationEnabled,
   isGbsFilingAuthorizationEnabled,
+  isGbsWyomingFormationEnabled,
 } from '../../../shared/gbs/filingAuthorizationContract.js';
 import {
   PRODUCTION_FILING_AUTHORIZATION_LEGAL_TEXT_V1,
@@ -94,13 +95,18 @@ check(resolveEligibleLegalText({
 
 check(isGbsFilingAuthorizationEnabled({}) === false, 'filing flag default OFF');
 check(isGbsExternalFilingAttestationEnabled({}) === false, 'attestation flag default OFF');
+check(isGbsWyomingFormationEnabled({}) === false, 'wyoming product flag default OFF');
 check(isGbsFilingAuthorizationEnabled({ GBS_FILING_AUTHORIZATION_ENABLED: '1' }) === true, 'flag 1 enables only');
+check(isGbsWyomingFormationEnabled({ GBS_WYOMING_FORMATION_ENABLED: '1' }) === true, 'wyoming 1 enables only');
+check(isGbsWyomingFormationEnabled({ GBS_WYOMING_FORMATION_ENABLED: 'true' }) === false, 'wyoming true does not enable');
 check(isBusinessServicesPublicMarketplaceEnabled({}) === false, 'marketplace still OFF');
 check(isGbsHsiDocumentsEnabled({}) === false, 'HSI still OFF');
 
 const envExample = read('.env.example');
+check(/GBS_WYOMING_FORMATION_ENABLED=0/.test(envExample), 'example wyoming flag OFF');
 check(/GBS_FILING_AUTHORIZATION_ENABLED=0/.test(envExample), 'example filing flag OFF');
 check(/GBS_EXTERNAL_FILING_ATTESTATION_ENABLED=0/.test(envExample), 'example attestation flag OFF');
+check(!/GBS_WYOMING_FORMATION_ENABLED=1/.test(envExample), 'example does not enable wyoming');
 check(!/GBS_FILING_AUTHORIZATION_ENABLED=1/.test(envExample), 'example does not enable filing');
 check(!/LEGAL_TEXT.*APPROVED|APPROVE_LEGAL_TEXT/.test(envExample), 'no env legal approval');
 

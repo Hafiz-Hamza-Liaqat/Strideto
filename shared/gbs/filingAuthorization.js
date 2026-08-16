@@ -107,7 +107,8 @@ export function emptyFilingAuthorizationProjection() {
 export function customerUnavailableCopy(reason) {
   if (reason === 'legal_text_not_approved' || reason === 'requirement_pack_not_active'
     || reason === 'requirement_pack_not_reviewed' || reason === 'requirement_pack_not_attached'
-    || reason === 'filing_authorization_feature_disabled' || reason === 'purpose_not_applicable') {
+    || reason === 'filing_authorization_feature_disabled' || reason === 'purpose_not_applicable'
+    || reason === 'wyoming_formation_feature_disabled' || reason === 'legal_text_no_longer_approved') {
     return 'Filing authorization is not yet available for this Case.';
   }
   if (reason === 'case_terminal') {

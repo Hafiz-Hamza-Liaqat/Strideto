@@ -78,6 +78,8 @@ export const FILING_AUTHORIZATION_UNAVAILABLE_REASONS = Object.freeze({
   CONFLICTING_AUTHORIZATION: 'conflicting_authorization',
   PURPOSE_NOT_APPLICABLE: 'purpose_not_applicable',
   EXPIRED: 'filing_authorization_expired',
+  WYOMING_PRODUCT_DISABLED: 'wyoming_formation_feature_disabled',
+  LEGAL_TEXT_NO_LONGER_APPROVED: 'legal_text_no_longer_approved',
 });
 
 export const FILING_AUTHORIZATION_ERROR_CODES = Object.freeze({
@@ -90,6 +92,7 @@ export const FILING_AUTHORIZATION_ERROR_CODES = Object.freeze({
 
 export const GBS_FILING_AUTHORIZATION_FEATURE_FLAG = 'GBS_FILING_AUTHORIZATION_ENABLED';
 export const GBS_EXTERNAL_FILING_ATTESTATION_FEATURE_FLAG = 'GBS_EXTERNAL_FILING_ATTESTATION_ENABLED';
+export const GBS_WYOMING_FORMATION_FEATURE_FLAG = 'GBS_WYOMING_FORMATION_ENABLED';
 
 export function isGbsFilingAuthorizationEnabled(env) {
   const source = env || (typeof process !== 'undefined' ? process.env : {});
@@ -99,6 +102,15 @@ export function isGbsFilingAuthorizationEnabled(env) {
 export function isGbsExternalFilingAttestationEnabled(env) {
   const source = env || (typeof process !== 'undefined' ? process.env : {});
   return source?.GBS_EXTERNAL_FILING_ATTESTATION_ENABLED === '1';
+}
+
+/**
+ * Disable-only Wyoming product rollout. Default OFF.
+ * Cannot mark a pack reviewed/active, approve legal text, or create authority.
+ */
+export function isGbsWyomingFormationEnabled(env) {
+  const source = env || (typeof process !== 'undefined' ? process.env : {});
+  return source?.GBS_WYOMING_FORMATION_ENABLED === '1';
 }
 
 export function isFilingAuthorizationEffectiveStatus(status) {

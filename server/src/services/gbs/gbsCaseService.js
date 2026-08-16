@@ -509,6 +509,7 @@ export async function ensureGbsCaseForAcceptedQuote({
               listing,
               registry: requirementPackRegistry,
               now,
+              env,
             }),
           });
           performed = true;
