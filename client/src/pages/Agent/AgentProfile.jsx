@@ -83,10 +83,22 @@ export default function AgentProfile() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (saving) return;
     setSaving(true);
     setError(null);
     setSuccess(false);
     try {
+      const yearsRaw = form.yearsOfExperience;
+      let yearsOfExperience = null;
+      if (yearsRaw !== '' && yearsRaw !== null && yearsRaw !== undefined) {
+        const n = Number(yearsRaw);
+        if (!Number.isFinite(n) || n < 0 || n > 99) {
+          setError('Years of experience must be a number between 0 and 99.');
+          setSaving(false);
+          return;
+        }
+        yearsOfExperience = Math.trunc(n);
+      }
       const { data } = await agentApi.updateProfile({
         professionalName: form.professionalName,
         professionalSummary: form.professionalSummary,
@@ -95,7 +107,7 @@ export default function AgentProfile() {
         destinationCountries: normalizeList(form.destinationCountries).map((item) => item.toUpperCase()),
         languages: normalizeList(form.languages).map((item) => item.toLowerCase()),
         specialties: normalizeList(form.specialties),
-        yearsOfExperience: form.yearsOfExperience ? Number(form.yearsOfExperience) : null,
+        yearsOfExperience,
         website: form.website,
         officialEmail: form.officialEmail,
         phone: typeof phoneValue === 'object' ? (phoneValue.e164 || '') : phoneValue,
@@ -110,6 +122,7 @@ export default function AgentProfile() {
       const cr = await agentApi.getCompleteness();
       setCompleteness(cr.data.completeness);
     } catch (err) {
+      setSuccess(false);
       setError(err.response?.data?.error || 'Failed to save profile');
     } finally {
       setSaving(false);
@@ -130,9 +143,9 @@ export default function AgentProfile() {
           <p className="text-xs text-slate-400 italic">{completeness.verificationNote}</p>
         </div>
       )}
-      {error && <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm" role="alert">{error}</div>}
-      {success && <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/40 text-green-800 dark:text-green-200 text-sm">Profile saved.</div>}
-      <form onSubmit={handleSubmit} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 space-y-4">
+      {error && <div className="p-3 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm break-words" role="alert">{error}</div>}
+      {success && <div className="p-3 rounded-lg bg-green-50 dark:bg-green-950/40 text-green-800 dark:text-green-200 text-sm break-words" role="status">Profile saved.</div>}
+      <form onSubmit={handleSubmit} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 space-y-4" aria-busy={saving}>
         <p className="text-sm text-slate-600 dark:text-gray-300">Account type: <strong>{accountType === 'agency' ? 'Agency / organization' : 'Individual professional'}</strong> (set at registration)</p>
         {accountType === 'agency' ? (
           <div>
@@ -189,7 +202,7 @@ export default function AgentProfile() {
           <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Service specialties</label>
           <MultiSelect value={normalizeList(form.specialties)} onChange={(specialties) => setForm((f) => ({ ...f, specialties }))} options={SPECIALTY_OPTIONS} emptyLabel="Select specialties" />
         </div>
-        <button type="submit" disabled={saving} className="min-h-[44px] px-4 py-2 text-sm bg-primary text-white rounded-lg font-medium disabled:opacity-60">{saving ? 'Saving…' : 'Save profile'}</button>
+        <button type="submit" disabled={saving} aria-busy={saving} className="min-h-[44px] px-4 py-2 text-sm bg-primary text-white rounded-lg font-medium disabled:opacity-60">{saving ? 'Saving…' : 'Save profile'}</button>
       </form>
     </div>
   );

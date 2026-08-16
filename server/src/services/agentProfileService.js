@@ -217,7 +217,31 @@ export async function getProfileByAccountId(agentAccountId) {
   return profile;
 }
 
+function coerceYearsOfExperience(value) {
+  if (value === '' || value === null || value === undefined) return null;
+  const n = Number(value);
+  if (!Number.isFinite(n) || n < 0 || n > 99) {
+    const err = new Error('Validation failed');
+    err.status = 400;
+    throw err;
+  }
+  return Math.trunc(n);
+}
+
+function sanitizeOfficeLocation(value) {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return undefined;
+  return {
+    addressLine1: String(value.addressLine1 || '').trim(),
+    city: String(value.city || '').trim(),
+    region: String(value.region || '').trim(),
+    postalCode: String(value.postalCode || '').trim(),
+    countryCode: coerceCountryCode(value.countryCode) || '',
+  };
+}
+
 export async function updateProfile(agentAccountId, updates) {
+  updates = updates && typeof updates === 'object' ? updates : {};
+
   // Guarantee language check
   assertNoGuaranteeLanguage({
     professionalSummary: updates.professionalSummary,
@@ -228,6 +252,15 @@ export async function updateProfile(agentAccountId, updates) {
   if (!profile) {
     const err = new Error('Profile not found');
     err.status = 404;
+    throw err;
+  }
+
+  const membership = await getMembership(agentAccountId, profile.organizationId);
+  const canWriteOrg = !membership
+    || agentRoleHasCapability(membership.role, AGENT_CAPABILITIES.PROFILE_WRITE);
+  if (profile.agentType === AGENT_TYPES.AGENCY && typeof updates.legalName === 'string' && !canWriteOrg) {
+    const err = new Error('Insufficient permissions');
+    err.status = 403;
     throw err;
   }
 
@@ -258,6 +291,37 @@ export async function updateProfile(agentAccountId, updates) {
       profile.phone = result.value;
       continue;
     }
+    if (key === 'yearsOfExperience') {
+      profile.yearsOfExperience = coerceYearsOfExperience(updates.yearsOfExperience);
+      continue;
+    }
+    if (key === 'officialEmail') {
+      profile.officialEmail = String(updates.officialEmail || '').trim().toLowerCase();
+      continue;
+    }
+    if (key === 'website') {
+      profile.website = String(updates.website || '').trim();
+      continue;
+    }
+    if (key === 'professionalSummary') {
+      const text = String(updates.professionalSummary || '');
+      if (text.length > 2000) {
+        const err = new Error('Validation failed');
+        err.status = 400;
+        throw err;
+      }
+      profile.professionalSummary = text;
+      continue;
+    }
+    if (key === 'officeLocation') {
+      profile.officeLocation = sanitizeOfficeLocation(updates.officeLocation);
+      continue;
+    }
+    if (key === 'languages' || key === 'specialties' || key === 'credentialReferences') {
+      const list = Array.isArray(updates[key]) ? updates[key] : [];
+      profile[key] = list.map((item) => String(item || '').trim()).filter(Boolean);
+      continue;
+    }
     profile[key] = updates[key];
   }
 
@@ -265,18 +329,31 @@ export async function updateProfile(agentAccountId, updates) {
   const { score } = computeCompleteness(profile.toObject());
   profile.completenessScore = score;
 
-  await profile.save();
+  try {
+    await profile.save();
+  } catch (err) {
+    if (err.name === 'ValidationError' || err.name === 'CastError' || err.name === 'StrictModeError') {
+      err.status = 400;
+      err.message = 'Validation failed';
+    }
+    throw err;
+  }
 
   // Keep the canonical Organization contact identity aligned without copying
   // any verification claims into self-declared profile data.
   const organizationUpdates = {};
-  if ('professionalName' in updates) organizationUpdates.displayName = profile.professionalName;
-  if ('countryCode' in updates) organizationUpdates.countryCode = profile.countryCode;
-  if ('website' in updates) organizationUpdates.website = profile.website;
-  if ('phone' in updates) organizationUpdates.phone = profile.phone;
-  if ('officeLocation' in updates) organizationUpdates.address = profile.officeLocation;
-  if (profile.agentType === AGENT_TYPES.AGENCY && typeof updates.legalName === 'string') {
-    organizationUpdates.legalName = updates.legalName.trim();
+  if (canWriteOrg) {
+    if ('professionalName' in updates) {
+      const name = String(profile.professionalName || '').trim();
+      if (name) organizationUpdates.displayName = name;
+    }
+    if ('countryCode' in updates) organizationUpdates.countryCode = profile.countryCode;
+    if ('website' in updates) organizationUpdates.website = profile.website;
+    if ('phone' in updates) organizationUpdates.phone = profile.phone;
+    if ('officeLocation' in updates) organizationUpdates.address = profile.officeLocation;
+    if (profile.agentType === AGENT_TYPES.AGENCY && typeof updates.legalName === 'string') {
+      organizationUpdates.legalName = updates.legalName.trim();
+    }
   }
   if (Object.keys(organizationUpdates).length) {
     await Organization.updateOne(

@@ -25,7 +25,14 @@ function looksInternal(message = '') {
 }
 
 export function errorHandler(err, req, res, _next) {
-  const status = err.statusCode || err.status || 500;
+  let status = err.statusCode || err.status || 500;
+  if (!err.status && !err.statusCode) {
+    if (err.name === 'ValidationError' || err.name === 'CastError' || err.name === 'StrictModeError') {
+      status = 400;
+    } else if (err.code === 11000) {
+      status = 409;
+    }
+  }
   const isProd = process.env.NODE_ENV === 'production';
   const requestId = req?.id;
   logger.error('unhandled_error', {
@@ -36,6 +43,9 @@ export function errorHandler(err, req, res, _next) {
     ...(isProd ? {} : { stack: err.stack }),
   });
   let message = err.message || 'Internal Server Error';
+  if (err.name === 'ValidationError' || err.name === 'CastError' || err.name === 'StrictModeError') {
+    message = 'Validation failed';
+  }
   const safeCode = typeof err.code === 'string' && SAFE_CODES.has(err.code) ? err.code : undefined;
   if (status >= 500 || looksInternal(message)) {
     message = status >= 500 ? 'Internal Server Error' : 'Request failed';
