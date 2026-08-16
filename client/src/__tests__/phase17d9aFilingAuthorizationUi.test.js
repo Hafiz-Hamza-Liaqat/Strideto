@@ -37,7 +37,7 @@ check(panel.includes('role="alert"'), 'errors announced');
 check(panel.includes('whitespace-pre-wrap break-words-safe'), 'legal text wraps');
 check(panel.includes('min-w-0'), 'overflow containment');
 check(!panel.includes('dangerouslySetInnerHTML'), 'no raw HTML');
-check(!/Submit to Wyoming|government approved|I am the legal representative/i.test(panel), 'no forbidden copy');
+check(!/Resubmit|Retry filing|Submit to Wyoming/i.test(panel + providerPanel), 'no resubmit or government submit');
 check(panel.includes('Authorize Provider'), 'explicit grant control');
 check(buyerApi.includes('filing-authorization/grant') && buyerApi.includes('filing-authorization/revoke'), 'customer APIs');
 
