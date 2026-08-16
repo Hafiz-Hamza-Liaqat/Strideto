@@ -485,7 +485,7 @@ export async function evaluateCaseFilingReadinessForRecord(record, { env, now } 
   }
   const requirements = await GbsCaseDocumentRequirement.find({ caseId: record._id }).lean();
   const pack = caseDocumentPackSnapshot(record);
-  return evaluateCaseFilingReadiness({
+  const documentReadiness = evaluateCaseFilingReadiness({
     status: record.status,
     requiredCustomerTasksComplete: requiredCustomerTasksComplete(record),
     professionalAuthorityAllowed,
@@ -493,6 +493,16 @@ export async function evaluateCaseFilingReadinessForRecord(record, { env, now } 
     consentSatisfied: false,
     requirements,
   });
+  if (!record.requirementPackSnapshot) return documentReadiness;
+  const { evaluateAttachedPackReadiness } = await import('./gbsRequirementPackService.js');
+  const packReadiness = evaluateAttachedPackReadiness(record, { professionalAuthorityAllowed });
+  const reasons = [...new Set([...(documentReadiness.reasons || []), ...(packReadiness.reasons || [])])];
+  return {
+    ready: reasons.length === 0,
+    reasons,
+    b2bRequirementsReady: packReadiness.b2bRequirementsReady === true,
+    authorizedForExternalFiling: false,
+  };
 }
 
 export async function listCustomerCaseDocumentRequirements({ userId, caseRef } = {}) {

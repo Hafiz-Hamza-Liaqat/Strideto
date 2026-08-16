@@ -429,6 +429,27 @@ agentRouter.post(
   gbsCaseWriteLimiter,
   gbsProviderCases.completeService
 );
+agentRouter.patch(
+  '/agent/business-services/cases/:caseRef/requirement-facts',
+  ...gbsEnabled,
+  secureTrustedOrigin,
+  gbsCaseWriteLimiter,
+  gbsProviderCases.updateRequirementFact
+);
+agentRouter.post(
+  '/agent/business-services/cases/:caseRef/requirement-checks',
+  ...gbsEnabled,
+  secureTrustedOrigin,
+  gbsCaseWriteLimiter,
+  gbsProviderCases.updateRequirementCheck
+);
+agentRouter.post(
+  '/agent/business-services/cases/:caseRef/ra-consent/attest',
+  ...gbsEnabled,
+  secureTrustedOrigin,
+  gbsCaseWriteLimiter,
+  gbsProviderCases.attestRaConsent
+);
 agentRouter.get(
   '/agent/business-services/cases/:caseRef/document-requirements',
   ...gbsEnabled,

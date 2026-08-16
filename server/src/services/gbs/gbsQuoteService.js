@@ -955,6 +955,7 @@ export async function acceptCustomerQuote({
   actor = {},
   env = process.env,
   now = new Date(),
+  requirementPackRegistry,
 } = {}) {
   const parsed = allowlistedActionInput(body);
   if (!parsed.ok) throw deny(parsed.error, 400);
@@ -990,6 +991,7 @@ export async function acceptCustomerQuote({
       actor,
       env,
       now,
+      requirementPackRegistry,
     });
     return { ...item, publicCaseRef: gbsCase.publicCaseRef };
   }

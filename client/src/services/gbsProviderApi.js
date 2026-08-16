@@ -135,4 +135,23 @@ export const gbsProviderApi = {
     agentAxios.get(`${base}/cases/${encodeURIComponent(caseRef)}/document-requirements`, {
       params: subjectParams(subject),
     }),
+  updateRequirementFact: (subject, caseRef, expectedVersion, extra = {}) =>
+    agentAxios.patch(`${base}/cases/${encodeURIComponent(caseRef)}/requirement-facts`, {
+      ...subjectParams(subject),
+      expectedVersion,
+      ...extra,
+    }),
+  updateRequirementCheck: (subject, caseRef, expectedVersion, extra = {}) =>
+    agentAxios.post(`${base}/cases/${encodeURIComponent(caseRef)}/requirement-checks`, {
+      ...subjectParams(subject),
+      expectedVersion,
+      ...extra,
+    }),
+  attestRaConsent: (subject, caseRef, expectedVersion, extra = {}) =>
+    agentAxios.post(`${base}/cases/${encodeURIComponent(caseRef)}/ra-consent/attest`, {
+      ...subjectParams(subject),
+      expectedVersion,
+      attested: true,
+      ...extra,
+    }),
 };

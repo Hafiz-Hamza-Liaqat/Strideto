@@ -4,6 +4,7 @@ import { AdminConfirmDialog } from '../../components/admin/AdminConfirmDialog';
 import { ROUTES } from '../../constants';
 import { ui } from '../../design-system/surfaceClasses';
 import { gbsBuyerApi } from '../../services/gbsBuyerApi';
+import { CaseRequirementPackPanel } from '../../components/gbs/CaseRequirementPackPanel';
 import {
   actingForLabel,
   caseMilestoneLabel,
@@ -174,6 +175,15 @@ export default function BusinessClientCaseDetail() {
       ) : null}
       {item.status === 'ready_for_submission' ? (
         <p className={ui.muted}>{item.readyForSubmissionCopy}</p>
+      ) : null}
+      {item.requirementPack?.attached ? (
+        <CaseRequirementPackPanel
+          pack={item.requirementPack}
+          recordVersion={item.recordVersion}
+          busy={busy}
+          error={error}
+          onSaveFact={({ factKey, value, expectedVersion }) => run(() => gbsBuyerApi.updateRequirementFact(item.publicCaseRef, expectedVersion, { factKey, value }))}
+        />
       ) : null}
       <section>
         <h3 className="font-medium">Service / Provider</h3>

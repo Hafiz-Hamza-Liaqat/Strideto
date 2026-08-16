@@ -185,3 +185,63 @@ export async function completeService(req, res) {
     return sendError(res, err);
   }
 }
+
+export async function updateRequirementFact(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const subject = await requireSubject(req, PROVIDER_DOMAIN_PERMISSIONS.BUSINESS_CASES_MANAGE);
+    const { updateProviderRequirementFact } = await import('../services/gbs/gbsRequirementPackService.js');
+    await updateProviderRequirementFact({
+      subject,
+      caseRef: req.params.caseRef,
+      expectedVersion: req.body?.expectedVersion,
+      body: req.body,
+      headerCommandId: req.get('Idempotency-Key'),
+      actor: actorFrom(req),
+    });
+    const item = await getProviderCase({ subject, caseRef: req.params.caseRef });
+    return res.json({ item });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function updateRequirementCheck(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const subject = await requireSubject(req, PROVIDER_DOMAIN_PERMISSIONS.BUSINESS_CASES_MANAGE);
+    const { updateProviderRequirementCheck } = await import('../services/gbs/gbsRequirementPackService.js');
+    await updateProviderRequirementCheck({
+      subject,
+      caseRef: req.params.caseRef,
+      expectedVersion: req.body?.expectedVersion,
+      body: req.body,
+      headerCommandId: req.get('Idempotency-Key'),
+      actor: actorFrom(req),
+    });
+    const item = await getProviderCase({ subject, caseRef: req.params.caseRef });
+    return res.json({ item });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function attestRaConsent(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const subject = await requireSubject(req, PROVIDER_DOMAIN_PERMISSIONS.BUSINESS_CASES_MANAGE);
+    const { attestProviderRaConsent } = await import('../services/gbs/gbsRequirementPackService.js');
+    await attestProviderRaConsent({
+      subject,
+      caseRef: req.params.caseRef,
+      expectedVersion: req.body?.expectedVersion,
+      body: req.body,
+      headerCommandId: req.get('Idempotency-Key'),
+      actor: actorFrom(req),
+    });
+    const item = await getProviderCase({ subject, caseRef: req.params.caseRef });
+    return res.json({ item });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}

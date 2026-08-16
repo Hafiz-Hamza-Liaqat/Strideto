@@ -270,3 +270,25 @@ export async function cancelCase(req, res) {
     return sendError(res, err);
   }
 }
+
+export async function updateRequirementFact(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const { updateCustomerRequirementFact } = await import('../services/gbs/gbsRequirementPackService.js');
+    await updateCustomerRequirementFact({
+      userId: req.user.userId,
+      caseRef: req.params.caseRef,
+      expectedVersion: req.body?.expectedVersion,
+      body: req.body,
+      headerCommandId: req.get('Idempotency-Key'),
+      actor: actorFrom(req),
+    });
+    const item = await getCustomerCase({
+      userId: req.user.userId,
+      caseRef: req.params.caseRef,
+    });
+    return res.json({ item });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}

@@ -72,6 +72,7 @@ import { generatePublicCaseRef, generatePublicTaskRef } from '../../utils/gbsCas
 import { getUserCapabilityService } from '../capability/userCapabilityRuntime.js';
 import { USER_CAPABILITY_IDS } from '../../../../shared/capability/userCapabilities.js';
 import { GRANT_STATUSES } from '../../../../shared/capability/grantStatus.js';
+import { snapshotFieldsForNewCase } from './gbsRequirementPackService.js';
 
 const Q = QUOTE_STATUSES;
 const C = CASE_STATUSES;
@@ -84,6 +85,22 @@ function deny(code, status = 400, errors) {
 
 function notFound() {
   return deny('not_found', 404);
+}
+
+async function customerCaseDto(record) {
+  const { projectCustomerRequirementPack } = await import('./gbsRequirementPackService.js');
+  return {
+    ...customerCaseProjection(record),
+    requirementPack: await projectCustomerRequirementPack(record),
+  };
+}
+
+async function providerCaseDto(record, extras = {}) {
+  const { projectProviderRequirementPack } = await import('./gbsRequirementPackService.js');
+  return {
+    ...providerCaseProjection(record, extras),
+    requirementPack: await projectProviderRequirementPack(record),
+  };
 }
 
 function isMongoDuplicateKey(err) {
@@ -341,6 +358,7 @@ export async function ensureGbsCaseForAcceptedQuote({
   now = new Date(),
   headerCommandId,
   body = {},
+  requirementPackRegistry,
 } = {}) {
   if (!quote || quote.status !== Q.ACCEPTED) {
     throw deny('quote_not_accepted', 409);
@@ -453,6 +471,12 @@ export async function ensureGbsCaseForAcceptedQuote({
             documentPackId: 'gbs.case_documents.empty',
             documentPackVersion: 1,
             documentConsentRequired: false,
+            ...snapshotFieldsForNewCase({
+              quote,
+              listing,
+              registry: requirementPackRegistry,
+              now,
+            }),
           });
           performed = true;
           return { caseId: String(doc._id), publicCaseRef: doc.publicCaseRef };
@@ -482,6 +506,20 @@ export async function ensureGbsCaseForAcceptedQuote({
         targetId: String(created._id),
         metadata: caseAuditMeta(created),
       });
+      if (created.requirementPackSnapshot) {
+        await logAudit({
+          actor,
+          action: GBS_AUDIT_EVENTS.GBS_CASE_REQUIREMENT_PACK_ATTACHED,
+          targetType: 'GbsCase',
+          targetId: String(created._id),
+          metadata: redactAuditMetadata({
+            publicCaseRef: created.publicCaseRef,
+            packId: created.requirementPackSnapshot.packId,
+            packVersion: created.requirementPackSnapshot.packVersion,
+            sourceSetId: created.requirementPackSnapshot.sourceSetId,
+          }),
+        });
+      }
       await notifyCustomer(created, {
         type: 'gbs_case_opened',
         title: 'Your service Case is ready',
@@ -528,7 +566,7 @@ export async function ensureCustomerCaseForQuote({
     headerCommandId,
     body,
   });
-  return customerCaseProjection(record);
+  return customerCaseDto(record);
 }
 
 export async function ensureProviderCaseForQuote({
@@ -554,7 +592,7 @@ export async function ensureProviderCaseForQuote({
     body,
   });
   const displayName = await safeCustomerName(record.requesterUserId);
-  return providerCaseProjection(record, { displayName });
+  return providerCaseDto(record, { displayName });
 }
 
 export async function listCustomerCases({ userId, query = {} } = {}) {
@@ -580,7 +618,7 @@ export async function listCustomerCases({ userId, query = {} } = {}) {
 
 export async function getCustomerCase({ userId, caseRef } = {}) {
   const record = await loadOwnedCustomerCase(userId, caseRef);
-  return customerCaseProjection(record);
+  return customerCaseDto(record);
 }
 
 export async function listProviderCases({ subject, query = {} } = {}) {
@@ -612,7 +650,7 @@ export async function listProviderCases({ subject, query = {} } = {}) {
 export async function getProviderCase({ subject, caseRef } = {}) {
   const record = await loadExactProviderCase(subject, caseRef);
   const displayName = await safeCustomerName(record.requesterUserId);
-  return providerCaseProjection(record, { displayName });
+  return providerCaseDto(record, { displayName });
 }
 
 async function runProviderMutation({
@@ -690,7 +728,7 @@ async function runProviderMutation({
       if (notify) await notify(updated, parsed.value);
     }
     const displayName = await safeCustomerName(updated.requesterUserId);
-    return providerCaseProjection(updated, { displayName });
+    return providerCaseDto(updated, { displayName });
   } catch (err) {
     if (err.code === IDEMPOTENCY_CODES.CONFLICT) throw deny('idempotency_conflict', 409);
     throw err;
@@ -867,6 +905,9 @@ export async function markReadyForSubmission({
       if (readiness.reasons.includes('filing_consent_pending')) {
         throw deny('filing_consent_pending', 409);
       }
+      if (readiness.reasons.some((reason) => reason !== 'document_required' && reason !== 'filing_consent_pending' && reason !== 'customer_action_pending' && reason !== 'preparation_pending' && reason !== 'case_not_eligible' && reason !== 'professional_authority_invalid') && record.requirementPackSnapshot) {
+        throw deny('requirement_pack_not_ready', 409);
+      }
       if (!requiredTasksComplete(record)) throw deny('required_tasks_incomplete', 409);
       throw deny('filing_readiness_failed', 409);
     },
@@ -1034,7 +1075,7 @@ export async function completeCustomerTask({
   if (!task) throw notFound();
   if (task.type !== 'customer_action') throw deny('task_not_customer_action', 409);
   if (task.status === CASE_TASK_STATUSES.COMPLETED) {
-    return customerCaseProjection(record);
+    return customerCaseDto(record);
   }
   const parsed = allowlistedCompleteTaskInput(body, task);
   if (!parsed.ok) throw deny(parsed.error, 400);
@@ -1121,7 +1162,7 @@ export async function completeCustomerTask({
         body: 'A Business Services customer completed a requested Case action.',
       });
     }
-    return customerCaseProjection(updated);
+    return customerCaseDto(updated);
   } catch (err) {
     if (err.code === IDEMPOTENCY_CODES.CONFLICT) throw deny('idempotency_conflict', 409);
     throw err;
@@ -1204,7 +1245,7 @@ export async function cancelCustomerCase({
         body: 'A Business Services customer cancelled a STRIDETO service Case. The accepted quote remains a historical record. No refund was processed because payment is not configured.',
       });
     }
-    return customerCaseProjection(updated);
+    return customerCaseDto(updated);
   } catch (err) {
     if (err.code === IDEMPOTENCY_CODES.CONFLICT) throw deny('idempotency_conflict', 409);
     throw err;

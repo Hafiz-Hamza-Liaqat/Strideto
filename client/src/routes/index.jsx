@@ -273,6 +273,9 @@ const BusinessClientQuotes = lazyLoad(() => import('../pages/BusinessClient/Busi
 const BusinessClientQuoteDetail = lazyLoad(() => import('../pages/BusinessClient/BusinessClientQuoteDetail'));
 const BusinessClientCases = lazyLoad(() => import('../pages/BusinessClient/BusinessClientCases'));
 const BusinessClientCaseDetail = lazyLoad(() => import('../pages/BusinessClient/BusinessClientCaseDetail'));
+const GbsRequirementPackVisualFixture = import.meta.env.DEV
+  ? lazyLoad(() => import('../pages/dev/GbsRequirementPackVisualFixture'))
+  : null;
 const TrustCenter = lazyLoad(() => import('../pages/Trust/TrustCenter'));
 const AgentCommerce = lazyLoad(() => import('../pages/Agent/AgentCommerce')); const CommerceHistory = lazyLoad(() => import('../pages/Commerce/CommerceHistory'));
 const MarketplaceCheckout = lazyLoad(() => import('../pages/Commerce/MarketplaceCheckout'));
@@ -495,6 +498,10 @@ export const routes = [
       { path: ROUTES.AGENT_PUBLIC_PROFILE, element: <AgentPublicProfile /> },
       { path: ROUTES.BUSINESS_SERVICES, element: <BusinessServicesMarketplace /> },
       { path: ROUTES.BUSINESS_SERVICES_LISTING, element: <BusinessServicesListingDetail /> },
+      ...(GbsRequirementPackVisualFixture ? [
+        { path: 'dev/gbs-requirement-pack-fixture', element: <GbsRequirementPackVisualFixture /> },
+        { path: 'dev/gbs-requirement-pack-fixture/provider', element: <GbsRequirementPackVisualFixture role="provider" /> },
+      ] : []),
       { path: 'employer/:slug', element: <EmployerPublicGate /> },
       { path: `${ROUTES.COMPANY}/:slug`, element: <CompanyProfile /> },
       { path: `${ROUTES.UNIVERSITY}/:slug`, element: <UniversityProfile /> },

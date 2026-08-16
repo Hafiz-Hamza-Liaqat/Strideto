@@ -75,6 +75,13 @@ gbsBuyerRouter.post(
   gbsBuyerWriteLimiter,
   buyer.cancelCase
 );
+gbsBuyerRouter.patch(
+  '/business/cases/:caseRef/requirement-facts',
+  ...businessClientProductAuth,
+  secureTrustedOrigin,
+  gbsBuyerWriteLimiter,
+  buyer.updateRequirementFact
+);
 gbsBuyerRouter.get(
   '/business/cases/:caseRef/document-requirements',
   ...businessClientActivateAuth,

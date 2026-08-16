@@ -7,6 +7,7 @@ import { CASE_TASK_CATALOG, CASE_TASK_KEYS } from '@shared/gbs/caseContract.js';
 import { gbsProviderApi } from '../../../services/gbsProviderApi';
 import { useGbsProvider } from './GbsProviderContext';
 import { StatusBadge, card, emptyBox, errorBox, input, label, muted, wrap } from './gbsUi';
+import { ProviderRequirementPackPanel } from '../../../components/gbs/ProviderRequirementPackPanel';
 import {
   caseMilestoneLabel,
   caseStatusLabel,
@@ -139,6 +140,18 @@ export default function GbsCaseDetail() {
           <h3 className="font-medium">Customer summary</h3>
           <p className="mt-1 whitespace-pre-wrap break-words-safe">{item.customerSummary}</p>
         </section>
+      ) : null}
+
+      {item.requirementPack?.attached ? (
+        <ProviderRequirementPackPanel
+          pack={item.requirementPack}
+          recordVersion={item.recordVersion}
+          busy={busy}
+          error={error}
+          onSaveFact={({ factKey, value, expectedVersion }) => run(() => gbsProviderApi.updateRequirementFact(selected, item.publicCaseRef, expectedVersion, { factKey, value }))}
+          onAttestCheck={({ checkKey, selectedMethod, expectedVersion }) => run(() => gbsProviderApi.updateRequirementCheck(selected, item.publicCaseRef, expectedVersion, { checkKey, attested: true, selectedMethod }))}
+          onAttestRaConsent={({ expectedVersion }) => run(() => gbsProviderApi.attestRaConsent(selected, item.publicCaseRef, expectedVersion))}
+        />
       ) : null}
 
       <section>

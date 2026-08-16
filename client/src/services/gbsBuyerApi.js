@@ -37,4 +37,9 @@ export const gbsBuyerApi = {
     axiosInstance.post(`/business/cases/${encodeURIComponent(caseRef)}/cancel`, { expectedVersion, ...extra }),
   listCaseDocumentRequirements: (caseRef) =>
     axiosInstance.get(`/business/cases/${encodeURIComponent(caseRef)}/document-requirements`),
+  updateRequirementFact: (caseRef, expectedVersion, extra = {}) =>
+    axiosInstance.patch(`/business/cases/${encodeURIComponent(caseRef)}/requirement-facts`, {
+      expectedVersion,
+      ...extra,
+    }),
 };
