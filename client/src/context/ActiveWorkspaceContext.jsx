@@ -13,6 +13,7 @@ import { useEmployerAuth } from './EmployerAuthContext';
 import { useAgentAuth } from './AgentAuthContext';
 import { useInstitutionAuth } from './InstitutionAuthContext';
 import { onSessionExpired } from '../auth/sessionExpired';
+import { getAccessToken } from '../services/axiosBase';
 import {
   ACTIVE_WORKSPACE_EVENT,
   WORKSPACE_DESTINATIONS,
@@ -120,6 +121,7 @@ export function ActiveWorkspaceProvider({ children }) {
     if (live) return live;
     if (realm === 'student') {
       if (studentLoading) return { pending: true };
+      if (getAccessToken() && !studentAuth.isAuthenticated) return { pending: true };
       return null;
     }
     if (realm === 'employer') {
@@ -135,7 +137,7 @@ export function ActiveWorkspaceProvider({ children }) {
       return session ? projectInstitutionIdentity(session) : null;
     }
     return null;
-  }, [projectLive, studentLoading, employerEnsure, agentEnsure, institutionEnsure]);
+  }, [projectLive, studentLoading, studentAuth.isAuthenticated, employerEnsure, agentEnsure, institutionEnsure]);
 
   useEffect(() => {
     let cancelled = false;
@@ -156,7 +158,7 @@ export function ActiveWorkspaceProvider({ children }) {
       return undefined;
     }
 
-    if (preferred === 'student' && studentLoading) {
+    if (preferred === 'student' && (studentLoading || (getAccessToken() && !projectLive('student')))) {
       setIsHydrating(true);
       return undefined;
     }
@@ -171,6 +173,9 @@ export function ActiveWorkspaceProvider({ children }) {
       if (result?.isAuthenticated) {
         validatedPrefRef.current = preferred;
         setIdentity(result);
+      } else if (preferred === 'student' && getAccessToken()) {
+        setIsHydrating(true);
+        return;
       } else {
         validatedPrefRef.current = null;
         clearActiveWorkspacePreferenceIfRealm(preferred);

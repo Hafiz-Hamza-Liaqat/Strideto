@@ -4,6 +4,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useRef,
 } from 'react';
 import { useLocation } from 'react-router-dom';
 import { authApi } from '../services/authService';
@@ -20,6 +21,12 @@ import {
   clearActiveWorkspacePreferenceIfRealm,
   writeActiveWorkspacePreference,
 } from '../auth/activeWorkspace';
+import {
+  bindTabIdentity,
+  clearTabIdentity,
+  compareTabIdentity,
+  readTabIdentity,
+} from '../auth/tabIdentity';
 
 /**
  * SEC-3E — the access token lives in `axiosBase.js`'s in-memory store
@@ -47,6 +54,8 @@ export function AuthProvider({ children }) {
   const [user, setUser] = useState(readStoredUser);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [identityConflict, setIdentityConflict] = useState(null);
+  const authEpoch = useRef(0);
 
   const persistUser = useCallback((u) => {
     setUser(u);
@@ -60,7 +69,40 @@ export function AuthProvider({ children }) {
     clearAccessToken();
     localStorage.removeItem(STORAGE_USER);
     setUser(null);
+    setIdentityConflict(null);
   }, []);
+
+  const acceptUserSubject = useCallback((nextUser) => {
+    const subjectId = nextUser?._id || nextUser?.id;
+    if (!subjectId) {
+      persistUser(null);
+      return false;
+    }
+    const verdict = compareTabIdentity('user', subjectId);
+    if (verdict === 'mismatch') {
+      const expected = readTabIdentity('user');
+      persistUser(null);
+      setIdentityConflict({
+        realm: 'user',
+        expectedSubjectId: expected?.subjectId || null,
+        actualSubjectId: String(subjectId),
+        pendingRecord: nextUser,
+      });
+      return false;
+    }
+    bindTabIdentity('user', subjectId);
+    persistUser(nextUser);
+    setIdentityConflict(null);
+    return true;
+  }, [persistUser]);
+
+  const bindLocalUser = useCallback((nextUser, extra = {}) => {
+    authEpoch.current += 1;
+    const subjectId = nextUser?._id || nextUser?.id;
+    if (subjectId) bindTabIdentity('user', subjectId);
+    persistUser({ ...nextUser, ...extra });
+    setIdentityConflict(null);
+  }, [persistUser]);
 
   const login = useCallback(
     async (email, password) => {
@@ -68,14 +110,11 @@ export function AuthProvider({ children }) {
       resetAxiosAuthState();
       const { data } = await authApi.login({ email, password });
       setAccessToken(data.accessToken);
-      persistUser({
-        ...data.user,
-        mustChangePassword: !!data.mustChangePassword,
-      });
+      bindLocalUser(data.user, { mustChangePassword: !!data.mustChangePassword });
       writeActiveWorkspacePreference('student');
       return { user: data.user, mustChangePassword: !!data.mustChangePassword };
     },
-    [persistUser]
+    [bindLocalUser]
   );
 
   const register = useCallback(
@@ -93,14 +132,15 @@ export function AuthProvider({ children }) {
         };
       }
       setAccessToken(data.accessToken);
-      persistUser(data.user);
+      bindLocalUser(data.user);
       writeActiveWorkspacePreference('student');
       return { user: data.user, requiresVerification: false };
     },
-    [persistUser]
+    [bindLocalUser]
   );
 
   const logout = useCallback(async () => {
+    authEpoch.current += 1;
     try {
       if (getAccessToken()) {
         await authApi.logout();
@@ -108,18 +148,33 @@ export function AuthProvider({ children }) {
     } catch {
       // ignore
     }
+    clearTabIdentity('user');
     clearAuth();
     clearActiveWorkspacePreferenceIfRealm('student');
   }, [clearAuth]);
 
   const logoutAll = useCallback(async () => {
+    authEpoch.current += 1;
     try {
       await authApi.logoutAll();
     } finally {
+      clearTabIdentity('user');
       clearAuth();
       clearActiveWorkspacePreferenceIfRealm('student');
     }
   }, [clearAuth]);
+
+  const continueAsCurrentSession = useCallback(() => {
+    setIdentityConflict((current) => {
+      const pending = current?.pendingRecord;
+      if (pending) bindLocalUser(pending);
+      return null;
+    });
+  }, [bindLocalUser]);
+
+  const signInAgainFromConflict = useCallback(async () => {
+    await logout();
+  }, [logout]);
 
   /** Silent refresh via the HttpOnly cookie — never reads/writes a stored refresh token. */
   const refreshToken = useCallback(async ({ clearOnFailure = true } = {}) => {
@@ -135,7 +190,10 @@ export function AuthProvider({ children }) {
 
   useEffect(() => {
     return onSessionExpired((realm) => {
-      if (realm === 'user') clearAuth();
+      if (realm === 'user') {
+        clearTabIdentity('user');
+        clearAuth();
+      }
     });
   }, [clearAuth]);
 
@@ -147,6 +205,7 @@ export function AuthProvider({ children }) {
       return undefined;
     }
 
+    const epoch = authEpoch.current;
     const alreadyHydrated = !!getAccessToken();
     if (!alreadyHydrated) setLoading(true);
     let cancelled = false;
@@ -155,9 +214,9 @@ export function AuthProvider({ children }) {
     // already hydrated so in-app navigation never unmounts the shell.
     refreshToken({ clearOnFailure: false })
       .then((token) => {
-        if (cancelled) return null;
+        if (cancelled || epoch !== authEpoch.current) return null;
         if (!token) {
-          if (alreadyHydrated && getAccessToken()) {
+          if (getAccessToken()) {
             return authApi.me();
           }
           clearAuth();
@@ -167,13 +226,14 @@ export function AuthProvider({ children }) {
         return authApi.me();
       })
       .then((res) => {
-        if (!cancelled && res) persistUser(res.data.user);
+        if (cancelled || epoch !== authEpoch.current || !res) return;
+        acceptUserSubject(res.data.user);
       })
       .catch(() => {
-        if (!cancelled) clearAuth();
+        if (!cancelled && epoch === authEpoch.current) clearAuth();
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && epoch === authEpoch.current) setLoading(false);
       });
 
     return () => {
@@ -186,18 +246,31 @@ export function AuthProvider({ children }) {
     if (!userRealmActive) return undefined;
     const refreshQuietly = () => {
       if (document.hidden) return;
-      refreshToken({ clearOnFailure: false });
+      refreshToken({ clearOnFailure: false }).then(async (token) => {
+        if (!token && !getAccessToken()) return;
+        try {
+          const res = await authApi.me();
+          if (res?.data?.user) acceptUserSubject(res.data.user);
+        } catch {
+          /* interceptor / session-expired handler owns terminal failure */
+        }
+      });
     };
     const onVisibility = () => {
       if (document.visibilityState === 'visible') refreshQuietly();
     };
+    const onPageShow = (event) => {
+      if (event.persisted) refreshQuietly();
+    };
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('focus', refreshQuietly);
+    window.addEventListener('pageshow', onPageShow);
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('focus', refreshQuietly);
+      window.removeEventListener('pageshow', onPageShow);
     };
-  }, [userRealmActive, refreshToken]);
+  }, [userRealmActive, refreshToken, acceptUserSubject]);
 
   const value = {
     user,
@@ -206,12 +279,15 @@ export function AuthProvider({ children }) {
     setError,
     isAuthenticated: !!user && !!getAccessToken(),
     isAdmin: user?.role === 'Admin',
+    identityConflict,
     login,
     register,
     logout,
     logoutAll,
     refreshToken,
     updateUser: persistUser,
+    continueAsCurrentSession,
+    signInAgainFromConflict,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

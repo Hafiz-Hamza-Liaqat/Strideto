@@ -4,6 +4,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useRef,
 } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
@@ -19,6 +20,13 @@ import {
   clearActiveWorkspacePreferenceIfRealm,
   writeActiveWorkspacePreference,
 } from '../auth/activeWorkspace';
+import {
+  bindTabIdentity,
+  clearTabIdentity,
+  compareTabIdentity,
+  readTabIdentity,
+} from '../auth/tabIdentity';
+import { clearVerificationDraftsForAccount } from '../auth/verificationDraft';
 
 const STORAGE_AGENT = 'strideto-agent';
 
@@ -39,11 +47,17 @@ function clearAgentSessionLocal() {
   resetAgentAxiosAuthState();
 }
 
+function accountIdOf(record) {
+  return record?._id || record?.id || record?.agentAccountId || null;
+}
+
 export function AgentAuthProvider({ children }) {
   const { pathname } = useLocation();
   const [agent, setAgent] = useState(readStoredAgent);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [identityConflict, setIdentityConflict] = useState(null);
+  const authEpoch = useRef(0);
 
   const persistAgent = useCallback((a) => {
     setAgent(a);
@@ -51,16 +65,47 @@ export function AgentAuthProvider({ children }) {
     else localStorage.removeItem(STORAGE_AGENT);
   }, []);
 
+  const bindLocalAgent = useCallback((nextAgent) => {
+    authEpoch.current += 1;
+    const subjectId = accountIdOf(nextAgent);
+    if (subjectId) bindTabIdentity('agent', subjectId);
+    persistAgent(nextAgent);
+    setIdentityConflict(null);
+  }, [persistAgent]);
+
+  const acceptAgentSubject = useCallback((nextAgent) => {
+    const subjectId = accountIdOf(nextAgent);
+    if (!subjectId) {
+      persistAgent(null);
+      return null;
+    }
+    if (compareTabIdentity('agent', subjectId) === 'mismatch') {
+      const expected = readTabIdentity('agent');
+      persistAgent(null);
+      setIdentityConflict({
+        realm: 'agent',
+        expectedSubjectId: expected?.subjectId || null,
+        actualSubjectId: String(subjectId),
+        pendingRecord: nextAgent,
+      });
+      return null;
+    }
+    bindTabIdentity('agent', subjectId);
+    persistAgent(nextAgent);
+    setIdentityConflict(null);
+    return nextAgent;
+  }, [persistAgent]);
+
   const login = useCallback(
     async (email, password) => {
       setError(null);
       const { data } = await agentAuthApi.login(email, password);
       setAgentAccessToken(data.accessToken);
-      persistAgent(data.account);
+      bindLocalAgent(data.account);
       writeActiveWorkspacePreference('agent');
       return data.account;
     },
-    [persistAgent]
+    [bindLocalAgent]
   );
 
   const register = useCallback(
@@ -74,11 +119,11 @@ export function AgentAuthProvider({ children }) {
         };
       }
       setAgentAccessToken(data.accessToken);
-      persistAgent(data.account);
+      bindLocalAgent(data.account);
       writeActiveWorkspacePreference('agent');
       return data.account;
     },
-    [persistAgent]
+    [bindLocalAgent]
   );
 
   const persistFromMe = useCallback((res) => {
@@ -92,9 +137,8 @@ export function AgentAuthProvider({ children }) {
       professionalName: res.data.profile?.professionalName || '',
       profileStatus: res.data.profile?.profileStatus || '',
     };
-    persistAgent(next);
-    return next;
-  }, [persistAgent]);
+    return acceptAgentSubject(next);
+  }, [persistAgent, acceptAgentSubject]);
 
   const refreshAgent = useCallback(async () => {
     const res = await agentAuthApi.me();
@@ -109,6 +153,7 @@ export function AgentAuthProvider({ children }) {
       const me = await agentAuthApi.me();
       return persistFromMe(me);
     } catch {
+      if (getAgentAccessToken() && agent) return agent;
       clearAgentSessionLocal();
       persistAgent(null);
       return null;
@@ -116,52 +161,77 @@ export function AgentAuthProvider({ children }) {
   }, [agent, persistAgent, persistFromMe]);
 
   const refreshQuietly = useCallback(() => {
-    if (document.hidden || !getAgentAccessToken()) return;
-    agentAuthApi.refreshToken().then(({ data }) => {
+    if (document.hidden) return;
+    agentAuthApi.refreshToken().then(async ({ data }) => {
       if (data?.accessToken) setAgentAccessToken(data.accessToken);
+      const me = await agentAuthApi.me();
+      persistFromMe(me);
     }).catch(() => {});
-  }, []);
+  }, [persistFromMe]);
 
   const logout = useCallback(async () => {
+    authEpoch.current += 1;
+    const id = accountIdOf(agent);
     try {
       if (getAgentAccessToken()) await agentAuthApi.logout();
     } catch {
       // best-effort
     } finally {
+      if (id) clearVerificationDraftsForAccount({ realm: 'agent', accountId: id });
+      clearTabIdentity('agent');
       clearAgentSessionLocal();
       setAgent(null);
+      setIdentityConflict(null);
       clearActiveWorkspacePreferenceIfRealm('agent');
     }
-  }, []);
+  }, [agent]);
 
   const logoutAll = useCallback(async () => {
+    authEpoch.current += 1;
+    const id = accountIdOf(agent);
     try {
       await agentAuthApi.logoutAll();
     } finally {
+      if (id) clearVerificationDraftsForAccount({ realm: 'agent', accountId: id });
+      clearTabIdentity('agent');
       clearAgentSessionLocal();
       setAgent(null);
+      setIdentityConflict(null);
       clearActiveWorkspacePreferenceIfRealm('agent');
     }
-  }, []);
+  }, [agent]);
+
+  const continueAsCurrentSession = useCallback(() => {
+    setIdentityConflict((current) => {
+      if (current?.pendingRecord) bindLocalAgent(current.pendingRecord);
+      return null;
+    });
+  }, [bindLocalAgent]);
+
+  const signInAgainFromConflict = useCallback(async () => {
+    await logout();
+  }, [logout]);
 
   useEffect(() => {
     return onSessionExpired((realm) => {
       if (realm === 'agent') {
+        clearTabIdentity('agent');
         clearAgentSessionLocal();
         setAgent(null);
+        setIdentityConflict(null);
       }
     });
   }, []);
 
   const agentRouteActive = isAgentRoutePrefix(pathname);
 
-  // Realm-boundary bootstrap only — never re-run on every in-portal pathname.
   useEffect(() => {
     if (!agentRouteActive) {
       setLoading(false);
       return undefined;
     }
 
+    const epoch = authEpoch.current;
     let cancelled = false;
     const alreadyHydrated = !!getAgentAccessToken();
     if (!alreadyHydrated) setLoading(true);
@@ -169,21 +239,28 @@ export function AgentAuthProvider({ children }) {
     agentAuthApi
       .refreshToken()
       .then(({ data }) => {
-        if (cancelled) return null;
+        if (cancelled || epoch !== authEpoch.current) return null;
         setAgentAccessToken(data.accessToken);
         return agentAuthApi.me();
       })
       .then((res) => {
-        if (!cancelled && res) persistFromMe(res);
+        if (!cancelled && epoch === authEpoch.current && res) persistFromMe(res);
       })
       .catch(() => {
-        if (!cancelled) {
+        if (!cancelled && epoch === authEpoch.current) {
+          if (getAgentAccessToken()) {
+            return agentAuthApi.me().then((res) => persistFromMe(res)).catch(() => {
+              clearAgentSessionLocal();
+              persistAgent(null);
+            });
+          }
           clearAgentSessionLocal();
           persistAgent(null);
         }
+        return null;
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && epoch === authEpoch.current) setLoading(false);
       });
 
     return () => {
@@ -194,22 +271,21 @@ export function AgentAuthProvider({ children }) {
 
   useEffect(() => {
     if (!agentRouteActive) return undefined;
-    const refreshQuietly = () => {
-      if (document.hidden || !getAgentAccessToken()) return;
-      agentAuthApi.refreshToken().then(({ data }) => {
-        if (data?.accessToken) setAgentAccessToken(data.accessToken);
-      }).catch(() => {});
-    };
     const onVisibility = () => {
       if (document.visibilityState === 'visible') refreshQuietly();
     };
+    const onPageShow = (event) => {
+      if (event.persisted) refreshQuietly();
+    };
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('focus', refreshQuietly);
+    window.addEventListener('pageshow', onPageShow);
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('focus', refreshQuietly);
+      window.removeEventListener('pageshow', onPageShow);
     };
-  }, [agentRouteActive]);
+  }, [agentRouteActive, refreshQuietly]);
 
   const value = {
     agent,
@@ -217,6 +293,7 @@ export function AgentAuthProvider({ children }) {
     error,
     setError,
     isAuthenticated: !!agent && !!getAgentAccessToken(),
+    identityConflict,
     login,
     register,
     logout,
@@ -224,6 +301,8 @@ export function AgentAuthProvider({ children }) {
     refreshAgent,
     ensureSession,
     refreshQuietly,
+    continueAsCurrentSession,
+    signInAgainFromConflict,
   };
 
   return (

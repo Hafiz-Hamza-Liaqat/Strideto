@@ -17,6 +17,7 @@ import { LanguageProvider } from './context/LanguageContext';
 import { LANG_STORAGE_KEY } from './i18n/config.js';
 import { OnboardingProvider } from './onboarding';
 import { ScrollManager } from './components/navigation/ScrollManager.jsx';
+import { TabSessionGuard } from './components/auth/SessionChangeScreen';
 import './index.css';
 
 const BOOTSTRAP_LOADING = {
@@ -69,7 +70,9 @@ function Bootstrap() {
                       <OnboardingProvider>
                         <ScrollManager />
                         <Suspense fallback={<PageLoading />}>
-                          <App />
+                          <TabSessionGuard>
+                            <App />
+                          </TabSessionGuard>
                         </Suspense>
                       </OnboardingProvider>
                     </NotificationProvider>

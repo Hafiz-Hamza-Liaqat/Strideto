@@ -4,6 +4,7 @@ import {
   useState,
   useCallback,
   useEffect,
+  useRef,
 } from 'react';
 import { useLocation } from 'react-router-dom';
 import {
@@ -18,6 +19,12 @@ import {
   clearActiveWorkspacePreferenceIfRealm,
   writeActiveWorkspacePreference,
 } from '../auth/activeWorkspace';
+import {
+  bindTabIdentity,
+  clearTabIdentity,
+  compareTabIdentity,
+  readTabIdentity,
+} from '../auth/tabIdentity';
 
 /**
  * SEC-3E — mirrors `AuthContext.jsx`'s secure contract: the Employer
@@ -48,6 +55,8 @@ export function EmployerAuthProvider({ children }) {
   const [employer, setEmployer] = useState(readStoredEmployer);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [identityConflict, setIdentityConflict] = useState(null);
+  const authEpoch = useRef(0);
 
   const persistEmployer = useCallback((e) => {
     setEmployer(e);
@@ -55,17 +64,48 @@ export function EmployerAuthProvider({ children }) {
     else localStorage.removeItem(STORAGE_EMPLOYER);
   }, []);
 
+  const bindLocalEmployer = useCallback((next) => {
+    authEpoch.current += 1;
+    const subjectId = next?._id || next?.id;
+    if (subjectId) bindTabIdentity('employer', subjectId);
+    persistEmployer(next);
+    setIdentityConflict(null);
+  }, [persistEmployer]);
+
+  const acceptEmployerSubject = useCallback((next) => {
+    const subjectId = next?._id || next?.id;
+    if (!subjectId) {
+      persistEmployer(null);
+      return null;
+    }
+    if (compareTabIdentity('employer', subjectId) === 'mismatch') {
+      const expected = readTabIdentity('employer');
+      persistEmployer(null);
+      setIdentityConflict({
+        realm: 'employer',
+        expectedSubjectId: expected?.subjectId || null,
+        actualSubjectId: String(subjectId),
+        pendingRecord: next,
+      });
+      return null;
+    }
+    bindTabIdentity('employer', subjectId);
+    persistEmployer(next);
+    setIdentityConflict(null);
+    return next;
+  }, [persistEmployer]);
+
   const login = useCallback(
     async (email, password) => {
       setError(null);
       const { data } = await employerAuthApi.login(email, password);
       setEmployerAccessToken(data.accessToken);
       const me = await employerAuthApi.me();
-      persistEmployer(me.data.employer);
+      bindLocalEmployer(me.data.employer);
       writeActiveWorkspacePreference('employer');
       return me.data.employer;
     },
-    [persistEmployer]
+    [bindLocalEmployer]
   );
 
   const register = useCallback(
@@ -80,18 +120,17 @@ export function EmployerAuthProvider({ children }) {
       }
       setEmployerAccessToken(data.accessToken);
       const me = await employerAuthApi.me();
-      persistEmployer(me.data.employer);
+      bindLocalEmployer(me.data.employer);
       writeActiveWorkspacePreference('employer');
       return me.data.employer;
     },
-    [persistEmployer]
+    [bindLocalEmployer]
   );
 
   const refreshEmployer = useCallback(async () => {
     const { data } = await employerAuthApi.me();
-    persistEmployer(data.employer);
-    return data.employer;
-  }, [persistEmployer]);
+    return acceptEmployerSubject(data.employer);
+  }, [acceptEmployerSubject]);
 
   const ensureSession = useCallback(async () => {
     if (getEmployerAccessToken() && employer) return employer;
@@ -99,23 +138,26 @@ export function EmployerAuthProvider({ children }) {
       const { data } = await employerAuthApi.refresh();
       setEmployerAccessToken(data.accessToken);
       const me = await employerAuthApi.me();
-      persistEmployer(me.data.employer);
-      return me.data.employer;
+      return acceptEmployerSubject(me.data.employer);
     } catch {
+      if (getEmployerAccessToken() && employer) return employer;
       clearEmployerSessionLocal();
       persistEmployer(null);
       return null;
     }
-  }, [employer, persistEmployer]);
+  }, [employer, persistEmployer, acceptEmployerSubject]);
 
   const refreshQuietly = useCallback(() => {
-    if (document.hidden || !getEmployerAccessToken()) return;
-    employerAuthApi.refresh().then(({ data }) => {
+    if (document.hidden) return;
+    employerAuthApi.refresh().then(async ({ data }) => {
       if (data?.accessToken) setEmployerAccessToken(data.accessToken);
+      const me = await employerAuthApi.me();
+      acceptEmployerSubject(me.data.employer);
     }).catch(() => {});
-  }, []);
+  }, [acceptEmployerSubject]);
 
   const logout = useCallback(async () => {
+    authEpoch.current += 1;
     try {
       if (getEmployerAccessToken()) {
         await employerAuthApi.logout();
@@ -123,30 +165,46 @@ export function EmployerAuthProvider({ children }) {
     } catch {
       /* local clear still required */
     }
+    clearTabIdentity('employer');
     clearEmployerSessionLocal();
     persistEmployer(null);
+    setIdentityConflict(null);
     clearActiveWorkspacePreferenceIfRealm('employer');
   }, [persistEmployer]);
 
   const logoutAll = useCallback(async () => {
+    authEpoch.current += 1;
     try {
       await employerAuthApi.logoutAll();
     } finally {
+      clearTabIdentity('employer');
       clearEmployerSessionLocal();
       persistEmployer(null);
+      setIdentityConflict(null);
       clearActiveWorkspacePreferenceIfRealm('employer');
     }
   }, [persistEmployer]);
 
+  const continueAsCurrentSession = useCallback(() => {
+    setIdentityConflict((current) => {
+      if (current?.pendingRecord) bindLocalEmployer(current.pendingRecord);
+      return null;
+    });
+  }, [bindLocalEmployer]);
+
+  const signInAgainFromConflict = useCallback(async () => {
+    await logout();
+  }, [logout]);
+
   const employerRouteActive = isEmployerRoutePrefix(pathname);
 
   useEffect(() => {
-    // Realm-boundary bootstrap only — never re-run on every in-portal pathname.
     if (!employerRouteActive) {
       setLoading(false);
       return undefined;
     }
 
+    const epoch = authEpoch.current;
     let cancelled = false;
     const alreadyHydrated = !!getEmployerAccessToken();
     if (!alreadyHydrated) setLoading(true);
@@ -154,21 +212,28 @@ export function EmployerAuthProvider({ children }) {
     employerAuthApi
       .refresh()
       .then(({ data }) => {
-        if (cancelled) return null;
+        if (cancelled || epoch !== authEpoch.current) return null;
         setEmployerAccessToken(data.accessToken);
         return employerAuthApi.me();
       })
       .then((res) => {
-        if (!cancelled && res) persistEmployer(res.data.employer);
+        if (!cancelled && epoch === authEpoch.current && res) acceptEmployerSubject(res.data.employer);
       })
       .catch(() => {
-        if (!cancelled) {
+        if (!cancelled && epoch === authEpoch.current) {
+          if (getEmployerAccessToken()) {
+            return employerAuthApi.me().then((res) => acceptEmployerSubject(res.data.employer)).catch(() => {
+              clearEmployerSessionLocal();
+              persistEmployer(null);
+            });
+          }
           clearEmployerSessionLocal();
           persistEmployer(null);
         }
+        return null;
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && epoch === authEpoch.current) setLoading(false);
       });
 
     return () => {
@@ -179,22 +244,21 @@ export function EmployerAuthProvider({ children }) {
 
   useEffect(() => {
     if (!employerRouteActive) return undefined;
-    const refreshQuietly = () => {
-      if (document.hidden || !getEmployerAccessToken()) return;
-      employerAuthApi.refresh().then(({ data }) => {
-        if (data?.accessToken) setEmployerAccessToken(data.accessToken);
-      }).catch(() => {});
-    };
     const onVisibility = () => {
       if (document.visibilityState === 'visible') refreshQuietly();
     };
+    const onPageShow = (event) => {
+      if (event.persisted) refreshQuietly();
+    };
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('focus', refreshQuietly);
+    window.addEventListener('pageshow', onPageShow);
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('focus', refreshQuietly);
+      window.removeEventListener('pageshow', onPageShow);
     };
-  }, [employerRouteActive]);
+  }, [employerRouteActive, refreshQuietly]);
 
   const value = {
     employer,
@@ -202,6 +266,7 @@ export function EmployerAuthProvider({ children }) {
     error,
     setError,
     isAuthenticated: !!employer && !!getEmployerAccessToken(),
+    identityConflict,
     login,
     register,
     logout,
@@ -209,6 +274,8 @@ export function EmployerAuthProvider({ children }) {
     refreshEmployer,
     ensureSession,
     refreshQuietly,
+    continueAsCurrentSession,
+    signInAgainFromConflict,
   };
 
   return (

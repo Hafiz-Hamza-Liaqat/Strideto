@@ -1,4 +1,4 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react';
 import { useLocation } from 'react-router-dom';
 import { isInstitutionRoutePrefix } from '../auth/institutionAuthRealm';
 import { onSessionExpired } from '../auth/sessionExpired';
@@ -6,6 +6,12 @@ import {
   clearActiveWorkspacePreferenceIfRealm,
   writeActiveWorkspacePreference,
 } from '../auth/activeWorkspace';
+import {
+  bindTabIdentity,
+  clearTabIdentity,
+  compareTabIdentity,
+  readTabIdentity,
+} from '../auth/tabIdentity';
 import {
   clearInstitutionAccessToken,
   getInstitutionAccessToken,
@@ -34,6 +40,8 @@ export function InstitutionAuthProvider({ children }) {
   const [session, setSession] = useState(readStoredSession);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [identityConflict, setIdentityConflict] = useState(null);
+  const authEpoch = useRef(0);
 
   const persist = useCallback((next) => {
     setSession(next);
@@ -41,21 +49,53 @@ export function InstitutionAuthProvider({ children }) {
     else localStorage.removeItem(STORAGE_KEY);
   }, []);
 
+  const bindLocalInstitution = useCallback((next) => {
+    authEpoch.current += 1;
+    const subjectId = next?.account?._id || next?.account?.id;
+    if (subjectId) bindTabIdentity('institution', subjectId);
+    persist(next);
+    setIdentityConflict(null);
+  }, [persist]);
+
+  const acceptInstitutionSubject = useCallback((next) => {
+    const subjectId = next?.account?._id || next?.account?.id;
+    if (!subjectId) {
+      persist(null);
+      return null;
+    }
+    if (compareTabIdentity('institution', subjectId) === 'mismatch') {
+      const expected = readTabIdentity('institution');
+      persist(null);
+      setIdentityConflict({
+        realm: 'institution',
+        expectedSubjectId: expected?.subjectId || null,
+        actualSubjectId: String(subjectId),
+        pendingRecord: next,
+      });
+      return null;
+    }
+    bindTabIdentity('institution', subjectId);
+    persist(next);
+    setIdentityConflict(null);
+    return next;
+  }, [persist]);
+
   const loadMe = useCallback(async () => {
     const { data } = await institutionAuthApi.me();
     const next = { account: data.account, memberships: data.memberships || [] };
-    persist(next);
-    return next;
-  }, [persist]);
+    return acceptInstitutionSubject(next);
+  }, [acceptInstitutionSubject]);
 
   const login = useCallback(async (email, password) => {
     setError('');
     const { data } = await institutionAuthApi.login(email, password);
     setInstitutionAccessToken(data.accessToken);
-    const next = await loadMe();
+    const { data: me } = await institutionAuthApi.me();
+    const next = { account: me.account, memberships: me.memberships || [] };
+    bindLocalInstitution(next);
     writeActiveWorkspacePreference('institution');
     return next;
-  }, [loadMe]);
+  }, [bindLocalInstitution]);
 
   const register = useCallback(async (payload) => {
     setError('');
@@ -68,10 +108,12 @@ export function InstitutionAuthProvider({ children }) {
       };
     }
     setInstitutionAccessToken(data.accessToken);
-    const next = await loadMe();
+    const { data: me } = await institutionAuthApi.me();
+    const next = { account: me.account, memberships: me.memberships || [] };
+    bindLocalInstitution(next);
     writeActiveWorkspacePreference('institution');
     return next;
-  }, [loadMe]);
+  }, [bindLocalInstitution]);
 
   const ensureSession = useCallback(async () => {
     if (getInstitutionAccessToken() && session?.account) return session;
@@ -80,6 +122,7 @@ export function InstitutionAuthProvider({ children }) {
       setInstitutionAccessToken(data.accessToken);
       return await loadMe();
     } catch {
+      if (getInstitutionAccessToken() && session?.account) return session;
       clearLocalSession();
       persist(null);
       return null;
@@ -87,38 +130,58 @@ export function InstitutionAuthProvider({ children }) {
   }, [session, loadMe, persist]);
 
   const refreshQuietly = useCallback(() => {
-    if (document.hidden || !getInstitutionAccessToken()) return;
-    institutionAuthApi.refresh().then(({ data }) => {
+    if (document.hidden) return;
+    institutionAuthApi.refresh().then(async ({ data }) => {
       if (data?.accessToken) setInstitutionAccessToken(data.accessToken);
+      await loadMe();
     }).catch(() => {});
-  }, []);
+  }, [loadMe]);
 
   const logout = useCallback(async () => {
+    authEpoch.current += 1;
     try {
       if (getInstitutionAccessToken()) await institutionAuthApi.logout();
     } catch { /* best-effort cookie cleanup */ }
     finally {
+      clearTabIdentity('institution');
       clearLocalSession();
       setSession(null);
+      setIdentityConflict(null);
       clearActiveWorkspacePreferenceIfRealm('institution');
     }
   }, []);
 
   const logoutAll = useCallback(async () => {
+    authEpoch.current += 1;
     try {
       await institutionAuthApi.logoutAll();
     } finally {
+      clearTabIdentity('institution');
       clearLocalSession();
       setSession(null);
+      setIdentityConflict(null);
       clearActiveWorkspacePreferenceIfRealm('institution');
     }
   }, []);
 
+  const continueAsCurrentSession = useCallback(() => {
+    setIdentityConflict((current) => {
+      if (current?.pendingRecord) bindLocalInstitution(current.pendingRecord);
+      return null;
+    });
+  }, [bindLocalInstitution]);
+
+  const signInAgainFromConflict = useCallback(async () => {
+    await logout();
+  }, [logout]);
+
   useEffect(() => {
     return onSessionExpired((realm) => {
       if (realm === 'institution') {
+        clearTabIdentity('institution');
         clearLocalSession();
         setSession(null);
+        setIdentityConflict(null);
       }
     });
   }, []);
@@ -129,6 +192,7 @@ export function InstitutionAuthProvider({ children }) {
       return undefined;
     }
 
+    const epoch = authEpoch.current;
     let cancelled = false;
     const alreadyHydrated = !!getInstitutionAccessToken();
     if (!alreadyHydrated) setLoading(true);
@@ -136,21 +200,28 @@ export function InstitutionAuthProvider({ children }) {
     institutionAuthApi
       .refresh()
       .then(({ data }) => {
-        if (cancelled) return null;
+        if (cancelled || epoch !== authEpoch.current) return null;
         setInstitutionAccessToken(data.accessToken);
         return loadMe();
       })
       .then((next) => {
-        if (!cancelled && next) persist(next);
+        if (!cancelled && epoch === authEpoch.current && next) persist(next);
       })
       .catch(() => {
-        if (!cancelled) {
+        if (!cancelled && epoch === authEpoch.current) {
+          if (getInstitutionAccessToken()) {
+            return loadMe().catch(() => {
+              clearLocalSession();
+              setSession(null);
+            });
+          }
           clearLocalSession();
           setSession(null);
         }
+        return null;
       })
       .finally(() => {
-        if (!cancelled) setLoading(false);
+        if (!cancelled && epoch === authEpoch.current) setLoading(false);
       });
 
     return () => { cancelled = true; };
@@ -159,22 +230,21 @@ export function InstitutionAuthProvider({ children }) {
 
   useEffect(() => {
     if (!institutionRouteActive) return undefined;
-    const refreshQuietly = () => {
-      if (document.hidden || !getInstitutionAccessToken()) return;
-      institutionAuthApi.refresh().then(({ data }) => {
-        if (data?.accessToken) setInstitutionAccessToken(data.accessToken);
-      }).catch(() => {});
-    };
     const onVisibility = () => {
       if (document.visibilityState === 'visible') refreshQuietly();
     };
+    const onPageShow = (event) => {
+      if (event.persisted) refreshQuietly();
+    };
     document.addEventListener('visibilitychange', onVisibility);
     window.addEventListener('focus', refreshQuietly);
+    window.addEventListener('pageshow', onPageShow);
     return () => {
       document.removeEventListener('visibilitychange', onVisibility);
       window.removeEventListener('focus', refreshQuietly);
+      window.removeEventListener('pageshow', onPageShow);
     };
-  }, [institutionRouteActive]);
+  }, [institutionRouteActive, refreshQuietly]);
 
   const account = session?.account || null;
   const memberships = session?.memberships || [];
@@ -189,13 +259,16 @@ export function InstitutionAuthProvider({ children }) {
     error,
     setError,
     isAuthenticated: !!account && !!organizationId && !!getInstitutionAccessToken(),
+    identityConflict,
     login,
     register,
     logout,
     logoutAll,
     ensureSession,
     refreshQuietly,
-  }), [account, memberships, organizationId, loading, error, login, register, logout, logoutAll, ensureSession, refreshQuietly]);
+    continueAsCurrentSession,
+    signInAgainFromConflict,
+  }), [account, memberships, organizationId, loading, error, identityConflict, login, register, logout, logoutAll, ensureSession, refreshQuietly, continueAsCurrentSession, signInAgainFromConflict]);
 
   return <InstitutionAuthContext.Provider value={value}>{children}</InstitutionAuthContext.Provider>;
 }

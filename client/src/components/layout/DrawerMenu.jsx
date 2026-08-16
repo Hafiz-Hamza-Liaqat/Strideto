@@ -3,6 +3,8 @@ import { createPortal } from 'react-dom';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useActiveWorkspace } from '../../context/ActiveWorkspaceContext';
+import { useAuth } from '../../context/AuthContext';
+import { resolvePublicHeaderSession } from '../../auth/publicHeaderSession';
 import { useOverlayA11y } from '../../a11y/useOverlayA11y';
 import { DRAWER_NAV_ITEMS } from './navConfig';
 import { isNavItemCurrent, isNavPathCurrent } from './Navbar';
@@ -16,7 +18,18 @@ export function DrawerMenu({ open, onClose }) {
   const panelRef = useRef(null);
   const { t } = useTranslation(['navbar', 'common']);
   const { pathname } = useLocation();
-  const { identity, isAuthenticated } = useActiveWorkspace();
+  const { identity, isAuthenticated, isHydrating } = useActiveWorkspace();
+  const { user, isAuthenticated: userAuthenticated, loading: userLoading } = useAuth();
+  const headerSession = resolvePublicHeaderSession({
+    workspaceIdentity: identity,
+    workspaceAuthenticated: isAuthenticated,
+    workspaceHydrating: isHydrating,
+    user,
+    userAuthenticated,
+    userLoading,
+  });
+  const sessionIdentity = headerSession.identity || identity;
+  const chromeAuthenticated = headerSession.kind === 'student' || headerSession.kind === 'b2b';
 
   const navItems = useMemo(
     () =>
@@ -168,23 +181,23 @@ export function DrawerMenu({ open, onClose }) {
             )
           )}
 
-          {isAuthenticated && identity.workspaceHref ? (
+          {chromeAuthenticated && sessionIdentity.workspaceHref ? (
             <>
               <p className="px-4 pt-4 pb-1 text-xs font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
                 {t('navbar:accountMenu')}
               </p>
               <Link
-                to={identity.workspaceHref}
+                to={sessionIdentity.workspaceHref}
                 onClick={handleClose}
                 className={linkClass}
                 data-tour="dashboard"
-                aria-current={isCurrent(identity.workspaceHref) ? 'page' : undefined}
+                aria-current={isCurrent(sessionIdentity.workspaceHref) ? 'page' : undefined}
               >
-                {identity.realm === 'student'
+                {sessionIdentity.realm === 'student'
                   ? t('navbar:dashboard')
-                  : identity.realm === 'employer'
+                  : sessionIdentity.realm === 'employer'
                     ? t('navbar:employerWorkspace', { defaultValue: 'Employer Workspace' })
-                    : identity.realm === 'agent'
+                    : sessionIdentity.realm === 'agent'
                       ? t('navbar:agentWorkspace', { defaultValue: 'Agent Workspace' })
                       : t('navbar:institutionWorkspace', { defaultValue: 'Institution Workspace' })}
               </Link>

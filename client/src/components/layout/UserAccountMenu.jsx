@@ -10,6 +10,7 @@ import { LanguageSwitcher } from '../i18n/LanguageSwitcher';
 import { restartProductTour } from '../../onboarding';
 import { useOverlayA11y } from '../../a11y/useOverlayA11y';
 import { useActiveWorkspace } from '../../context/ActiveWorkspaceContext';
+import { resolvePublicHeaderSession } from '../../auth/publicHeaderSession';
 
 const itemClass =
   'block w-[calc(100%-0.5rem)] mx-1 px-3 py-2.5 text-sm text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700/50 rounded-lg focus:outline-none focus-visible:ring-2 focus-visible:ring-primary min-h-[44px]';
@@ -69,7 +70,7 @@ function RoleBadge({ label, verifiedLabel }) {
 export function UserAccountMenu() {
   const { t } = useTranslation(['navbar', 'common']);
   const navigate = useNavigate();
-  const { user, logout } = useAuth();
+  const { user, logout, isAuthenticated: userAuthenticated, loading: userLoading } = useAuth();
   const {
     identity,
     isAuthenticated,
@@ -87,8 +88,18 @@ export function UserAccountMenu() {
   const ref = useRef(null);
   const panelRef = useRef(null);
 
-  const showUserSession = isAuthenticated && identity.realm === 'student';
-  const showB2bSession = isAuthenticated && identity.realm !== 'student' && identity.realm !== 'guest';
+  const headerSession = resolvePublicHeaderSession({
+    workspaceIdentity: identity,
+    workspaceAuthenticated: isAuthenticated,
+    workspaceHydrating: isHydrating,
+    user,
+    userAuthenticated,
+    userLoading,
+  });
+  const sessionIdentity = headerSession.identity || identity;
+  const showUserSession = headerSession.kind === 'student';
+  const showB2bSession = headerSession.kind === 'b2b';
+  const chromeAuthenticated = showUserSession || showB2bSession;
 
   useOverlayA11y({
     open,
@@ -121,7 +132,7 @@ export function UserAccountMenu() {
   };
 
   const handleLogout = async () => {
-    if (identity.realm === 'student') {
+    if (showUserSession) {
       await logout();
       close();
       navigate(ROUTES.HOME, { replace: true });
@@ -141,15 +152,15 @@ export function UserAccountMenu() {
     }
   };
 
-  const triggerLabel = isAuthenticated
+  const triggerLabel = chromeAuthenticated
     ? t('navbar:accountMenuNamed', {
-        name: identity.displayName,
-        role: identity.roleLabel,
-        defaultValue: `Account menu, ${identity.displayName}, ${identity.roleLabel}`,
+        name: sessionIdentity.displayName,
+        role: sessionIdentity.roleLabel,
+        defaultValue: `Account menu, ${sessionIdentity.displayName}, ${sessionIdentity.roleLabel}`,
       })
     : t('navbar:accountMenu');
 
-  if (isHydrating && !isAuthenticated) {
+  if (headerSession.kind === 'hydrating') {
     return (
       <div className="relative min-w-[44px] min-h-[44px] flex items-center" data-tour="user-profile">
         <AccountSkeleton />
@@ -170,9 +181,9 @@ export function UserAccountMenu() {
         aria-haspopup="dialog"
         aria-controls="account-menu-panel"
       >
-        {identity.avatarUrl ? (
+        {sessionIdentity.avatarUrl ? (
           <img
-            src={identity.avatarUrl}
+            src={sessionIdentity.avatarUrl}
             alt=""
             className="h-8 w-8 rounded-full object-cover bg-white/10"
           />
@@ -186,13 +197,13 @@ export function UserAccountMenu() {
             />
           </svg>
         )}
-        {isAuthenticated ? (
+        {chromeAuthenticated ? (
           <span className="hidden min-[768px]:flex flex-col items-start min-w-0 max-w-[9.5rem]">
             <span className="w-full truncate text-start text-sm font-medium text-white leading-tight">
-              {identity.displayName}
+              {sessionIdentity.displayName}
             </span>
             <span className="w-full truncate text-start text-xs text-slate-300 leading-tight">
-              {identity.roleLabel}
+              {sessionIdentity.roleLabel}
             </span>
           </span>
         ) : null}
@@ -214,9 +225,9 @@ export function UserAccountMenu() {
                     {t('navbar:signedInAs', { defaultValue: 'Signed in as' })}
                   </p>
                   <p className="break-words font-semibold text-gray-900 dark:text-white">
-                    {user?.name || identity.displayName || t('navbar:profile')}
+                    {user?.name || sessionIdentity.displayName || t('navbar:profile')}
                   </p>
-                  <RoleBadge label={identity.roleLabel} verifiedLabel={identity.verifiedLabel} />
+                  <RoleBadge label={sessionIdentity.roleLabel} verifiedLabel={sessionIdentity.verifiedLabel} />
                   {careerHeadline ? (
                     <p className="mt-0.5 break-words text-xs text-gray-500 dark:text-gray-400">{careerHeadline}</p>
                   ) : null}
@@ -293,7 +304,7 @@ export function UserAccountMenu() {
               </>
             )}
 
-            {isAuthenticated ? (
+            {chromeAuthenticated ? (
               <>
                 <MenuSeparator />
                 <MenuButton
@@ -392,7 +403,7 @@ export function UserAccountMenu() {
             </MenuLink>
           </div>
 
-          {isAuthenticated ? (
+          {chromeAuthenticated ? (
             <div className="shrink-0 border-t border-gray-200 bg-white py-1 dark:border-gray-700 dark:bg-gray-800">
               <MenuSectionLabel>{t('navbar:session', { defaultValue: 'Session' })}</MenuSectionLabel>
               <MenuButton
