@@ -81,7 +81,10 @@ const table = read('components/applications/ApplicationTable.jsx');
 
 // --- Account menu ---
 {
-  check(/navbar:myWorkspace/.test(account), 'account menu includes My Workspace / Dashboard');
+  check(
+    /openUserWorkspace\('student'\)/.test(account) || /navbar:myWorkspace/.test(account),
+    'account menu includes Student / My Workspace'
+  );
   check(/ROUTES\.PROFILE/.test(account) && /navbar:profile/.test(account), 'account menu includes Profile');
   check(/ROUTES\.PRIVACY/.test(account), 'account menu includes Privacy');
   check(/account-settings/.test(account) && /navbar:accountSettings/.test(account), 'account menu includes settings');
