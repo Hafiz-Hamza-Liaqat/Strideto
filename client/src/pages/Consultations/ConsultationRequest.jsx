@@ -22,6 +22,7 @@ export default function ConsultationRequest() {
       if (r.data.availability?.[0]) setForm((old) => ({ ...old, membershipId: r.data.availability[0].membershipId }));
     }).catch((e) => setError(e.response?.data?.error || 'No bookable availability is available.'));
   }, [serviceId]);
+  const hasAvailability = Array.isArray(data?.availability) && data.availability.length > 0;
   const submit = async (event) => {
     event.preventDefault();
     const selected = data?.availability?.find((a) => a.membershipId === form.membershipId);
@@ -44,28 +45,76 @@ export default function ConsultationRequest() {
     }
   };
   return (
-    <div className={`mx-auto max-w-2xl px-4 py-10 ${ui.page}`}>
+    <div className={`mx-auto max-w-2xl px-4 py-10 min-w-0 overflow-x-hidden ${ui.page}`}>
       <h1 className={ui.h1}>Request consultation</h1>
       <p className={`mt-2 ${ui.muted}`}>Times are stored as UTC instants while preserving the Agent’s IANA timezone.</p>
       {error ? <p className={`mt-4 ${ui.error}`} role="alert">{error}</p> : null}
       {data ? (
-        <form onSubmit={submit} className={`mt-6 space-y-4 ${ui.card} p-6`}>
-          <label className="block text-sm">Agent availability
-            <select className={`${ui.input} mt-1`} value={form.membershipId} onChange={(e) => setForm({ ...form, membershipId: e.target.value })}>
-              {data.availability.map((a) => <option key={a.membershipId} value={a.membershipId}>{a.timezone} · {a.windows.length} weekly windows</option>)}
-            </select>
-          </label>
+        <form onSubmit={submit} className={`mt-6 space-y-4 ${ui.card} p-6 min-w-0`}>
+          {hasAvailability ? (
+            <label className="block text-sm">
+              Agent availability
+              <select
+                className={`${ui.input} mt-1`}
+                value={form.membershipId}
+                onChange={(e) => setForm({ ...form, membershipId: e.target.value })}
+                aria-label="Agent availability"
+              >
+                {data.availability.map((a) => (
+                  <option key={a.membershipId} value={a.membershipId}>
+                    {a.timezone} · {a.windows.length} weekly windows
+                  </option>
+                ))}
+              </select>
+            </label>
+          ) : (
+            <p className={`${ui.muted} break-words-safe`} role="status">
+              No consultation availability is currently published for this service.
+            </p>
+          )}
           <label className="block text-sm">Requested start
-            <input type="datetime-local" required value={form.requestedStart} onChange={(e) => setForm({ ...form, requestedStart: e.target.value })} className={`${ui.input} mt-1`} />
+            <input
+              type="datetime-local"
+              required={hasAvailability}
+              disabled={!hasAvailability}
+              value={form.requestedStart}
+              onChange={(e) => setForm({ ...form, requestedStart: e.target.value })}
+              className={`${ui.input} mt-1`}
+            />
           </label>
           <label className="block text-sm">Purpose
-            <input required maxLength={300} value={form.purpose} onChange={(e) => setForm({ ...form, purpose: e.target.value })} className={`${ui.input} mt-1`} />
+            <input
+              required={hasAvailability}
+              disabled={!hasAvailability}
+              maxLength={300}
+              value={form.purpose}
+              onChange={(e) => setForm({ ...form, purpose: e.target.value })}
+              className={`${ui.input} mt-1`}
+            />
           </label>
           <label className="block text-sm">Note
-            <textarea maxLength={2000} value={form.studentNote} onChange={(e) => setForm({ ...form, studentNote: e.target.value })} className={`${ui.input} mt-1`} />
+            <textarea
+              disabled={!hasAvailability}
+              maxLength={2000}
+              value={form.studentNote}
+              onChange={(e) => setForm({ ...form, studentNote: e.target.value })}
+              className={`${ui.input} mt-1`}
+            />
           </label>
           <p className={ui.warning}>Payment status: {data.paymentState.replaceAll('_', ' ')}. Strideto does not collect or settle consultation payments in this release.</p>
-          <button disabled={busy || data.availability.length === 0} className={ui.primaryBtn}>{busy ? 'Requesting…' : 'Request consultation'}</button>
+          <button
+            type="submit"
+            disabled={busy || !hasAvailability}
+            className={ui.primaryBtn}
+            aria-disabled={busy || !hasAvailability}
+          >
+            {busy ? 'Requesting…' : 'Request consultation'}
+          </button>
+          {!hasAvailability ? (
+            <p className={`text-xs ${ui.muted}`}>
+              Request is disabled until the provider publishes bookable availability for this service.
+            </p>
+          ) : null}
         </form>
       ) : null}
     </div>

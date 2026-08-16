@@ -66,6 +66,20 @@ export function parseLocalTime(value) {
   return Number(match[1]) <= 23 && Number(match[2]) <= 59 ? minutes : null;
 }
 
+const WEEKDAY_NAMES = Object.freeze([
+  'Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday',
+]);
+
+function formatLocalClock(hhmm) {
+  const minutes = parseLocalTime(hhmm);
+  if (minutes === null) return String(hhmm || '');
+  const hour24 = Math.floor(minutes / 60);
+  const minute = minutes % 60;
+  const suffix = hour24 >= 12 ? 'PM' : 'AM';
+  const hour12 = hour24 % 12 === 0 ? 12 : hour24 % 12;
+  return `${hour12}:${String(minute).padStart(2, '0')} ${suffix}`;
+}
+
 export function validateAvailabilityWindows(windows = []) {
   if (!Array.isArray(windows) || windows.length > 21) return { ok: false, error: 'Availability windows must be a bounded list' };
   const normalized = [];
@@ -82,7 +96,11 @@ export function validateAvailabilityWindows(windows = []) {
     for (let j = i + 1; j < normalized.length; j += 1) {
       const a = normalized[i]; const b = normalized[j];
       if (a.weekday === b.weekday && a.start < b.end && b.start < a.end) {
-        return { ok: false, error: 'Availability windows cannot overlap' };
+        const day = WEEKDAY_NAMES[a.weekday] || 'Weekday';
+        return {
+          ok: false,
+          error: `${day} ${formatLocalClock(a.startLocal)}–${formatLocalClock(a.endLocal)} overlaps another ${day} window.`,
+        };
       }
     }
   }
