@@ -31,6 +31,18 @@ FILING AUTHORIZATION + EXTERNAL FILING FOUNDATION
 
 **EXISTING WORKER:** STOPPED
 
+**17D-9A:** CLOSED
+
+**Final predecessor Mongo / authority / index regression:** PASS
+
+**Critical indexes:** PASS
+
+**MONGO_AUTO_INDEX:** OFF / UNSET
+
+**syncIndexes:** NO
+
+**dropIndexes:** NO
+
 **17D-9B:** NOT STARTED
 
 **PHASE 18:** NOT STARTED
@@ -59,7 +71,7 @@ Canonical lock: `docs/STRIDETO_PHASE_17D_8B2C_PRE_CASE_FILING_AUTHORIZATION_DECI
 
 Local staging api-a / api-b / frontend were rebuilt onto that implementation HEAD. Mongo, Redis, Mailpit, Caddy, volumes, and the stopped Worker were preserved. No `docker compose down` / `down -v`.
 
-This document’s docs-only sign-off commit is the **final formal 17D-9A closure HEAD**.
+The implementation/docs-readiness commit `91027704391d200ce98072c8f712a5a2cc2e1197` recorded merged 17D-9A engineering. The subsequent docs-only finalize commit is the **final formal 17D-9A closure HEAD**.
 
 Protected WIP left untouched:
 
@@ -417,7 +429,8 @@ Local APIs used the existing untracked `docker-compose.appenv-align.yml` overlay
 2. `a3840d4bd7e6463e023bc5c5c3ebe9132f9239d7` `feat(gbs): add high-assurance case filing authorization` (includes 8C provenance foundation in the same backend commit)
 3. `0409715f6d4e72d9684e6b23cff41bc2f769698b` `feat(gbs): add customer authorization and provider status workflow`
 4. `edd60eb27de895d970e689286fb8ae168e11ba86` `test(gbs): verify filing authorization and external submission safety`
-5. This docs-only closure commit: `docs(release): record phase 17d-9a merged authorization readiness`
+5. `91027704391d200ce98072c8f712a5a2cc2e1197` `docs(release): record phase 17d-9a merged authorization readiness`
+6. This docs-only finalize commit: `docs(release): finalize phase 17d-9a acceptance and closure`
 
 No amend. No push.
 
@@ -428,3 +441,38 @@ No amend. No push.
 PHASE 17D-9A CLOSED means engineering for CaseFilingAuthorization and Provider-attested external filing provenance is complete and production remains disabled.
 
 It does **not** authorize draft→active, draft→reviewed, legal-text approval, production grant availability, production external filing, actual Wyoming filing, government credentials, HSI enablement, Worker start, 17D-9B, or Phase 18.
+
+---
+
+## 21. Final predecessor Mongo / authority / index regression
+
+Evidence-only run after HEAD `91027704391d200ce98072c8f712a5a2cc2e1197`. No application, test, config, or doc changes in that run.
+
+| Suite | Result |
+| --- | --- |
+| `phase17d8b2bRequirementPack.mongo.test.js` | PASS |
+| `phase17d8aCase.mongo.test.js` | PASS |
+| `phase17d8b1CaseDocument.mongo.test.js` | PASS |
+| `phase17d7Quote.mongo.test.js` | PASS |
+| `phase17d3rProviderDomains.mongo.test.js` | PASS (9/9) |
+| `phase17d9aFilingAuthorization.mongo.test.js` | PASS (2/2) |
+| `phase17d9aLiveIndexIdempotency.mongo.test.js` | PASS (1/1) |
+
+| Safety | Result |
+| --- | --- |
+| `MONGO_AUTO_INDEX` on api-a / api-b | UNSET |
+| `syncIndexes()` introduced by 17D-9A | NO |
+| `dropIndexes()` introduced by 17D-9A | NO |
+| Create-only critical index provisioning | PASS |
+| Authorization critical indexes | PASS |
+| Submission critical indexes | PASS |
+| Production Wyoming pack | draft / draft |
+| Production legal text | UNAPPROVED / DRAFT |
+| Production filing authorization | UNAVAILABLE |
+| Production external filing | UNAVAILABLE |
+| Marketplace | OFF |
+| HSI | OFF / NOT READY |
+| Existing Worker | STOPPED |
+| Queue | `queued_worker_stopped`, pending 136 undrained |
+
+**17D-9A FINAL CLOSURE: PASS**
