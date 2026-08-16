@@ -5,6 +5,7 @@ import { isShuttingDown } from '../config/shutdown.js';
 import { collectMetrics, metricsPrometheusText } from '../config/metrics.js';
 import { getExtendedHealth } from '../controllers/platformOpsController.js';
 import { getQueueStats } from '../services/jobQueueService.js';
+import { isHsiDocumentCapabilityReady } from '../services/hsi/hsiCapabilityService.js';
 
 export const healthRouter = Router();
 
@@ -50,6 +51,29 @@ healthRouter.get('/health/ready', async (_req, res) => {
     shuttingDown,
     timestamp: new Date().toISOString(),
   });
+});
+
+healthRouter.get('/health/hsi', async (_req, res) => {
+  const cap = await isHsiDocumentCapabilityReady();
+  const body = {
+    enabled: cap.enabled === true,
+    ready: cap.ready === true,
+    state: cap.state,
+    scannerConfigured: cap.scannerConfigured === true,
+    scannerHealthy: cap.scannerHealthy === true,
+    scanExecutorHealthy: cap.scanExecutorHealthy === true,
+    storageConfigured: cap.storageConfigured === true,
+    storageHealthy: cap.storageHealthy === true,
+    kmsConfigured: cap.kmsConfigured === true,
+    kmsHealthy: cap.kmsHealthy === true,
+    encryptionPolicyReady: cap.encryptionPolicyReady === true,
+    retentionPolicyReady: cap.retentionPolicyReady === true,
+    auditReady: cap.auditReady === true,
+  };
+  if (!cap.enabled) {
+    return res.status(200).json(body);
+  }
+  return res.status(cap.ready ? 200 : 503).json(body);
 });
 
 healthRouter.get('/metrics', async (req, res) => {

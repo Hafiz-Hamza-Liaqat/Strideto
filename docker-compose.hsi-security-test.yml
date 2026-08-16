@@ -1,0 +1,70 @@
+# Additive HSI security TEST profile. TEST ONLY.
+# Do not start with the normal stack. Do not publish 0.0.0.0.
+#
+#   HSI_TEST_MINIO_ROOT_PASSWORD=... HSI_TEST_VAULT_TOKEN=... docker compose -f docker-compose.hsi-security-test.yml up -d
+#
+# Never commit real credentials. Never proxy these services through Caddy.
+
+name: strideto-hsi-security-test
+
+services:
+  clamav:
+    image: clamav/clamav:1.4
+    restart: "no"
+    networks:
+      - hsi-test
+    ports:
+      - "127.0.0.1:3310:3310"
+    environment:
+      CLAMD_STARTUP_TIMEOUT: 300
+    healthcheck:
+      test: ["CMD", "clamdscan", "--ping", "8"]
+      interval: 15s
+      timeout: 8s
+      retries: 20
+      start_period: 180s
+
+  minio:
+    image: minio/minio:RELEASE.2024-12-18T13-15-44Z
+    restart: "no"
+    command: ["server", "/data", "--address", ":9000"]
+    networks:
+      - hsi-test
+    ports:
+      - "127.0.0.1:9000:9000"
+    environment:
+      MINIO_ROOT_USER: ${HSI_TEST_MINIO_ROOT_USER:?set HSI_TEST_MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${HSI_TEST_MINIO_ROOT_PASSWORD:?set HSI_TEST_MINIO_ROOT_PASSWORD}
+    healthcheck:
+      test: ["CMD-SHELL", "timeout 1 bash -c 'cat < /dev/null > /dev/tcp/127.0.0.1/9000' || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+
+  vault:
+    image: hashicorp/vault:1.18
+    restart: "no"
+    # TEST ONLY — Vault -dev is not production-ready.
+    command: ["vault", "server", "-dev", "-dev-listen-address=0.0.0.0:8200"]
+    networks:
+      - hsi-test
+    ports:
+      - "127.0.0.1:8200:8200"
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: ${HSI_TEST_VAULT_TOKEN:?set HSI_TEST_VAULT_TOKEN}
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+      VAULT_LOG_LEVEL: error
+    cap_add:
+      - IPC_LOCK
+    healthcheck:
+      test: ["CMD", "vault", "status"]
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 5s
+
+networks:
+  hsi-test:
+    driver: bridge
+    internal: false

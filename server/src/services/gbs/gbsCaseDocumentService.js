@@ -32,6 +32,7 @@ import {
   GBS_CASE_DOCUMENT_BOUNDS,
   GBS_CASE_DOCUMENT_DOCX_MIME,
   GBS_CASE_DOCUMENT_MIMES,
+  GBS_CASE_DOCUMENT_SCHEMA_VERSION,
   GBS_DOCUMENT_GRANT_GRANTEE_TYPES,
   GBS_DOCUMENT_GRANT_STATUSES,
   GBS_DOCUMENT_REQUIREMENT_STATUSES,
@@ -42,6 +43,7 @@ import {
   assertRequirementNotHsi,
   isAllowedGbsDocumentMime,
   isHsiDocumentType,
+  isHsiSensitivity,
   isOpaqueDocumentRef,
   productionDocumentPackForTemplate,
   testOnlyLowRiskPack,
@@ -76,6 +78,16 @@ import {
   isGbsProviderScanClean,
   scanGbsCaseDocumentVersion,
 } from './gbsDocumentScanService.js';
+import {
+  HSI_AAD_SCHEMA_VERSION,
+  HSI_RETENTION_CLASSES,
+  HSI_SECURITY_POLICY_VERSION,
+} from '../../../../shared/gbs/hsiSecurity.js';
+import { isHsiDocumentCapabilityReady } from '../hsi/hsiCapabilityService.js';
+import { encryptAndStoreHsiQuarantine, decryptHsiVersionBytes, isHsiEncryptedVersion } from '../hsi/hsiObjectPipeline.js';
+import { enqueueGbsDocumentScanJob } from '../hsi/gbsDocumentScanJobService.js';
+import { loadHsiSecurityConfig } from '../../config/hsiSecurityConfig.js';
+import { logRequiredHsiAudit } from '../hsi/hsiAudit.js';
 
 function deny(code, status = 400, extra = {}) {
   return Object.assign(new Error(code), { status, code, ...extra });
@@ -87,6 +99,17 @@ function notFound() {
 
 function securityUnavailable() {
   return deny(GBS_DOCUMENT_SECURITY_CODES.NOT_CONFIGURED, 403);
+}
+
+async function assertDocumentUploadSecurity(requirement) {
+  if (isHsiSensitivity(requirement.sensitivityClass)) {
+    const cap = await isHsiDocumentCapabilityReady();
+    if (!cap.enabled) throw deny(GBS_DOCUMENT_SECURITY_CODES.HSI_DISABLED, 403);
+    if (!cap.overallReady) throw deny(GBS_DOCUMENT_SECURITY_CODES.HSI_NOT_READY, 503);
+    return cap;
+  }
+  if (!gbsCaseDocumentSecurityState().configured) throw securityUnavailable();
+  return null;
 }
 
 function toId(value) {
@@ -402,6 +425,57 @@ export async function applyTestOnlyRequirementPack(record, { consentRequired = f
   return snapshotRequirements(record, pack, { actor });
 }
 
+export async function createSyntheticHsiRequirementForTest(record, { actor } = {}) {
+  if (process.env.NODE_ENV === 'production') throw deny('test_pack_forbidden', 403);
+  const cap = await isHsiDocumentCapabilityReady();
+  if (!cap.overallReady) throw deny(GBS_DOCUMENT_SECURITY_CODES.HSI_NOT_READY, 503);
+  let publicRequirementRef = generatePublicRequirementRef();
+  const doc = await GbsCaseDocumentRequirement.create({
+    publicRequirementRef,
+    caseId: record._id,
+    publicCaseRefSnapshot: record.publicCaseRef,
+    requesterUserId: record.requesterUserId,
+    providerSubjectType: record.providerSubjectType,
+    providerSubjectId: String(record.providerSubjectId),
+    requirementKey: 'synthetic_hsi_fixture',
+    label: 'TEST ONLY — synthetic HSI fixture',
+    description: 'Synthetic infrastructure fixture. Not a real identity document.',
+    category: 'operational',
+    required: true,
+    conditional: false,
+    documentType: 'other_low_risk',
+    acceptedMimeTypes: [...GBS_CASE_DOCUMENT_MIMES],
+    maxFiles: 1,
+    maxFileSize: GBS_CASE_DOCUMENT_BOUNDS.MAX_FILE_SIZE,
+    sensitivityClass: 'highly_sensitive_identity',
+    whoProvides: GBS_DOCUMENT_WHO_PROVIDES.CUSTOMER,
+    reviewRequired: true,
+    filingRequired: false,
+    consentRequired: false,
+    waivable: false,
+    templateId: 'gbs.case_documents.synthetic_hsi_test',
+    templateVersion: 1,
+    requirementVersion: 1,
+    status: GBS_DOCUMENT_REQUIREMENT_STATUSES.AWAITING_UPLOAD,
+    reviewState: GBS_DOCUMENT_REVIEW_STATES.NONE,
+    scanStatus: 'pending',
+    recordVersion: 0,
+    testOnly: true,
+  });
+  await logAudit({
+    actor: actor || {},
+    action: GBS_AUDIT_EVENTS.GBS_CASE_DOCUMENT_REQUIREMENT_CREATED,
+    targetType: 'GbsCaseDocumentRequirement',
+    targetId: String(doc._id),
+    metadata: redactAuditMetadata({
+      publicCaseRef: record.publicCaseRef,
+      requirementKey: 'synthetic_hsi_fixture',
+      templateId: 'gbs.case_documents.synthetic_hsi_test',
+    }),
+  });
+  return doc;
+}
+
 export async function evaluateCaseFilingReadinessForRecord(record, { env, now } = {}) {
   let professionalAuthorityAllowed = true;
   try {
@@ -504,9 +578,8 @@ export async function initializeCustomerDocumentUpload({
   const parsed = allowlistedDocumentUploadInput(body);
   if (!parsed.ok) throw deny(parsed.error, 400);
   if (!(await hasActiveBusinessClient(userId))) throw deny('business_client_required', 403);
-  const security = gbsCaseDocumentSecurityState();
-  if (!security.configured) throw securityUnavailable();
   const { record, requirement } = await loadOwnedRequirement(userId, caseRef, requirementRef);
+  await assertDocumentUploadSecurity(requirement);
   if (isCaseTerminal(record.status)) throw deny('invalid_status_transition', 409);
   if (requirement.whoProvides === GBS_DOCUMENT_WHO_PROVIDES.PROVIDER) {
     throw deny('provider_supplied_only', 403);
@@ -532,7 +605,142 @@ export async function initializeCustomerDocumentUpload({
       metadata: { publicCaseRef: record.publicCaseRef, requirementKey: requirement.requirementKey },
     },
   });
-  return { security: documentSecurityProjection(security), item: customerRequirementProjection(requirement, { security: documentSecurityProjection(security) }) };
+  const security = documentSecurityProjection(gbsCaseDocumentSecurityState());
+  return { security, item: customerRequirementProjection(requirement, { security }) };
+}
+
+async function persistHsiCustomerUpload({
+  userId,
+  record,
+  requirement,
+  file,
+  expectedVersion,
+  actor,
+  supersede,
+}) {
+  const validated = validateUploadBuffer(file, requirement);
+  await assertCaseQuota(record._id, file.buffer.length, {
+    excludeRequirementId: supersede ? requirement._id : null,
+  });
+  const expected = parseExpectedVersion(expectedVersion);
+  if (expected == null) throw deny('expected_version_required', 400);
+
+  let vaultDoc = requirement.activeVaultDocumentId
+    ? await VaultDocument.findOne({
+      _id: requirement.activeVaultDocumentId,
+      ownerUserId: userId,
+    })
+    : null;
+  if (!vaultDoc) {
+    vaultDoc = await VaultDocument.create({
+      ownerUserId: toId(userId),
+      documentType: 'other',
+      displayName: 'GBS case document',
+      description: '',
+      status: 'active',
+      privacyClassification: 'restricted',
+      metadata: { gbsCaseId: String(record._id), requirementKey: requirement.requirementKey },
+    });
+  }
+
+  const last = await VaultDocumentVersion.findOne({ documentId: vaultDoc._id }).sort({ versionNumber: -1 }).lean();
+  const versionNumber = (last?.versionNumber || 0) + 1;
+  const versionId = new mongoose.Types.ObjectId();
+  const config = loadHsiSecurityConfig();
+  const stored = await encryptAndStoreHsiQuarantine({
+    plaintext: file.buffer,
+    aadFields: {
+      aadVersion: HSI_AAD_SCHEMA_VERSION,
+      environment: config.environmentName,
+      caseId: String(record._id),
+      documentId: String(vaultDoc._id),
+      vaultDocumentVersionId: String(versionId),
+      classification: requirement.sensitivityClass,
+      schemaVersion: GBS_CASE_DOCUMENT_SCHEMA_VERSION,
+      securityPolicyVersion: HSI_SECURITY_POLICY_VERSION,
+    },
+  });
+  if (String(stored.storageKey || '').includes(String(userId))) {
+    throw deny('storage_key_not_opaque', 500);
+  }
+
+  if (last?._id) {
+    await VaultDocumentVersion.updateOne(
+      { _id: last._id, lifecycleStatus: 'active' },
+      { $set: { lifecycleStatus: 'superseded', retentionClass: HSI_RETENTION_CLASSES.SUPERSEDED_VERSION } }
+    );
+  }
+
+  const version = await VaultDocumentVersion.create({
+    _id: versionId,
+    documentId: vaultDoc._id,
+    ownerUserId: toId(userId),
+    versionNumber,
+    storageKey: stored.storageKey,
+    storageProvider: stored.storageProvider,
+    originalFilename: '',
+    mimeType: validated.mimeType,
+    fileSize: file.buffer.length,
+    checksum: stored.checksum,
+    uploadedBy: toId(userId),
+    scanStatus: 'pending',
+    scanCompletedAt: null,
+    lifecycleStatus: 'active',
+    storageClass: stored.storageClass,
+    quarantineBucket: stored.quarantineBucket,
+    cleanBucket: stored.cleanBucket,
+    encryption: stored.encryption,
+    classification: requirement.sensitivityClass,
+    retentionClass: HSI_RETENTION_CLASSES.UNUSED_UPLOAD,
+  });
+  await VaultDocument.updateOne({ _id: vaultDoc._id }, { $set: { currentVersionId: version._id } });
+
+  const job = await enqueueGbsDocumentScanJob({
+    vaultDocumentVersionId: version._id,
+    opaqueStorageRef: stored.storageKey,
+    checksumSha256: stored.checksum,
+    mimeType: validated.mimeType,
+    sizeBytes: file.buffer.length,
+    classification: requirement.sensitivityClass,
+  });
+  await VaultDocumentVersion.updateOne({ _id: version._id }, { $set: { scanJobId: job._id } });
+
+  const updated = await mutateRequirement({
+    requirement,
+    expectedVersion: expected,
+    extraFilter: supersede
+      ? {}
+      : { status: { $in: [
+        GBS_DOCUMENT_REQUIREMENT_STATUSES.AWAITING_UPLOAD,
+        GBS_DOCUMENT_REQUIREMENT_STATUSES.REJECTED,
+        GBS_DOCUMENT_REQUIREMENT_STATUSES.UPLOADED_PENDING_SCAN,
+        GBS_DOCUMENT_REQUIREMENT_STATUSES.AVAILABLE_FOR_REVIEW,
+      ] } },
+    set: {
+      activeVaultDocumentId: vaultDoc._id,
+      activeVaultVersionId: version._id,
+      activeVaultVersionNumber: versionNumber,
+      scanStatus: 'pending',
+      status: GBS_DOCUMENT_REQUIREMENT_STATUSES.UPLOADED_PENDING_SCAN,
+      reviewState: GBS_DOCUMENT_REVIEW_STATES.NONE,
+      acceptedAt: null,
+    },
+  });
+
+  await revokeGrantsForRequirement(requirement._id);
+  await logAudit({
+    actor,
+    action: GBS_AUDIT_EVENTS.GBS_CASE_DOCUMENT_UPLOADED,
+    targetType: 'GbsCaseDocumentRequirement',
+    targetId: String(requirement._id),
+    metadata: redactAuditMetadata({
+      publicCaseRef: record.publicCaseRef,
+      requirementKey: requirement.requirementKey,
+      versionNumber,
+      scanStatus: 'pending',
+    }),
+  });
+  return updated;
 }
 
 async function persistCustomerUpload({
@@ -544,11 +752,23 @@ async function persistCustomerUpload({
   actor,
   supersede,
 }) {
-  const security = gbsCaseDocumentSecurityState();
-  if (!security.configured) throw securityUnavailable();
   if (isCaseTerminal(record.status)) throw deny('invalid_status_transition', 409);
   if (!(await hasActiveBusinessClient(userId))) throw deny('business_client_required', 403);
+  await assertDocumentUploadSecurity(requirement);
+  if (isHsiSensitivity(requirement.sensitivityClass)) {
+    return persistHsiCustomerUpload({
+      userId,
+      record,
+      requirement,
+      file,
+      expectedVersion,
+      actor,
+      supersede,
+    });
+  }
   assertRequirementNotHsi(requirement);
+  const security = gbsCaseDocumentSecurityState();
+  if (!security.configured) throw securityUnavailable();
   const validated = validateUploadBuffer(file, requirement);
   await assertCaseQuota(record._id, file.buffer.length, {
     excludeRequirementId: supersede ? requirement._id : null,
@@ -701,8 +921,8 @@ export async function completeCustomerDocumentUpload({
 } = {}) {
   const parsed = allowlistedDocumentUploadInput(body);
   if (!parsed.ok) throw deny(parsed.error, 400);
-  if (!gbsCaseDocumentSecurityState().configured) throw securityUnavailable();
   const { record, requirement } = await loadOwnedRequirement(userId, caseRef, requirementRef);
+  await assertDocumentUploadSecurity(requirement);
   const expected = parseExpectedVersion(expectedVersion ?? body.expectedVersion ?? requirement.recordVersion);
   await runDocumentCommand({
     principalId: String(userId),
@@ -747,8 +967,8 @@ export async function supersedeCustomerDocumentUpload({
 } = {}) {
   const parsed = allowlistedDocumentUploadInput(body);
   if (!parsed.ok) throw deny(parsed.error, 400);
-  if (!gbsCaseDocumentSecurityState().configured) throw securityUnavailable();
   const { record, requirement } = await loadOwnedRequirement(userId, caseRef, requirementRef);
+  await assertDocumentUploadSecurity(requirement);
   if (requirement.status === GBS_DOCUMENT_REQUIREMENT_STATUSES.ACCEPTED) {
     throw deny('accepted_document_locked', 409);
   }
@@ -810,6 +1030,10 @@ export async function reviewProviderDocument({
   const { record, requirement } = await loadProviderRequirement(subject, caseRef, requirementRef);
   if (isCaseTerminal(record.status)) throw deny('invalid_status_transition', 409);
   await assertCaseProfessionalAuthority(record, env, now);
+  if (isHsiSensitivity(requirement.sensitivityClass)) {
+    const cap = await isHsiDocumentCapabilityReady({ env, now });
+    if (!cap.overallReady) throw deny(GBS_DOCUMENT_SECURITY_CODES.HSI_NOT_READY, 503);
+  }
   const version = await loadCleanVersion(requirement);
   if (Number(requirement.recordVersion) !== Number(parsed.value.expectedDocumentVersion)
     && Number(expectedVersion ?? body.expectedVersion) !== Number(requirement.recordVersion)) {
@@ -992,6 +1216,40 @@ export async function waiveProviderDocument({
 }
 
 async function proxyBytes(version, res, actorMeta) {
+  if (isHsiEncryptedVersion(version)) {
+    const cap = await isHsiDocumentCapabilityReady();
+    if (!cap.overallReady) throw deny(GBS_DOCUMENT_SECURITY_CODES.HSI_NOT_READY, 503);
+    if (version.destroyedAt) throw deny('document_unavailable', 404);
+    if (version.scanStatus === 'pending') throw deny(GBS_DOCUMENT_SECURITY_CODES.SCAN_PENDING, 403);
+    if (version.scanStatus === 'rejected') throw deny(GBS_DOCUMENT_SECURITY_CODES.MALWARE_REJECTED, 403);
+    if (version.scanStatus !== 'clean' || version.storageClass === 'quarantine') {
+      throw deny(GBS_DOCUMENT_SECURITY_CODES.SCAN_FAILED, 403);
+    }
+    const buffer = await decryptHsiVersionBytes(version);
+    await logRequiredHsiAudit({
+      actor: actorMeta.actor || {},
+      action: GBS_AUDIT_EVENTS.GBS_CASE_DOCUMENT_ACCESSED,
+      targetType: 'GbsCaseDocumentRequirement',
+      targetId: actorMeta.requirementId,
+      metadata: {
+        publicCaseRef: actorMeta.publicCaseRef,
+        requirementKey: actorMeta.requirementKey,
+        vaultVersionId: String(version._id),
+        actorType: actorMeta.actorType,
+        providerSubjectPresent: Boolean(actorMeta.providerSubjectId),
+      },
+    });
+    const filename = downloadFilename(version.mimeType, version.versionNumber);
+    res.set('Cache-Control', 'no-store, no-cache, must-revalidate, private');
+    res.set('Pragma', 'no-cache');
+    res.set('X-Content-Type-Options', 'nosniff');
+    res.set('Content-Disposition', `attachment; filename="${filename}"`);
+    res.set('Content-Type', version.mimeType || 'application/octet-stream');
+    const outbound = Buffer.from(buffer);
+    buffer.fill(0);
+    res.set('Content-Length', outbound.length);
+    return res.send(outbound);
+  }
   const retrieved = await vaultRetrieveFile({
     storageKey: version.storageKey,
     storageProvider: version.storageProvider,
@@ -1036,6 +1294,11 @@ export async function downloadCustomerCaseDocument({ userId, caseRef, requiremen
     ownerUserId: userId,
   });
   if (!version) throw notFound();
+  if (isHsiEncryptedVersion(version) && version.scanStatus !== 'clean') {
+    if (version.scanStatus === 'pending') throw deny(GBS_DOCUMENT_SECURITY_CODES.SCAN_PENDING, 403);
+    if (version.scanStatus === 'rejected') throw deny(GBS_DOCUMENT_SECURITY_CODES.MALWARE_REJECTED, 403);
+    throw deny(GBS_DOCUMENT_SECURITY_CODES.SCAN_FAILED, 403);
+  }
   return proxyBytes(version, res, {
     actor,
     actorType: 'customer',
@@ -1054,10 +1317,14 @@ export async function downloadProviderCaseDocument({
   env = process.env,
   now = new Date(),
 } = {}) {
-  const security = gbsCaseDocumentSecurityState();
-  if (!security.configured) throw securityUnavailable();
   const { record, requirement } = await loadProviderRequirement(subject, caseRef, requirementRef);
   await assertCaseProfessionalAuthority(record, env, now);
+  if (isHsiSensitivity(requirement.sensitivityClass)) {
+    const cap = await isHsiDocumentCapabilityReady({ env, now });
+    if (!cap.overallReady) throw deny(GBS_DOCUMENT_SECURITY_CODES.HSI_NOT_READY, 503);
+  } else if (!gbsCaseDocumentSecurityState().configured) {
+    throw securityUnavailable();
+  }
   const version = await loadCleanVersion(requirement);
   const grant = await GbsCaseDocumentGrant.findOne({
     requirementId: requirement._id,

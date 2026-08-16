@@ -11,6 +11,7 @@ import { GbsQuote } from '../../models/gbs/GbsQuote.js';
 import { GbsCase } from '../../models/gbs/GbsCase.js';
 import { GbsCaseDocumentRequirement } from '../../models/gbs/GbsCaseDocumentRequirement.js';
 import { GbsCaseDocumentGrant } from '../../models/gbs/GbsCaseDocumentGrant.js';
+import { GbsDocumentScanJob } from '../../models/gbs/GbsDocumentScanJob.js';
 import { IdempotencyRecord } from '../../models/platform/IdempotencyRecord.js';
 import { logger } from '../../utils/logger.js';
 
@@ -109,6 +110,31 @@ export const GBS_CASE_DOCUMENT_REQUIREMENT_CRITICAL_INDEXES = Object.freeze([
   Object.freeze({
     name: 'gbs_case_doc_req_requester',
     key: Object.freeze({ requesterUserId: 1, createdAt: -1 }),
+  }),
+]);
+
+export const GBS_DOCUMENT_SCAN_JOB_CRITICAL_INDEXES = Object.freeze([
+  Object.freeze({
+    name: 'gbs_scan_job_version_checksum_unique',
+    key: Object.freeze({ vaultDocumentVersionId: 1, checksumSha256: 1 }),
+    unique: true,
+  }),
+  Object.freeze({
+    name: 'gbs_scan_job_status_available',
+    key: Object.freeze({ status: 1, availableAt: 1 }),
+  }),
+  Object.freeze({
+    name: 'gbs_scan_job_lease_expiry',
+    key: Object.freeze({ leaseExpiresAt: 1 }),
+  }),
+  Object.freeze({
+    name: 'gbs_scan_job_created',
+    key: Object.freeze({ createdAt: 1 }),
+  }),
+  Object.freeze({
+    name: 'gbs_scan_job_public_ref_unique',
+    key: Object.freeze({ publicJobRef: 1 }),
+    unique: true,
   }),
 ]);
 
@@ -335,6 +361,7 @@ export async function provisionCriticalIdempotencyIndexes({
   caseCollection = GbsCase.collection,
   caseDocumentRequirementCollection = GbsCaseDocumentRequirement.collection,
   caseDocumentGrantCollection = GbsCaseDocumentGrant.collection,
+  scanJobCollection = GbsDocumentScanJob.collection,
   idempotencyCollection = IdempotencyRecord.collection,
 } = {}) {
   const serviceRequest = await provisionMissingIndexes({
@@ -357,6 +384,10 @@ export async function provisionCriticalIdempotencyIndexes({
     collection: caseDocumentGrantCollection,
     expected: GBS_CASE_DOCUMENT_GRANT_CRITICAL_INDEXES,
   });
+  const scanJobs = await provisionMissingIndexes({
+    collection: scanJobCollection,
+    expected: GBS_DOCUMENT_SCAN_JOB_CRITICAL_INDEXES,
+  });
   const idempotency = await provisionMissingIndexes({
     collection: idempotencyCollection,
     expected: IDEMPOTENCY_RECORD_CRITICAL_INDEXES,
@@ -367,6 +398,7 @@ export async function provisionCriticalIdempotencyIndexes({
     caseCreated: gbsCase.created,
     caseDocumentCreated: caseDocuments.created,
     caseDocumentGrantCreated: caseDocumentGrants.created,
+    scanJobCreated: scanJobs.created,
     idempotencyCreated: idempotency.created,
   });
   return {
@@ -375,6 +407,7 @@ export async function provisionCriticalIdempotencyIndexes({
     case: gbsCase,
     caseDocuments,
     caseDocumentGrants,
+    scanJobs,
     idempotency,
   };
 }

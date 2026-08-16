@@ -10,6 +10,7 @@
     "dev": "node --watch src/index.js",
     "start": "node src/index.js",
     "worker": "node src/worker.js",
+    "hsi:scan-worker": "node src/gbsDocumentScanWorker.js",
     "auth:indexes:verify": "node src/scripts/provisionRefreshSessionIndexes.js --verify",
     "auth:indexes:apply": "node src/scripts/provisionRefreshSessionIndexes.js --apply",
     "notifications:indexes:verify": "node src/scripts/provisionUserNotificationDedupeIndex.js --verify",
