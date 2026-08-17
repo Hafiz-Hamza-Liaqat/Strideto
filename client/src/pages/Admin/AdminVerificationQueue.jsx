@@ -89,6 +89,15 @@ function Field({ label, value }) {
   );
 }
 
+function SafeSourceLink({ label, value }) {
+  if (typeof value !== 'string' || !/^https:\/\//i.test(value.trim())) return null;
+  return (
+    <a href={value.trim()} target="_blank" rel="noopener noreferrer" className="text-sm text-primary dark:text-mint underline break-all">
+      Open source: {label}
+    </a>
+  );
+}
+
 function VerificationDetailPanel({ orgId, onClose, onAction, can }) {
   const { toast } = useToast();
   const [detail, setDetail] = useState(null);
@@ -249,12 +258,28 @@ function VerificationDetailPanel({ orgId, onClose, onAction, can }) {
               <Field label="Registration authority" value={profile.registrationAuthority} />
               <Field label="Registration number" value={profile.registrationNumber} />
               <Field label="Registration country" value={profile.registrationCountry} />
+              <Field label="Organization category" value={profile.organizationCategory} />
+              <Field label="Profession" value={profile.profession} />
+              <Field label="Credential type" value={profile.credentialType} />
               <Field label="License / accreditation authority" value={profile.licenseIssuer || profile.accreditationBody} />
               <Field label="License / accreditation number" value={profile.licenseNumber || profile.accreditationNumber} />
               <Field label="Jurisdiction" value={profile.licenseJurisdiction} />
+              <Field label="License issued" value={profile.licenseIssuedAt ? new Date(profile.licenseIssuedAt).toLocaleDateString() : ''} />
               <Field label="License expiry" value={profile.licenseExpiresAt ? new Date(profile.licenseExpiresAt).toLocaleDateString() : ''} />
+              <Field label="Accreditation body" value={profile.accreditationBody} />
+              <Field label="Accreditation number" value={profile.accreditationNumber} />
+              <Field label="Accreditation expiry" value={profile.accreditationExpiresAt ? new Date(profile.accreditationExpiresAt).toLocaleDateString() : ''} />
               <Field label="Policy classification" value={(jurisdiction?.credentialPolicy || '').replace(/_/g, ' ')} />
             </dl>
+            <div className="mt-3 flex flex-col items-start gap-2">
+              <SafeSourceLink label="official registry" value={profile.officialRegistryUrl} />
+              <SafeSourceLink label="government registry" value={profile.governmentRegistryUrl} />
+              <SafeSourceLink label="professional regulator" value={profile.professionalRegulatorUrl} />
+              <SafeSourceLink label="accreditation page" value={profile.accreditationPageUrl} />
+              <SafeSourceLink label="identity evidence" value={profile.identityEvidenceUrl} />
+              <SafeSourceLink label="authority evidence" value={profile.authorityEvidenceUrl} />
+              <SafeSourceLink label="campus evidence" value={profile.campusEvidenceUrl} />
+            </div>
           </div>
 
           <div>
@@ -311,9 +336,8 @@ function VerificationDetailPanel({ orgId, onClose, onAction, can }) {
                           Submitted {e.submittedAt ? new Date(e.submittedAt).toLocaleDateString() : '—'}
                           {e.expiresAt ? ` · Expires ${new Date(e.expiresAt).toLocaleDateString()}` : ''}
                         </p>
-                        {e.sourceUrl && (
-                          <p className="text-xs text-gray-500 break-all">Source: {e.sourceUrl}</p>
-                        )}
+                        <SafeSourceLink label={e.evidenceType?.replace(/_/g, ' ') || 'evidence'} value={e.sourceUrl} />
+                        <Field label="Claimed authority" value={e.claimedAuthority} />
                         {e.evidenceRef && (
                           <p className="text-xs text-gray-500">Reference: {e.evidenceRef}</p>
                         )}
