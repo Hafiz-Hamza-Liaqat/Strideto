@@ -11,6 +11,8 @@ import { StridetoVerifiedMark } from '../../components/agent/StridetoVerifiedMar
 import { AUTHORITY_KINDS } from '@shared/publicDiscovery/publicTruth.js';
 import { SeoHead } from '../../components/seo';
 import { humanizeSpecialtySlug } from '../../utils/availabilityWindows';
+import { agentServiceCategoryLabel } from '@shared/agent/serviceTaxonomy.js';
+import { educationServicePublicPriceLabel } from '@shared/agent/servicePricing.js';
 
 function approvalKindLabel(agentType) {
   if (agentType === 'agency') return 'Approved Agency';
@@ -52,7 +54,7 @@ export default function AgentPublicProfile() {
     return (
       <>
         <SeoHead title="Agent profile | Strideto" noindex />
-        <div className="mx-auto max-w-4xl px-4 py-10 text-slate-500 dark:text-gray-400" role="status">Loading profile…</div>
+        <div className="mx-auto max-w-4xl px-4 py-10"><h1 className="text-2xl font-semibold">Education Provider profile</h1><p className="mt-3 text-slate-500 dark:text-gray-400" role="status">Loading profile…</p></div>
       </>
     );
   }
@@ -61,6 +63,7 @@ export default function AgentPublicProfile() {
       <>
         <SeoHead title="Agent profile | Strideto" noindex />
         <div className="mx-auto max-w-4xl px-4 py-10">
+          <h1 className="text-2xl font-semibold">Education Provider profile</h1>
           <p className="rounded-lg bg-amber-50 p-4 text-amber-800 dark:bg-amber-950/40 dark:text-amber-200" role="alert">{error}</p>
           <Link to={ROUTES.AGENT_PUBLIC_DIRECTORY} className="mt-4 inline-block text-blue-700 dark:text-blue-300">Back to directory</Link>
         </div>
@@ -143,10 +146,14 @@ export default function AgentPublicProfile() {
               {profile.services.map((service) => (
                 <article key={service._id} className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 min-w-0">
                   <h3 className="font-medium break-words-safe">{service.title}</h3>
+                  <p className="mt-1 text-xs font-medium text-blue-700 dark:text-blue-300">{agentServiceCategoryLabel(service.category)}</p>
                   <p className="mt-2 text-sm text-slate-600 dark:text-gray-300 break-words-safe">{service.description}</p>
                   <p className="mt-3 text-xs text-slate-500 dark:text-gray-400">
-                    {service.deliveryMode} · {String(service.pricingMode || '').replaceAll('_', ' ')}
+                    {String(service.deliveryMode || '').replaceAll('_', ' ')} · {educationServicePublicPriceLabel(service)}
                   </p>
+                  {service.durationEstimate ? <p className="mt-2 text-xs text-slate-600 dark:text-gray-300">Provider-estimated duration: {service.durationEstimate}</p> : null}
+                  {service.eligibilityNotes ? <p className="mt-2 whitespace-pre-line text-xs text-slate-600 dark:text-gray-300 break-words-safe"><strong>Eligibility or limitations:</strong> {service.eligibilityNotes}</p> : null}
+                  <p className="mt-2 text-xs text-slate-500 dark:text-gray-400">Price and duration are Provider-maintained information. Display does not mean payment has been processed or an outcome is guaranteed.</p>
                   {isAuthenticated ? (
                     <Link to={`/consultations/new?serviceId=${service._id}`} className="mt-4 inline-block rounded bg-blue-700 px-3 py-2 text-sm text-white min-h-[44px]">
                       Request consultation

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
+import { AGENT_SERVICE_CATEGORY_OPTIONS, isAgentServiceCategory } from '@shared/agent/serviceTaxonomy.js';
 import { agentPublicApi } from '../../services/agentService';
 import { ROUTES } from '../../constants';
 import { SeoHead } from '../../components/seo';
@@ -25,16 +26,27 @@ function chipList(values, limit = 4) {
 }
 
 export default function AgentDirectory() {
-  const [filters, setFilters] = useState({ agentType: '', countryCode: '', destinationCountry: '' });
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialCategory = searchParams.get('serviceCategory') || '';
+  const [filters, setFilters] = useState({
+    agentType: ['agent', 'agency'].includes(searchParams.get('agentType')) ? searchParams.get('agentType') : '',
+    countryCode: searchParams.get('countryCode') || '',
+    destinationCountry: searchParams.get('destinationCountry') || '',
+    serviceCategory: isAgentServiceCategory(initialCategory) ? initialCategory : '',
+  });
   const [result, setResult] = useState({ profiles: [], total: 0, page: 1, pages: 0 });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
-  const load = (page = 1) => {
+  const load = (page = 1, appliedFilters = filters) => {
     setLoading(true);
     setError('');
     const params = Object.fromEntries(
-      Object.entries({ ...filters, page, limit: 20 }).filter(([, value]) => value !== '')
+      Object.entries({ ...appliedFilters, page, limit: 20 }).filter(([, value]) => value !== '')
+    );
+    setSearchParams(
+      Object.fromEntries(Object.entries({ ...appliedFilters, ...(page > 1 ? { page } : {}) }).filter(([, value]) => value !== '')),
+      { replace: true }
     );
     return agentPublicApi
       .getDirectory(params)
@@ -59,7 +71,7 @@ export default function AgentDirectory() {
           <p className="text-sm font-medium uppercase tracking-wide text-primary dark:text-mint mb-2">
             Professional directory
           </p>
-          <h1 className={ui.h1}>Join Strideto as a Service Provider</h1>
+          <h1 className={ui.h1}>Find Education &amp; Mobility Providers</h1>
           <p className={`mt-2 max-w-2xl ${ui.muted}`}>
             Strideto supports Education & Mobility providers and Business Formation & Corporate Services providers.
             Browse approved public Education & Mobility profiles here. Business Services public marketplace is not available yet.
@@ -76,7 +88,7 @@ export default function AgentDirectory() {
             event.preventDefault();
             load();
           }}
-          className={`mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-4 ${ui.filterPanel}`}
+          className={`mt-6 grid gap-3 sm:grid-cols-2 lg:grid-cols-5 ${ui.filterPanel}`}
         >
           <div>
             <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1" htmlFor="agent-directory-type">
@@ -91,6 +103,13 @@ export default function AgentDirectory() {
               <option value="">All types</option>
               <option value="agent">Agent</option>
               <option value="agency">Agency</option>
+            </select>
+          </div>
+          <div>
+            <label className="block text-xs font-medium text-gray-600 dark:text-gray-400 mb-1" htmlFor="agent-directory-service-category">Service need</label>
+            <select id="agent-directory-service-category" value={filters.serviceCategory} onChange={(event) => setFilters((current) => ({ ...current, serviceCategory: event.target.value }))} className={ui.input}>
+              <option value="">All Education services</option>
+              {AGENT_SERVICE_CATEGORY_OPTIONS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
             </select>
           </div>
           <div>
@@ -117,10 +136,12 @@ export default function AgentDirectory() {
               allLabel="All destinations"
             />
           </div>
-          <div className="flex items-end">
-            <button type="submit" className={`${ui.primaryBtn} w-full`}>
-              Filter
-            </button>
+          <div className="flex flex-wrap items-end gap-2">
+            <button type="submit" className={`${ui.primaryBtn} flex-1`}>Filter</button>
+            <button type="button" className={`${ui.secondaryBtn} flex-1`} onClick={() => {
+              const cleared = { agentType: '', countryCode: '', destinationCountry: '', serviceCategory: '' };
+              setFilters(cleared); load(1, cleared);
+            }}>Clear</button>
           </div>
         </form>
 
@@ -135,7 +156,13 @@ export default function AgentDirectory() {
             Loading directory…
           </p>
         ) : result.profiles.length === 0 ? (
-          <p className={`mt-8 ${ui.empty}`}>No approved profiles match these filters.</p>
+          <div className={`mt-8 ${ui.empty}`}>
+            <p>No providers match these filters.</p>
+            <button type="button" className={`${ui.secondaryBtn} mt-3`} onClick={() => {
+              const cleared = { agentType: '', countryCode: '', destinationCountry: '', serviceCategory: '' };
+              setFilters(cleared); load(1, cleared);
+            }}>Clear filters</button>
+          </div>
         ) : (
           <div className="mt-8 grid gap-4 md:grid-cols-2">
             {result.profiles.map((profile) => {
