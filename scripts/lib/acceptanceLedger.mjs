@@ -7,6 +7,15 @@ export const ARTIFACT_ROOT = path.resolve('qa-artifacts', 'acceptance-runs');
 
 const canonical = (value) => JSON.stringify(value, Object.keys(value || {}).sort());
 const digest = (value) => crypto.createHash('sha256').update(typeof value === 'string' ? value : canonical(value)).digest('hex');
+const CHECKPOINT_RETRIES = 5;
+const CHECKPOINT_DELAY_MS = 20;
+let checkpointFaultInjector = null;
+
+export function setCheckpointFaultInjector(injector) {
+  const previous = checkpointFaultInjector;
+  checkpointFaultInjector = injector;
+  return () => { checkpointFaultInjector = previous; };
+}
 
 export function manifestFingerprint(manifest) {
   return digest({ sourceRouteRecords: manifest.sourceRouteRecords, counts: manifest.counts, routes: manifest.routes.map(({ id, persona, routePattern, classification, canonicalUrl }) => ({ id, persona, routePattern, classification, canonicalUrl })), plannedVisualCells: manifest.plannedVisualCells, redirectContractCells: manifest.redirectContractCells });
@@ -22,7 +31,43 @@ function ensureDir(dir) { fs.mkdirSync(dir, { recursive: true }); }
 function writeJsonAtomic(file, value) {
   const temp = `${file}.${process.pid}.tmp`;
   fs.writeFileSync(temp, `${JSON.stringify(value, null, 2)}\n`);
-  fs.renameSync(temp, file);
+  let lastError;
+  try {
+    for (let attempt = 1; attempt <= CHECKPOINT_RETRIES; attempt += 1) {
+      try {
+        checkpointFaultInjector?.({ operation: 'rename', target: file, tempPath: temp, attempt, pid: process.pid });
+        fs.renameSync(temp, file);
+        return;
+      } catch (error) {
+        lastError = error;
+        if (!['EPERM', 'EBUSY'].includes(error?.code) || attempt === CHECKPOINT_RETRIES) break;
+        const waiter = new Int32Array(new SharedArrayBuffer(4));
+        Atomics.wait(waiter, 0, 0, CHECKPOINT_DELAY_MS * attempt);
+      }
+    }
+    const diagnostic = new Error(`ACCEPTANCE_CHECKPOINT_REPLACE_FAILED target=${file} temp=${temp} code=${lastError?.code || 'UNKNOWN'} attempts=${CHECKPOINT_RETRIES} pid=${process.pid}`);
+    diagnostic.name = 'CheckpointPersistenceError';
+    diagnostic.code = lastError?.code || 'CHECKPOINT_FAILED';
+    diagnostic.target = file;
+    diagnostic.tempPath = temp;
+    diagnostic.attempts = CHECKPOINT_RETRIES;
+    diagnostic.cause = lastError;
+    throw diagnostic;
+  } finally {
+    if (fs.existsSync(temp)) { try { fs.unlinkSync(temp); } catch { /* best effort cleanup */ } }
+  }
+}
+
+function appendEntry(run, entry) { fs.appendFileSync(path.join(run.dir, 'ledger.jsonl'), `${JSON.stringify(entry)}\n`); return entry; }
+function appendInfrastructure(run, error, context = {}) {
+  return appendEntry(run, { kind: 'infrastructure', stage: 'CHECKPOINT_FAILURE', code: error.code || 'CHECKPOINT_FAILED', message: error.message, target: error.target, tempPath: error.tempPath, attempts: error.attempts, pid: process.pid, context, recordedAt: new Date().toISOString() });
+}
+
+function checkpointMetadata(run, update) {
+  const file = path.join(run.dir, 'run.json');
+  const metadata = JSON.parse(fs.readFileSync(file, 'utf8'));
+  Object.assign(metadata, update);
+  writeJsonAtomic(file, metadata);
 }
 
 export function createRun({ head, manifest, runnerVersion, mode = 'full', runId = `run-${new Date().toISOString().replace(/[:.]/g, '-')}` }) {
@@ -52,21 +97,24 @@ export function readLedger(run) {
 
 export function recordResult(run, result) {
   if (!result.key || !['PASS', 'FAIL', 'INCOMPLETE'].includes(result.status)) throw new Error('Invalid acceptance ledger result');
+  const duplicate = readLedger(run).find((entry) => entry.kind === 'visual' && entry.key === result.key);
+  if (duplicate) {
+    const invariant = new Error(`ACCEPTANCE_LEDGER_INVARIANT duplicate terminal cell key: ${result.key}`);
+    invariant.code = 'DUPLICATE_TERMINAL_CELL';
+    throw invariant;
+  }
   const entry = { ...result, recordedAt: new Date().toISOString() };
-  fs.appendFileSync(path.join(run.dir, 'ledger.jsonl'), `${JSON.stringify(entry)}\n`);
-  const metadata = JSON.parse(fs.readFileSync(path.join(run.dir, 'run.json'), 'utf8'));
-  metadata.lastUpdateTimestamp = entry.recordedAt;
-  writeJsonAtomic(path.join(run.dir, 'run.json'), metadata);
+  appendEntry(run, entry);
+  try { checkpointMetadata(run, { lastUpdateTimestamp: entry.recordedAt }); }
+  catch (error) { appendInfrastructure(run, error, { kind: 'visual', key: result.key, status: result.status }); throw error; }
   return entry;
 }
 
 export function recordLifecycle(run, event) {
   const entry = { kind: 'lifecycle', ...event, recordedAt: new Date().toISOString() };
-  fs.appendFileSync(path.join(run.dir, 'ledger.jsonl'), `${JSON.stringify(entry)}\n`);
-  const metadata = JSON.parse(fs.readFileSync(path.join(run.dir, 'run.json'), 'utf8'));
-  metadata.lastUpdateTimestamp = entry.recordedAt;
-  metadata.current = { key: event.key, stage: event.stage, persona: event.persona, routeId: event.routeId, theme: event.theme, width: event.width };
-  writeJsonAtomic(path.join(run.dir, 'run.json'), metadata);
+  appendEntry(run, entry);
+  try { checkpointMetadata(run, { lastUpdateTimestamp: entry.recordedAt, current: { key: event.key, stage: event.stage, persona: event.persona, routeId: event.routeId, theme: event.theme, width: event.width } }); }
+  catch (error) { appendInfrastructure(run, error, { kind: 'lifecycle', stage: event.stage, key: event.key }); throw error; }
   return entry;
 }
 
@@ -74,15 +122,17 @@ export function reconcile(run, manifest, themes, widths) {
   const entries = readLedger(run);
   const visual = manifest.routes.filter((r) => ['FULL_MATRIX_UI', 'PARAMETRIC_UI'].includes(r.classification));
   const expected = new Set(visual.flatMap((route) => themes.flatMap((theme) => widths.map((width) => cellKey({ persona: route.persona, route, theme, width })) )));
-  const counts = { PASS: 0, FAIL: 0, INCOMPLETE: 0 };
-  const seen = new Map();
-  for (const entry of entries) { if (entry.kind !== 'visual') continue; counts[entry.status] = (counts[entry.status] || 0) + 1; seen.set(entry.key, (seen.get(entry.key) || 0) + 1); }
-  const duplicates = [...seen].filter(([, count]) => count > 1).map(([key, count]) => ({ key, count }));
-  const recorded = new Set(seen.keys());
+  const rawCounts = { PASS: 0, FAIL: 0, INCOMPLETE: 0 };
+  const grouped = new Map();
+  for (const entry of entries) { if (entry.kind !== 'visual') continue; rawCounts[entry.status] = (rawCounts[entry.status] || 0) + 1; if (!grouped.has(entry.key)) grouped.set(entry.key, []); grouped.get(entry.key).push(entry); }
+  const duplicates = [...grouped].filter(([, values]) => values.length > 1).map(([key, values]) => ({ key, count: values.length }));
+  const unique = [...grouped].filter(([, values]) => values.length === 1).map(([, values]) => values[0]);
+  const counts = { PASS: unique.filter((entry) => entry.status === 'PASS').length, FAIL: unique.filter((entry) => entry.status === 'FAIL').length, INCOMPLETE: unique.filter((entry) => entry.status === 'INCOMPLETE').length };
+  const recorded = new Set(grouped.keys());
   const unseen = [...expected].filter((key) => !recorded.has(key));
   const redirectEntries = entries.filter((entry) => entry.kind === 'redirect');
   const active = entries.filter((e) => e.kind === 'lifecycle' && e.stage === 'CELL_START').map((start) => ({ ...start, terminal: entries.some((e) => e.kind === 'visual' && e.key === start.key) })).filter((entry) => !entry.terminal);
-  const summary = { plannedVisualCells: expected.size, uniqueVisualCellsRecorded: recorded.size, ...counts, unseen: unseen.length, duplicateCellKeys: duplicates, activeCells: active, themeCounts: Object.fromEntries(themes.map((theme) => [theme.id, entries.filter((e) => e.kind === 'visual' && e.theme === theme.id).length])), widthCounts: Object.fromEntries(widths.map((width) => [width, entries.filter((e) => e.kind === 'visual' && e.width === width).length])), redirectPlanned: manifest.redirectContractCells, redirectRecorded: redirectEntries.length, redirectIncomplete: Math.max(0, manifest.redirectContractCells - new Set(redirectEntries.map((e) => e.key)).size), complete: recorded.size === expected.size && counts.INCOMPLETE === 0 && counts.FAIL === 0 && duplicates.length === 0 && active.length === 0 && redirectEntries.length === manifest.redirectContractCells };
+  const summary = { plannedVisualCells: expected.size, recordedVisualCells: entries.filter((entry) => entry.kind === 'visual').length, uniqueVisualCellsRecorded: recorded.size, rawTerminalRecords: entries.filter((entry) => entry.kind === 'visual').length, rawPASS: rawCounts.PASS, rawFAIL: rawCounts.FAIL, rawINCOMPLETE: rawCounts.INCOMPLETE, ...counts, unseen: unseen.length, duplicateTerminalKeys: duplicates.length, duplicateCellKeys: duplicates, activeCells: active, themeCounts: Object.fromEntries(themes.map((theme) => [theme.id, entries.filter((e) => e.kind === 'visual' && e.theme === theme.id).length])), widthCounts: Object.fromEntries(widths.map((width) => [width, entries.filter((e) => e.kind === 'visual' && e.width === width).length])), redirectPlanned: manifest.redirectContractCells, redirectRecorded: redirectEntries.length, redirectIncomplete: Math.max(0, manifest.redirectContractCells - new Set(redirectEntries.map((e) => e.key)).size), complete: recorded.size === expected.size && counts.INCOMPLETE === 0 && counts.FAIL === 0 && duplicates.length === 0 && active.length === 0 && redirectEntries.length === manifest.redirectContractCells };
   writeJsonAtomic(path.join(run.dir, 'summary.json'), summary);
   return summary;
 }
