@@ -1,5 +1,5 @@
 /**
- * Create-only provisioning for critical uniqueness indexes.
+ * Create-only provisioning for critical uniqueness and bounded-query indexes.
  *
  * autoIndex remains off unless MONGO_AUTO_INDEX=1. This helper never
  * reconciles by dropping unknown indexes, never replaces an existing
@@ -21,6 +21,7 @@ import { ProfessionalReview } from '../../models/trust/ProfessionalReview.js';
 import { ProfessionalDispute } from '../../models/trust/ProfessionalDispute.js';
 import { GbsContextThread } from '../../models/gbs/GbsContextThread.js';
 import { GbsContextMessage } from '../../models/gbs/GbsContextMessage.js';
+import { AgentProfile } from '../../models/agent/AgentProfile.js';
 import { logger } from '../../utils/logger.js';
 
 export class CriticalIndexProvisionError extends Error {
@@ -301,6 +302,10 @@ export const GBS_CONTEXT_MESSAGE_CRITICAL_INDEXES = Object.freeze([
   Object.freeze({ name: 'gbs_context_message_thread_created', key: Object.freeze({ threadId: 1, createdAt: -1, _id: -1 }) }),
 ]);
 
+export const PUBLIC_EDUCATION_DIRECTORY_CRITICAL_INDEXES = Object.freeze([
+  Object.freeze({ name: 'education_public_directory_created', key: Object.freeze({ createdAt: -1, _id: -1 }) }),
+]);
+
 export const EDUCATION_CASE_APPLICATION_CRITICAL_INDEXES = Object.freeze([
   Object.freeze({
     name: 'education_case_application_case_created',
@@ -502,6 +507,7 @@ export async function provisionCriticalIdempotencyIndexes({
   professionalDisputeCollection = ProfessionalDispute.collection,
   gbsContextThreadCollection = GbsContextThread.collection,
   gbsContextMessageCollection = GbsContextMessage.collection,
+  agentProfileCollection = AgentProfile.collection,
 } = {}) {
   const serviceRequest = await provisionMissingIndexes({
     collection: serviceRequestCollection,
@@ -563,6 +569,10 @@ export async function provisionCriticalIdempotencyIndexes({
     collection: gbsContextMessageCollection,
     expected: GBS_CONTEXT_MESSAGE_CRITICAL_INDEXES,
   });
+  const publicEducationDirectory = await provisionMissingIndexes({
+    collection: agentProfileCollection,
+    expected: PUBLIC_EDUCATION_DIRECTORY_CRITICAL_INDEXES,
+  });
   logger.info('critical_index_provision_ready', {
     serviceRequestCreated: serviceRequest.created,
     quoteCreated: quote.created,
@@ -579,6 +589,7 @@ export async function provisionCriticalIdempotencyIndexes({
     professionalDisputeCreated: professionalDisputes.created,
     gbsContextThreadCreated: gbsContextThreads.created,
     gbsContextMessageCreated: gbsContextMessages.created,
+    publicEducationDirectoryCreated: publicEducationDirectory.created,
   });
   return {
     serviceRequest,
@@ -596,5 +607,6 @@ export async function provisionCriticalIdempotencyIndexes({
     professionalDisputes,
     gbsContextThreads,
     gbsContextMessages,
+    publicEducationDirectory,
   };
 }

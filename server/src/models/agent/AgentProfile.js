@@ -137,6 +137,7 @@ const agentProfileSchema = new mongoose.Schema(
 agentProfileSchema.index({ agentType: 1, profileStatus: 1 });
 agentProfileSchema.index({ countryCode: 1, profileStatus: 1 });
 agentProfileSchema.index({ destinationCountries: 1 });
+agentProfileSchema.index({ createdAt: -1, _id: -1 }, { name: 'education_public_directory_created' });
 
 export const AgentProfile =
   mongoose.models.AgentProfile ||

@@ -1029,12 +1029,6 @@ export async function getPublicDirectory({
   page = 1,
   limit = 20,
 } = {}) {
-  const approvedOrgs = await OrganizationVerification.find(
-    { status: VERIFICATION_STATUSES.APPROVED },
-    { organizationId: 1 }
-  ).lean();
-  const approvedOrgIds = approvedOrgs.map((r) => r.organizationId);
-
   const extras = {};
   if (agentType && Object.values(AGENT_TYPES).includes(agentType)) {
     extras.agentType = agentType;
@@ -1043,33 +1037,64 @@ export async function getPublicDirectory({
   if (destinationCountry) extras.destinationCountries = destinationCountry.toUpperCase();
   if (language) extras.languages = language.toLowerCase();
 
-  let orgIds = approvedOrgIds;
-  if (serviceCategory) {
-    const svcOrgs = await AgentService.distinct('organizationId', {
-      category: serviceCategory,
-      status: AGENT_SERVICE_STATUSES.ACTIVE,
-    });
-    orgIds = approvedOrgIds.filter((id) => svcOrgs.some((s) => String(s) === String(id)));
-  }
-
-  const query = withFixtureExclusion({
-    organizationId: { $in: orgIds },
-    ...extras,
-  });
-
   const pageNum = Math.max(1, parseInt(page, 10) || 1);
   const limitNum = Math.min(50, Math.max(1, parseInt(limit, 10) || 20));
-
-  const q = AgentProfile.find(query)
-    .select('slug professionalName agentType countryCode serviceCountries destinationCountries languages specialties professionalSummary website')
-    .skip((pageNum - 1) * limitNum)
-    .limit(limitNum)
-    .sort({ createdAt: -1 });
-
-  const [profiles, total] = await Promise.all([
-    q.lean(),
-    AgentProfile.countDocuments(query),
-  ]);
+  const pipeline = [
+    { $match: withFixtureExclusion(extras) },
+    { $sort: { createdAt: -1, _id: -1 } },
+    {
+      $lookup: {
+        from: OrganizationVerification.collection.name,
+        let: { organizationId: '$organizationId' },
+        pipeline: [
+          { $match: { $expr: { $and: [
+            { $eq: ['$organizationId', '$$organizationId'] },
+            { $eq: ['$status', VERIFICATION_STATUSES.APPROVED] },
+          ] } } },
+          { $limit: 1 },
+          { $project: { _id: 1 } },
+        ],
+        as: 'educationVerification',
+      },
+    },
+    { $match: { 'educationVerification.0': { $exists: true } } },
+  ];
+  if (serviceCategory) {
+    pipeline.push(
+      {
+        $lookup: {
+          from: AgentService.collection.name,
+          let: { organizationId: '$organizationId' },
+          pipeline: [
+            { $match: { $expr: { $and: [
+              { $eq: ['$organizationId', '$$organizationId'] },
+              { $eq: ['$category', serviceCategory] },
+              { $eq: ['$status', AGENT_SERVICE_STATUSES.ACTIVE] },
+            ] } } },
+            { $limit: 1 },
+            { $project: { _id: 1 } },
+          ],
+          as: 'eligibleServices',
+        },
+      },
+      { $match: { 'eligibleServices.0': { $exists: true } } }
+    );
+  }
+  pipeline.push(
+    {
+      $facet: {
+        profiles: [
+          { $skip: (pageNum - 1) * limitNum },
+          { $limit: limitNum },
+          { $project: { slug: 1, professionalName: 1, agentType: 1, countryCode: 1, serviceCountries: 1, destinationCountries: 1, languages: 1, specialties: 1, professionalSummary: 1, website: 1 } },
+        ],
+        total: [{ $count: 'value' }],
+      },
+    }
+  );
+  const [result] = await AgentProfile.aggregate(pipeline);
+  const profiles = result?.profiles || [];
+  const total = result?.total?.[0]?.value || 0;
 
   // Directory membership already requires OrganizationVerification APPROVED.
   // Expose the same Education verification projection as profile detail.
