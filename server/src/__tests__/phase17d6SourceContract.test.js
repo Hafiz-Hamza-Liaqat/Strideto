@@ -134,11 +134,31 @@ check(buyerUi.includes('Activate Business Services'), 'explicit activation UX');
 check(buyerUi.includes('Quotes'), 'Quotes nav is live after 17D-7');
 check(!/Payments|Formation Cases|Messages|Documents/.test(buyerUi), 'no later-product nav');
 
-const providerNav = read('client/src/pages/Agent/business-services/GbsWorkspaceLayout.jsx');
-check(providerNav.includes("label: 'Requests'"), 'provider Business nav includes Service Requests');
 const eduNav = read('client/src/config/agentNavConfig.js');
+const gbsLayoutNav = read('client/src/pages/Agent/business-services/GbsWorkspaceLayout.jsx');
+const bizItems = eduNav.split('const BUSINESS =')[1]?.split('const EDUCATION_GROUPS')[0] || '';
+const bizWork = eduNav.split("id: 'business-work'")[1]?.split("id: 'business-setup'")[0] || '';
+check(bizWork.includes("label: 'Work'"), 'Business WORK group exists in canonical sidebar');
+check(bizItems.includes("AGENT_BUSINESS_SERVICES_REQUESTS, label: 'Requests'"), 'Business sidebar items include Requests');
+check(bizItems.includes("AGENT_BUSINESS_SERVICES_QUOTES, label: 'Quotes'"), 'Business sidebar items include Quotes');
+check(bizItems.includes("AGENT_BUSINESS_SERVICES_CASES, label: 'Cases'"), 'Business sidebar items include Cases');
+check(
+  bizWork.includes('AGENT_BUSINESS_SERVICES_REQUESTS')
+  && bizWork.includes('AGENT_BUSINESS_SERVICES_QUOTES')
+  && bizWork.includes('AGENT_BUSINESS_SERVICES_CASES'),
+  'Business WORK group routes include Requests Quotes Cases'
+);
+check(
+  bizItems.indexOf("AGENT_BUSINESS_SERVICES_REQUESTS, label: 'Requests'")
+    < bizItems.indexOf("AGENT_BUSINESS_SERVICES_QUOTES, label: 'Quotes'")
+  && bizItems.indexOf("AGENT_BUSINESS_SERVICES_QUOTES, label: 'Quotes'")
+    < bizItems.indexOf("AGENT_BUSINESS_SERVICES_CASES, label: 'Cases'"),
+  'Business WORK order is Requests then Quotes then Cases'
+);
+check(!/\bSUBNAV\b/.test(gbsLayoutNav) && !/label: 'Requests'/.test(gbsLayoutNav), 'GbsWorkspaceLayout does not recreate redundant Business SUBNAV');
 check(eduNav.includes("label: 'Consultations'"), 'education consultations remain');
 check(!eduNav.split('const EDUCATION')[1].split('const BUSINESS')[0].includes('Service Requests'), 'education nav has no Service Requests');
+check(!eduNav.split('const EDUCATION')[1].split('const BUSINESS')[0].includes('AGENT_BUSINESS_SERVICES_REQUESTS'), 'education nav has no Business Requests route');
 
 const wy = {
   subjectType: 'agent',

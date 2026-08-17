@@ -23,8 +23,17 @@ const eduDash = read('pages/Agent/AgentDashboard.jsx');
 
 check(nav.includes("label: 'Requests'"), 'Business nav Requests');
 check(nav.includes("label: 'Business Verification'"), 'Business Verification placement preserved');
+check(nav.includes('AGENT_BUSINESS_SERVICES_VERIFICATION'), 'Business Verification dedicated route constant');
+check(!/AGENT_BUSINESS_SERVICES_CAPABILITIES,\s*label: 'Business Verification'/.test(nav), 'Business Verification is not aliased to Capabilities');
 check(!eduDash.includes('Service Requests'), 'Education dashboard does not add GBS requests');
-check(layout.includes("label: 'Requests'") && layout.includes("label: 'My Services'"), 'workspace subnav');
+const bizItems = nav.split('const BUSINESS =')[1]?.split('const EDUCATION_GROUPS')[0] || '';
+const bizWork = nav.split("id: 'business-work'")[1]?.split("id: 'business-setup'")[0] || '';
+const bizSetup = nav.split("id: 'business-setup'")[1]?.split("id: 'business-trust'")[0] || '';
+check(bizWork.includes("label: 'Work'") && bizWork.includes('AGENT_BUSINESS_SERVICES_REQUESTS'), 'sidebar WORK group includes Requests route');
+check(bizItems.includes("AGENT_BUSINESS_SERVICES_REQUESTS, label: 'Requests'"), 'sidebar Business items expose Requests label');
+check(bizSetup.includes("label: 'Service Setup'") && bizSetup.includes('AGENT_BUSINESS_SERVICES_LISTINGS'), 'sidebar SERVICE SETUP includes My Services route');
+check(bizItems.includes("AGENT_BUSINESS_SERVICES_LISTINGS, label: 'My Services'"), 'sidebar Business items expose My Services label');
+check(!/\bSUBNAV\b/.test(layout) && !/label: 'Requests'/.test(layout), 'GbsWorkspaceLayout has no redundant workspace-global SUBNAV');
 
 check(inbox.includes('customerDisplayName') && inbox.includes('htmlFor="gbs-request-status"'), 'inbox customer + status filter');
 check(inbox.includes('Pagination') && inbox.includes('View request'), 'pagination and view');

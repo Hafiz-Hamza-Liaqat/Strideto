@@ -23,7 +23,29 @@ const request = read('pages/Agent/business-services/GbsRequestDetail.jsx');
 const routes = read('routes/index.jsx');
 
 check(nav.includes("label: 'Quotes'"), 'Business nav Quotes');
-check(layout.includes('Quotes') && layout.includes("label: 'Requests'"), 'workspace subnav includes Quotes after Requests');
+const bizItems = nav.split('const BUSINESS =')[1]?.split('const EDUCATION_GROUPS')[0] || '';
+const bizWork = nav.split("id: 'business-work'")[1]?.split("id: 'business-setup'")[0] || '';
+check(bizWork.includes("label: 'Work'"), 'sidebar WORK group exists');
+check(
+  bizWork.includes('AGENT_BUSINESS_SERVICES_REQUESTS')
+  && bizWork.includes('AGENT_BUSINESS_SERVICES_QUOTES')
+  && bizWork.includes('AGENT_BUSINESS_SERVICES_CASES'),
+  'sidebar WORK routes include Requests Quotes Cases'
+);
+check(
+  bizItems.includes("AGENT_BUSINESS_SERVICES_REQUESTS, label: 'Requests'")
+  && bizItems.includes("AGENT_BUSINESS_SERVICES_QUOTES, label: 'Quotes'")
+  && bizItems.includes("AGENT_BUSINESS_SERVICES_CASES, label: 'Cases'"),
+  'sidebar Business items expose Requests Quotes Cases labels'
+);
+check(
+  bizItems.indexOf("AGENT_BUSINESS_SERVICES_REQUESTS, label: 'Requests'")
+    < bizItems.indexOf("AGENT_BUSINESS_SERVICES_QUOTES, label: 'Quotes'")
+  && bizItems.indexOf("AGENT_BUSINESS_SERVICES_QUOTES, label: 'Quotes'")
+    < bizItems.indexOf("AGENT_BUSINESS_SERVICES_CASES, label: 'Cases'"),
+  'sidebar WORK order is Requests then Quotes then Cases'
+);
+check(!/\bSUBNAV\b/.test(layout) && !/label: 'Requests'/.test(layout), 'GbsWorkspaceLayout has no redundant workspace-global SUBNAV');
 check(!/Payout|Mailroom|Formation Case|PDF/.test(nav + layout), 'no payment/payout/case/PDF nav');
 
 check(list.includes('No quotes for this subject'), 'empty state');

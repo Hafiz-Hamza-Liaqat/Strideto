@@ -111,17 +111,26 @@ check(home.includes('subjectType: group.subjectType') && home.includes('subjectI
 check(!/addDomain\(domain\.domainId, independent\)/.test(home), 'Provider Home Add does not default to Independent');
 
 const nav = read('client/src/config/agentNavConfig.js');
-check(nav.includes('Education & Mobility Services'), 'education services labeled');
-check(nav.includes('My Services'), 'business listings labeled');
+check(nav.includes("label: 'My Education Services'"), 'education services labeled');
+check(nav.includes('ROUTES.AGENT_SERVICES') && nav.includes("label: 'My Education Services'"), 'My Education Services uses Education AgentService route');
+const eduSlice = nav.split('const EDUCATION')[1].split('const BUSINESS')[0];
+const bizSlice = nav.split('const BUSINESS')[1].split('const EDUCATION_GROUPS')[0];
+check(eduSlice.includes('My Education Services') && eduSlice.includes('AGENT_SERVICES'), 'education services stay on Education workspace');
+check(!eduSlice.includes('AGENT_BUSINESS_SERVICES_LISTINGS'), 'education services do not point at Business listings');
+check(bizSlice.includes("label: 'My Services'"), 'business listings labeled');
 check(nav.includes('hasBusiness ? BUSINESS : []'), 'business operational nav requires authorized workspace');
 check(nav.includes("label: 'Quotes'"), 'Quotes operational nav is live after 17D-7');
 check(!/Mailroom|Formation Case/.test(nav), 'no mailroom/formation case modules');
+check(nav.includes('AGENT_BUSINESS_SERVICES_VERIFICATION') && bizSlice.includes("label: 'Business Verification'"), 'Business Verification dedicated once');
+check(!/AGENT_BUSINESS_SERVICES_CAPABILITIES,\s*label: 'Business Verification'/.test(nav), 'Business Verification is not aliased to Capabilities');
+check(nav.includes("end: true") && /AGENT_BUSINESS_SERVICES,\s*label: 'Overview',\s*end: true/.test(nav), 'Business Overview uses end match for one-leaf active state');
 
 const gbsLayout = read('client/src/pages/Agent/business-services/GbsWorkspaceLayout.jsx');
 check(gbsLayout.includes('urlSpecifiesSubject') && gbsLayout.includes('requestedMatch'), 'GBS chrome requires the exact requested subject to be enrolled');
 check(gbsLayout.includes('enabled && (urlSpecifiesSubject ? requestedMatch : subjects.length > 0)'), 'GBS chrome requires authorized subjects');
 check(gbsLayout.includes('This provider category has not been added'), 'unauthorized URL is setup/add, not empty operational');
-check(gbsLayout.includes('{authorized ?'), 'operational subnav/outlet gated on authorization');
+check(gbsLayout.includes('{authorized ?'), 'operational outlet gated on authorization');
+check(!/\bSUBNAV\b/.test(gbsLayout) && !/label: 'Requests'/.test(gbsLayout), 'GbsWorkspaceLayout does not recreate redundant workspace-global SUBNAV');
 check(!/useEffect\([\s\S]{0,400}addProviderDomain/.test(gbsLayout), 'URL visit does not enroll a domain');
 check(gbsLayout.includes('requestedProviderSubject'), 'GBS setup add respects requested subject context');
 check(!gbsLayout.includes('addIndependentBusiness'), 'GBS setup add is not Independent-only');

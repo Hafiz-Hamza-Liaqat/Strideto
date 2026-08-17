@@ -24,10 +24,34 @@ const constants = read('constants/index.js');
 
 check(nav.includes("label: 'Cases'"), 'Business nav Cases');
 check(nav.includes("label: 'Quotes'"), 'Quotes preserved');
-check(layout.includes('Cases') && layout.includes('Quotes'), 'workspace subnav includes Cases after Quotes');
+const bizItems = nav.split('const BUSINESS =')[1]?.split('const EDUCATION_GROUPS')[0] || '';
+const bizWork = nav.split("id: 'business-work'")[1]?.split("id: 'business-setup'")[0] || '';
+check(bizWork.includes("label: 'Work'"), 'sidebar WORK group exists');
+check(
+  bizWork.includes('AGENT_BUSINESS_SERVICES_REQUESTS')
+  && bizWork.includes('AGENT_BUSINESS_SERVICES_QUOTES')
+  && bizWork.includes('AGENT_BUSINESS_SERVICES_CASES'),
+  'sidebar WORK routes include Requests Quotes Cases'
+);
+check(
+  bizItems.includes("AGENT_BUSINESS_SERVICES_REQUESTS, label: 'Requests'")
+  && bizItems.includes("AGENT_BUSINESS_SERVICES_QUOTES, label: 'Quotes'")
+  && bizItems.includes("AGENT_BUSINESS_SERVICES_CASES, label: 'Cases'"),
+  'sidebar Business items expose Requests Quotes Cases labels'
+);
+check(
+  bizItems.indexOf("AGENT_BUSINESS_SERVICES_REQUESTS, label: 'Requests'")
+    < bizItems.indexOf("AGENT_BUSINESS_SERVICES_QUOTES, label: 'Quotes'")
+  && bizItems.indexOf("AGENT_BUSINESS_SERVICES_QUOTES, label: 'Quotes'")
+    < bizItems.indexOf("AGENT_BUSINESS_SERVICES_CASES, label: 'Cases'"),
+  'sidebar WORK order is Requests then Quotes then Cases'
+);
+check(!/\bSUBNAV\b/.test(layout) && !/label: 'Cases'/.test(layout), 'GbsWorkspaceLayout has no redundant workspace-global SUBNAV');
 check(!/Payout|Mailroom|Formation Case|PDF/.test(nav + layout), 'no payment/payout/formation-case/PDF nav');
 check(constants.includes("AGENT_CASES: '/agent/cases'"), 'education cases path unchanged');
 check(constants.includes("AGENT_BUSINESS_SERVICES_CASES: '/agent/business-services/cases'"), 'GBS cases are not education cases');
+check(nav.includes('AGENT_BUSINESS_SERVICES_CASES'), 'Business Cases stay on business-services cases route in nav');
+check(!nav.includes("AGENT_CASES, label: 'Cases'") || bizItems.includes("AGENT_BUSINESS_SERVICES_CASES, label: 'Cases'"), 'Business Cases label remains on business-services cases route');
 
 check(list.includes('No cases for this subject'), 'empty state');
 check(list.includes('htmlFor="gbs-case-status"'), 'status filter labelled');
