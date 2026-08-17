@@ -38,15 +38,24 @@ import { assignListingPublicSlugIfAbsent } from '../utils/gbsListingSlug.js';
 import { activateBusinessClient } from '../services/gbs/gbsBuyerActivationService.js';
 import {
   cancelCustomerServiceRequest,
-  createCustomerServiceRequest,
+  createCustomerServiceRequest as createCustomerServiceRequestWithReadiness,
   declineProviderServiceRequest,
   getCustomerServiceRequest,
   listCustomerServiceRequests,
   listProviderServiceRequests,
-  readyForQuoteProviderServiceRequest,
+  readyForQuoteProviderServiceRequest as readyForQuoteProviderServiceRequestWithReadiness,
   reviewProviderServiceRequest,
 } from '../services/gbs/gbsServiceRequestService.js';
 import { assertProviderDomainAccess } from '../services/gbs/providerDomainService.js';
+
+const createCustomerServiceRequest = (args) => createCustomerServiceRequestWithReadiness({
+  ...args,
+  readinessResolver: () => ({ productionReady: true, state: 'current_reviewed', reason: 'current_reviewed' }),
+});
+const readyForQuoteProviderServiceRequest = (args) => readyForQuoteProviderServiceRequestWithReadiness({
+  ...args,
+  readinessResolver: () => ({ productionReady: true, state: 'current_reviewed', reason: 'current_reviewed' }),
+});
 
 const TEST_URI = process.env.STRIDETO_17D6_TEST_MONGO_URI || 'mongodb://127.0.0.1:27017/strideto_17d6_integrity_run1';
 if (!/\/strideto_17d6_[a-z0-9_-]+$/i.test(TEST_URI)) {

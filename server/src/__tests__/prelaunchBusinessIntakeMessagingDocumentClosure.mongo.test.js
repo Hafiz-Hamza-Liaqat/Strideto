@@ -17,6 +17,8 @@ import { GbsContextMessage } from '../models/gbs/GbsContextMessage.js';
 import { IdempotencyRecord } from '../models/platform/IdempotencyRecord.js';
 import { UserNotification } from '../models/UserNotification.js';
 import { createCustomerServiceRequest, getPrivateBetaServiceEntry } from '../services/gbs/gbsServiceRequestService.js';
+
+const currentReviewedFixture = () => ({ productionReady: true, state: 'current_reviewed', reason: 'current_reviewed' });
 import { createGbsContextMessage, listGbsContextMessages } from '../services/gbs/gbsContextMessagingService.js';
 import { provisionMissingIndexes, GBS_CONTEXT_MESSAGE_CRITICAL_INDEXES, GBS_CONTEXT_THREAD_CRITICAL_INDEXES, GBS_SERVICE_REQUEST_CRITICAL_INDEXES } from '../services/platform/criticalIndexProvision.js';
 import { GBS_MESSAGE_ACTOR_TYPES, GBS_MESSAGE_CONTEXT_TYPES } from '../../../shared/gbs/contextMessaging.js';
@@ -58,11 +60,11 @@ before(async () => {
 after(async () => { await mongoose.connection.dropDatabase(); await mongoose.disconnect(); });
 
 test('private intake works with marketplace off while public intake remains closed and idempotent', async () => {
-  const entry = await getPrivateBetaServiceEntry({ userId: buyer._id, listingSlug: listing.publicSlug, env: { BUSINESS_SERVICES_PUBLIC_MARKETPLACE_ENABLED: '0' } });
+  const entry = await getPrivateBetaServiceEntry({ userId: buyer._id, listingSlug: listing.publicSlug, env: { BUSINESS_SERVICES_PUBLIC_MARKETPLACE_ENABLED: '0' }, readinessResolver: currentReviewedFixture });
   assert.equal(entry.privateBeta, true);
   const body = { listingSlug: listing.publicSlug, creationCommandId: 'p1b-request-command', actingFor: 'self', entityTypeId: 'et:US-WY:LLC', customerSummary: 'Need formation preparation.' };
-  const first = await createCustomerServiceRequest({ userId: buyer._id, body, intakeChannel: 'private_beta', env: { BUSINESS_SERVICES_PUBLIC_MARKETPLACE_ENABLED: '0' } });
-  const replay = await createCustomerServiceRequest({ userId: buyer._id, body, intakeChannel: 'private_beta', env: { BUSINESS_SERVICES_PUBLIC_MARKETPLACE_ENABLED: '0' } });
+  const first = await createCustomerServiceRequest({ userId: buyer._id, body, intakeChannel: 'private_beta', env: { BUSINESS_SERVICES_PUBLIC_MARKETPLACE_ENABLED: '0' }, readinessResolver: currentReviewedFixture });
+  const replay = await createCustomerServiceRequest({ userId: buyer._id, body, intakeChannel: 'private_beta', env: { BUSINESS_SERVICES_PUBLIC_MARKETPLACE_ENABLED: '0' }, readinessResolver: currentReviewedFixture });
   assert.equal(first.publicRequestRef, replay.publicRequestRef);
   assert.equal(first.intakeChannel, 'private_beta');
   await assert.rejects(() => createCustomerServiceRequest({ userId: buyer._id, body: { ...body, creationCommandId: 'p1b-public-command' }, env: { BUSINESS_SERVICES_PUBLIC_MARKETPLACE_ENABLED: '0' } }), (error) => error.status === 404);

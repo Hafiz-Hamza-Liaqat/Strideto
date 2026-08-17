@@ -44,10 +44,13 @@ import { US_WY_LLC_REQUIREMENT_PACK_V1 } from '../../../shared/gbs/requirementPa
 import { assignListingPublicSlugIfAbsent } from '../utils/gbsListingSlug.js';
 import { activateBusinessClient } from '../services/gbs/gbsBuyerActivationService.js';
 import {
-  createCustomerServiceRequest,
-  readyForQuoteProviderServiceRequest,
+  createCustomerServiceRequest as createCustomerServiceRequestRaw,
+  readyForQuoteProviderServiceRequest as readyForQuoteProviderServiceRequestRaw,
   reviewProviderServiceRequest,
 } from '../services/gbs/gbsServiceRequestService.js';
+const readyJurisdiction = () => ({ productionReady: true, state: 'current_reviewed' });
+const createCustomerServiceRequest = (args) => createCustomerServiceRequestRaw({ ...args, readinessResolver: readyJurisdiction });
+const readyForQuoteProviderServiceRequest = (args) => readyForQuoteProviderServiceRequestRaw({ ...args, readinessResolver: readyJurisdiction });
 import {
   acceptCustomerQuote,
   createProviderQuote,

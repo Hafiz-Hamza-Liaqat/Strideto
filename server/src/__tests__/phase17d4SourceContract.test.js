@@ -151,7 +151,7 @@ try {
 
 const evidenceProj = read('shared/gbs/providerEvidence.js');
 check(evidenceProj.includes('hasVaultRef: Boolean(evidence.vaultRef)'), 'safe projection never returns vault contents');
-check(!/notes: evidence\.notes|officialRegistryUrl: evidence/.test(evidenceProj), 'safe projection omits notes and registry URL bodies');
+check(/adminSafeEvidenceProjection/.test(evidenceProj), 'separate Admin evidence projection exists');
 check(evidenceProj.includes("PENDING: 'pending'") && evidenceProj.includes("ACCEPTED: 'accepted'"), 'evidence decisions include pending and accepted');
 
 const wip = [

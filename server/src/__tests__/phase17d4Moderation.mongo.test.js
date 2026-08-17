@@ -32,10 +32,14 @@ import {
   updateServiceListing,
 } from '../services/gbs/serviceListingService.js';
 import {
-  approveServiceListing,
+  approveServiceListing as approveServiceListingWithReadiness,
   needsInformationServiceListing,
   rejectServiceListing,
 } from '../services/gbs/serviceListingReviewService.js';
+const approveServiceListing = (args) => approveServiceListingWithReadiness({
+  ...args,
+  readinessResolver: () => ({ productionReady: true, state: 'current_reviewed', reason: 'current_reviewed' }),
+});
 import {
   evaluateListingPublicationGate,
   LISTING_PUBLICATION_DENY_REASONS,

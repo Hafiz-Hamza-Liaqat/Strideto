@@ -30,10 +30,15 @@ import { marketplaceLeakKeys } from '../../../shared/gbs/marketplaceProjection.j
 import { assignListingPublicSlugIfAbsent, generateListingPublicSlug } from '../utils/gbsListingSlug.js';
 import {
   getPublicMarketplaceEnabled,
-  getPublicMarketplaceListing,
-  listEligibleMarketplaceSitemapPaths,
-  listPublicMarketplaceListings,
+  getPublicMarketplaceListing as getPublicMarketplaceListingWithReadiness,
+  listEligibleMarketplaceSitemapPaths as listEligibleMarketplaceSitemapPathsWithReadiness,
+  listPublicMarketplaceListings as listPublicMarketplaceListingsWithReadiness,
 } from '../services/gbs/gbsMarketplaceService.js';
+
+const currentReviewedFixture = () => ({ productionReady: true, state: 'current_reviewed', reason: 'current_reviewed' });
+const getPublicMarketplaceListing = (slug, env) => getPublicMarketplaceListingWithReadiness(slug, env, currentReviewedFixture);
+const listPublicMarketplaceListings = (query, env) => listPublicMarketplaceListingsWithReadiness(query, env, currentReviewedFixture);
+const listEligibleMarketplaceSitemapPaths = (env, now) => listEligibleMarketplaceSitemapPathsWithReadiness(env, now, currentReviewedFixture);
 
 const TEST_URI = process.env.STRIDETO_17D5_TEST_MONGO_URI || '';
 if (!/\/strideto_17d5_[a-z0-9_-]+$/i.test(TEST_URI)) {
