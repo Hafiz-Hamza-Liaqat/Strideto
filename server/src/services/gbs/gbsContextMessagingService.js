@@ -134,6 +134,10 @@ export async function listProviderGbsMessageThreads({ subject, query = {} } = {}
   const page = parseGbsMessagePage(query.page);
   const limit = parseGbsMessageLimit(query.limit);
   const filter = { providerSubjectType: subject.subjectType, providerSubjectId: String(subject.subjectId) };
+  if (query.contextType) {
+    if (!Object.values(GBS_MESSAGE_CONTEXT_TYPES).includes(query.contextType)) throw deny('invalid_message_context');
+    filter.contextType = query.contextType;
+  }
   const [rows, total] = await Promise.all([
     GbsContextThread.find(filter).sort({ lastMessageAt: -1, _id: -1 })
       .skip((page - 1) * limit).limit(limit).lean(),
