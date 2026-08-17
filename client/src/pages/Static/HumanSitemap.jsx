@@ -83,7 +83,8 @@ export default function HumanSitemap() {
       icon: 'briefcase',
       links: [
         { to: ROUTES.EMPLOYER_LOGIN, label: t('footer:employerPortal'), note: t('static:sitemapOrgNote') },
-        { to: ROUTES.AGENT_LOGIN, label: t('footer:agentPortal'), note: t('static:sitemapOrgNote') },
+        { to: ROUTES.PROVIDERS_EDUCATION_MOBILITY, label: t('footer:educationProviderPortal'), note: t('static:sitemapOrgNote') },
+        { to: ROUTES.PROVIDERS_BUSINESS_FORMATION, label: t('footer:businessProviderPortal'), note: t('static:sitemapOrgNote') },
         { to: ROUTES.INSTITUTION_LOGIN, label: t('footer:institutionPortal'), note: t('static:sitemapOrgNote') },
       ],
     },

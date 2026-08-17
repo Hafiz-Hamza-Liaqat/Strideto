@@ -63,7 +63,8 @@ export function Footer() {
 
   const organizationLinks = [
     { label: t('footer:employerPortal'), path: ROUTES.EMPLOYER_LOGIN },
-    { label: t('footer:agentPortal'), path: ROUTES.AGENT_LOGIN },
+    { label: t('footer:educationProviderPortal'), path: ROUTES.PROVIDERS_EDUCATION_MOBILITY },
+    { label: t('footer:businessProviderPortal'), path: ROUTES.PROVIDERS_BUSINESS_FORMATION },
     { label: t('footer:institutionPortal'), path: ROUTES.INSTITUTION_LOGIN },
   ];
 
