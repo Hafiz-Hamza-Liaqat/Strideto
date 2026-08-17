@@ -153,11 +153,11 @@ check(isBusinessServicesPublicMarketplaceEnabled({}) === false, 'marketplace def
 
 const buyerUi = read('client/src/pages/BusinessClient/BusinessClientCaseDetail.jsx');
 check(buyerUi.includes('Required documents'), 'customer required documents heading');
-check(buyerUi.includes('Secure document upload is not available'), 'truthful unavailable copy');
+check(buyerUi.includes('Secure Business document exchange is not available in this private beta.'), 'truthful private-beta unavailable copy');
 check(!/Identity verified|Government verified|KYC passed|Submitted to authority|Virus-free|KMS/i.test(buyerUi), 'no misleading customer claims');
 
 const providerUi = read('client/src/pages/Agent/business-services/GbsCaseDetail.jsx');
-check(providerUi.includes('Document security scanning is not configured'), 'provider scanner copy');
+check(providerUi.includes('Secure Business document exchange is not available in this private beta.'), 'provider private-beta scanner/HSI copy');
 check(providerUi.includes('explicit case documents duty'), 'duty copy');
 check(!/Identity verified|Government verified|KYC passed|Upload documents|submitted-to-authority/i.test(providerUi), 'no misleading provider claims');
 

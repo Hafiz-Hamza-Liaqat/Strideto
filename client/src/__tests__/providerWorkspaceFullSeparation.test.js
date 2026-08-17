@@ -64,8 +64,9 @@ check(!bizProfile.includes('AGENT_SERVICE_CATEGORIES'), 'business profile has no
 check(eduTeam.includes('EDUCATION_MOBILITY'), 'education team focuses education domain');
 check(bizTeam.includes('BUSINESS_SERVICES'), 'business team focuses business domain');
 check(eduMessages.includes('AgentMessages'), 'education messages reuse Education threads');
-check(bizMessages.includes('not configured for this workflow yet'), 'business messages are truthful NOT_CONFIGURED');
-check(!bizMessages.includes('getMessages'), 'business messages do not load Education threads');
+check(bizMessages.includes('Request, Quote, or Case'), 'business messages use explicit GBS contexts');
+check(bizMessages.includes('listMessageThreads'), 'business messages load only the GBS thread API');
+check(!bizMessages.includes('AgentMessages'), 'business messages do not load Education threads');
 
 check(!eduHelp.includes('Registered Agent'), 'education help has no Registered Agent SOP');
 check(!/Quote acceptance|GbsCase/.test(eduHelp), 'education help has no Business quote/case SOP');

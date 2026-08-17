@@ -45,7 +45,8 @@ check(detail.includes('Business Services access is not active') || detail.includ
 check(detail.includes("status === 404") && detail.includes('Quote not found'), 'ownership 404');
 check(detail.includes('whitespace-pre-wrap') && !detail.includes('innerHTML') && !detail.includes('dangerouslySetInnerHTML'), 'terms as text');
 check(detail.includes('role="alert"') && detail.includes('aria-busy'), 'errors and loading announced');
-check(!/Pay now|Proceed to Payment|Upload Documents|Start Formation|Messages/.test(detail), 'no pay/docs/case/chat');
+check(!/Pay now|Proceed to Payment|Upload Documents|Start Formation/.test(detail), 'no pay/docs/formation action');
+check(detail.includes('GbsContextMessages'), 'P1B adds Quote-scoped contextual messaging');
 
 check(requestDetail.includes(`${'ROUTES.BUSINESS'}`) && requestDetail.includes('/quotes'), 'request detail links to quotes');
 check(requestDetail.includes('quote_decision_required'), 'sent-quote cancel 409 surfaced');
