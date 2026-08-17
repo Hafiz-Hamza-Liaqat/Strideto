@@ -11,6 +11,7 @@ const here = path.dirname(fileURLToPath(import.meta.url)); const root = path.res
 const read = (relative) => fs.readFileSync(path.join(root, relative), 'utf8');
 const service = read('server/src/services/consultationService.js');
 const routes = read('server/src/routes/consultations.js');
+const userCapabilityMiddleware = read('server/src/middleware/requireUserCapability.js');
 const model = read('server/src/models/consultation/Consultation.js');
 const threadModel = read('server/src/models/consultation/ConsultationThread.js');
 const messageModel = read('server/src/models/consultation/ConsultationMessage.js');
@@ -20,7 +21,13 @@ const marketplace = read('server/src/services/agentMarketplaceService.js');
 let passed = 0;
 async function check(label, fn) { if (process.env.MISSION13_ONLY && !label.startsWith(`${process.env.MISSION13_ONLY} `)) return; try { await fn(); passed += 1; console.log(`  ok - ${label}`); } catch (error) { console.error(`  FAIL - ${label}\n       ${error.message}`); process.exitCode = 1; } }
 
-await check('1 consultation ownership uses authenticated Student identity', () => { assert.match(routes, /requireUserAuth/); assert.match(service, /studentUserId: userId/); assert.doesNotMatch(service, /studentUserId: input/); });
+await check('1 consultation ownership uses authenticated Student identity', () => {
+  assert.match(routes, /import \{ studentProductAuth \} from ['"]\.\.\/middleware\/requireUserCapability\.js['"]/);
+  assert.match(routes, /const studentAuth = \[\.\.\.studentProductAuth\]/);
+  assert.match(userCapabilityMiddleware, /studentProductAuth = \[\s*requireAuth,\s*requireUserAuth,\s*requireStudentCapability,?\s*\]/);
+  assert.match(service, /studentUserId: userId/);
+  assert.doesNotMatch(service, /studentUserId: input/);
+});
 await check('2 approved Agent organization can receive a booking', () => assert.match(service, /requestConsultation[\s\S]*assertApprovedVerification\(service\.organizationId\)/));
 await check('3 unapproved suspended revoked and expired organizations are blocked', () => ['draft','suspended','revoked','expired'].forEach((status) => assert.equal(canExercisePrivilegedCapability(status), false)));
 await check('4 lifecycle valid transitions are explicit', () => { assert.equal(consultation.canTransitionConsultation('requested','confirmed','agent'), true); assert.equal(consultation.canTransitionConsultation('confirmed','cancelled','student'), true); });
