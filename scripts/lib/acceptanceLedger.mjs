@@ -4,9 +4,16 @@ import path from 'node:path';
 
 export const LEDGER_VERSION = 1;
 export const ARTIFACT_ROOT = path.resolve('qa-artifacts', 'acceptance-runs');
+export const ACCEPTANCE_CONTRACT_VERSION = 'pre-freeze-acceptance-contract-v2';
 
-const canonical = (value) => JSON.stringify(value, Object.keys(value || {}).sort());
+function canonical(value) {
+  if (Array.isArray(value)) return `[${value.map((item) => canonical(item)).join(',')}]`;
+  if (value && typeof value === 'object') return `{${Object.keys(value).sort().map((key) => `${JSON.stringify(key)}:${canonical(value[key])}`).join(',')}}`;
+  return JSON.stringify(value);
+}
+const legacyCanonical = (value) => JSON.stringify(value, Object.keys(value || {}).sort());
 const digest = (value) => crypto.createHash('sha256').update(typeof value === 'string' ? value : canonical(value)).digest('hex');
+const legacyDigest = (value) => crypto.createHash('sha256').update(typeof value === 'string' ? value : legacyCanonical(value)).digest('hex');
 const CHECKPOINT_RETRIES = 5;
 const CHECKPOINT_DELAY_MS = 20;
 let checkpointFaultInjector = null;
@@ -18,7 +25,25 @@ export function setCheckpointFaultInjector(injector) {
 }
 
 export function manifestFingerprint(manifest) {
-  return digest({ sourceRouteRecords: manifest.sourceRouteRecords, counts: manifest.counts, routes: manifest.routes.map(({ id, persona, routePattern, classification, canonicalUrl }) => ({ id, persona, routePattern, classification, canonicalUrl })), plannedVisualCells: manifest.plannedVisualCells, redirectContractCells: manifest.redirectContractCells });
+  return legacyDigest({ sourceRouteRecords: manifest.sourceRouteRecords, counts: manifest.counts, routes: manifest.routes.map(({ id, persona, routePattern, classification, canonicalUrl }) => ({ id, persona, routePattern, classification, canonicalUrl })), plannedVisualCells: manifest.plannedVisualCells, redirectContractCells: manifest.redirectContractCells });
+}
+
+export function candidateFingerprint({ head, manifest, manifestFingerprint: suppliedManifestFingerprint, themes = [], widths = [], acceptanceContractVersion = ACCEPTANCE_CONTRACT_VERSION, runnerVersion = 'unknown' }) {
+  if (!head || !manifest) throw new Error('Candidate fingerprint requires HEAD and manifest');
+  const mf = suppliedManifestFingerprint || manifestFingerprint(manifest);
+  const themeContract = themes.map((theme) => ({ id: theme.id, preference: theme.preference, media: theme.media }));
+  const widthContract = [...widths];
+  return digest({
+    head,
+    manifestFingerprint: mf,
+    plannedVisualCells: manifest.plannedVisualCells,
+    plannedRedirectContracts: manifest.redirectContractCells,
+    renderedPersonaRouteCombinations: manifest.renderedPersonaRouteCombinations,
+    themeContract,
+    widthContract,
+    acceptanceContractVersion,
+    runnerVersion,
+  });
 }
 
 export function cellKey({ persona, route, theme, width }) {
@@ -70,21 +95,25 @@ function checkpointMetadata(run, update) {
   writeJsonAtomic(file, metadata);
 }
 
-export function createRun({ head, manifest, runnerVersion, mode = 'full', runId = `run-${new Date().toISOString().replace(/[:.]/g, '-')}` }) {
+export function createRun({ head, manifest, runnerVersion, mode = 'full', runId = `run-${new Date().toISOString().replace(/[:.]/g, '-')}`, themes = [], widths = [], acceptanceContractVersion = ACCEPTANCE_CONTRACT_VERSION }) {
   const dir = path.join(ARTIFACT_ROOT, runId);
   ensureDir(dir);
-  const metadata = { ledgerVersion: LEDGER_VERSION, runId, head, manifestFingerprint: manifestFingerprint(manifest), manifestVersion: 'preMission27RouteInventory', manifestPath: 'scripts/lib/preMission27RouteInventory.mjs', plannedVisualCells: manifest.plannedVisualCells, plannedRedirectContracts: manifest.redirectContractCells, startTimestamp: new Date().toISOString(), lastUpdateTimestamp: new Date().toISOString(), runnerVersion, mode, status: 'RUNNING' };
+  const mf = manifestFingerprint(manifest);
+  const metadata = { ledgerVersion: LEDGER_VERSION, runId, head, manifestFingerprint: mf, candidateFingerprint: candidateFingerprint({ head, manifest, manifestFingerprint: mf, themes, widths, acceptanceContractVersion, runnerVersion }), manifestVersion: 'preMission27RouteInventory', manifestPath: 'scripts/lib/preMission27RouteInventory.mjs', plannedVisualCells: manifest.plannedVisualCells, plannedRedirectContracts: manifest.redirectContractCells, renderedPersonaRouteCombinations: manifest.renderedPersonaRouteCombinations, themeContract: themes.map((theme) => ({ id: theme.id, preference: theme.preference, media: theme.media })), widthContract: [...widths], acceptanceContractVersion, startTimestamp: new Date().toISOString(), lastUpdateTimestamp: new Date().toISOString(), runnerVersion, mode, status: 'RUNNING' };
   writeJsonAtomic(path.join(dir, 'run.json'), metadata);
   fs.writeFileSync(path.join(dir, 'ledger.jsonl'), '', { flag: 'a' });
   return { dir, metadata };
 }
 
-export function openRun(runId, { head, manifest, allowMismatch = false } = {}) {
+export function openRun(runId, { head, manifest, themes = [], widths = [], runnerVersion, acceptanceContractVersion = ACCEPTANCE_CONTRACT_VERSION, allowMismatch = false, forResume = false } = {}) {
   const dir = path.join(ARTIFACT_ROOT, runId);
   const file = path.join(dir, 'run.json');
   if (!fs.existsSync(file)) throw new Error(`ACCEPTANCE RESUME BLOCKED - run not found: ${runId}`);
   const metadata = JSON.parse(fs.readFileSync(file, 'utf8'));
-  const mismatch = head && manifest && (metadata.head !== head || metadata.manifestFingerprint !== manifestFingerprint(manifest) || metadata.plannedVisualCells !== manifest.plannedVisualCells || metadata.plannedRedirectContracts !== manifest.redirectContractCells);
+  const currentManifestFingerprint = manifest && manifestFingerprint(manifest);
+  const expectedCandidateFingerprint = head && manifest && candidateFingerprint({ head, manifest, manifestFingerprint: currentManifestFingerprint, themes, widths, acceptanceContractVersion, runnerVersion: runnerVersion || metadata.runnerVersion });
+  if (forResume && !metadata.candidateFingerprint) throw new Error('ACCEPTANCE RESUME BLOCKED - LEGACY RUN FINGERPRINT SCHEMA');
+  const mismatch = head && manifest && (metadata.head !== head || metadata.manifestFingerprint !== currentManifestFingerprint || (forResume && metadata.candidateFingerprint !== expectedCandidateFingerprint) || metadata.plannedVisualCells !== manifest.plannedVisualCells || metadata.plannedRedirectContracts !== manifest.redirectContractCells || (metadata.acceptanceContractVersion && metadata.acceptanceContractVersion !== acceptanceContractVersion));
   if (mismatch && !allowMismatch) throw new Error('ACCEPTANCE RESUME BLOCKED - RUN FINGERPRINT MISMATCH');
   return { dir, metadata };
 }
