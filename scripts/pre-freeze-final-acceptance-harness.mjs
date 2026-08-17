@@ -119,8 +119,8 @@ async function runSelfTest(manifest) {
   assertManifest(manifest);
   assertIsolationSelfTest();
   const representatives = [
-    ['anonymous', '/agents'], ['education-independent', '/agent/education'], ['education-independent', '/agent/education/cases/507f1f77bcf86cd799439011'],
-    ['student', '/cases/507f1f77bcf86cd799439011'], ['business-independent', '/agent/business-services'], ['business-independent', '/agent/business-services/cases/GBSC-QA-CASE'],
+    ['anonymous', '/agents'], ['education-independent', '/agent/education'], ['education-agency', '/agent/education'], ['education-independent', '/agent/education/cases/507f1f77bcf86cd799439011'],
+    ['student', '/cases/507f1f77bcf86cd799439011'], ['business-independent', '/agent/business-services'], ['business-agency', '/agent/business-services'], ['business-independent', '/agent/business-services/cases/GBSC-QA-CASE'],
     ['business-client', '/business/quotes/GBSQ-QA-QUOTE'], ['employer', '/employer'], ['institution', '/institution'], ['admin', '/admin/agent-marketplace'], ['student', '/notifications'],
   ];
   const browser = await puppeteer.launch({ headless: true, ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors'] });
