@@ -76,13 +76,13 @@ check(agentCtrl.includes('requireAgentAuth') || agentRoutes.includes('requireAge
 check(agentRoutes.includes("requireAuth,\n  requireAgentAuth,\n  agent.getDashboard") || agentRoutes.includes('agent.getDashboard'), 'dashboard is agent-authed');
 
 // NAV IA
-['Provider Dashboard', 'Profile', 'Trust Center', 'Messages', 'Notifications', 'Account Settings', 'Help', 'Education & Mobility Services', 'Marketplace', 'Availability', 'Student Leads', 'Clients', 'Consultations', 'Cases'].forEach((label) => {
+['Overview', 'Education Profile', 'Student Leads', 'Clients', 'Consultations', 'Cases', 'My Education Services', 'Marketplace', 'Availability', 'Professional Verification', 'Reviews', 'Education Team', 'Messages', 'Notifications', 'Help'].forEach((label) => {
   check(navSrc.includes(`label: '${label}'`), `nav has ${label}`);
 });
-check(navSrc.includes("agentType === 'agency'") && navSrc.includes("label: 'Team'"), 'Team only for agency');
+check(navSrc.includes("label: 'Education Team'") && navSrc.includes("label: 'Settings'"), 'Education Team and Settings remain');
 check(constantsSrc.includes("AGENT_MESSAGES: '/agent/messages'"), 'messages route constant');
 check(constantsSrc.includes("AGENT_USAGE_BILLING: '/agent/usage-billing'"), 'usage billing route constant');
-check(routes.includes('AgentUsageBilling') && routes.includes('AgentGuidelines') && routes.includes('AgentNotifications'), 'new pages routed');
+check(routes.includes('AgentUsageBilling') && routes.includes('AgentGuidelines') && routes.includes('EducationNotifications'), 'new pages routed');
 check(routes.includes('AgentAcceptInvitation'), 'accept invitation routed');
 
 // THEME / BRANDING
@@ -99,7 +99,7 @@ check(agentCtrl.includes('ProfessionalCase.countDocuments'), 'cases sourced');
 check(agentCtrl.includes("recipientType: 'agent'") && agentCtrl.includes('unreadNotifications'), 'notifications sourced');
 check(agentCtrl.includes('marketplaceStripeConfiguration') && agentCtrl.includes('not_configured'), 'commerce not_configured truthful');
 check(!agentCtrl.includes("comingSoon: ['leads', 'cases', 'payments']"), 'deferred comingSoon removed');
-check(dash.includes('href') || dash.includes('ROUTES.AGENT_LEADS'), 'cards deep-link');
+check(dash.includes('href') || dash.includes('ROUTES.AGENT_EDUCATION_LEADS'), 'cards deep-link');
 check(dash.includes('0 or not configured') || dash.includes('not configured'), 'empty state copy');
 
 // PROFILE
@@ -124,7 +124,7 @@ check(sources.resolveVerificationSources({ countryCode: 'XX', organizationType: 
 check(sources.resolveVerificationSources({ countryCode: 'PK', organizationType: 'agency' }).automatedFetch === false, 'no automated fetch');
 check(verifyCtrl.includes('req.agent') && verifyCtrl.includes('markEmailVerified'), 'agent submit integrates org verification');
 check(!verifyCtrl.includes('EMAIL_VERIFICATION_REQUIRED'), 'local session may leave draft without fabricating professional verification');
-check(orgBridge.includes("organizationType === 'agent'") && orgBridge.includes("'/agent/verification'"), 'admin outcome notifies agent');
+check(orgBridge.includes("organizationType === 'agent'") && orgBridge.includes("'/agent/education/verification'"), 'admin outcome notifies agent');
 
 // SERVICES / MONEY / GUARANTEES
 check(servicesPage.includes('amountMinor') && servicesPage.includes('fixed_price'), 'integer minor-unit price UI');
@@ -146,7 +146,7 @@ check(avail.includes('IANA') && avail.includes('Karachi'), 'UI documents no sile
 check(consultSvc.includes('Requested slot conflicts with another consultation'), 'double booking 409');
 
 // CONSULTATIONS / CASES / MESSAGES / VAULT
-check(consultSvc.includes('notifyAgentMembership') && consultSvc.includes('/agent/consultations/'), 'consultation inbox');
+check(consultSvc.includes('notifyAgentMembership') && consultSvc.includes('/agent/education/consultations/'), 'consultation inbox');
 check(caseSvc.includes('Student approval is required') && caseSvc.includes('notifyAgentMembership'), 'case student approval and inbox');
 check(caseDetail.includes('cannot self-approve') && caseDetail.includes('Vault grants'), 'case UI privacy');
 check(agentCtrl.includes('listMessageHub') && agentCtrl.includes("context: 'consultation'"), 'message hub contextual');

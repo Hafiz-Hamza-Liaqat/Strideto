@@ -126,9 +126,9 @@ const privacySvc = source('server/src/services/accountPrivacyRequestService.js')
 // --- Student ↔ Agent ---
 {
   check(consultSvc.includes("recipientActorType === 'student'") && consultSvc.includes("link: `/consultations/${record._id}`"), 'Student consultation inbox deep link');
-  check(consultSvc.includes("recipientActorType === 'agent'") && consultSvc.includes("link: `/agent/consultations/${record._id}`"), 'Agent consultation inbox deep link');
+  check(consultSvc.includes("recipientActorType === 'agent'") && consultSvc.includes("link: `/agent/education/consultations/${record._id}`"), 'Agent consultation inbox deep link');
   check(consultSvc.includes('CONSENT_PURPOSES.AGENT_CONSULTATION'), 'consultation consent recorded');
-  check(consultSvc.includes("fail('Requested slot conflicts with another consultation', 409)"), 'double-booking 409');
+  check(consultSvc.includes("fail('Requested slot conflicts with another consultation', 409, 'SLOT_CONFLICT')"), 'double-booking 409');
   check(messageThread.includes('disabled={busy}') && messageThread.includes('Write a consultation message'), 'consultation composer disables input while busy');
   check(caseSvc.includes("recipientType === 'student'") && caseSvc.includes("link: `/cases/${record._id}`"), 'Student case inbox deep link');
   check(caseSvc.includes('vaultGrantsTransferred:false'), 'case transfer does not inherit Vault grants');

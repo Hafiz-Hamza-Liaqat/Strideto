@@ -112,10 +112,10 @@ check(!/addDomain\(domain\.domainId, independent\)/.test(home), 'Provider Home A
 
 const nav = read('client/src/config/agentNavConfig.js');
 check(nav.includes("label: 'My Education Services'"), 'education services labeled');
-check(nav.includes('ROUTES.AGENT_SERVICES') && nav.includes("label: 'My Education Services'"), 'My Education Services uses Education AgentService route');
+check(nav.includes('ROUTES.AGENT_EDUCATION_SERVICES') && nav.includes("label: 'My Education Services'"), 'My Education Services uses Education AgentService route');
 const eduSlice = nav.split('const EDUCATION')[1].split('const BUSINESS')[0];
 const bizSlice = nav.split('const BUSINESS')[1].split('const EDUCATION_GROUPS')[0];
-check(eduSlice.includes('My Education Services') && eduSlice.includes('AGENT_SERVICES'), 'education services stay on Education workspace');
+check(eduSlice.includes('My Education Services') && eduSlice.includes('AGENT_EDUCATION_SERVICES'), 'education services stay on Education workspace');
 check(!eduSlice.includes('AGENT_BUSINESS_SERVICES_LISTINGS'), 'education services do not point at Business listings');
 check(bizSlice.includes("label: 'My Services'"), 'business listings labeled');
 check(nav.includes('hasBusiness ? BUSINESS : []'), 'business operational nav requires authorized workspace');

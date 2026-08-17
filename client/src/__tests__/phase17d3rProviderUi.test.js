@@ -43,7 +43,7 @@ check(home.includes('This changes {group.label} only'), 'Add CTA names the subje
 
 const layout = read('pages/Agent/AgentLayout.jsx');
 const controls = read('components/agent/ProviderWorkspaceControls.jsx');
-check(layout.includes('ActingAsControl') && layout.includes('ActiveDashboardControl'), 'workspace switcher');
+check(layout.includes('ActingAsControl') && !layout.includes('ActiveDashboardControl'), 'Acting as remains; Active Dashboard switcher removed');
 check(layout.includes('break-words') && controls.includes('break-words'), 'long agency/domain names wrap');
 check(controls.includes('aria-haspopup="listbox"'), 'switcher keyboard/a11y');
 

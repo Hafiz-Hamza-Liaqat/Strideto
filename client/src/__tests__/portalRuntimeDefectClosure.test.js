@@ -21,7 +21,8 @@ test('Agent route contract classifies only login/register as public auth', () =>
   assert.equal(isAgentPublicAuthPath('/agent/login'), true);
   assert.equal(isAgentPublicAuthPath('/agent/register'), true);
   for (const path of [
-    '/agent', '/agent/onboarding', '/agent/profile', '/agent/services', '/agent/marketplace',
+    '/agent', '/agent/onboarding', '/agent/education', '/agent/education/profile', '/agent/education/services',
+    '/agent/education/marketplace', '/agent/business-services', '/agent/profile', '/agent/services',
     '/agent/marketplace/new', '/agent/consultations', '/agent/cases', '/agent/trust',
     '/agent/commerce', '/agent/availability', '/agent/verification', '/agent/team',
     '/agent/leads', '/agent/clients', '/agent/settings',

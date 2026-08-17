@@ -4,9 +4,9 @@ import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
 /**
- * Shared Profile must not own Education specialty / destination taxonomy.
- * Those fields remain on AgentProfile storage but are edited only under
- * Education → My Education Services.
+ * Shared identity pages must not own Education specialty / destination taxonomy.
+ * Those fields remain on AgentProfile storage but are edited only on
+ * Education & Mobility Profile.
  */
 
 let count = 0;
@@ -22,11 +22,14 @@ function read(rel) {
 }
 
 const profile = read('pages/Agent/AgentProfile.jsx');
+const eduProfile = read('pages/Agent/EducationProfile.jsx');
+const eduFields = read('components/agent/EducationProfessionalProfileSection.jsx');
 const services = read('pages/Agent/AgentServices.jsx');
 const pub = read('pages/Public/AgentPublicProfile.jsx');
 const badge = read('components/agent/StridetoVerifiedMark.jsx');
 const listingEditor = read('pages/Agent/business-services/GbsListingEditor.jsx');
 const gbsCaps = read('pages/Agent/business-services/GbsCapabilities.jsx');
+const bizProfile = read('pages/Agent/business-services/GbsProfile.jsx');
 
 check(!profile.includes('AGENT_SERVICE_CATEGORIES'), 'shared Profile does not import Education taxonomy');
 check(!profile.includes('Destination / country expertise'), 'shared Profile has no destination expertise control');
@@ -35,15 +38,20 @@ check(!profile.includes('specialties:'), 'shared Profile save does not mutate sp
 check(!/destinationCountries:\s*normalizeList\(form\.destinationCountries\)/.test(profile), 'shared Profile save does not mutate destinationCountries');
 check(profile.includes('Save profile') && profile.includes('role="alert"'), 'shared Profile save UX remains');
 check(profile.includes('Languages') && profile.includes('Service regions'), 'shared identity basics remain');
-check(profile.includes('My Education Services'), 'shared Profile points editors to Education home');
+check(profile.includes('Education & Mobility Profile') || profile.includes('Education professional profile'), 'shared identity copy points to Education Profile');
 
-check(services.includes('Education professional profile'), 'Education Services hosts professional profile section');
-check(services.includes('Used for your Education &amp; Mobility professional profile'), 'Education ownership copy present');
-check(services.includes('AGENT_SERVICE_CATEGORIES'), 'Education Services uses Education taxonomy');
-check(services.includes('Destination / country expertise'), 'Education destination expertise editable in Education workspace');
-check(services.includes('Select Education specialties') || services.includes('Specialties'), 'Education specialties editable in Education workspace');
-check(/updateProfile\(\{\s*specialties:/.test(services) && services.includes('destinationCountries:'), 'Education profile save reuses AgentProfile API fields');
+check(eduProfile.includes('EducationProfessionalProfileSection'), 'Education Profile hosts professional fields');
+check(eduFields.includes('Education professional profile'), 'Education professional section present');
+check(eduFields.includes('Used for your Education &amp; Mobility professional profile'), 'Education ownership copy present');
+check(eduFields.includes('AGENT_SERVICE_CATEGORIES'), 'Education Profile uses Education taxonomy');
+check(eduFields.includes('Destination / country expertise'), 'Education destination expertise editable in Education workspace');
+check(eduFields.includes('Select Education specialties') || eduFields.includes('Specialties'), 'Education specialties editable in Education workspace');
+check(/updateProfile\(\{\s*specialties:/.test(eduFields) && eduFields.includes('destinationCountries:'), 'Education profile save reuses AgentProfile API fields');
+check(!services.includes('AGENT_SERVICE_CATEGORIES'), 'Education Services no longer owns professional taxonomy editor');
 check(!services.includes('business_formation') && !services.includes('registered_agent'), 'Education Services does not adopt GBS capability ids');
+
+check(!bizProfile.includes('AGENT_SERVICE_CATEGORIES'), 'Business Profile has no Education taxonomy');
+check(!bizProfile.includes('destinationCountries'), 'Business Profile has no Education destinations');
 
 check(badge.includes('if (!verified) return null'), 'Verified mark fails closed');
 check(pub.includes('educationProfessionalVerification?.verified === true'), 'public detail requires server verified flag');
