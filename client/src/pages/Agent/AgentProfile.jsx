@@ -37,9 +37,10 @@ function normalizeList(value) {
   return Array.isArray(value) ? value : String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
 }
 
-export default function AgentProfile({ variant = 'standalone' }) {
+export default function AgentProfile({ variant = 'standalone', product = 'education' }) {
   const { i18n } = useTranslation();
   const countryOptions = useMemo(() => buildCountryOptions(i18n.language || 'en'), [i18n.language]);
+  const isEducationProduct = product === 'education';
 
   const [completeness, setCompleteness] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -132,14 +133,14 @@ export default function AgentProfile({ variant = 'standalone' }) {
     <div className="space-y-6">
       <div>
         <HeadingTag className={`${isSection ? 'text-lg' : 'text-2xl'} font-semibold text-gray-900 dark:text-white`}>
-          {isSection
-            ? 'Shared provider / agency identity'
+          {isSection && isEducationProduct
+            ? 'Education professional presentation'
             : (accountType === 'agency' ? 'Agency profile' : 'Professional profile')}
         </HeadingTag>
         <p className="text-slate-500 dark:text-gray-400 text-sm mt-1">
-          {isSection
-            ? 'Canonical organization identity. Saving here does not copy a second identity database and does not change Education specialties or Business capabilities.'
-            : 'Shared Provider identity and basics. Education specialties and destination expertise are managed on Education & Mobility Profile. Verified trust badges come from verification only. Account type is ' + accountType + '.'}
+          {isSection && isEducationProduct
+            ? 'Education & Mobility contact and summary. These values do not write through to Business Formation professional presentation. Specialties and destinations are edited below.'
+            : 'Education professional basics. Specialties and destination expertise are managed on Education & Mobility Profile. Verified trust badges come from verification only. Account type is ' + accountType + '.'}
         </p>
       </div>
       {completeness && (
