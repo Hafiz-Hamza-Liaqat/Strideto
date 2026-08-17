@@ -38,9 +38,13 @@ check(!profile.includes('specialties:'), 'shared Profile save does not mutate sp
 check(!/destinationCountries:\s*normalizeList\(form\.destinationCountries\)/.test(profile), 'shared Profile save does not mutate destinationCountries');
 check(profile.includes('Save profile') && profile.includes('role="alert"'), 'shared Profile save UX remains');
 check(profile.includes('Languages') && profile.includes('Service regions'), 'shared identity basics remain');
-check(profile.includes('Education & Mobility Profile') || profile.includes('Education professional profile'), 'shared identity copy points to Education Profile');
+check(
+  profile.includes('Education & Mobility Profile') || profile.includes('Education professional'),
+  'Education ownership copy present on AgentProfile'
+);
 
 check(eduProfile.includes('EducationProfessionalProfileSection'), 'Education Profile hosts professional fields');
+check(eduProfile.includes('does not update Business'), 'Education Profile states Business independence');
 check(eduFields.includes('Education professional profile'), 'Education professional section present');
 check(eduFields.includes('Used for your Education &amp; Mobility professional profile'), 'Education ownership copy present');
 check(eduFields.includes('AGENT_SERVICE_CATEGORIES'), 'Education Profile uses Education taxonomy');
@@ -50,6 +54,8 @@ check(/updateProfile\(\{\s*specialties:/.test(eduFields) && eduFields.includes('
 check(!services.includes('AGENT_SERVICE_CATEGORIES'), 'Education Services no longer owns professional taxonomy editor');
 check(!services.includes('business_formation') && !services.includes('registered_agent'), 'Education Services does not adopt GBS capability ids');
 
+check(!bizProfile.includes('AgentProfile'), 'Business Profile no longer mounts shared AgentProfile editor');
+check(bizProfile.includes('GbsProfessionalProfileSection'), 'Business Profile uses Business presentation editor');
 check(!bizProfile.includes('AGENT_SERVICE_CATEGORIES'), 'Business Profile has no Education taxonomy');
 check(!bizProfile.includes('destinationCountries'), 'Business Profile has no Education destinations');
 

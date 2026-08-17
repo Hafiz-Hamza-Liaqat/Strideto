@@ -56,8 +56,9 @@ check(routes.includes("path: 'verification'") && routes.includes('AGENT_EDUCATIO
 
 check(eduProfile.includes('Education &amp; Mobility Profile') || eduProfile.includes('Education & Mobility Profile'), 'education profile heading');
 check(eduProfile.includes('EducationProfessionalProfileSection'), 'education professional fields on education profile');
-check(bizProfile.includes('Business Services Profile'), 'business profile heading');
-check(bizProfile.includes('GbsVerification') && bizProfile.includes('AgentProfile'), 'business profile reuses identity + GBS summary');
+check(bizProfile.includes('Business Formation Profile') || bizProfile.includes('Business Services Profile'), 'business profile heading');
+check(bizProfile.includes('GbsVerification') && bizProfile.includes('GbsProfessionalProfileSection'), 'business profile uses Business presentation + GBS summary');
+check(!bizProfile.includes('AgentProfile'), 'business profile does not mount Education AgentProfile editor');
 check(!bizProfile.includes('AGENT_SERVICE_CATEGORIES'), 'business profile has no Education taxonomy');
 
 check(eduTeam.includes('EDUCATION_MOBILITY'), 'education team focuses education domain');
