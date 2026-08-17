@@ -3,7 +3,12 @@ import { useEffect, useState } from 'react';
 import { ROUTES } from '../../../constants';
 import { gbsProviderApi } from '../../../services/gbsProviderApi';
 import { useGbsProvider } from './GbsProviderContext';
-import { StatusBadge, card, emptyBox, errorBox, h2, muted, wrap } from './gbsUi';
+import { StatusBadge, card, errorBox, h1, muted, wrap } from './gbsUi';
+import { businessVerificationSummary } from './businessVerificationPresentation';
+
+function VerificationState({ children, error = false }) {
+  return <div className="space-y-4"><h1 className={h1}>Business Verification</h1><div className={error ? errorBox : card} role={error ? 'alert' : 'status'}>{children}</div></div>;
+}
 
 /**
  * Business Verification is a summary surface only.
@@ -43,31 +48,18 @@ export default function GbsVerification() {
     return () => { cancelled = true; };
   }, [selected]);
 
-  if (!selected) return <div className={emptyBox}>Select an authorized provider subject first.</div>;
-  if (loading) return <div className={`${card} ${muted}`} aria-busy="true">Loading Business Verification…</div>;
-  if (error) return <div className={errorBox} role="alert">{error}</div>;
+  if (!selected) return <VerificationState>Select an authorized provider subject first.</VerificationState>;
+  if (loading) return <VerificationState>Loading Business Verification…</VerificationState>;
+  if (error) return <VerificationState error>{error}</VerificationState>;
 
-  const claimed = caps.length;
-  const approvedCaps = caps.filter((c) => {
-    const s = String(c.verificationStatus || c.status || '').toLowerCase();
-    return s === 'verified' || s === 'approved';
-  }).length;
-  const pendingCaps = caps.filter((c) => {
-    const s = String(c.verificationStatus || c.status || '').toLowerCase();
-    return s.includes('pending') || s.includes('review') || s.includes('submitted') || s.includes('claimed');
-  }).length;
-  const jurisdictionIds = new Set();
-  for (const cap of caps) {
-    for (const j of cap.jurisdictionIds || cap.jurisdictions || []) {
-      jurisdictionIds.add(typeof j === 'string' ? j : j.jurisdictionId || j.id);
-    }
-  }
+  const summary = businessVerificationSummary(caps);
+  const { claims, jurisdictionIds } = summary;
   const catalogJurisdictionCount = (catalog?.jurisdictions || []).length;
 
   return (
     <div className="space-y-5 min-w-0">
       <header className="space-y-2">
-        <h2 className={h2}>Business Verification</h2>
+        <h1 className={h1}>Business Verification</h1>
         <p className={`${muted} ${wrap}`}>
           Summary of organization and Business Services eligibility for{' '}
           <span className="text-gray-900 dark:text-white">{selected.label}</span>.
@@ -81,9 +73,11 @@ export default function GbsVerification() {
         <ul className={`mt-2 space-y-1 text-sm ${wrap}`}>
           <li>Provider subject: {selected.label}</li>
           <li>Domain enrollment: active for this subject (enrollment ≠ verification)</li>
-          <li>Capabilities claimed: {claimed}</li>
-          <li>Capabilities pending / claimed: {pendingCaps}</li>
-          <li>Capabilities verified (server status): {approvedCaps}</li>
+          <li>Capabilities claimed: {summary.claimed}</li>
+          <li>Capabilities under evidence review: {summary.underReview}</li>
+          <li>Capabilities needing changes: {summary.needsChanges}</li>
+          <li>Capabilities verified for current-reviewed scope: {summary.productionVerified}</li>
+          <li>Capabilities suspended or revoked: {summary.suspendedOrRevoked}</li>
           <li>Jurisdiction scopes on claims: {jurisdictionIds.size}</li>
           <li>Catalog jurisdictions available for setup: {catalogJurisdictionCount}</li>
           <li>Service listings (draft/active inventory): {listings.length}</li>
@@ -92,16 +86,22 @@ export default function GbsVerification() {
 
       <section className={card}>
         <h3 className="font-semibold text-gray-900 dark:text-white">Capabilities</h3>
-        {caps.length === 0 ? (
+        {claims.length === 0 ? (
           <p className={`mt-2 ${muted}`}>No capabilities claimed yet.</p>
         ) : (
           <ul className="mt-3 space-y-2">
-            {caps.map((cap) => (
-              <li key={cap._id || cap.capabilityId} className="flex flex-wrap items-center justify-between gap-2 text-sm">
-                <span className="break-words text-gray-900 dark:text-white">
-                  {cap.capabilityId || cap.label || 'Capability'}
-                </span>
-                <StatusBadge status={cap.verificationStatus || cap.status || 'claimed'} />
+            {claims.map((cap) => (
+              <li key={cap.id || cap.capabilityId} className={`${card} text-sm`}>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="break-words font-medium text-gray-900 dark:text-white">{cap.publicName || cap.capabilityId || 'Capability'}</span>
+                  <StatusBadge status={cap.trustStatus} />
+                </div>
+                <p className={`mt-2 ${muted}`}>Evidence/review state: {cap.trustStatus.replaceAll('_', ' ')}</p>
+                <p className={cap.productionAuthorized ? 'text-emerald-800 dark:text-emerald-200' : 'text-amber-800 dark:text-amber-200'}>Production authority: {cap.authorityLabel}</p>
+                <p className={muted}>Jurisdictions: {cap.jurisdictionIds.join(', ') || 'none'}</p>
+                <p className={muted}>Entity types: {cap.entityTypeIds.join(', ') || 'none specified'}</p>
+                <p className={muted}>Protected-title scope: {cap.protectedTitleIds.join(', ') || (cap.protectedTitleRequired ? 'required but not approved in scope' : 'not required')}</p>
+                {(cap.jurisdictionReadiness || []).map((row) => <p key={row.jurisdictionId} className={muted}>{row.jurisdictionId}: {row.productionReady ? 'current reviewed' : `${row.state} — not live`}</p>)}
               </li>
             ))}
           </ul>
