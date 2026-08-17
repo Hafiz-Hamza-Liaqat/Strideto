@@ -577,6 +577,35 @@ export async function updateService(agentAccountId, serviceId, data) {
     throw err;
   }
 
+  if (data?.capabilityId) {
+    const err = new Error('Education services do not accept Business Services capabilityId');
+    err.status = 400;
+    err.code = 'education_service_rejects_gbs_capability';
+    throw err;
+  }
+  const gbsIds = new Set(Object.values(BUSINESS_SERVICES_CAPABILITY_IDS));
+  if (data?.category && (gbsIds.has(data.category) || !Object.values(AGENT_SERVICE_CATEGORIES).includes(data.category))) {
+    const err = new Error('Unknown education service category');
+    err.status = 400;
+    err.code = 'education_service_category_invalid';
+    throw err;
+  }
+
+  const subjectType = profile.agentType === AGENT_TYPES.AGENCY
+    ? PROVIDER_SUBJECT_TYPES.ORGANIZATION
+    : PROVIDER_SUBJECT_TYPES.AGENT;
+  const subjectId = subjectType === PROVIDER_SUBJECT_TYPES.ORGANIZATION
+    ? String(profile.organizationId)
+    : String(agentAccountId);
+  await assertProviderDomainAccess({
+    agentAccountId,
+    subjectType,
+    subjectId,
+    domainId: PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY,
+    permissionId: PROVIDER_DOMAIN_PERMISSIONS.EDUCATION_SERVICES_MANAGE,
+    actor: { agentAccountId, role: 'agent' },
+  });
+
   // Guarantee language check
   assertNoGuaranteeLanguage({
     title: data.title,
@@ -922,7 +951,7 @@ export async function getPublicProfileBySlug(slug) {
     organizationId: profile.organizationId,
     status: AGENT_SERVICE_STATUSES.ACTIVE,
   })
-    .select('title category description countriesServed destinationCountries deliveryMode pricingMode price')
+    .select('title category description eligibilityNotes countriesServed destinationCountries deliveryMode pricingMode price durationEstimate')
     .lean();
 
   // Education public "Verified by Strideto" uses the same OrganizationVerification
