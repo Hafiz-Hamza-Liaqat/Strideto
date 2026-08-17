@@ -16,6 +16,9 @@ import { GbsCaseFilingAuthorization } from '../../models/gbs/GbsCaseFilingAuthor
 import { GbsExternalFilingSubmission } from '../../models/gbs/GbsExternalFilingSubmission.js';
 import { IdempotencyRecord } from '../../models/platform/IdempotencyRecord.js';
 import { AgentEducationMarketplaceFreeEntitlement } from '../../models/agent/AgentEducationMarketplaceFreeEntitlement.js';
+import { ProfessionalCaseApplication } from '../../models/case/ProfessionalCaseApplication.js';
+import { ProfessionalReview } from '../../models/trust/ProfessionalReview.js';
+import { ProfessionalDispute } from '../../models/trust/ProfessionalDispute.js';
 import { logger } from '../../utils/logger.js';
 
 export class CriticalIndexProvisionError extends Error {
@@ -286,6 +289,40 @@ export const EDU_MARKETPLACE_FREE_ENTITLEMENT_CRITICAL_INDEXES = Object.freeze([
   }),
 ]);
 
+export const EDUCATION_CASE_APPLICATION_CRITICAL_INDEXES = Object.freeze([
+  Object.freeze({
+    name: 'education_case_application_case_created',
+    key: Object.freeze({ caseId: 1, createdAt: -1 }),
+  }),
+  Object.freeze({
+    name: 'education_case_application_case_status_deadline',
+    key: Object.freeze({ caseId: 1, status: 1, deadlineAt: 1 }),
+  }),
+  Object.freeze({
+    name: 'education_case_application_command_unique',
+    key: Object.freeze({ caseId: 1, creationCommandId: 1 }),
+    unique: true,
+    partialFilterExpression: Object.freeze({ creationCommandId: { $type: 'string' } }),
+  }),
+]);
+
+export const PROFESSIONAL_TRUST_CRITICAL_INDEXES = Object.freeze({
+  reviews: Object.freeze([
+    Object.freeze({
+      name: 'studentUserId_1_interactionType_1_interactionId_1',
+      key: Object.freeze({ studentUserId: 1, interactionType: 1, interactionId: 1 }),
+      unique: true,
+    }),
+  ]),
+  disputes: Object.freeze([
+    Object.freeze({
+      name: 'studentUserId_1_contextType_1_contextId_1',
+      key: Object.freeze({ studentUserId: 1, contextType: 1, contextId: 1 }),
+      unique: true,
+    }),
+  ]),
+});
+
 function sameKey(left = {}, right = {}) {
   return JSON.stringify(left) === JSON.stringify(right);
 }
@@ -448,6 +485,9 @@ export async function provisionCriticalIdempotencyIndexes({
   externalFilingCollection = GbsExternalFilingSubmission.collection,
   idempotencyCollection = IdempotencyRecord.collection,
   educationFreeEntitlementCollection = AgentEducationMarketplaceFreeEntitlement.collection,
+  educationCaseApplicationCollection = ProfessionalCaseApplication.collection,
+  professionalReviewCollection = ProfessionalReview.collection,
+  professionalDisputeCollection = ProfessionalDispute.collection,
 } = {}) {
   const serviceRequest = await provisionMissingIndexes({
     collection: serviceRequestCollection,
@@ -489,6 +529,18 @@ export async function provisionCriticalIdempotencyIndexes({
     collection: educationFreeEntitlementCollection,
     expected: EDU_MARKETPLACE_FREE_ENTITLEMENT_CRITICAL_INDEXES,
   });
+  const educationCaseApplications = await provisionMissingIndexes({
+    collection: educationCaseApplicationCollection,
+    expected: EDUCATION_CASE_APPLICATION_CRITICAL_INDEXES,
+  });
+  const professionalReviews = await provisionMissingIndexes({
+    collection: professionalReviewCollection,
+    expected: PROFESSIONAL_TRUST_CRITICAL_INDEXES.reviews,
+  });
+  const professionalDisputes = await provisionMissingIndexes({
+    collection: professionalDisputeCollection,
+    expected: PROFESSIONAL_TRUST_CRITICAL_INDEXES.disputes,
+  });
   logger.info('critical_index_provision_ready', {
     serviceRequestCreated: serviceRequest.created,
     quoteCreated: quote.created,
@@ -500,6 +552,9 @@ export async function provisionCriticalIdempotencyIndexes({
     externalFilingCreated: externalFilings.created,
     idempotencyCreated: idempotency.created,
     educationFreeEntitlementCreated: educationFreeEntitlement.created,
+    educationCaseApplicationCreated: educationCaseApplications.created,
+    professionalReviewCreated: professionalReviews.created,
+    professionalDisputeCreated: professionalDisputes.created,
   });
   return {
     serviceRequest,
@@ -512,5 +567,8 @@ export async function provisionCriticalIdempotencyIndexes({
     externalFilings,
     idempotency,
     educationFreeEntitlement,
+    educationCaseApplications,
+    professionalReviews,
+    professionalDisputes,
   };
 }

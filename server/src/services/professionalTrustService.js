@@ -37,7 +37,9 @@ export async function resolveInteraction(studentUserId, interactionType, interac
   if (!Model) throw fail(400, 'Unsupported review interaction');
   const anchor = await Model.findOne({ _id: interactionId, studentUserId });
   if (!anchor) throw fail(403, 'Interaction is not owned by this Student');
-  const eligible = interactionType === 'consultation' ? anchor.status === 'completed' && Boolean(anchor.completion?.completedAt) : anchor.lifecycle === 'closed' && anchor.processCompleted;
+  const eligible = interactionType === 'consultation'
+    ? anchor.status === 'completed' && Boolean(anchor.completion?.completedAt)
+    : anchor.lifecycle === 'completed' && anchor.processCompleted === true && Boolean(anchor.closedAt);
   if (!eligible) throw fail(409, 'Interaction is not review eligible');
   return anchor;
 }
@@ -52,6 +54,9 @@ export async function reviewEligibility(studentUserId, interactionType, interact
 
 export async function createReview(studentUserId, input) {
   const anchor = await resolveInteraction(studentUserId, input.interactionType, input.interactionId);
+  if (await ProfessionalReview.exists({ studentUserId, interactionType: input.interactionType, interactionId: input.interactionId })) {
+    throw fail(409, 'This interaction already has a review');
+  }
   const profile = await AgentProfile.findOne({ agentAccountId: studentUserId, organizationId: anchor.organizationId });
   if (profile) throw fail(403, 'Organization members cannot review their own organization');
   const body = clean(input.body, 4000); if (body.length < 10) throw fail(400, 'Review text is too short');
@@ -97,6 +102,7 @@ async function targetContext(userId, type, targetId) {
 export async function createReport(reporterUserId, input) { const context = await targetContext(reporterUserId, input.targetType, input.targetId); const description = clean(input.description, 3000); if (description.length < 10) throw fail(400, 'Report description is too short'); return ProfessionalReport.create({ reporterUserId, targetType: input.targetType, targetId: input.targetId, organizationId: context.organizationId, category: input.category, description, evidenceReferences: input.evidenceReferences || [] }); }
 
 export async function openDispute(studentUserId, input) { let anchor; if (input.contextType === 'agent_service') { anchor = await Consultation.findOne({ studentUserId, agentServiceId: input.contextId, status: 'completed', 'completion.completedAt': { $ne: null } }); if (!anchor) throw fail(409, 'Agent service dispute requires a completed engagement'); } else anchor = await resolveInteraction(studentUserId, input.contextType === 'professional_case' ? 'professional_case' : 'consultation', input.contextId);
+  if (await ProfessionalDispute.exists({ studentUserId, contextType: input.contextType, contextId: input.contextId })) throw fail(409, 'A dispute already exists for this interaction');
   const summary = clean(input.summary, 3000); if (summary.length < 10) throw fail(400, 'Dispute summary is too short'); try { const dispute = await ProfessionalDispute.create({ studentUserId, organizationId: anchor.organizationId, contextType: input.contextType, contextId: input.contextId, category: input.category, summary, events: [{ type: 'opened', actorType: 'student', actorId: studentUserId, note: summary }] }); await notify({ recipientActorType: 'agent', recipientId: id(anchor.organizationId), eventType: 'dispute_opened', entityType: 'dispute', entityId: dispute._id }); return dispute; } catch (error) { if (error?.code === 11000) throw fail(409, 'A dispute already exists for this interaction'); throw error; } }
 
 const PARTY_TRANSITIONS = { student: { opened: ['awaiting_response'], awaiting_response: ['under_review'] }, agent: { opened: ['awaiting_response'], awaiting_response: ['under_review'] } };

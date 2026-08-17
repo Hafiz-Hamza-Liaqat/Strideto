@@ -4,6 +4,30 @@ export const CASE_OUTCOMES = Object.freeze(['successful', 'unsuccessful', 'withd
 export const APPROVAL_STATUSES = Object.freeze(['pending', 'approved', 'rejected', 'expired', 'cancelled']);
 export const HIGH_VALUE_ACTIONS = Object.freeze(['application_package_ready', 'final_document_set', 'external_submission', 'selection_change', 'scope_change', 'agent_transfer', 'case_closure']);
 export const SUBMISSION_METHODS = Object.freeze(['student_self_submitted', 'agent_assisted_external', 'authorized_integration_future', 'unknown']);
+export const CASE_APPLICATION_STATUSES = Object.freeze([
+  'preparing',
+  'ready_for_submission',
+  'provider_attested_submitted',
+  'awaiting_decision',
+  'provider_recorded_offer',
+  'provider_recorded_unsuccessful',
+  'withdrawn',
+  'completed',
+]);
+export const CASE_APPLICATION_OUTCOMES = Object.freeze(['offer_received', 'unsuccessful', 'withdrawn', 'other']);
+export const CASE_APPLICATION_STATUS_TRANSITIONS = Object.freeze({
+  preparing: ['ready_for_submission', 'withdrawn'],
+  ready_for_submission: ['preparing', 'provider_attested_submitted', 'withdrawn'],
+  provider_attested_submitted: ['awaiting_decision', 'provider_recorded_offer', 'provider_recorded_unsuccessful', 'withdrawn'],
+  awaiting_decision: ['provider_recorded_offer', 'provider_recorded_unsuccessful', 'withdrawn'],
+  provider_recorded_offer: ['completed'],
+  provider_recorded_unsuccessful: ['completed'],
+  withdrawn: [],
+  completed: [],
+});
+export function canTransitionCaseApplicationStatus(from, to) {
+  return Boolean(CASE_APPLICATION_STATUS_TRANSITIONS[from]?.includes(to));
+}
 
 const definitions = {
   study: ['intake', 'profile_review', 'shortlist', 'document_preparation', 'application_ready', 'submitted_external', 'decision_waiting', 'outcome', 'closed'],
