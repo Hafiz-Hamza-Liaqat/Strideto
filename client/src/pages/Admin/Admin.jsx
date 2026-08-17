@@ -32,9 +32,11 @@ export default function Admin() {
         <div className="flex-1 min-w-0 px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
           <div className="max-w-6xl mx-auto w-full">
             <div className="hidden lg:flex flex-wrap items-center justify-between gap-2 mb-6">
-              <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">
-                {t('admin:title')}
-              </h1>
+              {isOverview ? (
+                <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">{t('admin:title')}</h1>
+              ) : (
+                <p className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{t('admin:title')}</p>
+              )}
               {!permLoading && role && (
                 <span className="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
                   {role}

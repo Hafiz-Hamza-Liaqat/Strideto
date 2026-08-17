@@ -12,7 +12,7 @@ function response(path, realm) {
   if (path === '/api/auth/agent/refresh-token') return ['agent', 'admin'].includes(realm) ? [200, { accessToken: 'agent-token' }] : [401, {}];
   if (path === '/api/auth/agent/me') return ['agent', 'admin'].includes(realm) ? [200, { account: { _id: 'agent-1', email: 'provider@example.test', agentType: 'agent' }, memberships: [] }] : [401, {}];
   if (path === '/api/auth/refresh-token') return ['student', 'business', 'notifications', 'admin'].includes(realm) ? [200, { accessToken: 'user-token' }] : [401, {}];
-  if (path === '/api/auth/me') return ['student', 'business', 'notifications', 'admin'].includes(realm) ? [200, { user: { _id: 'student-1', name: 'P2D Student', role: realm === 'admin' ? 'SuperAdmin' : 'User', permissions: realm === 'admin' ? ['workflow.review', 'workflow.approve'] : [], capabilities: ['business_client'] } }] : [401, {}];
+  if (path === '/api/auth/me') return ['student', 'business', 'notifications', 'admin'].includes(realm) ? [200, { user: { _id: 'student-1', name: 'P2D Student', role: realm === 'admin' ? 'SuperAdmin' : 'User', permissions: realm === 'admin' ? ['workflow:review', 'workflow:approve'] : [], capabilities: ['business_client'] } }] : [401, {}];
   if (path === '/api/admin/auth/refresh-token') return realm === 'admin' ? [200, { accessToken: 'admin-token' }] : [401, {}];
   if (path === '/api/admin/auth/me') return realm === 'admin' ? [200, { admin: { _id: 'admin-1', email: 'admin@example.test', role: 'super_admin', permissions: ['*'] } }] : [401, {}];
   if (path === '/api/agent/provider-domains/context') return [200, { accountId: 'agent-1', needsOnboarding: false, workspaces: [{ ...subject, kind: 'independent', domainId: 'education_mobility', path: '/agent/education' }, { ...subject, kind: 'independent', domainId: 'business_services', path: '/agent/business-services' }] }];
@@ -54,7 +54,7 @@ try {
     for (const width of widths) {
       await page.setViewport({ width, height: width < 768 ? 1000 : 1100 });
       await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-      await page.waitForSelector('h1', { timeout: 15000 });
+      await page.waitForFunction((expected) => document.querySelector('h1')?.textContent?.trim() === expected, { timeout: 15000 }, expectedH1);
       const result = await page.evaluate(() => ({ h1: document.querySelector('h1')?.textContent?.trim(), overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, dark: document.documentElement.classList.contains('dark'), boundary: document.body.innerText.includes('This page could not be displayed'), title: document.title, labels: [...document.querySelectorAll('select')].every((field) => field.labels?.length || field.getAttribute('aria-label')) }));
       assert.equal(result.h1, expectedH1); assert.ok(result.overflow <= 2, `${realm} ${width}: overflow ${result.overflow}`); assert.equal(result.dark, theme === 'dark'); assert.equal(result.boundary, false); assert.ok(result.title.includes('Strideto')); if (realm === 'notifications') assert.equal(result.labels, true); cells += 1;
     }
