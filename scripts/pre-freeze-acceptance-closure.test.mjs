@@ -45,6 +45,13 @@ try {
   assert.equal(summary.PASS, 1); assert.equal(summary.duplicateTerminalKeys, 0); assert.equal(summary.recordedVisualCells, 1);
   assert.throws(() => recordResult(transientRun, { key: 'education-independent|qa:consultation|PARAMETRIC_UI|explicit-light|320', kind: 'visual', status: 'FAIL' }), (error) => error.code === 'DUPLICATE_TERMINAL_CELL');
 
+  const ebusyRun = newRun();
+  const restoreEbusy = setCheckpointFaultInjector(({ target, attempt }) => { if (target.endsWith('run.json') && attempt === 1) { const error = new Error('injected transient busy lock'); error.code = 'EBUSY'; throw error; } });
+  recordResult(ebusyRun, { key: 'education-independent|qa:consultation|PARAMETRIC_UI|explicit-light|320', kind: 'visual', status: 'PASS' });
+  restoreEbusy();
+  summary = reconcile(ebusyRun, manifest, themes, widths);
+  assert.equal(summary.PASS, 1); assert.equal(summary.duplicateTerminalKeys, 0);
+
   const persistentRun = newRun();
   const restorePersistent = setCheckpointFaultInjector(() => { const error = new Error('injected persistent lock'); error.code = 'EPERM'; throw error; });
   assert.throws(() => recordResult(persistentRun, { key: 'education-independent|qa:consultation|PARAMETRIC_UI|explicit-light|320', kind: 'visual', status: 'PASS' }), /ACCEPTANCE_CHECKPOINT_REPLACE_FAILED/);
