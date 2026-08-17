@@ -118,6 +118,30 @@ const taskSafe = (record) => ({ id: String(record._id), title: record.title, res
 const documentRequestSafe = (record) => ({ id: String(record._id), documentType: record.documentType, purpose: record.purpose, requirementRef: record.requirementRef, dueAt: record.dueAt, status: record.status, requestedAt: record.requestedAt, fulfilledAt: record.fulfilledAt, createdAt: record.createdAt, updatedAt: record.updatedAt });
 const messageSafe = (record) => ({ id: String(record._id), senderActorType: record.senderActorType, text: record.text, createdAt: record.createdAt });
 
+function childWindow(query, key) {
+  const parsedPage = parseInt(query?.[`${key}Page`], 10);
+  const parsedLimit = parseInt(query?.[`${key}Limit`], 10);
+  const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+  const limit = Number.isFinite(parsedLimit) && parsedLimit > 0 ? Math.min(50, parsedLimit) : 20;
+  return { page, limit, skip: (page - 1) * limit };
+}
+
+async function boundedChildren(Model, filter, window, sort) {
+  const [items, total] = await Promise.all([
+    Model.find(filter).sort(sort).skip(window.skip).limit(window.limit).lean(),
+    Model.countDocuments(filter),
+  ]);
+  return {
+    items,
+    pagination: {
+      page: window.page,
+      limit: window.limit,
+      total,
+      totalPages: Math.max(1, Math.ceil(total / window.limit)),
+    },
+  };
+}
+
 export async function proposeCase(agentAccountId, input = {}) {
   const memberships = await agentScopes(agentAccountId); if (!CASE_TYPES.includes(input.caseType)) fail('Unsupported case type');
   const consultation = await Consultation.findOne({ _id: oid(input.consultationId, 'consultation id'), status: 'completed' }).lean();
@@ -131,18 +155,22 @@ export async function proposeCase(agentAccountId, input = {}) {
 }
 export async function decideProposal(userId, caseId, input = {}) { const record = await caseForStudent(userId, caseId, true); if (record.lifecycle !== 'awaiting_student_acceptance') fail('Case proposal is no longer pending', 409); const accepted = input.decision === 'accept'; if (!accepted && input.decision !== 'reject') fail('Decision must be accept or reject'); record.lifecycle = accepted ? 'active' : 'cancelled'; record.openedAt = accepted ? new Date() : null; record.closedAt = accepted ? null : new Date(); if (!accepted) record.outcome = 'cancelled'; await record.save(); if (accepted) { const { recordHandoffConsent, CONSENT_PURPOSES } = await import('./consentGrantService.js'); await recordHandoffConsent({ subjectId: userId, counterpartyId: record.organizationId, counterpartyType: 'agent', purpose: CONSENT_PURPOSES.AGENT_CASE, resourceScope: `case:${record._id}`, grantedAt: new Date(), provenance: 'student_case_accept', auditIdentity: `case:${record._id}` }); } await event(record, accepted ? 'student_accepted' : 'student_rejected', 'student', userId); await notify(record, 'agent', record.assignedMembershipId, 'case_proposal_response'); await audit(record, 'student', userId, accepted ? 'case.accepted' : 'case.rejected'); return safe(record); }
 export async function listCases(actorType, actorId, query = {}) { const { page, limit, skip } = boundedPage(query); let filter; if (actorType === 'student') filter = { studentUserId: actorId }; else { const memberships = await agentScopes(actorId); filter = { $or: memberships.map((membership) => ({ organizationId: membership.organizationId, authorizedMembershipIds: membership._id })) }; } if (query.lifecycle) filter.lifecycle = query.lifecycle; const term = String(query.q || '').trim().slice(0, 80); if (term) filter.title = { $regex: term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' }; const [rows,total] = await Promise.all([ProfessionalCase.find(filter).sort({ updatedAt: -1, _id: -1 }).skip(skip).limit(limit).lean(), ProfessionalCase.countDocuments(filter)]); return { cases: rows.map(safe), page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) }; }
-export async function getCase(actorType, actorId, caseId) {
+export async function getCase(actorType, actorId, caseId, query = {}) {
   const record = actorType === 'student'
     ? await caseForStudent(actorId, caseId)
     : (await caseForAgent(actorId, caseId)).record;
-  const [timeline, notes, approvals, tasks, documents, thread, applications, consultation, membership, student] = await Promise.all([
-    CaseEvent.find({ caseId: record._id }).sort({ createdAt: 1 }).lean(),
-    CaseNote.find({ caseId: record._id, ...(actorType === 'student' ? { visibility: 'shared' } : {}) }).sort({ createdAt: -1 }).lean(),
-    CaseApprovalRequest.find({ caseId: record._id }).sort({ createdAt: -1 }).lean(),
-    CaseTask.find({ caseId: record._id }).sort({ createdAt: -1 }).lean(),
-    CaseDocumentRequest.find({ caseId: record._id }).sort({ createdAt: -1 }).lean(),
+  const windows = Object.fromEntries(['timeline', 'notes', 'approvals', 'tasks', 'documentRequests', 'applications'].map((key) => [key, childWindow(query, key)]));
+  const taskFilter = { caseId: record._id };
+  if (query.taskStatus === 'open') taskFilter.status = { $in: ['pending', 'in_progress'] };
+  else if (['pending', 'in_progress', 'completed', 'cancelled'].includes(query.taskStatus)) taskFilter.status = query.taskStatus;
+  const [timelineResult, notesResult, approvalsResult, tasksResult, documentsResult, thread, applicationsResult, consultation, membership, student] = await Promise.all([
+    boundedChildren(CaseEvent, { caseId: record._id }, windows.timeline, { createdAt: 1, _id: 1 }),
+    boundedChildren(CaseNote, { caseId: record._id, ...(actorType === 'student' ? { visibility: 'shared' } : {}) }, windows.notes, { createdAt: -1, _id: -1 }),
+    boundedChildren(CaseApprovalRequest, { caseId: record._id }, windows.approvals, { createdAt: -1, _id: -1 }),
+    boundedChildren(CaseTask, taskFilter, windows.tasks, { createdAt: -1, _id: -1 }),
+    boundedChildren(CaseDocumentRequest, { caseId: record._id }, windows.documentRequests, { createdAt: -1, _id: -1 }),
     CaseThread.findOne({ caseId: record._id }).lean(),
-    ProfessionalCaseApplication.find({ caseId: record._id }).sort({ createdAt: 1 }).lean(),
+    boundedChildren(ProfessionalCaseApplication, { caseId: record._id }, windows.applications, { createdAt: 1, _id: 1 }),
     record.consultationId ? Consultation.findById(record.consultationId).select('agentServiceId serviceSnapshot').lean() : null,
     AgentMembership.findById(record.assignedMembershipId).select('agentAccountId').lean(),
     actorType === 'agent' ? User.findById(record.studentUserId).select('name email').lean() : null,
@@ -161,12 +189,21 @@ export async function getCase(actorType, actorId, caseId) {
         ? { id: String(consultation.agentServiceId), ...consultation.serviceSnapshot, source: 'engagement_snapshot' }
         : liveService ? { id: String(liveService._id), title: liveService.title, category: liveService.category, source: 'legacy_live_fallback' } : null,
     },
-    applications: applications.map(applicationSafe),
-    timeline: timeline.map(eventSafe),
-    notes: notes.map(noteSafe),
-    approvals: approvals.map(approvalSafe),
-    tasks: tasks.map(taskSafe),
-    documentRequests: documents.map(documentRequestSafe),
+    applications: applicationsResult.items.map(applicationSafe),
+    timeline: timelineResult.items.map(eventSafe),
+    notes: notesResult.items.map(noteSafe),
+    approvals: approvalsResult.items.map(approvalSafe),
+    tasks: tasksResult.items.map(taskSafe),
+    documentRequests: documentsResult.items.map(documentRequestSafe),
+    childPagination: {
+      applications: applicationsResult.pagination,
+      tasks: tasksResult.pagination,
+      documentRequests: documentsResult.pagination,
+      timeline: timelineResult.pagination,
+      notes: notesResult.pagination,
+      approvals: approvalsResult.pagination,
+    },
+    taskStatus: query.taskStatus || '',
     threadId: thread ? String(thread._id) : null,
     messagingStatus: thread?.status || 'unavailable',
   };

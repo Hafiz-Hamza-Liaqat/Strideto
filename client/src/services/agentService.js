@@ -161,7 +161,7 @@ export const agentApi = {
   markConsultationRead: (threadId) => agentAxios.post(`/api/agent/consultations/threads/${threadId}/read`),
   resolveConsultationDocument: (threadId, messageId) => agentAxios.get(`/api/agent/consultations/threads/${threadId}/document-references/${messageId}`),
   getCases: (params) => agentAxios.get('/api/agent/cases', { params }),
-  getCase: (caseId) => agentAxios.get(`/api/agent/cases/${caseId}`),
+  getCase: (caseId, params) => agentAxios.get(`/api/agent/cases/${caseId}`, { params }),
   proposeCase: (data) => agentAxios.post('/api/agent/cases', data),
   updateCaseStage: (caseId, data) => agentAxios.post(`/api/agent/cases/${caseId}/stage`, data),
   updateCaseLifecycle: (caseId, data) => agentAxios.post(`/api/agent/cases/${caseId}/lifecycle`, data),
@@ -238,7 +238,7 @@ export const studentConsultationApi = {
 };
 
 export const studentCaseApi = {
-  list: (params) => userAxios.get('/cases', { params }), get: (caseId) => userAxios.get(`/cases/${caseId}`),
+  list: (params) => userAxios.get('/cases', { params }), get: (caseId, params) => userAxios.get(`/cases/${caseId}`, { params }),
   decideProposal: (caseId, decision) => userAxios.post(`/cases/${caseId}/proposal-decision`, { decision }),
   decideApproval: (caseId, approvalId, decision, comment = '') => userAxios.post(`/cases/${caseId}/approvals/${approvalId}/decision`, { decision, comment }),
   completeTask: (caseId, taskId) => userAxios.post(`/cases/${caseId}/tasks/${taskId}/complete`),

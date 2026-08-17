@@ -4,6 +4,7 @@ import { Link, useParams } from 'react-router-dom';
 import { studentCaseApi, studentTrustApi } from '../../services/agentService';
 import { vaultApi } from '../../services/vaultApi';
 import MessageThread from '../../components/consultations/MessageThread';
+import CaseSectionPagination from '../../components/cases/CaseSectionPagination';
 import { ui } from '../../design-system/surfaceClasses';
 
 const label = (value) => (value || '').replaceAll('_', ' ');
@@ -17,12 +18,29 @@ export default function CaseDetail() {
   const [error, setError] = useState('');
   const [notice, setNotice] = useState('');
   const [busy, setBusy] = useState(false);
-  const load = () => studentCaseApi.get(caseId).then((response) => setData(response.data));
+  const [childPages, setChildPages] = useState({ applications: 1, tasks: 1, documentRequests: 1, timeline: 1, notes: 1, approvals: 1 });
+  const [taskStatus, setTaskStatus] = useState('open');
+  const receiveCase = (payload) => {
+    setData(payload);
+    setChildPages((current) => {
+      let changed = false;
+      const next = { ...current };
+      Object.entries(payload.childPagination || {}).forEach(([key, metadata]) => {
+        if (current[key] > metadata.totalPages) { next[key] = metadata.totalPages; changed = true; }
+      });
+      return changed ? next : current;
+    });
+  };
+  const load = () => studentCaseApi.get(caseId, {
+    ...Object.fromEntries(Object.entries(childPages).map(([key, value]) => [`${key}Page`, value])),
+    taskStatus,
+  }).then((response) => receiveCase(response.data));
+  const setChildPage = (key, page) => setChildPages((current) => ({ ...current, [key]: page }));
   useEffect(() => {
-    void Promise.all([
-      load(),
-      vaultApi.list({ status: 'active', limit: 50 }).then((response) => setVaultDocuments(response.data.items || [])).catch(() => setVaultDocuments([])),
-    ]).catch((e) => setError(e.response?.data?.error || 'Unable to load Case.'));
+    void load().catch((e) => setError(e.response?.data?.error || 'Unable to load Case.'));
+  }, [caseId, childPages, taskStatus]);
+  useEffect(() => {
+    void vaultApi.list({ status: 'active', limit: 50 }).then((response) => setVaultDocuments(response.data.items || [])).catch(() => setVaultDocuments([]));
   }, [caseId]);
   useEffect(() => {
     if (data?.case?.lifecycle !== 'completed') { setReviewEligibility(null); return; }
@@ -39,7 +57,7 @@ export default function CaseDetail() {
     student: (data?.tasks || []).filter((row) => row.responsibleActor === 'student' && ['pending', 'in_progress'].includes(row.status)),
     provider: (data?.tasks || []).filter((row) => row.responsibleActor === 'agent' && ['pending', 'in_progress'].includes(row.status)),
   }), [data?.tasks]);
-  if (!data) return <div className={`mx-auto max-w-5xl p-8 ${ui.muted}`} role="status">{error || 'Loading Case…'}</div>;
+  if (!data) return <div className="mx-auto max-w-5xl space-y-3 p-8"><h1 className={ui.h1}>Case details</h1><p className={ui.muted} role="status">{error || 'Loading Case…'}</p></div>;
   const c = data.case;
   return (
     <div className={`mx-auto max-w-6xl space-y-5 px-4 py-10 ${ui.page}`}>
@@ -79,16 +97,20 @@ export default function CaseDetail() {
             </article>
           )) : <p className={ui.muted}>No applications are recorded. Some guidance Cases do not require applications.</p>}
         </div>
+        <CaseSectionPagination metadata={data.childPagination?.applications} onPageChange={(page) => setChildPage('applications', page)} label="Applications in this Case" />
       </section>
 
       <div className="grid gap-5 lg:grid-cols-2">
         <section className={`${ui.card} p-5`} aria-labelledby="student-tasks-heading">
           <h2 id="student-tasks-heading" className="text-lg font-semibold">Tasks and deadlines</h2>
+          <label className="mt-3 block text-sm font-medium">Task status<select className={ui.input} value={taskStatus} onChange={(event) => { setTaskStatus(event.target.value); setChildPage('tasks', 1); }}><option value="open">Open tasks</option><option value="">All tasks</option><option value="completed">Completed</option><option value="cancelled">Cancelled</option></select></label>
           <div className="mt-3 space-y-3">{(data.tasks || []).length ? data.tasks.map((task) => <article key={task.id} className="rounded border border-gray-200 p-3 text-sm dark:border-gray-700"><p className="font-medium">{task.title}</p><p>{label(task.status)} · owned by {task.responsibleActor}{task.dueAt ? ` · due ${new Date(task.dueAt).toLocaleDateString()}` : ''}</p>{task.responsibleActor === 'student' && ['pending', 'in_progress'].includes(task.status) ? <button disabled={busy} onClick={() => act(() => studentCaseApi.completeTask(caseId, task.id), 'Student task completed.')} className={`mt-2 min-h-[44px] ${ui.link}`}>Mark my task complete</button> : null}</article>) : <p className={ui.muted}>No tasks recorded.</p>}</div>
+          <CaseSectionPagination metadata={data.childPagination?.tasks} onPageChange={(page) => setChildPage('tasks', page)} label="Case tasks" />
         </section>
         <section className={`${ui.card} p-5`} aria-labelledby="student-approvals-heading">
           <h2 id="student-approvals-heading" className="text-lg font-semibold">Your approvals</h2>
           <div className="mt-3 space-y-3">{(data.approvals || []).length ? data.approvals.map((approval) => <article key={approval.id} className="rounded border border-gray-200 p-3 text-sm dark:border-gray-700"><p className="font-medium">{label(approval.actionType)}</p><p>{approval.explanation}</p><p>Status: {label(approval.status)}</p>{approval.status === 'pending' ? <div className="mt-2 flex flex-wrap gap-2"><button disabled={busy} onClick={() => act(() => studentCaseApi.decideApproval(caseId, approval.id, 'approve'), 'Approval recorded.')} className={ui.primaryBtn}>Approve</button><button disabled={busy} onClick={() => act(() => studentCaseApi.decideApproval(caseId, approval.id, 'reject'), 'Rejection recorded.')} className={ui.secondaryBtn}>Reject</button></div> : null}</article>) : <p className={ui.muted}>No approval requests.</p>}</div>
+          <CaseSectionPagination metadata={data.childPagination?.approvals} onPageChange={(page) => setChildPage('approvals', page)} label="Case approvals" />
         </section>
       </div>
 
@@ -104,13 +126,14 @@ export default function CaseDetail() {
             </article>
           )) : <p className={ui.muted}>No document requests.</p>}
         </div>
+        <CaseSectionPagination metadata={data.childPagination?.documentRequests} onPageChange={(page) => setChildPage('documentRequests', page)} label="Case document requests" />
       </section>
 
       {data.threadId ? <MessageThread threadId={caseId} loadMessages={(id) => studentCaseApi.getMessages(id)} sendMessage={(id, payload) => studentCaseApi.sendMessage(id, payload.text)} title="Case messages" description="This private thread is bound only to this professional Case and is separate from your consultation messages." placeholder="Write a Case message" readOnly={data.messagingStatus !== 'open'} /> : null}
 
-      {(data.notes || []).length ? <section className={`${ui.card} p-5`} aria-labelledby="student-notes-heading"><h2 id="student-notes-heading" className="text-lg font-semibold">Provider notes shared with you</h2><div className="mt-3 space-y-2">{data.notes.map((note) => <article key={note.id} className="rounded border border-gray-200 p-3 text-sm dark:border-gray-700"><p className="whitespace-pre-wrap">{note.body}</p></article>)}</div></section> : null}
+      {(data.notes || []).length ? <section className={`${ui.card} p-5`} aria-labelledby="student-notes-heading"><h2 id="student-notes-heading" className="text-lg font-semibold">Provider notes shared with you</h2><div className="mt-3 space-y-2">{data.notes.map((note) => <article key={note.id} className="rounded border border-gray-200 p-3 text-sm dark:border-gray-700"><p className="whitespace-pre-wrap">{note.body}</p></article>)}</div><CaseSectionPagination metadata={data.childPagination?.notes} onPageChange={(page) => setChildPage('notes', page)} label="Shared Case notes" /></section> : null}
 
-      <section className={`${ui.card} p-5`} aria-labelledby="student-timeline-heading"><h2 id="student-timeline-heading" className="text-lg font-semibold">Case activity timeline</h2><ol className="mt-3 space-y-2">{(data.timeline || []).map((entry) => <li key={entry.id} className="border-s-2 border-gray-200 ps-3 text-sm dark:border-gray-600"><p className="font-medium">{label(entry.eventType)}</p><p className={ui.muted}>{new Date(entry.createdAt).toLocaleString()}</p></li>)}</ol></section>
+      <section className={`${ui.card} p-5`} aria-labelledby="student-timeline-heading"><h2 id="student-timeline-heading" className="text-lg font-semibold">Case activity timeline</h2><ol className="mt-3 space-y-2">{(data.timeline || []).map((entry) => <li key={entry.id} className="border-s-2 border-gray-200 ps-3 text-sm dark:border-gray-600"><p className="font-medium">{label(entry.eventType)}</p><p className={ui.muted}>{new Date(entry.createdAt).toLocaleString()}</p></li>)}</ol><CaseSectionPagination metadata={data.childPagination?.timeline} onPageChange={(page) => setChildPage('timeline', page)} label="Case activity timeline" /></section>
 
       <section className={`${ui.card} p-5`} aria-labelledby="case-trust-actions"><h2 id="case-trust-actions" className="text-lg font-semibold">Review, report, or dispute</h2><p className={`mt-1 ${ui.muted}`}>Reviews require a completed verified interaction. Reports are private allegations for moderation. Professional disputes are not payment disputes.</p><div className="mt-3 flex flex-wrap gap-2">{reviewEligibility?.eligible ? <Link className={ui.primaryBtn} to={trustLink('review')}>Review completed Case</Link> : null}<Link className={ui.secondaryBtn} to={trustLink('report')}>Report this Case</Link>{c.lifecycle === 'completed' ? <Link className={ui.secondaryBtn} to={trustLink('dispute')}>Open professional dispute</Link> : null}<Link className={ui.link} to="/trust-center">View Trust Center history</Link></div>{c.lifecycle === 'completed' && reviewEligibility && !reviewEligibility.eligible ? <p className={`mt-3 ${ui.muted}`}>Review unavailable: {reviewEligibility.reason || 'not eligible'}.</p> : null}</section>
 

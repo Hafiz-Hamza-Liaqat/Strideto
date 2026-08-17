@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { agentApi } from '../../services/agentService';
 import { ui } from '../../design-system/surfaceClasses';
+import CaseSectionPagination from './CaseSectionPagination';
 
 const transitions = {
   preparing: ['ready_for_submission', 'withdrawn'],
@@ -101,7 +102,7 @@ function ApplicationCard({ application, caseId, reload, requestSubmissionApprova
   );
 }
 
-export default function ProviderCaseApplications({ caseId, applications, lifecycle, reload, requestSubmissionApproval }) {
+export default function ProviderCaseApplications({ caseId, applications, lifecycle, reload, requestSubmissionApproval, pagination, onPageChange }) {
   const [institutions, setInstitutions] = useState([]);
   const [programs, setPrograms] = useState([]);
   const [mode, setMode] = useState('catalog');
@@ -143,6 +144,7 @@ export default function ProviderCaseApplications({ caseId, applications, lifecyc
           <ApplicationCard key={application.id} application={application} caseId={caseId} reload={reload} requestSubmissionApproval={requestSubmissionApproval} disabled={!mutable} />
         )) : <p className={ui.muted}>No applications recorded. This is valid for guidance-only Cases.</p>}
       </div>
+      <CaseSectionPagination metadata={pagination} onPageChange={onPageChange} label="Education applications" />
       {mutable ? (
         <form onSubmit={create} className="mt-6 rounded-xl bg-slate-50 p-4 dark:bg-slate-900/50">
           <h3 className="font-semibold">Add application</h3>
