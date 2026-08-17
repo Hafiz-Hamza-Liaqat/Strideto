@@ -8,6 +8,7 @@ import {
 import * as buyer from '../controllers/gbsBuyerController.js';
 import * as buyerDocs from '../controllers/gbsBuyerCaseDocumentController.js';
 import { gbsCaseDocumentFileMiddleware } from '../middleware/gbsCaseDocumentUpload.js';
+import * as messages from '../controllers/gbsContextMessagingController.js';
 
 export const gbsBuyerRouter = Router();
 
@@ -21,6 +22,14 @@ gbsBuyerRouter.post(
 );
 gbsBuyerRouter.get('/business/overview', ...businessClientProductAuth, buyer.overview);
 gbsBuyerRouter.get('/business/requests', ...businessClientProductAuth, buyer.listRequests);
+gbsBuyerRouter.get('/business/private-beta/services/:listingSlug', ...businessClientProductAuth, buyer.getPrivateBetaService);
+gbsBuyerRouter.post(
+  '/business/private-beta/requests',
+  ...businessClientProductAuth,
+  secureTrustedOrigin,
+  gbsBuyerWriteLimiter,
+  buyer.createPrivateBetaRequest
+);
 gbsBuyerRouter.post(
   '/business/requests',
   ...businessClientProductAuth,
@@ -29,6 +38,8 @@ gbsBuyerRouter.post(
   buyer.createRequest
 );
 gbsBuyerRouter.get('/business/requests/:requestRef', ...businessClientProductAuth, buyer.getRequest);
+gbsBuyerRouter.get('/business/requests/:contextRef/messages', ...businessClientProductAuth, messages.buyerList(messages.TYPES.REQUEST));
+gbsBuyerRouter.post('/business/requests/:contextRef/messages', ...businessClientProductAuth, secureTrustedOrigin, gbsBuyerWriteLimiter, messages.buyerSend(messages.TYPES.REQUEST));
 gbsBuyerRouter.post(
   '/business/requests/:requestRef/cancel',
   ...businessClientProductAuth,
@@ -38,6 +49,8 @@ gbsBuyerRouter.post(
 );
 gbsBuyerRouter.get('/business/quotes', ...businessClientProductAuth, buyer.listQuotes);
 gbsBuyerRouter.get('/business/quotes/:quoteRef', ...businessClientProductAuth, buyer.getQuote);
+gbsBuyerRouter.get('/business/quotes/:contextRef/messages', ...businessClientProductAuth, messages.buyerList(messages.TYPES.QUOTE));
+gbsBuyerRouter.post('/business/quotes/:contextRef/messages', ...businessClientProductAuth, secureTrustedOrigin, gbsBuyerWriteLimiter, messages.buyerSend(messages.TYPES.QUOTE));
 gbsBuyerRouter.post(
   '/business/quotes/:quoteRef/accept',
   ...businessClientProductAuth,
@@ -61,6 +74,8 @@ gbsBuyerRouter.post(
 );
 gbsBuyerRouter.get('/business/cases', ...businessClientActivateAuth, buyer.listCases);
 gbsBuyerRouter.get('/business/cases/:caseRef', ...businessClientActivateAuth, buyer.getCase);
+gbsBuyerRouter.get('/business/cases/:contextRef/messages', ...businessClientProductAuth, messages.buyerList(messages.TYPES.CASE));
+gbsBuyerRouter.post('/business/cases/:contextRef/messages', ...businessClientProductAuth, secureTrustedOrigin, gbsBuyerWriteLimiter, messages.buyerSend(messages.TYPES.CASE));
 gbsBuyerRouter.post(
   '/business/cases/:caseRef/tasks/:taskRef/complete',
   ...businessClientProductAuth,

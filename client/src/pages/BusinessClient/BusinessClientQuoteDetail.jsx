@@ -5,6 +5,7 @@ import { ROUTES } from '../../constants';
 import { ui } from '../../design-system/surfaceClasses';
 import { formatMoney } from '@shared/international/dateDisplay.js';
 import { gbsBuyerApi } from '../../services/gbsBuyerApi';
+import { GbsContextMessages } from '../../components/gbs/GbsContextMessages';
 import { formatTimestamp, providerKindLabel, quoteStatusLabel } from './businessClientFormat';
 
 function officialCopy(line) {
@@ -206,6 +207,12 @@ export default function BusinessClientQuoteDetail() {
           <button type="button" className={ui.secondaryBtn} onClick={() => setDeclineOpen(true)}>Decline quote</button>
         </div>
       ) : null}
+      <GbsContextMessages
+        contextType="quote"
+        contextRef={item.publicQuoteRef}
+        loadMessages={(page, limit) => gbsBuyerApi.listMessages('quote', item.publicQuoteRef, page, limit)}
+        sendMessage={(text) => gbsBuyerApi.sendMessage('quote', item.publicQuoteRef, text)}
+      />
       <AdminConfirmDialog
         open={acceptOpen}
         title="Accept this quote?"

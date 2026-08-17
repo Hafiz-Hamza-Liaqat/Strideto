@@ -8,6 +8,7 @@ import {
   createCustomerServiceRequest,
   getCustomerOverview,
   getCustomerServiceRequest,
+  getPrivateBetaServiceEntry,
   listCustomerServiceRequests,
 } from '../services/gbs/gbsServiceRequestService.js';
 import {
@@ -86,6 +87,35 @@ export async function createRequest(req, res) {
       body: req.body,
       headerCommandId: req.get('Idempotency-Key'),
       actor: actorFrom(req),
+    });
+    return res.status(201).json({ item });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function getPrivateBetaService(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const item = await getPrivateBetaServiceEntry({
+      userId: req.user.userId,
+      listingSlug: req.params.listingSlug,
+    });
+    return res.json({ item });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function createPrivateBetaRequest(req, res) {
+  try {
+    setPrivateResponseHeaders(res);
+    const item = await createCustomerServiceRequest({
+      userId: req.user.userId,
+      body: req.body,
+      headerCommandId: req.get('Idempotency-Key'),
+      actor: actorFrom(req),
+      intakeChannel: 'private_beta',
     });
     return res.status(201).json({ item });
   } catch (err) {

@@ -6,6 +6,7 @@ import { ROUTES } from '../../../constants';
 import { formatMoney } from '@shared/international/dateDisplay.js';
 import { fromDecimal, toDecimalString } from '@shared/international/money.js';
 import { gbsProviderApi } from '../../../services/gbsProviderApi';
+import { GbsContextMessages } from '../../../components/gbs/GbsContextMessages';
 import { useGbsProvider } from './GbsProviderContext';
 import { StatusBadge, card, emptyBox, errorBox, input, label, muted, wrap } from './gbsUi';
 import { formatTimestamp, quoteStatusLabel } from '../../BusinessClient/businessClientFormat';
@@ -135,7 +136,7 @@ export default function GbsQuoteDetail() {
   return (
     <article className={`${card} space-y-4`}>
       <p className="text-xs uppercase tracking-wide text-primary">Quote</p>
-      <h2 className={`text-xl font-semibold ${wrap}`}>{item.title}</h2>
+      <h1 className={`text-xl font-semibold ${wrap}`}>{item.title}</h1>
       <p className={`${muted} break-all`}>Reference {item.publicQuoteRef}</p>
       <StatusBadge status={item.effectiveStatus || item.status} label={quoteStatusLabel(item.effectiveStatus || item.status)} />
       <p className={wrap}><span className="font-medium">Customer:</span> {item.customerDisplayName}</p>
@@ -310,6 +311,12 @@ export default function GbsQuoteDetail() {
           ) : null}
         </>
       )}
+      <GbsContextMessages
+        contextType="quote"
+        contextRef={item.publicQuoteRef}
+        loadMessages={(page, limit) => gbsProviderApi.listMessages(selected, 'quote', item.publicQuoteRef, page, limit)}
+        sendMessage={(text) => gbsProviderApi.sendMessage(selected, 'quote', item.publicQuoteRef, text)}
+      />
       <AdminConfirmDialog
         open={withdrawOpen}
         title="Withdraw this quote?"

@@ -4,6 +4,7 @@ import { AdminConfirmDialog } from '../../components/admin/AdminConfirmDialog';
 import { ROUTES } from '../../constants';
 import { ui } from '../../design-system/surfaceClasses';
 import { gbsBuyerApi } from '../../services/gbsBuyerApi';
+import { GbsContextMessages } from '../../components/gbs/GbsContextMessages';
 import {
   actingForLabel,
   formatTimestamp,
@@ -123,6 +124,12 @@ export default function BusinessClientRequestDetail() {
           Cancel request
         </button>
       ) : null}
+      <GbsContextMessages
+        contextType="request"
+        contextRef={item.publicRequestRef}
+        loadMessages={(page, limit) => gbsBuyerApi.listMessages('request', item.publicRequestRef, page, limit)}
+        sendMessage={(text) => gbsBuyerApi.sendMessage('request', item.publicRequestRef, text)}
+      />
       <AdminConfirmDialog
         open={confirmOpen}
         title="Cancel this request?"

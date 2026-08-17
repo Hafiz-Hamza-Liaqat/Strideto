@@ -37,6 +37,7 @@ import * as gbsProviderRequests from '../controllers/gbsProviderRequestControlle
 import * as gbsProviderQuotes from '../controllers/gbsProviderQuoteController.js';
 import * as gbsProviderCases from '../controllers/gbsProviderCaseController.js';
 import * as gbsProviderCaseDocs from '../controllers/gbsProviderCaseDocumentController.js';
+import * as gbsMessages from '../controllers/gbsContextMessagingController.js';
 import * as providerDomain from '../controllers/providerDomainController.js';
 import { requireTurnstileWhenEnabled } from '../middleware/turnstile.js';
 import { requireAgentEmailVerified } from '../middleware/requireEmailVerified.js';
@@ -354,6 +355,9 @@ agentRouter.post('/agent/business-services/listings/:listingId/submit', ...gbsEn
 agentRouter.post('/agent/business-services/listings/:listingId/archive', ...gbsEnabled, gbsListingWriteLimiter, gbsProvider.archiveListing);
 agentRouter.get('/agent/business-services/requests', ...gbsEnabled, gbsProviderReadLimiter, gbsProviderRequests.listRequests);
 agentRouter.get('/agent/business-services/requests/:requestRef', ...gbsEnabled, gbsProviderReadLimiter, gbsProviderRequests.getRequest);
+agentRouter.get('/agent/business-services/messages', ...gbsEnabled, gbsProviderReadLimiter, gbsMessages.providerThreads);
+agentRouter.get('/agent/business-services/requests/:contextRef/messages', ...gbsEnabled, gbsProviderReadLimiter, gbsMessages.providerList(gbsMessages.TYPES.REQUEST));
+agentRouter.post('/agent/business-services/requests/:contextRef/messages', ...gbsEnabled, gbsRequestWriteLimiter, gbsMessages.providerSend(gbsMessages.TYPES.REQUEST));
 agentRouter.post('/agent/business-services/requests/:requestRef/review', ...gbsEnabled, gbsRequestWriteLimiter, gbsProviderRequests.reviewRequest);
 agentRouter.post('/agent/business-services/requests/:requestRef/ready-for-quote', ...gbsEnabled, gbsRequestWriteLimiter, gbsProviderRequests.readyForQuote);
 agentRouter.post('/agent/business-services/requests/:requestRef/decline', ...gbsEnabled, gbsRequestWriteLimiter, gbsProviderRequests.declineRequest);
@@ -366,6 +370,8 @@ agentRouter.post(
 );
 agentRouter.get('/agent/business-services/quotes', ...gbsEnabled, gbsProviderReadLimiter, gbsProviderQuotes.listQuotes);
 agentRouter.get('/agent/business-services/quotes/:quoteRef', ...gbsEnabled, gbsProviderReadLimiter, gbsProviderQuotes.getQuote);
+agentRouter.get('/agent/business-services/quotes/:contextRef/messages', ...gbsEnabled, gbsProviderReadLimiter, gbsMessages.providerList(gbsMessages.TYPES.QUOTE));
+agentRouter.post('/agent/business-services/quotes/:contextRef/messages', ...gbsEnabled, gbsQuoteWriteLimiter, gbsMessages.providerSend(gbsMessages.TYPES.QUOTE));
 agentRouter.patch(
   '/agent/business-services/quotes/:quoteRef',
   ...gbsEnabled,
@@ -396,6 +402,8 @@ agentRouter.post(
 );
 agentRouter.get('/agent/business-services/cases', ...gbsEnabled, gbsProviderReadLimiter, gbsProviderCases.listCases);
 agentRouter.get('/agent/business-services/cases/:caseRef', ...gbsEnabled, gbsProviderReadLimiter, gbsProviderCases.getCase);
+agentRouter.get('/agent/business-services/cases/:contextRef/messages', ...gbsEnabled, gbsProviderReadLimiter, gbsMessages.providerList(gbsMessages.TYPES.CASE));
+agentRouter.post('/agent/business-services/cases/:contextRef/messages', ...gbsEnabled, gbsCaseWriteLimiter, gbsMessages.providerSend(gbsMessages.TYPES.CASE));
 agentRouter.post(
   '/agent/business-services/cases/:caseRef/start-preparation',
   ...gbsEnabled,

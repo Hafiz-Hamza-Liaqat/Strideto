@@ -95,6 +95,7 @@ export const GBS_AUDIT_EVENTS = Object.freeze({
   GBS_CASE_UNABLE_TO_PROCEED: 'gbs_case_unable_to_proceed',
   GBS_CASE_READY_FOR_SUBMISSION: 'gbs_case_ready_for_submission',
   GBS_CASE_GENERIC_SERVICE_COMPLETED: 'gbs_case_generic_service_completed',
+  GBS_CONTEXT_MESSAGE_CREATED: 'gbs_context_message_created',
   GBS_CASE_DOCUMENT_REQUIREMENT_CREATED: 'gbs_case_document_requirement_created',
   GBS_CASE_DOCUMENT_UPLOAD_INITIALIZED: 'gbs_case_document_upload_initialized',
   GBS_CASE_DOCUMENT_UPLOADED: 'gbs_case_document_uploaded',

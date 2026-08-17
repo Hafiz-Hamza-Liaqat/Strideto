@@ -200,10 +200,19 @@ export default function GbsListingEditor() {
         <Link to={ROUTES.AGENT_BUSINESS_SERVICES_LISTINGS} className={ui.link}>Back to listings</Link>
       </div>
       {record ? (
-        <div className="flex flex-wrap gap-2">
-          <StatusBadge status={record.moderationStatus} />
-          <StatusBadge status={record.adminReviewStatus} label={`admin review: ${record.adminReviewStatus || 'pending'}`} />
-          <StatusBadge status={record.publicationStatus} label={`publication: ${record.publicationStatus}`} />
+        <div className="space-y-3">
+          <div className="flex flex-wrap gap-2">
+            <StatusBadge status={record.moderationStatus} />
+            <StatusBadge status={record.adminReviewStatus} label={`admin review: ${record.adminReviewStatus || 'pending'}`} />
+            <StatusBadge status={record.publicationStatus} label={`publication: ${record.publicationStatus}`} />
+          </div>
+          {record.publicSlug && record.moderationStatus === 'approved' && record.adminReviewStatus === 'approved' ? (
+            <div className={card} role="note">
+              <p className="font-medium">Private-beta request entry</p>
+              <p className={muted}>Share this path only with an authenticated Business Client. The path grants no authority by itself.</p>
+              <code className="block mt-2 break-all">{`${window.location.origin}/business/requests/new?channel=private-beta&listingSlug=${encodeURIComponent(record.publicSlug)}`}</code>
+            </div>
+          ) : null}
         </div>
       ) : null}
       {error ? <div className={errorBox} role="alert">{error}</div> : null}

@@ -4,6 +4,7 @@ import { AdminConfirmDialog } from '../../components/admin/AdminConfirmDialog';
 import { ROUTES } from '../../constants';
 import { ui } from '../../design-system/surfaceClasses';
 import { gbsBuyerApi } from '../../services/gbsBuyerApi';
+import { GbsContextMessages } from '../../components/gbs/GbsContextMessages';
 import { CaseRequirementPackPanel } from '../../components/gbs/CaseRequirementPackPanel';
 import { CaseFilingAuthorizationPanel } from '../../components/gbs/CaseFilingAuthorizationPanel';
 import {
@@ -240,10 +241,12 @@ export default function BusinessClientCaseDetail() {
       </section>
       <section>
         <h3 className="font-medium">Required documents</h3>
-        <p className={`mt-2 ${ui.muted}`}>
-          {docs?.security?.message || 'Secure document upload is not available in this environment.'}
-        </p>
-        <p className={ui.muted}>Allowed types: PDF, JPEG, PNG. Maximum 20 MB per file.</p>
+        {!docs?.security?.uploadEnabled ? (
+          <p className={`mt-2 ${ui.muted}`} role="status">Secure Business document exchange is not available in this private beta.</p>
+        ) : (
+          <p className={`mt-2 ${ui.muted}`}>{docs.security.message}</p>
+        )}
+        {docs?.security?.uploadEnabled ? <p className={ui.muted}>Allowed types: PDF, JPEG, PNG. Maximum 20 MB per file.</p> : null}
         {(docs?.items || []).length === 0 ? (
           <p className={`mt-2 ${ui.muted}`}>No document requirements are attached to this Case.</p>
         ) : (
@@ -302,6 +305,12 @@ export default function BusinessClientCaseDetail() {
       {canCancel ? (
         <button type="button" className={ui.secondaryBtn} onClick={() => setCancelOpen(true)}>Cancel Case</button>
       ) : null}
+      <GbsContextMessages
+        contextType="case"
+        contextRef={item.publicCaseRef}
+        loadMessages={(page, limit) => gbsBuyerApi.listMessages('case', item.publicCaseRef, page, limit)}
+        sendMessage={(text) => gbsBuyerApi.sendMessage('case', item.publicCaseRef, text)}
+      />
       <AdminConfirmDialog
         open={cancelOpen}
         title="Cancel this Case?"

@@ -29,6 +29,11 @@ const schema = new mongoose.Schema(
       index: true,
     },
     listingSlugSnapshot: { type: String, required: true },
+    intakeChannel: {
+      type: String,
+      enum: ['public_marketplace', 'private_beta'],
+      default: 'public_marketplace',
+    },
     providerSubjectType: {
       type: String,
       required: true,

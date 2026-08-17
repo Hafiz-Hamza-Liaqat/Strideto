@@ -1,5 +1,5 @@
-import { useMemo, useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { ROUTES } from '../../constants';
 import { ui } from '../../design-system/surfaceClasses';
 import { gbsBuyerApi } from '../../services/gbsBuyerApi';
@@ -14,13 +14,30 @@ export default function BusinessClientRequestForm() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const listingSlug = params.get('listingSlug') || '';
+  const privateBeta = params.get('channel') === 'private-beta';
+  const [service, setService] = useState(null);
   const [actingFor, setActingFor] = useState(GBS_SERVICE_REQUEST_ACTING_FOR.SELF);
   const [existingBusinessName, setExistingBusinessName] = useState('');
   const [customerSummary, setCustomerSummary] = useState('');
   const [preferredLanguage, setPreferredLanguage] = useState('en');
+  const [entityTypeId, setEntityTypeId] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   const commandId = useMemo(() => newCommandId(), []);
+
+  useEffect(() => {
+    if (!privateBeta || !listingSlug) return;
+    let cancelled = false;
+    gbsBuyerApi.getPrivateBetaService(listingSlug)
+      .then(({ data }) => {
+        if (!cancelled) {
+          setService(data.item);
+          if (data.item.entityTypeIds?.length === 1) setEntityTypeId(data.item.entityTypeIds[0]);
+        }
+      })
+      .catch(() => { if (!cancelled) setError('This private-beta service is not available to request.'); });
+    return () => { cancelled = true; };
+  }, [privateBeta, listingSlug]);
 
   const submit = async (event) => {
     event.preventDefault();
@@ -39,13 +56,15 @@ export default function BusinessClientRequestForm() {
     }
     setBusy(true);
     try {
-      const { data } = await gbsBuyerApi.create({
+      const create = privateBeta ? gbsBuyerApi.createPrivateBetaRequest : gbsBuyerApi.create;
+      const { data } = await create({
         listingSlug,
         creationCommandId: commandId,
         actingFor,
         existingBusinessName: actingFor === GBS_SERVICE_REQUEST_ACTING_FOR.EXISTING_BUSINESS ? existingBusinessName : undefined,
         customerSummary,
         preferredLanguage,
+        entityTypeId: entityTypeId || undefined,
       });
       navigate(`${ROUTES.BUSINESS}/requests/${data.item.publicRequestRef}`, { replace: true });
     } catch (err) {
@@ -63,13 +82,25 @@ export default function BusinessClientRequestForm() {
       <h2 className="text-lg font-semibold">Request Service</h2>
       {!listingSlug ? (
         <p className={ui.warning} role="alert">
-          Open an approved listing and choose Request Service.{' '}
-          <Link to={ROUTES.BUSINESS_SERVICES} className={ui.link}>Browse listings</Link>
+          A Provider-issued private service link is required while the Business marketplace is unavailable.
         </p>
       ) : (
-        <p className={`${ui.muted} break-words-safe`}>Listing: {listingSlug}</p>
+        <div className={`${ui.muted} break-words-safe`}>
+          <p>Private-beta service: {service?.title || listingSlug}</p>
+          {service ? <p>Provider: {service.providerDisplayName} · {service.jurisdictionName}</p> : null}
+        </div>
       )}
       {error ? <p className={ui.error} role="alert">{error}</p> : null}
+
+      {privateBeta && service?.entityTypeIds?.length ? (
+        <div>
+          <label htmlFor="business-entity-type" className="block text-sm font-medium mb-1">Entity type</label>
+          <select id="business-entity-type" className={ui.input} value={entityTypeId} onChange={(event) => setEntityTypeId(event.target.value)} required>
+            <option value="">Select entity type</option>
+            {service.entityTypeIds.map((id) => <option key={id} value={id}>{id}</option>)}
+          </select>
+        </div>
+      ) : null}
 
       <fieldset>
         <legend className="text-sm font-medium">Who is this request for?</legend>
@@ -133,7 +164,7 @@ export default function BusinessClientRequestForm() {
         </select>
       </div>
 
-      <button type="submit" className={ui.primaryBtn} disabled={busy || !listingSlug} aria-busy={busy}>
+      <button type="submit" className={ui.primaryBtn} disabled={busy || !listingSlug || (privateBeta && (!service || (service.entityTypeIds?.length && !entityTypeId)))} aria-busy={busy}>
         {busy ? 'Submitting…' : 'Submit request'}
       </button>
     </form>

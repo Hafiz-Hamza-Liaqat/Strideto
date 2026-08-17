@@ -19,6 +19,8 @@ import { AgentEducationMarketplaceFreeEntitlement } from '../../models/agent/Age
 import { ProfessionalCaseApplication } from '../../models/case/ProfessionalCaseApplication.js';
 import { ProfessionalReview } from '../../models/trust/ProfessionalReview.js';
 import { ProfessionalDispute } from '../../models/trust/ProfessionalDispute.js';
+import { GbsContextThread } from '../../models/gbs/GbsContextThread.js';
+import { GbsContextMessage } from '../../models/gbs/GbsContextMessage.js';
 import { logger } from '../../utils/logger.js';
 
 export class CriticalIndexProvisionError extends Error {
@@ -289,6 +291,16 @@ export const EDU_MARKETPLACE_FREE_ENTITLEMENT_CRITICAL_INDEXES = Object.freeze([
   }),
 ]);
 
+export const GBS_CONTEXT_THREAD_CRITICAL_INDEXES = Object.freeze([
+  Object.freeze({ name: 'gbs_message_thread_context_unique', key: Object.freeze({ contextType: 1, contextId: 1 }), unique: true }),
+  Object.freeze({ name: 'gbs_message_thread_customer_inbox', key: Object.freeze({ requesterUserId: 1, lastMessageAt: -1 }) }),
+  Object.freeze({ name: 'gbs_message_thread_provider_inbox', key: Object.freeze({ providerSubjectType: 1, providerSubjectId: 1, lastMessageAt: -1 }) }),
+]);
+
+export const GBS_CONTEXT_MESSAGE_CRITICAL_INDEXES = Object.freeze([
+  Object.freeze({ name: 'gbs_context_message_thread_created', key: Object.freeze({ threadId: 1, createdAt: -1, _id: -1 }) }),
+]);
+
 export const EDUCATION_CASE_APPLICATION_CRITICAL_INDEXES = Object.freeze([
   Object.freeze({
     name: 'education_case_application_case_created',
@@ -488,6 +500,8 @@ export async function provisionCriticalIdempotencyIndexes({
   educationCaseApplicationCollection = ProfessionalCaseApplication.collection,
   professionalReviewCollection = ProfessionalReview.collection,
   professionalDisputeCollection = ProfessionalDispute.collection,
+  gbsContextThreadCollection = GbsContextThread.collection,
+  gbsContextMessageCollection = GbsContextMessage.collection,
 } = {}) {
   const serviceRequest = await provisionMissingIndexes({
     collection: serviceRequestCollection,
@@ -541,6 +555,14 @@ export async function provisionCriticalIdempotencyIndexes({
     collection: professionalDisputeCollection,
     expected: PROFESSIONAL_TRUST_CRITICAL_INDEXES.disputes,
   });
+  const gbsContextThreads = await provisionMissingIndexes({
+    collection: gbsContextThreadCollection,
+    expected: GBS_CONTEXT_THREAD_CRITICAL_INDEXES,
+  });
+  const gbsContextMessages = await provisionMissingIndexes({
+    collection: gbsContextMessageCollection,
+    expected: GBS_CONTEXT_MESSAGE_CRITICAL_INDEXES,
+  });
   logger.info('critical_index_provision_ready', {
     serviceRequestCreated: serviceRequest.created,
     quoteCreated: quote.created,
@@ -555,6 +577,8 @@ export async function provisionCriticalIdempotencyIndexes({
     educationCaseApplicationCreated: educationCaseApplications.created,
     professionalReviewCreated: professionalReviews.created,
     professionalDisputeCreated: professionalDisputes.created,
+    gbsContextThreadCreated: gbsContextThreads.created,
+    gbsContextMessageCreated: gbsContextMessages.created,
   });
   return {
     serviceRequest,
@@ -570,5 +594,7 @@ export async function provisionCriticalIdempotencyIndexes({
     educationCaseApplications,
     professionalReviews,
     professionalDisputes,
+    gbsContextThreads,
+    gbsContextMessages,
   };
 }

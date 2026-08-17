@@ -209,6 +209,7 @@ export function customerRequestProjection(record) {
   return {
     publicRequestRef: record.publicRequestRef,
     listingSlug: record.listingSlugSnapshot,
+    intakeChannel: record.intakeChannel || 'public_marketplace',
     title: record.titleSnapshot,
     capabilityPublicName: record.capabilityPublicNameSnapshot,
     jurisdictionName: record.jurisdictionNameSnapshot,
@@ -235,6 +236,7 @@ export function providerRequestProjection(record, customerSafe = {}) {
   if (!record) return null;
   return {
     publicRequestRef: record.publicRequestRef,
+    intakeChannel: record.intakeChannel || 'public_marketplace',
     customerDisplayName: customerSafe.displayName || 'Customer',
     preferredLanguage: record.preferredLanguage || undefined,
     actingFor: record.actingFor,

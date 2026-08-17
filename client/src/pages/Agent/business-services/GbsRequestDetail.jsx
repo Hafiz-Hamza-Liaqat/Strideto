@@ -4,6 +4,7 @@ import { AdminConfirmDialog } from '../../../components/admin/AdminConfirmDialog
 import { ui } from '../../../design-system/surfaceClasses';
 import { ROUTES } from '../../../constants';
 import { gbsProviderApi } from '../../../services/gbsProviderApi';
+import { GbsContextMessages } from '../../../components/gbs/GbsContextMessages';
 import { useGbsProvider } from './GbsProviderContext';
 import { StatusBadge, card, emptyBox, errorBox, muted, wrap } from './gbsUi';
 import { actingForLabel, formatTimestamp, serviceRequestStatusLabel } from '../../BusinessClient/businessClientFormat';
@@ -107,7 +108,7 @@ export default function GbsRequestDetail() {
   return (
     <article className={`${card} space-y-4`}>
       <p className="text-xs uppercase tracking-wide text-primary">Service Request</p>
-      <h2 className={`text-xl font-semibold ${wrap}`}>{item.title}</h2>
+      <h1 className={`text-xl font-semibold ${wrap}`}>{item.title}</h1>
       <p className={`${muted} break-all`}>Reference {item.publicRequestRef}</p>
       <StatusBadge status={item.status} label={serviceRequestStatusLabel(item.status)} />
       <p className={wrap}><span className="font-medium">Customer:</span> {item.customerDisplayName}</p>
@@ -159,6 +160,12 @@ export default function GbsRequestDetail() {
           </button>
         ) : null}
       </div>
+      <GbsContextMessages
+        contextType="request"
+        contextRef={item.publicRequestRef}
+        loadMessages={(page, limit) => gbsProviderApi.listMessages(selected, 'request', item.publicRequestRef, page, limit)}
+        sendMessage={(text) => gbsProviderApi.sendMessage(selected, 'request', item.publicRequestRef, text)}
+      />
       <AdminConfirmDialog
         open={declineOpen}
         title="Decline this request?"

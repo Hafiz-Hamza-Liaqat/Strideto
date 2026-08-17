@@ -16,6 +16,12 @@ export const gbsBuyerApi = {
   list: (params) => axiosInstance.get(`/business/requests${buildParams(params)}`),
   get: (requestRef) => axiosInstance.get(`/business/requests/${encodeURIComponent(requestRef)}`),
   create: (data) => axiosInstance.post('/business/requests', data),
+  getPrivateBetaService: (listingSlug) => axiosInstance.get(`/business/private-beta/services/${encodeURIComponent(listingSlug)}`),
+  createPrivateBetaRequest: (data) => axiosInstance.post('/business/private-beta/requests', data),
+  listMessages: (contextType, contextRef, page, limit) =>
+    axiosInstance.get(`/business/${contextType}s/${encodeURIComponent(contextRef)}/messages${buildParams({ page, limit })}`),
+  sendMessage: (contextType, contextRef, text) =>
+    axiosInstance.post(`/business/${contextType}s/${encodeURIComponent(contextRef)}/messages`, { text }),
   cancel: (requestRef, expectedVersion) =>
     axiosInstance.post(`/business/requests/${encodeURIComponent(requestRef)}/cancel`, { expectedVersion }),
   listQuotes: (params) => axiosInstance.get(`/business/quotes${buildParams(params)}`),

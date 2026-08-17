@@ -52,6 +52,16 @@ export const gbsProviderApi = {
     agentAxios.get(`${base}/requests`, { params: { ...subjectParams(subject), ...params } }),
   getRequest: (subject, requestRef) =>
     agentAxios.get(`${base}/requests/${encodeURIComponent(requestRef)}`, { params: subjectParams(subject) }),
+  listMessageThreads: (subject, params = {}) =>
+    agentAxios.get(`${base}/messages`, { params: { ...subjectParams(subject), ...params } }),
+  listMessages: (subject, contextType, contextRef, page, limit) =>
+    agentAxios.get(`${base}/${contextType}s/${encodeURIComponent(contextRef)}/messages`, {
+      params: { ...subjectParams(subject), page, limit },
+    }),
+  sendMessage: (subject, contextType, contextRef, text) =>
+    agentAxios.post(`${base}/${contextType}s/${encodeURIComponent(contextRef)}/messages`, {
+      ...subjectParams(subject), text,
+    }),
   reviewRequest: (subject, requestRef, expectedVersion, extra = {}) =>
     agentAxios.post(`${base}/requests/${encodeURIComponent(requestRef)}/review`, {
       ...subjectParams(subject),

@@ -9,6 +9,7 @@ import { useGbsProvider } from './GbsProviderContext';
 import { StatusBadge, card, emptyBox, errorBox, input, label, muted, wrap } from './gbsUi';
 import { ProviderRequirementPackPanel } from '../../../components/gbs/ProviderRequirementPackPanel';
 import { ProviderFilingAuthorizationPanel } from '../../../components/gbs/ProviderFilingAuthorizationPanel';
+import { GbsContextMessages } from '../../../components/gbs/GbsContextMessages';
 import {
   caseMilestoneLabel,
   caseStatusLabel,
@@ -133,7 +134,7 @@ export default function GbsCaseDetail() {
   return (
     <article className={`${card} space-y-4`}>
       <p className="text-xs uppercase tracking-wide text-primary">Service Case</p>
-      <h2 className={`text-xl font-semibold ${wrap}`}>{item.title}</h2>
+      <h1 className={`text-xl font-semibold ${wrap}`}>{item.title}</h1>
       <p className={`${muted} break-all`}>Reference {item.publicCaseRef}</p>
       <StatusBadge status={item.status} label={caseStatusLabel(item.status)} />
       <p><span className="font-medium">Stage:</span> {caseMilestoneLabel(item.currentMilestoneKey)}</p>
@@ -188,10 +189,10 @@ export default function GbsCaseDetail() {
 
       <section>
         <h3 className="font-medium">Required documents</h3>
-        <p className={`mt-2 ${muted}`}>
-          {docs?.security?.providerMessage || 'Document security scanning is not configured.'}
-        </p>
-        {!docs?.canManageDocuments ? (
+        {!docs?.security?.uploadEnabled ? (
+          <p className={`mt-2 ${muted}`} role="status">Secure Business document exchange is not available in this private beta.</p>
+        ) : <p className={`mt-2 ${muted}`}>{docs.security.providerMessage}</p>}
+        {docs?.security?.uploadEnabled && !docs?.canManageDocuments ? (
           <p className={muted}>Case document review requires an explicit case documents duty. Owner or Admin role is not enough.</p>
         ) : null}
         {(docs?.items || []).length === 0 ? (
@@ -307,6 +308,12 @@ export default function GbsCaseDetail() {
         ) : null}
       </div>
 
+      <GbsContextMessages
+        contextType="case"
+        contextRef={item.publicCaseRef}
+        loadMessages={(page, limit) => gbsProviderApi.listMessages(selected, 'case', item.publicCaseRef, page, limit)}
+        sendMessage={(text) => gbsProviderApi.sendMessage(selected, 'case', item.publicCaseRef, text)}
+      />
       <AdminConfirmDialog
         open={readyOpen}
         title="Mark ready for the next submission step?"

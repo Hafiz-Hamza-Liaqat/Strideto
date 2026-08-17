@@ -26,6 +26,11 @@ import {
 import { getBusinessServicesCapability } from '../../../../shared/gbs/businessServicesCapabilities.js';
 import { projectProviderCatalog } from '../../../../shared/gbs/providerCatalogProjection.js';
 import { evaluatePublicMarketplaceEligibility } from '../../../../shared/gbs/marketplaceEligibility.js';
+import {
+  isBusinessServicesDomainEnrollmentActive,
+  listingModerationIsPubliclyEligible,
+} from '../../../../shared/gbs/marketplaceEligibility.js';
+import { evaluateListingPublicationGate } from '../../../../shared/gbs/listingPublicationGate.js';
 import { evaluateReadyForQuoteAuthority } from '../../../../shared/gbs/serviceRequestProgression.js';
 import {
   customerCanCancel,
@@ -83,7 +88,7 @@ function duplicateKeyFields(err) {
   return [];
 }
 
-export function serviceRequestCreateFingerprint({ userId, listingId, intake }) {
+export function serviceRequestCreateFingerprint({ userId, listingId, intake, intakeChannel = 'public_marketplace' }) {
   return fingerprintRequest({
     command: GBS_COMMAND_IDS.SERVICE_REQUEST_CREATE,
     requesterUserId: String(userId),
@@ -94,6 +99,7 @@ export function serviceRequestCreateFingerprint({ userId, listingId, intake }) {
     existingBusinessName: intake.existingBusinessName || '',
     preferredLanguage: intake.preferredLanguage || '',
     commandId: intake.creationCommandId,
+    intakeChannel,
   });
 }
 
@@ -108,6 +114,7 @@ function storedCreateFingerprint(record) {
     existingBusinessName: record.existingBusinessName || '',
     preferredLanguage: record.preferredLanguage || '',
     commandId: record.creationCommandId,
+    intakeChannel: record.intakeChannel || 'public_marketplace',
   });
 }
 
@@ -340,13 +347,55 @@ function parseListQuery(query = {}) {
   return { page, limit, status, capabilityId, sort };
 }
 
-export async function createCustomerServiceRequest({ userId, body, headerCommandId, actor = {}, env = process.env } = {}) {
+async function assertActiveBusinessClient(userId) {
   const service = getUserCapabilityService();
   const grants = await service.listGrants(userId);
   const activeBuyer = (grants || []).some(
     (row) => row.capability === USER_CAPABILITY_IDS.BUSINESS_CLIENT && row.status === GRANT_STATUSES.ACTIVE
   );
   if (!activeBuyer) throw deny('capability_denied', 403);
+}
+
+function evaluatePrivateBetaEligibility({ listing, capability, domain, env }) {
+  if (!listingModerationIsPubliclyEligible(listing)) return { allowed: false };
+  if (!isBusinessServicesDomainEnrollmentActive(domain, listing)) return { allowed: false };
+  return evaluateListingPublicationGate({
+    env,
+    listing,
+    capability,
+    protectedTitleEvidence: capability?.evidenceRefs || null,
+    requireMarketplaceEnabled: false,
+  });
+}
+
+export async function getPrivateBetaServiceEntry({ userId, listingSlug, env = process.env } = {}) {
+  await assertActiveBusinessClient(userId);
+  const listing = await resolveListingForCreate({ listingSlug: String(listingSlug || '').trim().toLowerCase() });
+  const { capability, domain } = await loadCreateEligibility(listing);
+  const eligibility = evaluatePrivateBetaEligibility({ listing, capability, domain, env });
+  if (!eligibility.allowed) throw notFound();
+  const identity = await resolveIdentity(listing);
+  const capDef = getBusinessServicesCapability(listing.capabilityId);
+  return {
+    listingSlug: listing.publicSlug,
+    title: listing.title,
+    summary: listing.shortDescription,
+    capabilityId: listing.capabilityId,
+    capabilityPublicName: capDef?.publicName || listing.capabilityId,
+    providerDisplayName: identity.displayName,
+    providerKind: identity.providerKind,
+    countryCode: listing.countryCode,
+    jurisdictionId: listing.jurisdictionId,
+    jurisdictionName: jurisdictionName(listing),
+    entityTypeIds: Array.isArray(listing.entityTypeIds) ? listing.entityTypeIds : [],
+    privateBeta: true,
+  };
+}
+
+export async function createCustomerServiceRequest({
+  userId, body, headerCommandId, actor = {}, env = process.env, intakeChannel = 'public_marketplace',
+} = {}) {
+  await assertActiveBusinessClient(userId);
 
   const commandId = String(body?.creationCommandId || headerCommandId || '').trim().slice(0, GBS_SERVICE_REQUEST_BOUNDS.COMMAND_ID_MAX);
   const parsed = normalizeCreateIntake({ ...body, creationCommandId: commandId || body?.creationCommandId });
@@ -355,14 +404,20 @@ export async function createCustomerServiceRequest({ userId, body, headerCommand
 
   const listing = await resolveListingForCreate(intake);
   const { capability, domain } = await loadCreateEligibility(listing);
-  const eligibility = evaluatePublicMarketplaceEligibility({
-    env,
-    listing,
-    capability: capability || null,
-    domainEnrollment: domain || null,
-    protectedTitleEvidence: capability?.evidenceRefs || null,
-  });
+  const eligibility = intakeChannel === 'private_beta'
+    ? evaluatePrivateBetaEligibility({ listing, capability, domain, env })
+    : evaluatePublicMarketplaceEligibility({
+        env,
+        listing,
+        capability: capability || null,
+        domainEnrollment: domain || null,
+        protectedTitleEvidence: capability?.evidenceRefs || null,
+      });
   if (!eligibility.allowed) throw notFound();
+
+  if (intakeChannel === 'private_beta' && Array.isArray(listing.entityTypeIds) && listing.entityTypeIds.length && !intake.entityTypeId) {
+    throw deny('entity_type_required', 400);
+  }
 
   if (intake.entityTypeId) {
     const allowed = Array.isArray(listing.entityTypeIds) ? listing.entityTypeIds : [];
@@ -376,6 +431,7 @@ export async function createCustomerServiceRequest({ userId, body, headerCommand
     userId,
     listingId: listing._id,
     intake,
+    intakeChannel,
   });
   let recoveredDuplicate = false;
 
@@ -400,6 +456,7 @@ export async function createCustomerServiceRequest({ userId, body, headerCommand
             requesterUserId: userId,
             listingId: listing._id,
             listingSlugSnapshot: listing.publicSlug,
+            intakeChannel,
             providerSubjectType: listing.subjectType,
             providerSubjectId: String(listing.subjectId),
             capabilityId: listing.capabilityId,
@@ -467,6 +524,7 @@ export async function createCustomerServiceRequest({ userId, body, headerCommand
           providerSubjectType: record.providerSubjectType,
           capabilityId: record.capabilityId,
           status: record.status,
+          intakeChannel: record.intakeChannel || intakeChannel,
         }),
       });
       await notifyCustomer(record, {

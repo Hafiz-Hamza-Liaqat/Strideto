@@ -80,6 +80,7 @@ export function publicListingProjection(record) {
   if (!record) return null;
   return {
     id: String(record._id || record.id),
+    publicSlug: record.publicSlug || '',
     subjectType: record.subjectType,
     subjectId: record.subjectId,
     capabilityId: record.capabilityId,
