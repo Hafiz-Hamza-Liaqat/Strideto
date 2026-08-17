@@ -58,6 +58,25 @@ function paymentStateFor(service) {
   return CONSULTATION_PAYMENT_STATES.PAYMENT_NOT_CONFIGURED;
 }
 
+function snapshotService(service) {
+  return {
+    title: service.title,
+    category: service.category,
+    description: service.description || '',
+    pricingMode: service.pricingMode,
+    price: {
+      amountMinor: Number.isSafeInteger(service.price?.amountMinor) ? service.price.amountMinor : null,
+      currency: service.price?.currency || null,
+    },
+    deliveryMode: service.deliveryMode,
+    journeyType: service.journeyType,
+    countriesServed: [...(service.countriesServed || [])],
+    destinationCountries: [...(service.destinationCountries || [])],
+    durationEstimate: service.durationEstimate || '',
+    eligibilityNotes: service.eligibilityNotes || '',
+  };
+}
+
 function studentProjection(record, verificationStatus) {
   const data = record.toObject ? record.toObject() : record;
   const restricted = verificationStatus !== 'approved';
@@ -68,6 +87,7 @@ function studentProjection(record, verificationStatus) {
     confirmedStart: data.confirmedStart, durationMinutes: data.durationMinutes, timezone: data.timezone,
     meetingMode: data.meetingMode, meetingMetadata: restricted ? { restricted: true } : data.meetingMetadata,
     purpose: data.purpose, studentNote: data.studentNote, paymentState: data.paymentState,
+    service: data.serviceSnapshot || null,
     verificationState: verificationStatus, restricted, cancellation: data.cancellation?.cancelledAt ? { actorType: data.cancellation.actorType, cancelledAt: data.cancellation.cancelledAt } : null,
     completion: data.completion?.completedAt ? { completedAt: data.completion.completedAt } : null,
     createdAt: data.createdAt, updatedAt: data.updatedAt,
@@ -220,6 +240,7 @@ export async function requestConsultation(userId, input = {}) {
   const record = await Consultation.create({
     studentUserId: userId, organizationId: service.organizationId, assignedMembershipId: availability.membershipId,
     agentServiceId: service._id, marketplacePostId, leadId: lead._id, consultationType: input.consultationType,
+    serviceSnapshot: snapshotService(service),
     requestedWindow, durationMinutes, timezone: zone, meetingMode: input.meetingMode,
     purpose: clean(input.purpose, 300), studentNote: clean(input.studentNote, 2000), paymentState: paymentStateFor(service), verificationState: 'approved',
   });
@@ -397,4 +418,4 @@ export async function resolveDocumentReference(agentAccountId, threadId, message
   return { accessAllowed: true, documentId: String(document._id), displayName: document.displayName, grantId: String(message.documentReference.grantId), consultationId: String(consultation._id) };
 }
 
-export const consultationInternals = Object.freeze({ ACTIVE_BOOKING_STATUSES, CLOSED_STATUSES, MAX_PAGE_SIZE, POST_CONSULTATION_MESSAGE_HOURS, paymentStateFor, studentProjection, agentProjection, pageOptions });
+export const consultationInternals = Object.freeze({ ACTIVE_BOOKING_STATUSES, CLOSED_STATUSES, MAX_PAGE_SIZE, POST_CONSULTATION_MESSAGE_HOURS, paymentStateFor, snapshotService, studentProjection, agentProjection, pageOptions });

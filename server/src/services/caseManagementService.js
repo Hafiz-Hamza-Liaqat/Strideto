@@ -143,12 +143,12 @@ export async function getCase(actorType, actorId, caseId) {
     CaseDocumentRequest.find({ caseId: record._id }).sort({ createdAt: -1 }).lean(),
     CaseThread.findOne({ caseId: record._id }).lean(),
     ProfessionalCaseApplication.find({ caseId: record._id }).sort({ createdAt: 1 }).lean(),
-    record.consultationId ? Consultation.findById(record.consultationId).select('agentServiceId').lean() : null,
+    record.consultationId ? Consultation.findById(record.consultationId).select('agentServiceId serviceSnapshot').lean() : null,
     AgentMembership.findById(record.assignedMembershipId).select('agentAccountId').lean(),
     actorType === 'agent' ? User.findById(record.studentUserId).select('name email').lean() : null,
   ]);
-  const [service, provider] = await Promise.all([
-    consultation?.agentServiceId ? AgentService.findById(consultation.agentServiceId).select('title category').lean() : null,
+  const [liveService, provider] = await Promise.all([
+    consultation?.agentServiceId && !consultation.serviceSnapshot ? AgentService.findById(consultation.agentServiceId).select('title category').lean() : null,
     membership?.agentAccountId ? AgentProfile.findOne({ agentAccountId: membership.agentAccountId, organizationId: record.organizationId }).select('professionalName agentType slug').lean() : null,
   ]);
   return {
@@ -157,7 +157,9 @@ export async function getCase(actorType, actorId, caseId) {
     context: {
       provider: provider ? { name: provider.professionalName || 'Education Provider', type: provider.agentType, slug: provider.slug || '' } : null,
       student: student ? { name: student.name || 'Student', email: student.email } : null,
-      service: service ? { id: String(service._id), title: service.title, category: service.category } : null,
+      service: consultation?.serviceSnapshot
+        ? { id: String(consultation.agentServiceId), ...consultation.serviceSnapshot, source: 'engagement_snapshot' }
+        : liveService ? { id: String(liveService._id), title: liveService.title, category: liveService.category, source: 'legacy_live_fallback' } : null,
     },
     applications: applications.map(applicationSafe),
     timeline: timeline.map(eventSafe),

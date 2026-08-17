@@ -1,11 +1,29 @@
 import mongoose from 'mongoose';
 import { CONSULTATION_PAYMENT_STATES, CONSULTATION_STATUSES, CONSULTATION_TYPES, MEETING_MODES } from '../../../../shared/services/consultations.js';
 
+const serviceSnapshotSchema = new mongoose.Schema({
+  title: { type: String, required: true, maxlength: 200 },
+  category: { type: String, required: true },
+  description: { type: String, default: '', maxlength: 5000 },
+  pricingMode: { type: String, required: true },
+  price: {
+    amountMinor: { type: Number, default: null },
+    currency: { type: String, default: null },
+  },
+  deliveryMode: { type: String, required: true },
+  journeyType: { type: String, required: true },
+  countriesServed: { type: [String], default: [] },
+  destinationCountries: { type: [String], default: [] },
+  durationEstimate: { type: String, default: '', maxlength: 200 },
+  eligibilityNotes: { type: String, default: '', maxlength: 2000 },
+}, { _id: false });
+
 const schema = new mongoose.Schema({
   studentUserId: { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
   organizationId: { type: mongoose.Schema.Types.ObjectId, ref: 'Organization', required: true, index: true },
   assignedMembershipId: { type: mongoose.Schema.Types.ObjectId, ref: 'AgentMembership', required: true, index: true },
   agentServiceId: { type: mongoose.Schema.Types.ObjectId, ref: 'AgentService', required: true, index: true },
+  serviceSnapshot: { type: serviceSnapshotSchema, default: null, immutable: true },
   marketplacePostId: { type: mongoose.Schema.Types.ObjectId, ref: 'AgentMarketplacePost', default: null, index: true },
   leadId: { type: mongoose.Schema.Types.ObjectId, ref: 'AgentLead', default: null },
   consultationType: { type: String, enum: Object.values(CONSULTATION_TYPES), default: CONSULTATION_TYPES.INITIAL },

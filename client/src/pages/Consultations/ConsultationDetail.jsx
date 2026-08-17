@@ -41,6 +41,7 @@ export default function ConsultationDetail() {
         </div>
         <p className="mt-3 text-sm">{new Date(c.confirmedStart || c.requestedWindow.start).toLocaleString([], { timeZone: c.timezone })} · {c.timezone}</p>
         <p className={`mt-1 ${ui.muted}`}>{c.durationMinutes} minutes · {c.meetingMode.replaceAll('_', ' ')} · {c.paymentState.replaceAll('_', ' ')}</p>
+        {c.service ? <p className={`mt-1 ${ui.muted}`}>Service: {c.service.title} · {c.service.category.replaceAll('_', ' ')}</p> : null}
         {c.meetingMetadata?.link ? <a className={`mt-3 block text-sm ${ui.link}`} href={c.meetingMetadata.link} rel="noreferrer">Open authorized meeting link</a> : null}
         {c.restricted ? <p className={`mt-3 ${ui.warning}`}>The organization is currently restricted. Private meeting metadata is withheld.</p> : null}
         <div className="mt-4 flex flex-wrap gap-2">

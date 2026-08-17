@@ -33,6 +33,7 @@ export default function AgentConsultationDetail() {
         </div>
         <p className="mt-3 text-sm text-gray-800 dark:text-gray-200">{new Date(c.confirmedStart || c.requestedWindow.start).toLocaleString([], { timeZone: c.timezone })} · {c.timezone}</p>
         <p className={`mt-1 ${muted}`}>{c.durationMinutes} minutes · {c.meetingMode.replaceAll('_', ' ')} · payment {c.paymentState.replaceAll('_', ' ')}</p>
+        {c.service ? <p className={`mt-1 ${muted}`}>Service: {c.service.title} · {c.service.category.replaceAll('_', ' ')}</p> : null}
         <p className="mt-3 rounded bg-slate-50 dark:bg-gray-900 p-3 text-sm text-gray-800 dark:text-gray-200">Student note: {c.studentNote || 'None provided'}</p>
         {c.restricted ? <p className="mt-3 rounded bg-amber-50 dark:bg-amber-950/40 p-2 text-sm text-amber-800 dark:text-amber-200">Verification restriction is active. Confirmation and progression are blocked server-side.</p> : null}
         <div className="mt-4 flex flex-wrap gap-2">{actions.map((action) => (
