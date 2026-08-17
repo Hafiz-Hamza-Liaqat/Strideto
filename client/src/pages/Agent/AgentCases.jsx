@@ -27,7 +27,7 @@ export default function AgentCases() {
         <label className={labelClass}>Lifecycle
           <select value={lifecycle} onChange={(e) => setLifecycle(e.target.value)} className={inputClass}>
             <option value="">All</option>
-            {['proposed', 'awaiting_student_acceptance', 'active', 'closed', 'transferred'].map((v) => <option key={v} value={v}>{v.replaceAll('_', ' ')}</option>)}
+            {['proposed', 'awaiting_student_acceptance', 'active', 'paused', 'closing', 'completed', 'cancelled', 'transferred'].map((v) => <option key={v} value={v}>{v.replaceAll('_', ' ')}</option>)}
           </select>
         </label>
         <button type="submit" className="self-end min-h-[44px] rounded-lg border px-4 text-sm">Apply</button>

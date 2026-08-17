@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import MessageThread from '../../components/consultations/MessageThread';
-import { studentConsultationApi } from '../../services/agentService';
+import { studentConsultationApi, studentTrustApi } from '../../services/agentService';
 import { ui } from '../../design-system/surfaceClasses';
 
 export default function ConsultationDetail() {
@@ -9,8 +9,13 @@ export default function ConsultationDetail() {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [reviewEligibility, setReviewEligibility] = useState(null);
   const load = () => studentConsultationApi.get(consultationId).then((response) => setData(response.data)).catch((e) => setError(e.response?.data?.error || 'Unable to load consultation.'));
   useEffect(() => { void load(); }, [consultationId]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    if (data?.consultation?.status !== 'completed') return;
+    studentTrustApi.eligibility('consultation', consultationId).then((response) => setReviewEligibility(response.data)).catch(() => setReviewEligibility({ eligible: false }));
+  }, [data?.consultation?.status, consultationId]);
   const transition = async (status) => {
     const requestedStart = status === 'reschedule_requested' ? window.prompt('Enter the proposed start as an ISO instant, for example 2026-08-20T10:00:00Z') : '';
     if (status === 'reschedule_requested' && !requestedStart) return;
@@ -60,6 +65,17 @@ export default function ConsultationDetail() {
         </div>
       </section>
       <MessageThread threadId={data.threadId} loadMessages={studentConsultationApi.getMessages} sendMessage={studentConsultationApi.sendMessage} canShareDocuments />
+      {c.status === 'completed' ? (
+        <section className={`${ui.card} p-5`} aria-labelledby="consultation-trust-actions">
+          <h2 id="consultation-trust-actions" className="font-semibold">Review, report, or dispute</h2>
+          <p className={`mt-1 ${ui.muted}`}>Trust actions remain bound to this exact completed consultation.</p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            {reviewEligibility?.eligible ? <Link className={ui.primaryBtn} to={`/trust-center?action=review&contextType=consultation&contextId=${consultationId}`}>Review consultation</Link> : null}
+            <Link className={ui.secondaryBtn} to={`/trust-center?action=report&contextType=consultation&contextId=${consultationId}`}>Report consultation</Link>
+            <Link className={ui.secondaryBtn} to={`/trust-center?action=dispute&contextType=consultation&contextId=${consultationId}`}>Open professional dispute</Link>
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

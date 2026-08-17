@@ -164,9 +164,18 @@ export const agentApi = {
   getCase: (caseId) => agentAxios.get(`/api/agent/cases/${caseId}`),
   proposeCase: (data) => agentAxios.post('/api/agent/cases', data),
   updateCaseStage: (caseId, data) => agentAxios.post(`/api/agent/cases/${caseId}/stage`, data),
+  updateCaseLifecycle: (caseId, data) => agentAxios.post(`/api/agent/cases/${caseId}/lifecycle`, data),
+  createCaseApplication: (caseId, data, idempotencyKey) => agentAxios.post(`/api/agent/cases/${caseId}/applications`, data, { headers: { 'Idempotency-Key': idempotencyKey } }),
+  updateCaseApplication: (caseId, applicationId, data) => agentAxios.patch(`/api/agent/cases/${caseId}/applications/${applicationId}`, data),
+  listCaseCatalogInstitutions: (params) => agentAxios.get('/api/education/institutions', { params }),
+  listCaseCatalogPrograms: (params) => agentAxios.get('/api/education/programs', { params }),
+  addCaseNote: (caseId, data) => agentAxios.post(`/api/agent/cases/${caseId}/notes`, data),
   createCaseTask: (caseId, data) => agentAxios.post(`/api/agent/cases/${caseId}/tasks`, data),
+  completeCaseTask: (caseId, taskId) => agentAxios.post(`/api/agent/cases/${caseId}/tasks/${taskId}/complete`),
   requestCaseApproval: (caseId, data) => agentAxios.post(`/api/agent/cases/${caseId}/approvals`, data),
   requestCaseDocument: (caseId, data) => agentAxios.post(`/api/agent/cases/${caseId}/document-requests`, data),
+  resolveCaseDocument: (caseId, requestId) => agentAxios.get(`/api/agent/cases/${caseId}/document-requests/${requestId}/document`),
+  recordCaseOutcome: (caseId, data) => agentAxios.post(`/api/agent/cases/${caseId}/outcome`, data),
   getCaseMessages: (caseId, params) => agentAxios.get(`/api/agent/cases/${caseId}/messages`, { params }),
   sendCaseMessage: (caseId, data) => agentAxios.post(`/api/agent/cases/${caseId}/messages`, data),
   getReviews: () => agentAxios.get('/api/agent/reviews'), respondToReview: (reviewId, body) => agentAxios.put(`/api/agent/reviews/${reviewId}/response`, { body }),
@@ -235,6 +244,8 @@ export const studentCaseApi = {
   completeTask: (caseId, taskId) => userAxios.post(`/cases/${caseId}/tasks/${taskId}/complete`),
   updateLifecycle: (caseId, lifecycle) => userAxios.post(`/cases/${caseId}/lifecycle`, { lifecycle }),
   getMessages: (caseId, params) => userAxios.get(`/cases/${caseId}/messages`, { params }), sendMessage: (caseId, text) => userAxios.post(`/cases/${caseId}/messages`, { text }),
+  shareDocument: (caseId, requestId, documentId) => userAxios.post(`/cases/${caseId}/document-requests/${requestId}/share`, { documentId }),
+  revokeDocument: (caseId, requestId) => userAxios.delete(`/cases/${caseId}/document-requests/${requestId}/share`),
 };
 
 export const studentTrustApi = {
