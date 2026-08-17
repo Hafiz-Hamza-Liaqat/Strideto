@@ -7,7 +7,6 @@ import { CaseDocumentRequest, CaseTask } from '../models/case/CaseRecords.js';
 import { getProviderAttention } from '../controllers/agentController.js';
 import { GbsServiceRequest } from '../models/gbs/GbsServiceRequest.js';
 import { GbsQuote } from '../models/gbs/GbsQuote.js';
-import { GbsCase } from '../models/gbs/GbsCase.js';
 import { getProviderWorkspaceSummary } from '../services/gbs/providerWorkspaceSummaryService.js';
 
 const URI = process.env.STRIDETO_PREFREEZE_ATTENTION_TEST_MONGO_URI || 'mongodb://127.0.0.1:27017/strideto_prefreeze_attention_run1';
