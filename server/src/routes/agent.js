@@ -339,6 +339,8 @@ agentRouter.post(
 agentRouter.get('/agent/business-services/enabled', requireAuth, requireAgentAuth, gbsProvider.getEnabled);
 agentRouter.get('/agent/business-services/context', ...gbsEnabled, gbsProviderReadLimiter, gbsProvider.getContext);
 agentRouter.get('/agent/business-services/overview', ...gbsEnabled, gbsProviderReadLimiter, gbsProvider.getOverview);
+agentRouter.get('/agent/business-services/professional-profile', ...gbsEnabled, gbsProviderReadLimiter, gbsProvider.getProfessionalProfile);
+agentRouter.patch('/agent/business-services/professional-profile', ...gbsEnabled, gbsCapabilityWriteLimiter, gbsProvider.patchProfessionalProfile);
 agentRouter.get('/agent/business-services/catalog', ...gbsEnabled, gbsProviderReadLimiter, gbsProvider.getCatalog);
 agentRouter.get('/agent/business-services/capabilities', ...gbsEnabled, gbsProviderReadLimiter, gbsProvider.listCapabilities);
 agentRouter.post('/agent/business-services/capabilities', ...gbsEnabled, gbsCapabilityWriteLimiter, gbsProvider.claimCapability);

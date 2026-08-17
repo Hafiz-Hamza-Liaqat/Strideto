@@ -13,6 +13,10 @@ export const gbsProviderApi = {
   getEnabled: () => agentAxios.get(`${base}/enabled`),
   getContext: () => agentAxios.get(`${base}/context`),
   getOverview: (subject) => agentAxios.get(`${base}/overview`, { params: subjectParams(subject) }),
+  getProfessionalProfile: (subject) =>
+    agentAxios.get(`${base}/professional-profile`, { params: subjectParams(subject) }),
+  updateProfessionalProfile: (subject, data) =>
+    agentAxios.patch(`${base}/professional-profile`, { ...subjectParams(subject), ...data }),
   getCatalog: () => agentAxios.get(`${base}/catalog`),
   listCapabilities: (subject) =>
     agentAxios.get(`${base}/capabilities`, { params: subjectParams(subject) }),

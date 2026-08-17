@@ -27,6 +27,10 @@ import {
   submitServiceListingForReview,
   updateServiceListing,
 } from '../services/gbs/serviceListingService.js';
+import {
+  getBusinessProfessionalProfile,
+  updateBusinessProfessionalProfile,
+} from '../services/gbs/gbsProviderProfessionalProfileService.js';
 
 function actorFrom(req) {
   return {
@@ -255,6 +259,26 @@ export async function archiveListing(req, res) {
       actor: actorFrom(req),
     });
     return res.json({ item: publicListingProjection(record) });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function getProfessionalProfile(req, res) {
+  try {
+    const subject = await requireSubject(req);
+    const profile = await getBusinessProfessionalProfile(subject);
+    return res.json({ profile });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function patchProfessionalProfile(req, res) {
+  try {
+    const subject = await requireSubject(req, PROVIDER_DOMAIN_PERMISSIONS.BUSINESS_CAPABILITIES_MANAGE);
+    const profile = await updateBusinessProfessionalProfile(subject, req.body || {}, actorFrom(req));
+    return res.json({ profile });
   } catch (err) {
     return sendError(res, err);
   }
