@@ -7,7 +7,7 @@ export default function AgentNotifications() {
     <NotificationsPageContent
       api={agentInboxApi}
       backRoute={ROUTES.AGENT_DASHBOARD}
-      emptyStateDescription="No Agent notifications yet. Verification, leads, consultations, cases, messages, trust, and commerce events appear here when they occur."
+      emptyStateDescription="No Provider notifications yet. Verification, cases, messages, trust, commerce, and workspace events appear here when they occur."
     />
   );
 }

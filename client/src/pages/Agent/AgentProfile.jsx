@@ -1,7 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { ISO_3166_ALPHA2, countryDisplayName } from '@shared/international/country.js';
-import { AGENT_SERVICE_CATEGORIES } from '@shared/agent/constants.js';
 import { agentApi } from '../../services/agentService';
 import { CountrySelect } from '../../components/forms/CountrySelect';
 import { LocationFields } from '../../components/forms/LocationFields';
@@ -26,11 +25,6 @@ const LANGUAGE_OPTIONS = [
   { value: 'pt', label: 'Portuguese' },
   { value: 'ru', label: 'Russian' },
 ];
-
-const SPECIALTY_OPTIONS = Object.values(AGENT_SERVICE_CATEGORIES).map((value) => ({
-  value,
-  label: value.replaceAll('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-}));
 
 function buildCountryOptions(locale) {
   return ISO_3166_ALPHA2.map((code) => ({
@@ -99,14 +93,14 @@ export default function AgentProfile() {
         }
         yearsOfExperience = Math.trunc(n);
       }
+      // Shared identity only — Education specialties / destination expertise
+      // are edited under Education → My Education Services (same AgentProfile fields).
       const { data } = await agentApi.updateProfile({
         professionalName: form.professionalName,
         professionalSummary: form.professionalSummary,
         countryCode: form.countryCode,
         serviceCountries: normalizeList(form.serviceCountries).map((item) => item.toUpperCase()),
-        destinationCountries: normalizeList(form.destinationCountries).map((item) => item.toUpperCase()),
         languages: normalizeList(form.languages).map((item) => item.toLowerCase()),
-        specialties: normalizeList(form.specialties),
         yearsOfExperience,
         website: form.website,
         officialEmail: form.officialEmail,
@@ -135,7 +129,10 @@ export default function AgentProfile() {
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{accountType === 'agency' ? 'Agency profile' : 'Professional profile'}</h1>
-        <p className="text-slate-500 dark:text-gray-400 text-sm mt-1">Self-declared information. Verified trust badges come from verification only. Account type is {accountType}.</p>
+        <p className="text-slate-500 dark:text-gray-400 text-sm mt-1">
+          Shared Provider identity and basics. Education specialties and destination expertise are managed in Education &amp; Mobility → My Education Services.
+          Verified trust badges come from verification only. Account type is {accountType}.
+        </p>
       </div>
       {completeness && (
         <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
@@ -191,16 +188,8 @@ export default function AgentProfile() {
           <MultiSelect value={normalizeList(form.serviceCountries)} onChange={(serviceCountries) => setForm((f) => ({ ...f, serviceCountries }))} options={countryOptions} emptyLabel="Select countries you serve" />
         </div>
         <div>
-          <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Destination / country expertise</label>
-          <MultiSelect value={normalizeList(form.destinationCountries)} onChange={(destinationCountries) => setForm((f) => ({ ...f, destinationCountries }))} options={countryOptions} emptyLabel="Select destination countries" />
-        </div>
-        <div>
           <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Languages</label>
           <MultiSelect value={normalizeList(form.languages)} onChange={(languages) => setForm((f) => ({ ...f, languages }))} options={LANGUAGE_OPTIONS} emptyLabel="Select languages" />
-        </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-900 dark:text-white mb-1">Service specialties</label>
-          <MultiSelect value={normalizeList(form.specialties)} onChange={(specialties) => setForm((f) => ({ ...f, specialties }))} options={SPECIALTY_OPTIONS} emptyLabel="Select specialties" />
         </div>
         <button type="submit" disabled={saving} aria-busy={saving} className="min-h-[44px] px-4 py-2 text-sm bg-primary text-white rounded-lg font-medium disabled:opacity-60">{saving ? 'Saving…' : 'Save profile'}</button>
       </form>
