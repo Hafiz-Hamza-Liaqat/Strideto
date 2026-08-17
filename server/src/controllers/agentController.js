@@ -316,8 +316,7 @@ export const editService = asyncHandler(async (req, res) => {
 // ---------------------------------------------------------------------------
 
 export const listTeamMembers = asyncHandler(async (req, res) => {
-  const members = await getOrgMembers(req.agent.agentAccountId, req.query);
-  return res.status(200).json({ members });
+  return res.status(200).json(await getOrgMembers(req.agent.agentAccountId, req.query));
 });
 
 export const changeMemberRole = asyncHandler(async (req, res) => {

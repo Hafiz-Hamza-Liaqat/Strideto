@@ -3,6 +3,7 @@ import { agentApi } from '../../services/agentService';
 import { ROUTES } from '../../constants';
 import { PROVIDER_DOMAIN_PERMISSION_GROUPS, PROVIDER_DOMAIN_PERMISSIONS, defaultPermissionsForInvite } from '@shared/provider/providerDomainPermissions.js';
 import { PROVIDER_DOMAIN_IDS, publicProviderDomainProjection } from '@shared/provider/providerDomains.js';
+import { Pagination } from '../../components/ui/Pagination';
 
 const inputClass = 'mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 px-3 py-2';
 
@@ -29,17 +30,23 @@ export default function AgentTeam({ focusDomainId = null }) {
   const [role, setRole] = useState('member');
   const [inviteLink, setInviteLink] = useState('');
   const [q, setQ] = useState('');
+  const [appliedQ, setAppliedQ] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const [agencyDomains, setAgencyDomains] = useState([]);
   const [selectedDomains, setSelectedDomains] = useState([]);
   const [grantCaseDocuments, setGrantCaseDocuments] = useState(false);
 
-  const load = async () => {
+  const load = async (nextPage = page, query = appliedQ) => {
     const [teamRes, inviteRes, ctxRes] = await Promise.all([
-      agentApi.getTeam({ params: { q } }),
+      agentApi.getTeam({ params: { page: nextPage, limit: 20, q: query || undefined, focusDomainId: focusDomainId || undefined } }),
       agentApi.getTeamInvites().catch(() => ({ data: { data: [] } })),
       agentApi.getProviderDomainContext().catch(() => ({ data: { workspaces: [] } })),
     ]);
+    const pages = teamRes.data.totalPages || 1;
     setMembers(teamRes.data.members || []);
+    setTotalPages(pages);
+    if (nextPage > pages) setPage(pages);
     setInvites(inviteRes.data.data || []);
     const agency = [...new Set((ctxRes.data.workspaces || [])
       .filter((w) => w.kind === 'agency')
@@ -56,12 +63,12 @@ export default function AgentTeam({ focusDomainId = null }) {
   };
 
   useEffect(() => {
-    load().catch((err) => setError(err.response?.data?.error || 'Unable to load team.')).finally(() => setLoading(false));
-  }, []);
+    load(page, appliedQ).catch((err) => setError(err.response?.data?.error || 'Unable to load team.')).finally(() => setLoading(false));
+  }, [page, appliedQ, focusDomainId]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const toggle = async (member) => {
     setBusy(member._id); setError('');
-    try { await agentApi.changeMemberStatus(member.agentAccountId, !member.active); await load(); }
+    try { await agentApi.changeMemberStatus(member.agentAccountId, !member.active); await load(page, appliedQ); }
     catch (err) { setError(err.response?.data?.error || 'Unable to update membership.'); }
     finally { setBusy(''); }
   };
@@ -77,7 +84,7 @@ export default function AgentTeam({ focusDomainId = null }) {
         domainAccess: next,
         expectedVersion: member.recordVersion,
       });
-      await load();
+      await load(page, appliedQ);
     } catch (err) {
       setError(err.response?.data?.error || 'Unable to remove domain assignment.');
     } finally {
@@ -87,7 +94,7 @@ export default function AgentTeam({ focusDomainId = null }) {
 
   const changeRole = async (member, nextRole) => {
     setBusy(member._id); setError('');
-    try { await agentApi.changeMemberRole(member.agentAccountId, nextRole); await load(); }
+    try { await agentApi.changeMemberRole(member.agentAccountId, nextRole); await load(page, appliedQ); }
     catch (err) { setError(err.response?.data?.error || 'Unable to change role.'); }
     finally { setBusy(''); }
   };
@@ -115,19 +122,17 @@ export default function AgentTeam({ focusDomainId = null }) {
       const link = `${window.location.origin}${ROUTES.AGENT_ACCEPT_INVITATION}?token=${data.token}`;
       setInviteLink(link);
       setEmail('');
-      await load();
+      await load(page, appliedQ);
     } catch (err) { setError(err.response?.data?.error || 'Unable to create invitation.'); }
     finally { setBusy(''); }
   };
 
   const revoke = async (invitationId) => {
     setBusy(invitationId);
-    try { await agentApi.revokeTeamInvite(invitationId); await load(); }
+    try { await agentApi.revokeTeamInvite(invitationId); await load(page, appliedQ); }
     catch (err) { setError(err.response?.data?.error || 'Unable to revoke invitation.'); }
     finally { setBusy(''); }
   };
-
-  if (loading) return <p className="text-sm text-slate-500 dark:text-gray-400">Loading team…</p>;
 
   const heading = focusDomainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES
     ? 'Business Team'
@@ -159,10 +164,14 @@ export default function AgentTeam({ focusDomainId = null }) {
         <p className="mt-1 text-sm text-slate-500 dark:text-gray-400">{intro}</p>
       </div>
       {error && <p className="rounded-lg bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300" role="alert">{error}</p>}
-      <label className="text-sm text-gray-900 dark:text-white">Search members
-        <input value={q} onChange={(e) => setQ(e.target.value)} onBlur={() => load().catch(() => {})} className={inputClass} placeholder="Email or role" />
-      </label>
-      {visibleMembers.length === 0 ? (
+      <form className="flex flex-wrap items-end gap-2" onSubmit={(event) => { event.preventDefault(); setAppliedQ(q); setPage(1); }}>
+        <label className="text-sm text-gray-900 dark:text-white">Search members
+          <input value={q} onChange={(e) => setQ(e.target.value)} className={inputClass} placeholder="Email or role" />
+        </label>
+        <button className="min-h-[44px] rounded-lg border px-3">Search</button>
+        <button type="button" onClick={() => { setQ(''); setAppliedQ(''); setPage(1); }} className="min-h-[44px] rounded-lg border px-3">Reset</button>
+      </form>
+      {loading ? <p className="text-sm text-slate-500 dark:text-gray-400" role="status">Loading team…</p> : visibleMembers.length === 0 ? (
         <p className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 text-sm text-slate-500">
           {focusDomainId
             ? 'No team members currently have this professional domain assigned.'
@@ -212,6 +221,7 @@ export default function AgentTeam({ focusDomainId = null }) {
           </table>
         </div>
       )}
+      {totalPages > 1 ? <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} /> : null}
       <form onSubmit={invite} className="max-w-xl space-y-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
         <h2 className="font-semibold text-gray-900 dark:text-white">Invite member</h2>
         <label className="text-sm text-gray-900 dark:text-white">Email<input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} className={inputClass} /></label>

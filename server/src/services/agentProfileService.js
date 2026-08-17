@@ -694,7 +694,7 @@ export async function getOrgMembers(agentAccountId, query = {}) {
   }
   // Only agency type shows team
   if (profile.agentType !== AGENT_TYPES.AGENCY) {
-    return [];
+    return { members: [], page: 1, limit: 20, total: 0, totalPages: 1 };
   }
   const requester = await getMembership(agentAccountId, profile.organizationId);
   if (!requester) {
@@ -702,21 +702,39 @@ export async function getOrgMembers(agentAccountId, query = {}) {
     err.status = 403;
     throw err;
   }
-  const members = await AgentMembership.find({ organizationId: profile.organizationId }).lean();
-  const accounts = await AgentAccount.find({ _id: { $in: members.map((m) => m.agentAccountId) } })
-    .select('email')
-    .lean();
-  const emailById = new Map(accounts.map((a) => [String(a._id), a.email]));
-  let rows = members.map((m) => ({
-    ...m,
-    email: emailById.get(String(m.agentAccountId)) || '',
-  }));
-  const q = String(query.q || '').trim();
-  if (q) {
-    const re = new RegExp(q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
-    rows = rows.filter((row) => re.test(row.email) || re.test(row.role));
+  const page = Math.max(1, Number.parseInt(query.page, 10) || 1);
+  const limit = Math.min(50, Math.max(1, Number.parseInt(query.limit, 10) || 20));
+  const focusDomainId = String(query.focusDomainId || '').trim();
+  if (focusDomainId && !isKnownProviderDomainId(focusDomainId)) {
+    const err = new Error('Unknown provider domain'); err.status = 400; throw err;
   }
-  return rows;
+  const match = { organizationId: profile.organizationId };
+  if (focusDomainId) match.domainAccess = { $elemMatch: { domainId: focusDomainId } };
+  const q = String(query.q || '').trim().slice(0, 100);
+  const pipeline = [
+    { $match: match },
+    { $lookup: {
+      from: AgentAccount.collection.name,
+      let: { accountId: '$agentAccountId' },
+      pipeline: [{ $match: { $expr: { $eq: ['$_id', '$$accountId'] } } }, { $project: { _id: 0, email: 1 } }],
+      as: 'account',
+    } },
+    { $set: { email: { $ifNull: [{ $first: '$account.email' }, ''] } } },
+  ];
+  if (q) {
+    const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+    pipeline.push({ $match: { $or: [{ email: { $regex: escaped, $options: 'i' } }, { role: { $regex: escaped, $options: 'i' } }] } });
+  }
+  pipeline.push(
+    { $sort: { createdAt: 1, _id: 1 } },
+    { $facet: {
+      members: [{ $skip: (page - 1) * limit }, { $limit: limit }, { $project: { account: 0 } }],
+      metadata: [{ $count: 'total' }],
+    } },
+  );
+  const [result = { members: [], metadata: [] }] = await AgentMembership.aggregate(pipeline);
+  const total = result.metadata?.[0]?.total || 0;
+  return { members: result.members || [], page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) };
 }
 
 export async function updateMemberRole(agentAccountId, targetAgentAccountId, newRole) {
