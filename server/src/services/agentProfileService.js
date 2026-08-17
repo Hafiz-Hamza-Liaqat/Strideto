@@ -795,10 +795,9 @@ export async function updateMemberDomainAccess({
     throw domainError(403, 'FORBIDDEN', 'Insufficient agent role capability');
   }
   const activated = await listAgencyActivatedDomains(profile.organizationId);
+  // Empty domainAccess is allowed so Education (or Business) assignment can be
+  // removed without deleting the shared membership row used by the other portal.
   const next = normalizeDomainAccessList(domainAccess);
-  if (!next.length) {
-    throw domainError(400, 'provider_domain_selection_required', 'At least one provider domain is required');
-  }
   for (const row of next) {
     if (!activated.includes(row.domainId)) {
       throw domainError(400, 'provider_domain_not_available', 'Agency has not activated that provider domain');

@@ -66,6 +66,25 @@ export default function AgentTeam({ focusDomainId = null }) {
     finally { setBusy(''); }
   };
 
+  const removeFocusDomainAccess = async (member) => {
+    if (!focusDomainId) return;
+    setBusy(member._id);
+    setError('');
+    try {
+      const next = (member.domainAccess || []).filter((row) => row.domainId !== focusDomainId);
+      await agentApi.updateMemberDomainAccess({
+        targetAgentAccountId: member.agentAccountId,
+        domainAccess: next,
+        expectedVersion: member.recordVersion,
+      });
+      await load();
+    } catch (err) {
+      setError(err.response?.data?.error || 'Unable to remove domain assignment.');
+    } finally {
+      setBusy('');
+    }
+  };
+
   const changeRole = async (member, nextRole) => {
     setBusy(member._id); setError('');
     try { await agentApi.changeMemberRole(member.agentAccountId, nextRole); await load(); }
@@ -116,10 +135,22 @@ export default function AgentTeam({ focusDomainId = null }) {
       ? 'Education Team'
       : 'Agency team';
   const intro = focusDomainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES
-    ? 'Business-domain duties for this agency. Membership is shared with Education; Business permissions do not grant Education consultation or marketplace duties. Domain access is not professional verification.'
+    ? 'Business-domain duties for this agency. Membership rows may be shared with Education; removing Business access does not delete Education duties or the underlying member. Domain access is not professional verification.'
     : focusDomainId === PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY
-      ? 'Education-domain duties for this agency. Membership is shared with Business; Education permissions do not grant Business capability or quote duties. Domain access is not professional verification.'
+      ? 'Education-domain duties for this agency. Membership rows may be shared with Business; removing Education access does not delete Business duties or the underlying member. Domain access is not professional verification.'
       : 'Roles remain owner, admin, and member. Last owner cannot be deactivated. Domain access is required on every invite and does not grant professional verification. Case document access is a separate sensitive duty and is never granted by owner or admin role alone.';
+
+  const visibleMembers = focusDomainId
+    ? members.filter((member) => (member.domainAccess || []).some((row) => row.domainId === focusDomainId))
+    : members;
+  const visibleInvites = focusDomainId
+    ? invites.filter((inv) => (inv.domainAccess || []).some((row) => row.domainId === focusDomainId))
+    : invites;
+  const removeLabel = focusDomainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES
+    ? 'Remove Business access'
+    : focusDomainId === PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY
+      ? 'Remove Education access'
+      : null;
 
   return (
     <div className="space-y-5">
@@ -131,14 +162,18 @@ export default function AgentTeam({ focusDomainId = null }) {
       <label className="text-sm text-gray-900 dark:text-white">Search members
         <input value={q} onChange={(e) => setQ(e.target.value)} onBlur={() => load().catch(() => {})} className={inputClass} placeholder="Email or role" />
       </label>
-      {members.length === 0 ? (
-        <p className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 text-sm text-slate-500">No agency team is available for this account. Individual professionals do not have a team.</p>
+      {visibleMembers.length === 0 ? (
+        <p className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 text-sm text-slate-500">
+          {focusDomainId
+            ? 'No team members currently have this professional domain assigned.'
+            : 'No agency team is available for this account. Individual professionals do not have a team.'}
+        </p>
       ) : (
         <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
           <table className="min-w-full text-left text-sm">
             <thead className="bg-slate-50 dark:bg-gray-900"><tr><th className="p-3">Email</th><th className="p-3">Role</th><th className="p-3">{focusDomainId ? 'Domain duties' : 'Domains'}</th><th className="p-3">Status</th><th className="p-3">Action</th></tr></thead>
             <tbody>
-              {members.map((member) => (
+              {visibleMembers.map((member) => (
                 <tr key={member._id} className="border-t border-gray-200 dark:border-gray-700">
                   <td className="p-3 break-words-safe">{member.email || member.agentAccountId}</td>
                   <td className="p-3">
@@ -156,9 +191,20 @@ export default function AgentTeam({ focusDomainId = null }) {
                   </td>
                   <td className="p-3">{member.active ? 'Active' : 'Inactive'}</td>
                   <td className="p-3">
-                    <button disabled={busy === member._id || member.role === 'owner'} onClick={() => toggle(member)} className="text-primary disabled:text-slate-400 min-h-[44px]">
-                      {member.active ? 'Deactivate' : 'Activate'}
-                    </button>
+                    {focusDomainId && removeLabel && member.role !== 'owner' ? (
+                      <button
+                        type="button"
+                        disabled={busy === member._id}
+                        onClick={() => removeFocusDomainAccess(member)}
+                        className="text-primary disabled:text-slate-400 min-h-[44px]"
+                      >
+                        {removeLabel}
+                      </button>
+                    ) : (
+                      <button disabled={busy === member._id || member.role === 'owner'} onClick={() => toggle(member)} className="text-primary disabled:text-slate-400 min-h-[44px]">
+                        {member.active ? 'Deactivate' : 'Activate'}
+                      </button>
+                    )}
                   </td>
                 </tr>
               ))}
@@ -187,6 +233,7 @@ export default function AgentTeam({ focusDomainId = null }) {
                 <input
                   type="checkbox"
                   checked={selectedDomains.includes(domainId)}
+                  disabled={Boolean(focusDomainId)}
                   onChange={() => setSelectedDomains((current) => (
                     current.includes(domainId) ? current.filter((id) => id !== domainId) : [...current, domainId]
                   ))}
@@ -218,8 +265,8 @@ export default function AgentTeam({ focusDomainId = null }) {
       <section>
         <h2 className="font-semibold text-gray-900 dark:text-white">Pending invitations</h2>
         <ul className="mt-2 space-y-2">
-          {invites.length === 0 ? <li className="text-sm text-slate-500">No pending invitations.</li> : null}
-          {invites.map((inv) => (
+          {visibleInvites.length === 0 ? <li className="text-sm text-slate-500">No pending invitations.</li> : null}
+          {visibleInvites.map((inv) => (
             <li key={inv.invitationId} className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-gray-200 dark:border-gray-700 p-3 text-sm">
               <span className="break-words-safe">{inv.email} · {inv.role} · {inv.status}</span>
               <button type="button" disabled={busy === inv.invitationId} onClick={() => revoke(inv.invitationId)} className="text-red-700 min-h-[44px]">Revoke</button>
