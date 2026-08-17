@@ -2,7 +2,10 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { agentApi } from '../../services/agentService';
 
-export default function AgentMessages() {
+export default function AgentMessages({
+  heading = 'Education messages',
+  description = 'Education consultation and ProfessionalCase threads only. Business Request/Quote/GbsCase threads are not shown here.',
+}) {
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   useEffect(() => {
@@ -12,8 +15,8 @@ export default function AgentMessages() {
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Messages</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-gray-400">Contextual threads only. There is no universal inbox for arbitrary Student DMs.</p>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{heading}</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-gray-400">{description}</p>
       </div>
       {error ? <p className="text-sm text-red-700 dark:text-red-400" role="alert">{error}</p> : null}
       <p className="text-sm text-slate-600 dark:text-gray-300">Unread: {data?.unreadTotal ?? 0}</p>

@@ -224,7 +224,7 @@ export default function AgentOnboarding() {
       setCompletedKeys((keys) => (keys.includes(step.key) ? keys : [...keys, step.key]));
 
       if (step.key === 'review') {
-        navigate(ROUTES.AGENT_VERIFICATION, { replace: true });
+        navigate(ROUTES.AGENT_EDUCATION_VERIFICATION, { replace: true });
         return;
       }
 
@@ -405,7 +405,7 @@ export default function AgentOnboarding() {
                 <li>Do not claim verified status until Admin approval.</li>
                 <li>Current verification status: <strong>{verificationStatus.replaceAll('_', ' ')}</strong></li>
               </ul>
-              <Link to={ROUTES.AGENT_VERIFICATION} className={`${btnSecondary} inline-flex`}>Preview verification workspace</Link>
+              <Link to={ROUTES.AGENT_EDUCATION_VERIFICATION} className={`${btnSecondary} inline-flex`}>Preview verification workspace</Link>
             </div>
           ) : null}
 

@@ -58,15 +58,15 @@ export default function AgentDashboard() {
   };
 
   const metrics = [
-    metric('newLeads', 'Leads', ROUTES.AGENT_LEADS),
-    { label: 'Clients', value: display(dashboard?.clientsCount), href: ROUTES.AGENT_CLIENTS },
-    metric('upcomingConsultations', 'Consultations', ROUTES.AGENT_CONSULTATIONS),
-    metric('activeCases', 'Active cases', ROUTES.AGENT_CASES),
-    metric('activeServices', 'Active services', ROUTES.AGENT_SERVICES),
-    metric('marketplacePosts', 'Marketplace published', ROUTES.AGENT_MARKETPLACE),
-    metric('unreadMessages', 'Unread messages', ROUTES.AGENT_MESSAGES),
-    metric('unreadNotifications', 'Unread notifications', ROUTES.AGENT_NOTIFICATIONS),
-    metric('pendingStudentApprovals', 'Student approvals', ROUTES.AGENT_CASES),
+    metric('newLeads', 'Leads', ROUTES.AGENT_EDUCATION_LEADS),
+    { label: 'Clients', value: display(dashboard?.clientsCount), href: ROUTES.AGENT_EDUCATION_CLIENTS },
+    metric('upcomingConsultations', 'Consultations', ROUTES.AGENT_EDUCATION_CONSULTATIONS),
+    metric('activeCases', 'Active cases', ROUTES.AGENT_EDUCATION_CASES),
+    metric('activeServices', 'Active services', ROUTES.AGENT_EDUCATION_SERVICES),
+    metric('marketplacePosts', 'Marketplace published', ROUTES.AGENT_EDUCATION_MARKETPLACE),
+    metric('unreadMessages', 'Unread messages', ROUTES.AGENT_EDUCATION_MESSAGES),
+    metric('unreadNotifications', 'Unread notifications', ROUTES.AGENT_EDUCATION_NOTIFICATIONS),
+    metric('pendingStudentApprovals', 'Student approvals', ROUTES.AGENT_EDUCATION_CASES),
     metric('commerceReadiness', 'KYC / payout', ROUTES.AGENT_COMMERCE),
     metric('usageBilling', 'Usage & billing', ROUTES.AGENT_USAGE_BILLING),
   ];
@@ -90,12 +90,12 @@ export default function AgentDashboard() {
         <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Getting started</h2>
         <ul className="mt-2 space-y-1 text-sm">
           {[
-            { done: (dashboard?.profileCompleteness || 0) >= 80, label: 'Complete professional profile', to: ROUTES.AGENT_PROFILE },
-            { done: agent?.emailVerified === true, label: 'Verify email', to: ROUTES.AGENT_SETTINGS },
-            { done: vs === 'approved' || vs === 'under_review' || vs === 'verification_pending', label: 'Complete Education professional verification', to: ROUTES.AGENT_VERIFICATION },
-            { done: Number(cards.activeServices?.value || 0) > 0, label: 'Create Education service', to: ROUTES.AGENT_SERVICES },
-            { done: cards.hasAvailability?.value === true, label: 'Set availability', to: ROUTES.AGENT_AVAILABILITY },
-            { done: vs === 'approved', label: 'Use Marketplace when eligible', to: ROUTES.AGENT_MARKETPLACE },
+            { done: (dashboard?.profileCompleteness || 0) >= 80, label: 'Complete professional profile', to: ROUTES.AGENT_EDUCATION_PROFILE },
+            { done: agent?.emailVerified === true, label: 'Verify email', to: ROUTES.AGENT_EDUCATION_SETTINGS },
+            { done: vs === 'approved' || vs === 'under_review' || vs === 'verification_pending', label: 'Complete Education professional verification', to: ROUTES.AGENT_EDUCATION_VERIFICATION },
+            { done: Number(cards.activeServices?.value || 0) > 0, label: 'Create Education service', to: ROUTES.AGENT_EDUCATION_SERVICES },
+            { done: cards.hasAvailability?.value === true, label: 'Set availability', to: ROUTES.AGENT_EDUCATION_AVAILABILITY },
+            { done: vs === 'approved', label: 'Use Marketplace when eligible', to: ROUTES.AGENT_EDUCATION_MARKETPLACE },
           ].map((item) => (
             <li key={item.label}>
               <Link to={item.to} className="text-primary hover:underline">
@@ -123,7 +123,7 @@ export default function AgentDashboard() {
           </div>
           <span className={`text-xs font-semibold px-3 py-1 rounded-full ${badge.color}`}>{badge.label}</span>
         </div>
-        <Link to={ROUTES.AGENT_VERIFICATION} className="text-sm text-primary hover:underline font-medium mt-3 inline-block">Manage verification →</Link>
+        <Link to={ROUTES.AGENT_EDUCATION_VERIFICATION} className="text-sm text-primary hover:underline font-medium mt-3 inline-block">Manage verification →</Link>
       </div>
 
       <div className={cardClass}>
@@ -132,7 +132,7 @@ export default function AgentDashboard() {
           <div className="bg-primary h-2 rounded-full" style={{ width: `${dashboard?.profileCompleteness || 0}%` }} />
         </div>
         <p className="text-xs text-slate-500 dark:text-gray-400 mt-1.5">{dashboard?.profileCompleteness || 0}% complete — 100% completeness does not mean verified.</p>
-        <Link to={ROUTES.AGENT_PROFILE} className="text-sm text-primary hover:underline font-medium mt-2 inline-block">Complete profile →</Link>
+        <Link to={ROUTES.AGENT_EDUCATION_PROFILE} className="text-sm text-primary hover:underline font-medium mt-2 inline-block">Complete profile →</Link>
       </div>
 
       <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
@@ -147,7 +147,7 @@ export default function AgentDashboard() {
       <div className={cardClass}>
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-medium text-gray-900 dark:text-white">Consultations</p>
-          <Link to={ROUTES.AGENT_CONSULTATIONS} className="text-sm text-primary">Open schedule →</Link>
+          <Link to={ROUTES.AGENT_EDUCATION_CONSULTATIONS} className="text-sm text-primary">Open schedule →</Link>
         </div>
         <div className="mt-4 grid grid-cols-3 gap-3">
           {[['Incoming', dashboard?.consultations?.incoming], ['Upcoming', dashboard?.consultations?.upcoming], ['History', dashboard?.consultations?.history]].map(([label, value]) => (
@@ -162,7 +162,7 @@ export default function AgentDashboard() {
       <div className={cardClass}>
         <div className="flex items-center justify-between gap-3">
           <p className="text-sm font-medium text-gray-900 dark:text-white">Marketplace</p>
-          <Link to={ROUTES.AGENT_MARKETPLACE} className="text-sm text-primary">Manage posts →</Link>
+          <Link to={ROUTES.AGENT_EDUCATION_MARKETPLACE} className="text-sm text-primary">Manage posts →</Link>
         </div>
         <div className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
           {[['Drafts', dashboard?.marketplace?.drafts], ['Pending review', dashboard?.marketplace?.pendingReview], ['Published', dashboard?.marketplace?.published], ['Needs changes', dashboard?.marketplace?.needsChanges]].map(([label, value]) => (

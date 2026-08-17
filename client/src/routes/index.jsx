@@ -13,6 +13,11 @@ import { AdminRouteGuard } from '../components/admin/AdminRouteGuard';
 import { PERMISSIONS } from '../config/rbac';
 import { ROUTES } from '../constants';
 import VerifyEmail from '../pages/Auth/VerifyEmail';
+import {
+  LegacyAgentRedirect,
+  LegacyEducationParamRedirect,
+  LegacySharedAgentRedirect,
+} from '../components/agent/LegacyAgentRedirect';
 
 const Home = lazyLoad(() => import('../pages/Home/Home'));
 const SearchResults = lazyLoad(() => import('../pages/Search/SearchResults'));
@@ -195,18 +200,18 @@ const AgentDashboard = lazyLoad(() => import('../pages/Agent/AgentDashboard'));
 const ProviderHome = lazyLoad(() => import('../pages/Agent/ProviderHome'));
 const ProviderDomainOnboarding = lazyLoad(() => import('../pages/Agent/ProviderDomainOnboarding'));
 const AgentOnboarding = lazyLoad(() => import('../pages/Agent/AgentOnboarding'));
-const AgentProfile = lazyLoad(() => import('../pages/Agent/AgentProfile'));
-const AgentServices = lazyLoad(() => import('../pages/Agent/AgentServices'));
 const AgentVerification = lazyLoad(() => import('../pages/Agent/AgentVerification'));
-const AgentTeam = lazyLoad(() => import('../pages/Agent/AgentTeam'));
+const AgentServices = lazyLoad(() => import('../pages/Agent/AgentServices'));
 const AgentLeads = lazyLoad(() => import('../pages/Agent/AgentLeads'));
 const AgentClients = lazyLoad(() => import('../pages/Agent/AgentClients'));
-const AgentSettings = lazyLoad(() => import('../pages/Agent/AgentSettings'));
-const AgentNotifications = lazyLoad(() => import('../pages/Agent/AgentNotifications'));
-const AgentMessages = lazyLoad(() => import('../pages/Agent/AgentMessages'));
 const AgentUsageBilling = lazyLoad(() => import('../pages/Agent/AgentUsageBilling'));
 const AgentGuidelines = lazyLoad(() => import('../pages/Agent/AgentGuidelines'));
-const AgentHelp = lazyLoad(() => import('../pages/Agent/AgentHelp'));
+const EducationProfile = lazyLoad(() => import('../pages/Agent/EducationProfile'));
+const EducationTeam = lazyLoad(() => import('../pages/Agent/EducationTeam'));
+const EducationMessages = lazyLoad(() => import('../pages/Agent/EducationMessages'));
+const EducationNotifications = lazyLoad(() => import('../pages/Agent/EducationNotifications'));
+const EducationHelp = lazyLoad(() => import('../pages/Agent/EducationHelp'));
+const EducationSettings = lazyLoad(() => import('../pages/Agent/EducationSettings'));
 const AgentAcceptInvitation = lazyLoad(() => import('../pages/Agent/AgentAcceptInvitation'));
 const AgentDirectory = lazyLoad(() => import('../pages/Public/AgentDirectory'));
 const AgentPublicProfile = lazyLoad(() => import('../pages/Public/AgentPublicProfile'));
@@ -266,6 +271,12 @@ const GbsQuoteDetail = lazyLoad(() => import('../pages/Agent/business-services/G
 const GbsCases = lazyLoad(() => import('../pages/Agent/business-services/GbsCases'));
 const GbsCaseDetail = lazyLoad(() => import('../pages/Agent/business-services/GbsCaseDetail'));
 const GbsVerification = lazyLoad(() => import('../pages/Agent/business-services/GbsVerification'));
+const GbsProfile = lazyLoad(() => import('../pages/Agent/business-services/GbsProfile'));
+const GbsTeam = lazyLoad(() => import('../pages/Agent/business-services/GbsTeam'));
+const GbsMessages = lazyLoad(() => import('../pages/Agent/business-services/GbsMessages'));
+const GbsNotifications = lazyLoad(() => import('../pages/Agent/business-services/GbsNotifications'));
+const GbsHelp = lazyLoad(() => import('../pages/Agent/business-services/GbsHelp'));
+const GbsSettings = lazyLoad(() => import('../pages/Agent/business-services/GbsSettings'));
 const BusinessClientLayout = lazyLoad(() => import('../pages/BusinessClient/BusinessClientLayout'));
 const BusinessClientOverview = lazyLoad(() => import('../pages/BusinessClient/BusinessClientOverview'));
 const BusinessClientRequests = lazyLoad(() => import('../pages/BusinessClient/BusinessClientRequests'));
@@ -354,21 +365,42 @@ export const routes = [
     children: [
       { index: true, element: <ProviderHome /> },
       { path: 'education', element: <AgentDashboard /> },
-      { path: 'profile', element: <AgentProfile /> },
-      { path: 'services', element: <AgentServices /> },
-      { path: 'marketplace', element: <AgentMarketplace /> },
-      { path: 'marketplace/new', element: <AgentMarketplaceForm /> },
-      { path: 'marketplace/:postId/edit', element: <AgentMarketplaceForm /> },
-      { path: 'consultations', element: <AgentConsultations /> },
-      { path: 'consultations/:consultationId', element: <AgentConsultationDetail /> },
-      { path: 'cases', element: <AgentCases /> }, { path: 'cases/:caseId', element: <AgentCaseDetail /> },
+      { path: 'education/profile', element: <EducationProfile /> },
+      { path: 'education/leads', element: <AgentLeads /> },
+      { path: 'education/clients', element: <AgentClients /> },
+      { path: 'education/consultations', element: <AgentConsultations /> },
+      { path: 'education/consultations/:consultationId', element: <AgentConsultationDetail /> },
+      { path: 'education/cases', element: <AgentCases /> },
+      { path: 'education/cases/:caseId', element: <AgentCaseDetail /> },
+      { path: 'education/services', element: <AgentServices /> },
+      { path: 'education/marketplace', element: <AgentMarketplace /> },
+      { path: 'education/marketplace/new', element: <AgentMarketplaceForm /> },
+      { path: 'education/marketplace/:postId/edit', element: <AgentMarketplaceForm /> },
+      { path: 'education/availability', element: <AgentAvailability /> },
+      { path: 'education/verification', element: <AgentVerification /> },
+      { path: 'education/reviews', element: <AgentReviews /> },
+      { path: 'education/team', element: <EducationTeam /> },
+      { path: 'education/messages', element: <EducationMessages /> },
+      { path: 'education/notifications', element: <EducationNotifications /> },
+      { path: 'education/help', element: <EducationHelp /> },
+      { path: 'education/settings', element: <EducationSettings /> },
+      { path: 'profile', element: <LegacySharedAgentRedirect resource="profile" /> },
+      { path: 'services', element: <LegacyAgentRedirect to={ROUTES.AGENT_EDUCATION_SERVICES} /> },
+      { path: 'marketplace', element: <LegacyAgentRedirect to={ROUTES.AGENT_EDUCATION_MARKETPLACE} /> },
+      { path: 'marketplace/new', element: <LegacyAgentRedirect to={ROUTES.AGENT_EDUCATION_MARKETPLACE_NEW} /> },
+      { path: 'marketplace/:postId/edit', element: <LegacyEducationParamRedirect build={(p) => `${ROUTES.AGENT_EDUCATION_MARKETPLACE}/${p.postId}/edit`} /> },
+      { path: 'consultations', element: <LegacyAgentRedirect to={ROUTES.AGENT_EDUCATION_CONSULTATIONS} /> },
+      { path: 'consultations/:consultationId', element: <LegacyEducationParamRedirect build={(p) => `${ROUTES.AGENT_EDUCATION_CONSULTATIONS}/${p.consultationId}`} /> },
+      { path: 'cases', element: <LegacyAgentRedirect to={ROUTES.AGENT_EDUCATION_CASES} /> },
+      { path: 'cases/:caseId', element: <LegacyEducationParamRedirect build={(p) => `${ROUTES.AGENT_EDUCATION_CASES}/${p.caseId}`} /> },
       { path: 'trust', element: <AgentTrust /> },
-      { path: 'reviews', element: <AgentReviews /> },
+      { path: 'reviews', element: <LegacyAgentRedirect to={ROUTES.AGENT_EDUCATION_REVIEWS} /> },
       {
         path: 'business-services',
         element: <GbsWorkspaceLayout />,
         children: [
           { index: true, element: <GbsOverview /> },
+          { path: 'profile', element: <GbsProfile /> },
           { path: 'capabilities', element: <GbsCapabilities /> },
           { path: 'jurisdictions', element: <GbsJurisdictions /> },
           { path: 'listings', element: <GbsListings /> },
@@ -381,20 +413,25 @@ export const routes = [
           { path: 'cases', element: <GbsCases /> },
           { path: 'cases/:caseRef', element: <GbsCaseDetail /> },
           { path: 'verification', element: <GbsVerification /> },
+          { path: 'team', element: <GbsTeam /> },
+          { path: 'messages', element: <GbsMessages /> },
+          { path: 'notifications', element: <GbsNotifications /> },
+          { path: 'help', element: <GbsHelp /> },
+          { path: 'settings', element: <GbsSettings /> },
         ],
       },
       { path: 'commerce', element: <AgentCommerce /> },
-      { path: 'availability', element: <AgentAvailability /> },
-      { path: 'verification', element: <AgentVerification /> },
-      { path: 'team', element: <AgentTeam /> },
-      { path: 'leads', element: <AgentLeads /> },
-      { path: 'clients', element: <AgentClients /> },
-      { path: 'messages', element: <AgentMessages /> },
-      { path: 'notifications', element: <AgentNotifications /> },
+      { path: 'availability', element: <LegacyAgentRedirect to={ROUTES.AGENT_EDUCATION_AVAILABILITY} /> },
+      { path: 'verification', element: <LegacyAgentRedirect to={ROUTES.AGENT_EDUCATION_VERIFICATION} /> },
+      { path: 'team', element: <LegacySharedAgentRedirect resource="team" /> },
+      { path: 'leads', element: <LegacyAgentRedirect to={ROUTES.AGENT_EDUCATION_LEADS} /> },
+      { path: 'clients', element: <LegacyAgentRedirect to={ROUTES.AGENT_EDUCATION_CLIENTS} /> },
+      { path: 'messages', element: <LegacySharedAgentRedirect resource="messages" /> },
+      { path: 'notifications', element: <LegacySharedAgentRedirect resource="notifications" /> },
       { path: 'usage-billing', element: <AgentUsageBilling /> },
       { path: 'guidelines', element: <AgentGuidelines /> },
-      { path: 'help', element: <AgentHelp /> },
-      { path: 'settings', element: <AgentSettings /> },
+      { path: 'help', element: <LegacySharedAgentRedirect resource="help" /> },
+      { path: 'settings', element: <LegacySharedAgentRedirect resource="settings" /> },
     ],
   },
   {

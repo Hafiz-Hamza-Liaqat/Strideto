@@ -103,7 +103,7 @@ async function prepareNotification(record, recipientActorType, recipientId, even
       type: eventType,
       title: eventType === 'new_contextual_message' ? 'New consultation message' : 'Consultation update',
       body: 'A consultation event requires your attention. Open the consultation for details.',
-      link: `/agent/consultations/${record._id}`,
+      link: `/agent/education/consultations/${record._id}`,
       dedupeKey: `agent:consultation:${record._id}:${eventType}:${event._id}`,
     }).catch(() => {});
   }

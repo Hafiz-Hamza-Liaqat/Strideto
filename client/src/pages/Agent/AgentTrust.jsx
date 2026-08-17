@@ -40,7 +40,7 @@ export default function AgentTrust() {
           <li>○ Organization — {verification?.verificationStatus || 'unknown'}</li>
         </ul>
         <p className={`mt-2 ${muted}`}>Organization Verified is not a professional title and is not Registered Agent or ACSP verification.</p>
-        <Link to={ROUTES.AGENT_VERIFICATION} className="mt-3 inline-block text-sm text-primary">Manage identity & organization verification →</Link>
+        <Link to={ROUTES.AGENT_EDUCATION_VERIFICATION} className="mt-3 inline-block text-sm text-primary">Manage identity & organization verification →</Link>
       </section>
       <section className={cardClass}>
         <h2 className="font-semibold text-gray-900 dark:text-white">Professional domains</h2>
@@ -54,7 +54,7 @@ export default function AgentTrust() {
               ? (verification.trustBadges || []).map((b) => String(b).replaceAll('_', ' ')).join(', ')
               : 'no approved credential badges'}
           </p>
-          <Link to={`${ROUTES.AGENT_VERIFICATION}#professional-credentials`} className="inline-block text-sm text-primary">
+          <Link to={`${ROUTES.AGENT_EDUCATION_VERIFICATION}#professional-credentials`} className="inline-block text-sm text-primary">
             Manage Education Verification (credentials &amp; evidence) →
           </Link>
         </div>
@@ -85,7 +85,7 @@ export default function AgentTrust() {
         <p className="mt-2 text-sm text-gray-800 dark:text-gray-200">Status: {verification?.verificationStatus || 'unknown'} · Approved capability: {verification?.isApproved ? 'yes' : 'no'}</p>
         <p className={`mt-2 ${muted}`}>Granular badges come from accepted evidence only. Maps/Business cannot alone produce VERIFIED.</p>
         <p className="mt-2 text-sm">Badges: {(verification?.trustBadges || []).join(', ') || 'none'}</p>
-        <Link to={ROUTES.AGENT_VERIFICATION} className="mt-3 inline-block text-sm text-primary">Open verification →</Link>
+        <Link to={ROUTES.AGENT_EDUCATION_VERIFICATION} className="mt-3 inline-block text-sm text-primary">Open verification →</Link>
       </section>
       <section>
         <h2 className="font-semibold text-gray-900 dark:text-white">Reviews / reports / disputes</h2>
@@ -93,7 +93,7 @@ export default function AgentTrust() {
           Education verified-interaction reviews live on the dedicated Reviews page.
           Trust Center remains the shared summary.
         </p>
-        <Link to={ROUTES.AGENT_REVIEWS} className="mt-3 inline-block text-sm text-primary">
+        <Link to={ROUTES.AGENT_EDUCATION_REVIEWS} className="mt-3 inline-block text-sm text-primary">
           Open Education Reviews →
         </Link>
         <p className="mt-4 text-sm text-gray-800 dark:text-gray-200">

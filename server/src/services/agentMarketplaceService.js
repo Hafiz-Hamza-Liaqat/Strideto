@@ -309,7 +309,7 @@ export async function createInterest(userId, slug, explicitConsent) {
     type: 'marketplace_interest',
     title: 'New Student interest',
     body: 'A Student expressed interest in a marketplace post. No private Student profile was shared.',
-    link: '/agent/leads',
+    link: '/agent/education/leads',
     dedupeKey: `agent:marketplace:interest:${interest._id}`,
     metadata: { postId: String(post._id) },
   }).catch(() => {});

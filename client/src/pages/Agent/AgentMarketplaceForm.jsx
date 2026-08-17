@@ -287,7 +287,7 @@ export default function AgentMarketplaceForm() {
     try {
       if (postId) await agentApi.updateMarketplacePost(postId, body);
       else await agentApi.createMarketplacePost(body);
-      navigate(ROUTES.AGENT_MARKETPLACE);
+      navigate(ROUTES.AGENT_EDUCATION_MARKETPLACE);
     } catch (err) {
       setError(err.response?.data?.error || 'Unable to save draft.');
     } finally {

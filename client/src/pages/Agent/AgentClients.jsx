@@ -35,8 +35,8 @@ export default function AgentClients() {
           <p className="text-sm text-slate-500">{client.origin} · {client.status} · next: {client.nextAction}</p>
           <p className="text-xs mt-2">Vault grants: {client.vaultGrantCount} · {client.vaultNote}</p>
           <div className="mt-2 flex gap-3 text-sm">
-            <Link className="text-primary" to={ROUTES.AGENT_CONSULTATIONS}>Consultations</Link>
-            <Link className="text-primary" to={ROUTES.AGENT_CASES}>Cases</Link>
+            <Link className="text-primary" to={ROUTES.AGENT_EDUCATION_CONSULTATIONS}>Consultations</Link>
+            <Link className="text-primary" to={ROUTES.AGENT_EDUCATION_CASES}>Cases</Link>
           </div>
         </article>
       ))}

@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { ROUTES } from '../../constants';
 import { agentApi } from '../../services/agentService';
 import { cardClass, inputClass, labelClass, muted } from './agentUi';
 
@@ -35,7 +36,7 @@ export default function AgentCases() {
       {error ? <p className="rounded bg-red-50 p-3 text-red-700 dark:bg-red-950/40 dark:text-red-300" role="alert">{error}</p> : null}
       <div className="space-y-3">
         {items.length === 0 ? <p className={`${cardClass} text-center ${muted}`}>No assigned cases.</p> : items.map((c) => (
-          <Link key={c.id} to={`/agent/cases/${c.id}`} className={`block ${cardClass} hover:border-primary`}>
+          <Link key={c.id} to={`${ROUTES.AGENT_EDUCATION_CASES}/${c.id}`} className={`block ${cardClass} hover:border-primary`}>
             <b className="text-gray-900 dark:text-white">{c.title}</b>
             <p className={muted}>{c.lifecycle.replaceAll('_', ' ')} · {c.currentStage.replaceAll('_', ' ')}</p>
           </Link>

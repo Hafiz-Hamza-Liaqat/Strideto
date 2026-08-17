@@ -25,7 +25,7 @@ async function notify(record, recipientType, recipientId, eventType) {
       type: eventType,
       title: 'Case update',
       body: 'A case event requires your attention. Open the case for details.',
-      link: `/agent/cases/${record._id}`,
+      link: `/agent/education/cases/${record._id}`,
       dedupeKey: `agent:case:${record._id}:${eventType}:${event._id}`,
     }).catch(() => {});
   }

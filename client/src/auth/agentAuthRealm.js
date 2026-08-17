@@ -7,6 +7,8 @@ export const AGENT_PUBLIC_AUTH_PATHS = ['/agent/login', '/agent/register', '/age
 
 const AGENT_PORTAL_ROOT_SEGMENTS = new Set([
   'onboarding',
+  'education',
+  'business-services',
   'profile',
   'services',
   'verification',
@@ -19,6 +21,7 @@ const AGENT_PORTAL_ROOT_SEGMENTS = new Set([
   'availability',
   'cases',
   'trust',
+  'reviews',
   'commerce',
   'messages',
   'notifications',

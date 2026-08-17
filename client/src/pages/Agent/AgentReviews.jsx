@@ -32,7 +32,7 @@ export default function AgentReviews() {
           Education &amp; Mobility verified-interaction reviews only. Reviews require a completed verified interaction;
           they are not general public ratings and do not grant professional verification.
         </p>
-        <Link to={ROUTES.AGENT_TRUST} className="mt-2 inline-block text-sm text-primary">← Trust Center summary</Link>
+        <Link to={ROUTES.AGENT_EDUCATION} className="mt-2 inline-block text-sm text-primary">← Education overview</Link>
       </header>
       {error ? <p className="rounded bg-red-50 dark:bg-red-950/40 p-3 text-red-700 dark:text-red-300" role="alert">{error}</p> : null}
       {reviews.length === 0 ? (

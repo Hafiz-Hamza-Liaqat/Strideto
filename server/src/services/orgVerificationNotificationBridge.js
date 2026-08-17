@@ -207,7 +207,7 @@ export async function emitOrgVerificationNotifications({
           type: applicantMsg.type,
           title: applicantMsg.title.replace('Organization', 'Professional'),
           body: applicantMsg.body.replace('organization verification', 'professional verification'),
-          link: '/agent/verification',
+          link: '/agent/education/verification',
           metadata,
           dedupeKey: `${orgVerificationDedupeKey({
             organizationId: String(organizationId),

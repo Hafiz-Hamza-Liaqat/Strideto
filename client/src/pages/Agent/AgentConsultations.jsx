@@ -28,7 +28,7 @@ export default function AgentConsultations() {
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Consultations</h1>
           <p className={`mt-1 ${muted}`}>Incoming requests, confirmed appointments, and history. Times use the consultation IANA timezone.</p>
         </div>
-        <Link to={ROUTES.AGENT_AVAILABILITY} className={btnSecondary}>Manage availability</Link>
+        <Link to={ROUTES.AGENT_EDUCATION_AVAILABILITY} className={btnSecondary}>Manage availability</Link>
       </div>
       <form className="flex flex-wrap gap-3" onSubmit={(e) => { e.preventDefault(); load({ status, q }); }}>
         <label className={labelClass}>Search<input value={q} onChange={(e) => setQ(e.target.value)} className={inputClass} placeholder="Purpose" /></label>
@@ -46,7 +46,7 @@ export default function AgentConsultations() {
         <div className={`${cardClass} text-center ${muted}`}>No consultations in this view.</div>
       ) : (
         <div className="space-y-3">{items.map((item) => (
-          <Link key={item.id} to={`/agent/consultations/${item.id}`} className={`block ${cardClass} hover:border-primary`}>
+          <Link key={item.id} to={`${ROUTES.AGENT_EDUCATION_CONSULTATIONS}/${item.id}`} className={`block ${cardClass} hover:border-primary`}>
             <div className="flex justify-between gap-3">
               <div>
                 <p className="font-medium text-gray-900 dark:text-white">{item.purpose}</p>

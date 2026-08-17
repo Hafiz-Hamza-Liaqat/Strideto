@@ -71,7 +71,7 @@ export default function AgentMarketplace() {
           </p>
         </div>
         {canCreate ? (
-          <Link to={ROUTES.AGENT_MARKETPLACE_NEW} className={btnPrimary}>Create promotion</Link>
+          <Link to={ROUTES.AGENT_EDUCATION_MARKETPLACE_NEW} className={btnPrimary}>Create promotion</Link>
         ) : (
           <span
             className="inline-flex min-h-[44px] items-center rounded-lg border border-gray-200 px-4 text-sm text-gray-500 dark:border-gray-600 dark:text-gray-400"
@@ -110,7 +110,7 @@ export default function AgentMarketplace() {
           <p className="mt-3 text-sm text-amber-800 dark:text-amber-200" role="status">
             Complete and receive approval for Education &amp; Mobility professional verification before creating a public Marketplace promotion.
             {' '}
-            <Link to={ROUTES.AGENT_VERIFICATION} className="font-medium text-primary underline-offset-2 hover:underline">
+            <Link to={ROUTES.AGENT_EDUCATION_VERIFICATION} className="font-medium text-primary underline-offset-2 hover:underline">
               Open Professional Verification
             </Link>
           </p>
@@ -162,7 +162,7 @@ export default function AgentMarketplace() {
             {post.moderationFeedback ? <p className="mt-3 rounded bg-amber-50 dark:bg-amber-950/40 p-2 text-sm text-amber-800 dark:text-amber-200">Moderator feedback: {post.moderationFeedback}</p> : null}
             <div className="mt-4 flex flex-wrap gap-4 text-sm">
               {(post.moderationStatus === 'not_submitted' || post.moderationStatus === 'needs_changes') ? (
-                <Link className="text-primary" to={`${ROUTES.AGENT_MARKETPLACE}/${post._id}/edit`}>Edit</Link>
+                <Link className="text-primary" to={`${ROUTES.AGENT_EDUCATION_MARKETPLACE}/${post._id}/edit`}>Edit</Link>
               ) : null}
               {(post.moderationStatus === 'not_submitted' || post.moderationStatus === 'needs_changes') ? (
                 <button type="button" disabled={busy === post._id || !educationApproved} onClick={() => action(post, 'submit')} className="text-green-700 dark:text-green-400 disabled:opacity-50" aria-busy={busy === post._id}>
