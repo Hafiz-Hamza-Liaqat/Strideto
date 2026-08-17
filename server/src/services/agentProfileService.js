@@ -662,11 +662,15 @@ export async function getServices(agentAccountId, { page = 1, limit = 50, q } = 
     const re = new RegExp(escapeRegex(term), 'i');
     filter.$or = [{ title: re }, { description: re }];
   }
-  return AgentService.find(filter)
-    .sort({ createdAt: -1 })
-    .skip((pageNum - 1) * limitNum)
-    .limit(limitNum)
-    .lean();
+  const [services, total] = await Promise.all([
+    AgentService.find(filter)
+      .sort({ createdAt: -1, _id: -1 })
+      .skip((pageNum - 1) * limitNum)
+      .limit(limitNum)
+      .lean(),
+    AgentService.countDocuments(filter),
+  ]);
+  return { services, page: pageNum, limit: limitNum, total, totalPages: Math.max(1, Math.ceil(total / limitNum)) };
 }
 
 // ---------------------------------------------------------------------------
@@ -869,18 +873,21 @@ export async function getLeads(agentAccountId, { page = 1, limit = 50, q = '', s
   if (status) filter.status = status;
   if (source) filter.source = source;
   if (q) filter.context = { $regex: String(q).slice(0, 80).replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
-  const leads = await AgentLead.find(filter)
-    .select('userId source context status createdAt updatedAt')
-    .sort({ createdAt: -1 })
-    .skip((pageNum - 1) * limitNum)
-    .limit(limitNum)
-    .lean();
+  const [leads, total] = await Promise.all([
+    AgentLead.find(filter)
+      .select('userId source context status createdAt updatedAt')
+      .sort({ createdAt: -1, _id: -1 })
+      .skip((pageNum - 1) * limitNum)
+      .limit(limitNum)
+      .lean(),
+    AgentLead.countDocuments(filter),
+  ]);
   const userIds = [...new Set(leads.map((lead) => lead.userId).filter(Boolean))];
   const users = userIds.length
     ? await User.find({ _id: { $in: userIds } }).select('name').lean()
     : [];
   const names = new Map(users.map((user) => [String(user._id), user.name]));
-  return leads.map((lead) => ({
+  const items = leads.map((lead) => ({
     _id: lead._id,
     source: lead.source,
     context: lead.context,
@@ -889,6 +896,7 @@ export async function getLeads(agentAccountId, { page = 1, limit = 50, q = '', s
     updatedAt: lead.updatedAt,
     displayName: names.get(String(lead.userId)) || 'Relationship',
   }));
+  return { leads: items, page: pageNum, limit: limitNum, total, totalPages: Math.max(1, Math.ceil(total / limitNum)) };
 }
 
 export async function updateLeadStatus(agentAccountId, leadId, status) {
@@ -1309,35 +1317,55 @@ export async function listClientsForAgent(agentAccountId, query = {}) {
   const pageNum = Math.max(1, Number.parseInt(query.page, 10) || 1);
   const limitNum = Math.min(50, Math.max(1, Number.parseInt(query.limit, 10) || 20));
 
-  const [leads, consultations, cases] = await Promise.all([
-    AgentLead.find({ organizationId: profile.organizationId })
-      .select('userId source status context createdAt')
-      .lean(),
-    Consultation.find(orgWide
-      ? { organizationId: profile.organizationId }
-      : { organizationId: profile.organizationId, assignedMembershipId: membership._id })
-      .select('studentUserId status assignedMembershipId')
-      .lean(),
-    ProfessionalCase.find(orgWide
-      ? { organizationId: profile.organizationId }
-      : { organizationId: profile.organizationId, authorizedMembershipIds: membership._id })
-      .select('studentUserId lifecycle title assignedMembershipId')
-      .lean(),
-  ]);
-
-  const allowedUserIds = new Set();
-  if (orgWide) leads.forEach((lead) => allowedUserIds.add(String(lead.userId)));
-  consultations.forEach((row) => allowedUserIds.add(String(row.studentUserId)));
-  cases.forEach((row) => allowedUserIds.add(String(row.studentUserId)));
-  if (!orgWide) {
-    leads.forEach((lead) => {
-      if (allowedUserIds.has(String(lead.userId))) allowedUserIds.add(String(lead.userId));
-    });
-  }
-
-  const userIds = [...allowedUserIds];
-  const users = await User.find({ _id: { $in: userIds } }).select('name').lean();
-  const nameById = new Map(users.map((u) => [String(u._id), studentSafeName(u.name)]));
+  const consultationMatch = orgWide
+    ? { organizationId: profile.organizationId }
+    : { organizationId: profile.organizationId, assignedMembershipId: membership._id };
+  const caseMatch = orgWide
+    ? { organizationId: profile.organizationId }
+    : { organizationId: profile.organizationId, authorizedMembershipIds: membership._id };
+  const term = String(query.q || '').trim().slice(0, 80);
+  const escapedTerm = term ? escapeRegex(term) : '';
+  const pipeline = [
+    { $match: { organizationId: profile.organizationId } },
+    { $project: { userId: 1, leadOrigin: '$source', context: 1, leadStatus: '$status', latestAt: { $ifNull: ['$updatedAt', '$createdAt'] }, consultationCount: { $literal: 0 }, caseCount: { $literal: 0 } } },
+    { $unionWith: { coll: Consultation.collection.name, pipeline: [
+      { $match: consultationMatch },
+      { $project: { userId: '$studentUserId', origin: { $literal: 'consultation' }, consultationStatus: '$status', latestAt: { $ifNull: ['$updatedAt', '$createdAt'] }, consultationCount: { $literal: 1 }, caseCount: { $literal: 0 } } },
+    ] } },
+    { $unionWith: { coll: ProfessionalCase.collection.name, pipeline: [
+      { $match: caseMatch },
+      { $project: { userId: '$studentUserId', origin: { $literal: 'case' }, caseStatus: '$lifecycle', latestAt: { $ifNull: ['$updatedAt', '$createdAt'] }, consultationCount: { $literal: 0 }, caseCount: { $literal: 1 } } },
+    ] } },
+    { $group: {
+      _id: '$userId', latestAt: { $max: '$latestAt' }, leadOrigin: { $max: '$leadOrigin' }, context: { $max: '$context' },
+      leadStatus: { $max: '$leadStatus' }, caseStatus: { $max: '$caseStatus' }, consultationStatus: { $max: '$consultationStatus' },
+      consultationCount: { $sum: '$consultationCount' }, caseCount: { $sum: '$caseCount' },
+    } },
+  ];
+  if (!orgWide) pipeline.push({ $match: { $or: [{ consultationCount: { $gt: 0 } }, { caseCount: { $gt: 0 } }] } });
+  pipeline.push(
+    { $lookup: { from: User.collection.name, localField: '_id', foreignField: '_id', as: 'student' } },
+    { $unwind: { path: '$student', preserveNullAndEmptyArrays: true } },
+    { $set: {
+      displayName: { $ifNull: ['$student.name', 'Student'] },
+      origin: { $cond: [{ $ne: [{ $ifNull: ['$leadStatus', ''] }, ''] }, '$leadOrigin', { $cond: [{ $gt: ['$consultationCount', 0] }, 'consultation', 'case'] }] },
+      status: { $ifNull: ['$leadStatus', { $ifNull: ['$caseStatus', { $ifNull: ['$consultationStatus', 'active'] }] }] },
+    } },
+  );
+  if (escapedTerm) pipeline.push({ $match: { $or: [
+    { displayName: { $regex: escapedTerm, $options: 'i' } }, { origin: { $regex: escapedTerm, $options: 'i' } }, { status: { $regex: escapedTerm, $options: 'i' } },
+  ] } });
+  if (query.status) pipeline.push({ $match: { status: String(query.status).slice(0, 80) } });
+  pipeline.push(
+    { $sort: { latestAt: -1, _id: -1 } },
+    { $facet: {
+      rows: [{ $skip: (pageNum - 1) * limitNum }, { $limit: limitNum }, { $project: { student: 0 } }],
+      metadata: [{ $count: 'total' }],
+    } },
+  );
+  const [result = { rows: [], metadata: [] }] = await AgentLead.aggregate(pipeline);
+  const rows = result.rows || [];
+  const userIds = rows.map((row) => String(row._id));
 
   const grantCounts = await DocumentAccessGrant.aggregate([
     {
@@ -1352,43 +1380,34 @@ export async function listClientsForAgent(agentAccountId, query = {}) {
   ]).catch(() => []);
   const grantsByUser = new Map(grantCounts.map((row) => [String(row._id), row.count]));
 
-  let clients = userIds.map((userId) => {
-    const lead = leads.find((row) => String(row.userId) === userId);
-    const relatedConsultations = consultations.filter((row) => String(row.studentUserId) === userId);
-    const relatedCases = cases.filter((row) => String(row.studentUserId) === userId);
+  const clients = rows.map((row) => {
+    const userId = String(row._id);
     return {
       userId,
-      displayName: nameById.get(userId) || 'Student',
-      origin: lead?.source || (relatedConsultations.length ? 'consultation' : relatedCases.length ? 'case' : 'relationship'),
-      context: lead?.context || '',
-      status: lead?.status || relatedCases[0]?.lifecycle || relatedConsultations[0]?.status || 'active',
-      nextAction: relatedCases.some((c) => c.lifecycle === 'awaiting_student_acceptance')
+      displayName: studentSafeName(row.displayName),
+      origin: row.origin || 'relationship',
+      context: row.context || '',
+      status: row.status || 'active',
+      nextAction: row.caseStatus === 'awaiting_student_acceptance'
         ? 'Await Student case acceptance'
-        : relatedConsultations.length
+        : row.consultationCount > 0
           ? 'Open consultation'
           : 'Review relationship',
-      consultationCount: relatedConsultations.length,
-      caseCount: relatedCases.length,
+      consultationCount: row.consultationCount,
+      caseCount: row.caseCount,
       vaultAccess: false,
       vaultGrantCount: grantsByUser.get(userId) || 0,
       vaultNote: 'Client relationship grants zero Vault access. Only an exact active grant allows document access.',
     };
   });
 
-  const q = String(query.q || '').trim();
-  if (q) {
-    const re = new RegExp(escapeRegex(q), 'i');
-    clients = clients.filter((row) => re.test(row.displayName) || re.test(row.origin) || re.test(row.status));
-  }
-  if (query.status) clients = clients.filter((row) => row.status === query.status);
-
-  const total = clients.length;
-  const sliced = clients.slice((pageNum - 1) * limitNum, pageNum * limitNum);
+  const total = result.metadata?.[0]?.total || 0;
   return {
-    clients: sliced,
+    clients,
     total,
     page: pageNum,
     limit: limitNum,
+    totalPages: Math.max(1, Math.ceil(total / limitNum)),
     note: 'Client relationship grants zero Vault access and no full Student profile.',
   };
 }

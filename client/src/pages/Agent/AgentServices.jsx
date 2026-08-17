@@ -9,6 +9,7 @@ import { agentApi } from '../../services/agentService';
 import { MultiSelect } from '../../components/forms/MultiSelect';
 import { btnPrimary, cardClass, inputClass, labelClass, muted } from './agentUi';
 import { ROUTES } from '../../constants';
+import { Pagination } from '../../components/ui/Pagination';
 
 const PRICED_MODES = new Set(['fixed_price', 'starting_from']);
 const EMPTY = Object.freeze({
@@ -127,13 +128,16 @@ export default function AgentServices() {
   const [message, setMessage] = useState('');
   const [error, setError] = useState('');
   const [q, setQ] = useState('');
+  const [appliedQ, setAppliedQ] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
 
-  const load = (query) => agentApi.getServices(query ? { params: query } : undefined).then(({ data }) => setServices(data.services));
-  useEffect(() => { load().catch(() => setError('Unable to load Education services.')).finally(() => setLoading(false)); }, []);
+  const load = (nextPage = page, query = q) => agentApi.getServices({ params: { page: nextPage, limit: 20, q: query || undefined } }).then(({ data }) => { const pages = data.totalPages || 1; setServices(data.services || []); setTotalPages(pages); if (nextPage > pages) setPage(pages); });
+  useEffect(() => { load(page, appliedQ).catch(() => setError('Unable to load Education services.')).finally(() => setLoading(false)); }, [page, appliedQ]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const run = async (operation, success, failure) => {
     setBusy(true); setError(''); setMessage('');
-    try { await operation(); await load(q ? { q } : undefined); setMessage(success); }
+    try { await operation(); await load(page, appliedQ); setMessage(success); }
     catch (err) { setError(err.response?.data?.error || err.message || failure); }
     finally { setBusy(false); }
   };
@@ -161,10 +165,10 @@ export default function AgentServices() {
       {error ? <p id="education-service-error" className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300" role="alert">{error}</p> : null}
       {message ? <p className="rounded-lg bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950/40 dark:text-green-300" role="status">{message}</p> : null}
 
-      <form className="flex flex-wrap gap-3" onSubmit={(event) => { event.preventDefault(); load(q ? { q } : undefined).catch(() => setError('Search failed.')); }}>
+      <form className="flex flex-wrap gap-3" onSubmit={(event) => { event.preventDefault(); setAppliedQ(q); setPage(1); if (page === 1 && q === appliedQ) load(1, q).catch(() => setError('Search failed.')); }}>
         <label className={labelClass}>Search<input value={q} onChange={(event) => setQ(event.target.value)} className={inputClass} placeholder="Service name" /></label>
         <button type="submit" className="self-end min-h-[44px] rounded-lg border px-4 text-sm">Apply</button>
-        <button type="button" className="self-end min-h-[44px] rounded-lg border px-4 text-sm" onClick={() => { setQ(''); load(); }}>Reset</button>
+        <button type="button" className="self-end min-h-[44px] rounded-lg border px-4 text-sm" onClick={() => { setQ(''); setAppliedQ(''); setPage(1); if (page === 1 && !appliedQ) load(1, ''); }}>Reset</button>
       </form>
 
       <form onSubmit={submit} aria-describedby={error ? 'education-service-error' : undefined} className={`grid gap-4 ${cardClass} md:grid-cols-2`}>
@@ -202,6 +206,7 @@ export default function AgentServices() {
           </article>
         ))}
       </section>
+      {totalPages > 1 ? <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} /> : null}
     </div>
   );
 }

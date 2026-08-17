@@ -298,8 +298,7 @@ export const getVerification = asyncHandler(async (req, res) => {
 // ---------------------------------------------------------------------------
 
 export const listServices = asyncHandler(async (req, res) => {
-  const services = await getServices(req.agent.agentAccountId, req.query);
-  return res.status(200).json({ services });
+  return res.status(200).json(await getServices(req.agent.agentAccountId, req.query));
 });
 
 export const addService = asyncHandler(async (req, res) => {
@@ -358,9 +357,9 @@ export const changeMemberDomainAccess = asyncHandler(async (req, res) => {
 // ---------------------------------------------------------------------------
 
 export const listLeads = asyncHandler(async (req, res) => {
-  const leads = await getLeads(req.agent.agentAccountId, req.query);
+  const result = await getLeads(req.agent.agentAccountId, req.query);
   return res.status(200).json({
-    leads,
+    ...result,
     note: 'Leads arise only through explicit user actions. Agent cannot browse all users.',
   });
 });

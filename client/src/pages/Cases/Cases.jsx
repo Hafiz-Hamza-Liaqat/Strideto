@@ -2,17 +2,21 @@ import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { studentCaseApi } from '../../services/agentService';
 import { ui } from '../../design-system/surfaceClasses';
+import { Pagination } from '../../components/ui/Pagination';
 
 export default function Cases() {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   useEffect(() => {
-    studentCaseApi.list()
-      .then((r) => setItems(r.data.cases || []))
+    setLoading(true);
+    studentCaseApi.list({ page, limit: 20 })
+      .then((r) => { const pages = r.data.totalPages || 1; setItems(r.data.cases || []); setTotalPages(pages); if (page > pages) setPage(pages); })
       .catch((e) => setError(e.response?.data?.error || 'Unable to load cases.'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [page]);
   return (
     <div className={`mx-auto max-w-5xl px-4 py-10 ${ui.page}`}>
       <h1 className={ui.h1}>My professional cases</h1>
@@ -35,6 +39,7 @@ export default function Cases() {
           ))}
         </div>
       )}
+      {totalPages > 1 ? <div className="mt-6"><Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} /></div> : null}
     </div>
   );
 }

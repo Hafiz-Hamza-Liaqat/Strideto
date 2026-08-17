@@ -269,9 +269,9 @@ export async function requestConsultation(userId, input = {}) {
 export async function listStudentConsultations(userId, query = {}) {
   const { page, limit, skip } = pageOptions(query); const filter = { studentUserId: userId };
   if (query.status && Object.values(CONSULTATION_STATUSES).includes(query.status)) filter.status = query.status;
-  const [rows, total] = await Promise.all([Consultation.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(), Consultation.countDocuments(filter)]);
+  const [rows, total] = await Promise.all([Consultation.find(filter).sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit).lean(), Consultation.countDocuments(filter)]);
   const items = await Promise.all(rows.map(async (row) => studentProjection(row, await verificationFor(row))));
-  return { consultations: items, page, limit, total };
+  return { consultations: items, page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) };
 }
 
 export async function getStudentConsultation(userId, consultationId) {
@@ -287,8 +287,8 @@ export async function listAgentConsultations(agentAccountId, query = {}) {
   if (query.status && Object.values(CONSULTATION_STATUSES).includes(query.status)) filter.status = query.status;
   const term = String(query.q || '').trim().slice(0, 80);
   if (term) filter.purpose = { $regex: term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
-  const [rows, total, verificationStatus] = await Promise.all([Consultation.find(filter).sort({ createdAt: -1 }).skip(skip).limit(limit).lean(), Consultation.countDocuments(filter), getVerificationStatus(scope.organizationId)]);
-  return { consultations: rows.map((row) => agentProjection(row, verificationStatus)), page, limit, total };
+  const [rows, total, verificationStatus] = await Promise.all([Consultation.find(filter).sort({ createdAt: -1, _id: -1 }).skip(skip).limit(limit).lean(), Consultation.countDocuments(filter), getVerificationStatus(scope.organizationId)]);
+  return { consultations: rows.map((row) => agentProjection(row, verificationStatus)), page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) };
 }
 
 export async function getAgentConsultation(agentAccountId, consultationId) {

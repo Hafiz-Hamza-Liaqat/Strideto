@@ -3,24 +3,30 @@ import { Link } from 'react-router-dom';
 import { ROUTES } from '../../constants';
 import { agentApi } from '../../services/agentService';
 import { btnSecondary, cardClass, inputClass, labelClass, muted } from './agentUi';
+import { Pagination } from '../../components/ui/Pagination';
 
 export default function AgentConsultations() {
   const [items, setItems] = useState([]);
   const [status, setStatus] = useState('');
   const [q, setQ] = useState('');
+  const [applied, setApplied] = useState({ q: '', status: '' });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
   const load = (next = {}) => {
     setLoading(true);
     const params = {};
     if (next.status) params.status = next.status;
     if (next.q) params.q = next.q;
+    params.page = next.page || 1;
+    params.limit = 20;
     agentApi.getConsultations(params)
-      .then((r) => setItems(r.data.consultations || []))
+      .then((r) => { const pages = r.data.totalPages || 1; setItems(r.data.consultations || []); setTotalPages(pages); if (params.page > pages) setPage(pages); })
       .catch((e) => setError(e.response?.data?.error || 'Unable to load consultations.'))
       .finally(() => setLoading(false));
   };
-  useEffect(() => { load({ status }); }, [status]);
+  useEffect(() => { load({ ...applied, page }); }, [page, applied]); // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">
@@ -38,8 +44,8 @@ export default function AgentConsultations() {
             {['requested', 'confirmed', 'reschedule_requested', 'completed', 'cancelled', 'declined', 'no_show'].map((value) => <option key={value} value={value}>{value.replaceAll('_', ' ')}</option>)}
           </select>
         </label>
-        <button type="submit" className="self-end min-h-[44px] rounded-lg border px-4 text-sm">Apply</button>
-        <button type="button" className="self-end min-h-[44px] rounded-lg border px-4 text-sm" onClick={() => { setQ(''); setStatus(''); load({}); }}>Reset</button>
+        <button type="submit" onClick={() => { setApplied({ q, status }); setPage(1); }} className="self-end min-h-[44px] rounded-lg border px-4 text-sm">Apply</button>
+        <button type="button" className="self-end min-h-[44px] rounded-lg border px-4 text-sm" onClick={() => { setQ(''); setStatus(''); setApplied({ q: '', status: '' }); setPage(1); }}>Reset</button>
       </form>
       {error ? <p className="rounded bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300" role="alert">{error}</p> : null}
       {loading ? <p className={muted} role="status">Loading…</p> : items.length === 0 ? (
@@ -59,6 +65,7 @@ export default function AgentConsultations() {
           </Link>
         ))}</div>
       )}
+      {totalPages > 1 ? <Pagination currentPage={page} totalPages={totalPages} onPageChange={setPage} /> : null}
     </div>
   );
 }
