@@ -153,6 +153,8 @@ check(PROVIDER_WORKSPACE_PREF_KEY === 'strideto-provider-workspace', 'workspace 
 check(!PROVIDER_WORKSPACE_PREF_KEY.includes('tab-identity'), 'workspace pref does not collide with session guard');
 check(refreshFlight.includes('createRefreshFlight'), 'single-flight refresh remains');
 check(profile.includes('Save profile') && profile.includes('role="alert"'), 'profile save UX remains');
+check(!profile.includes('AGENT_SERVICE_CATEGORIES'), 'shared Profile does not own Education specialty taxonomy');
+check(!profile.includes('Destination / country expertise'), 'shared Profile has no Education destination expertise');
 check(!/accessToken|refreshToken|JWT/.test(controls + nav + layout), 'switchers store no tokens');
 check(adminSidebar.includes('uppercase tracking-wide'), 'Admin divider pattern still exists for reference');
 

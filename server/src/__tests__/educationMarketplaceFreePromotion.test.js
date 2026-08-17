@@ -71,6 +71,20 @@ function expectThrow(fn, status) {
   check(badge.includes('Verified by Strideto'), 'badge label');
   check(badge.includes('Education & Mobility professional verification approved'), 'scoped accessible text');
   check(badge.includes('sr-only'), 'scope not tooltip-only');
+  check(/verified = false/.test(badge) && /if \(!verified\) return null/.test(badge), 'badge fails closed unless verified');
+}
+
+{
+  const pub = readFileSync(path.join(root, 'client/src/pages/Public/AgentPublicProfile.jsx'), 'utf8');
+  check(pub.includes('educationProfessionalVerification?.verified === true'), 'public profile gates mark on server projection');
+  check(!/<StridetoVerifiedMark\s+scope=/.test(pub) || pub.includes('verified={'), 'no unconditional Verified mark render');
+}
+
+{
+  const svc = readFileSync(path.join(root, 'server/src/services/agentProfileService.js'), 'utf8');
+  check(svc.includes('educationProfessionalVerification'), 'public projection exposes educationProfessionalVerification');
+  check(svc.includes("scope: 'education_mobility'"), 'projection scope is education_mobility');
+  check(/educationVerified = canExercisePrivilegedCapability\(verStatus\)/.test(svc), 'projection reuses canExercisePrivilegedCapability');
 }
 
 // --- Off-platform URL rejection ---
