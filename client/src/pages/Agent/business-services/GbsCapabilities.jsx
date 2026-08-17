@@ -125,6 +125,7 @@ export default function GbsCapabilities() {
 
   return (
     <div className="space-y-6">
+      <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Business capability claims</h1>
       <section className={card}>
         <h2 className={h2}>Claim a capability</h2>
         <p className={`${muted} mt-1`}>
