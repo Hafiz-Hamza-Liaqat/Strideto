@@ -435,11 +435,11 @@ export async function listSubjectListings({
   }
   const [items, total] = await Promise.all([
     GbsServiceListing.find(filter)
-      .sort({ updatedAt: -1 })
+      .sort({ updatedAt: -1, _id: -1 })
       .skip((safePage - 1) * safeLimit)
       .limit(safeLimit)
       .lean(),
     GbsServiceListing.countDocuments(filter),
   ]);
-  return { items, total, page: safePage, limit: safeLimit };
+  return { items, total, page: safePage, limit: safeLimit, totalPages: Math.max(1, Math.ceil(total / safeLimit)) };
 }
