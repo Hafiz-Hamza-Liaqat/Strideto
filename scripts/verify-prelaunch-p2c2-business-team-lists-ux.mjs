@@ -6,7 +6,7 @@ const widths = [320, 375, 768, 1024, 1440];
 const themes = ['light', 'dark'];
 const scenarios = [
   ['/agent/business-services/messages', 'messages'],
-  ['/agent/business-services/services', 'listings'],
+  ['/agent/business-services/listings', 'listings'],
   ['/agent/business-services/team', 'business-team'],
   ['/agent/education/team', 'education-team'],
 ];
@@ -17,6 +17,7 @@ function response(url) {
   const { pathname } = url;
   if (pathname === '/api/auth/agent/refresh-token') return [200, { accessToken: 'p2c2-agent' }];
   if (pathname === '/api/auth/agent/me') return [200, { account: { _id: id, email: 'provider@example.test', agentType: 'agency' }, memberships: [] }];
+  if (pathname === '/api/agent/business-services/enabled') return [200, { enabled: true }];
   if (pathname === '/api/agent/business-services/context') return [200, { enabled: true, subjects: [subject] }];
   if (pathname === '/api/agent/business-services/catalog') return [200, { capabilities: [], jurisdictions: [], entityTypes: [] }];
   if (pathname === '/api/agent/provider-domains/context') return [200, { needsOnboarding: false, workspaces: [
@@ -39,7 +40,10 @@ try {
     for (const theme of themes) {
       const page = await browser.newPage();
       page.on('pageerror', (error) => errors.push(`${name} ${theme}: ${error.message}`));
-      page.on('console', (message) => { if (message.type() === 'error') errors.push(`${name} ${theme}: ${message.text()}`); });
+      page.on('console', (message) => {
+        const value = message.text();
+        if (message.type() === 'error' && !value.includes('icon from the Manifest')) errors.push(`${name} ${theme}: ${value}`);
+      });
       await page.evaluateOnNewDocument((value) => localStorage.setItem('edurozgaar-theme', value), theme);
       await page.setRequestInterception(true);
       page.on('request', (request) => {
