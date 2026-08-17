@@ -74,13 +74,13 @@ let professionalCase;
 let institution;
 let program;
 
-async function makeProvider(suffix, { businessOnly = false } = {}) {
+async function makeProvider(suffix, { businessOnly = false, agency = false } = {}) {
   const account = await AgentAccount.create({ email: `p1a-${suffix}@example.test`, password: 'TestPass123!', accountStatus: 'active' });
-  const organization = await Organization.create({ organizationType: 'agent', displayName: `P1A ${suffix}`, status: 'active' });
+  const organization = await Organization.create({ organizationType: agency ? 'agency' : 'agent', displayName: `P1A ${suffix}`, status: 'active' });
   const profile = await AgentProfile.create({
     agentAccountId: account._id,
     organizationId: organization._id,
-    agentType: 'agent',
+    agentType: agency ? 'agency' : 'agent',
     professionalName: `Provider ${suffix}`,
     providerDomainInitializationState: businessOnly ? 'ready' : 'legacy',
   });
@@ -185,6 +185,34 @@ test('Student, Provider, Agency, and Education/Business boundaries fail closed',
   await assert.rejects(() => getCase('student', otherStudent._id, professionalCase.id), (error) => error.status === 404);
   await assert.rejects(() => createApplication(otherProvider.account._id, professionalCase.id, { institutionName: 'Denied', destinationCountry: 'US' }, 'p1a-denied-other-provider'), (error) => error.status === 404);
   await assert.rejects(() => createApplication(businessOnlyProvider.account._id, professionalCase.id, { institutionName: 'Denied', destinationCountry: 'US' }, 'p1a-denied-business-provider'), (error) => error.status === 403 && /Education Case authority/.test(error.message));
+
+  const agencyProvider = await makeProvider('education-agency', { agency: true });
+  const agencyService = await AgentService.create({
+    organizationId: agencyProvider.organization._id,
+    agentProfileId: agencyProvider.profile._id,
+    title: 'Agency University Application Support',
+    category: 'university_application_support',
+    status: 'active',
+  });
+  const agencyConsultation = await Consultation.create({
+    studentUserId: otherStudent._id,
+    organizationId: agencyProvider.organization._id,
+    assignedMembershipId: agencyProvider.membership._id,
+    agentServiceId: agencyService._id,
+    status: 'completed',
+    requestedWindow: { start: new Date('2026-08-02T10:00:00Z'), end: new Date('2026-08-02T11:00:00Z') },
+    confirmedStart: new Date('2026-08-02T10:00:00Z'),
+    durationMinutes: 60,
+    timezone: 'UTC',
+    meetingMode: 'video',
+    purpose: 'Agency application planning',
+    paymentState: 'free',
+    completion: { completedAt: new Date('2026-08-02T11:00:00Z'), outcomeNote: 'Completed' },
+  });
+  const agencyCase = await proposeCase(agencyProvider.account._id, { consultationId: agencyConsultation._id, caseType: 'study', title: 'Agency-owned Education Case', destinationCountry: 'GB' });
+  await decideProposal(otherStudent._id, agencyCase.id, { decision: 'accept' });
+  await createApplication(agencyProvider.account._id, agencyCase.id, { institutionName: 'Agency External College', programName: 'Agency Program', destinationCountry: 'GB' }, 'p1a-agency-owned-application');
+  await assert.rejects(() => createApplication(provider.account._id, agencyCase.id, { institutionName: 'Independent access denied', destinationCountry: 'GB' }, 'p1a-independent-to-agency-denied'), (error) => error.status === 404);
 });
 
 test('status validation, exact submission approval, and independent updates work', async () => {
