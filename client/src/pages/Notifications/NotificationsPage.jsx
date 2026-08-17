@@ -54,6 +54,8 @@ export function NotificationsPageContent({
       .finally(() => setLoading(false));
   };
 
+  // The realm-specific api is stable for the mounted inbox; paging/filter state intentionally drives reloads.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(); }, [page, category, readFilter]);
 
   const markAll = async () => {
@@ -95,18 +97,24 @@ export function NotificationsPageContent({
           )}
         </div>
 
-        <div className="flex flex-wrap gap-2 mb-6">
-          <select value={readFilter} onChange={(e) => { setReadFilter(e.target.value); setPage(1); }} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm">
+        <div className="flex flex-wrap gap-3 mb-6">
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-700 dark:text-gray-200">
+            Read status
+          <select value={readFilter} onChange={(e) => { setReadFilter(e.target.value); setPage(1); }} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
             <option value="">{t('dashboard:allNotifications')}</option>
             <option value="false">{t('dashboard:unreadOnly')}</option>
             <option value="true">{t('dashboard:readOnly')}</option>
           </select>
-          <select value={category} onChange={(e) => { setCategory(e.target.value); setPage(1); }} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm">
+          </label>
+          <label className="flex flex-col gap-1 text-sm font-medium text-gray-700 dark:text-gray-200">
+            Category
+          <select value={category} onChange={(e) => { setCategory(e.target.value); setPage(1); }} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary">
             <option value="">{t('dashboard:allCategories')}</option>
             {CATEGORIES.filter(Boolean).map((c) => (
               <option key={c} value={c}>{c}</option>
             ))}
           </select>
+          </label>
         </div>
 
         {loading ? (
