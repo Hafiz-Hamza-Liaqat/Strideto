@@ -3,11 +3,15 @@ import { Link } from 'react-router-dom';
 /**
  * Scoped Strideto professional verification mark.
  * Never implies government, university, visa, or protected-title approval.
+ * Renders only when `verified` is true from canonical server projection.
  */
 export function StridetoVerifiedMark({
+  verified = false,
   scope = 'education_mobility',
   className = '',
 }) {
+  if (!verified) return null;
+
   const scopeText = scope === 'business_services'
     ? 'Business Services eligibility approved for this service/capability and jurisdiction.'
     : 'Education & Mobility professional verification approved.';

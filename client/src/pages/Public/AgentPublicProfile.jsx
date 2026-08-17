@@ -93,7 +93,10 @@ export default function AgentPublicProfile() {
                 {profile.countryCode}{profile.officeLocation?.city ? ` · ${profile.officeLocation.city}` : ''}
               </p>
               <div className="mt-3 flex flex-wrap gap-2">
-                <StridetoVerifiedMark scope="education_mobility" />
+                <StridetoVerifiedMark
+                  verified={profile.educationProfessionalVerification?.verified === true}
+                  scope={profile.educationProfessionalVerification?.scope || 'education_mobility'}
+                />
                 <div className="mt-0"><PublicTrustBadge kind={AUTHORITY_KINDS.AGENT_STATEMENT} /></div>
               </div>
             </div>

@@ -926,6 +926,11 @@ export async function getPublicProfileBySlug(slug) {
     .select('title category description countriesServed destinationCountries deliveryMode pricingMode price')
     .lean();
 
+  // Education public "Verified by Strideto" uses the same OrganizationVerification
+  // APPROVED gate as assertApprovedVerification / Education Marketplace privilege.
+  // Business capability approval is separate and must not fabricate this mark.
+  const educationVerified = canExercisePrivilegedCapability(verStatus);
+
   return {
     slug: profile.slug,
     professionalName: profile.professionalName,
@@ -941,6 +946,10 @@ export async function getPublicProfileBySlug(slug) {
     phone: profile.phone,
     officeLocation: profile.officeLocation || null,
     verificationStatus: verStatus,
+    educationProfessionalVerification: {
+      verified: educationVerified,
+      scope: 'education_mobility',
+    },
     trustBadges: badges,
     services,
     organization: org
@@ -1008,8 +1017,18 @@ export async function getPublicDirectory({
     AgentProfile.countDocuments(query),
   ]);
 
+  // Directory membership already requires OrganizationVerification APPROVED.
+  // Expose the same Education verification projection as profile detail.
+  const projected = profiles.map((profile) => ({
+    ...profile,
+    educationProfessionalVerification: {
+      verified: true,
+      scope: 'education_mobility',
+    },
+  }));
+
   return {
-    profiles,
+    profiles: projected,
     total,
     page: pageNum,
     limit: limitNum,
