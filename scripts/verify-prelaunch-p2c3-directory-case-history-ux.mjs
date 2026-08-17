@@ -21,10 +21,10 @@ const detail = {
 };
 
 function response(path, realm) {
-  if (path === '/api/auth/agent/refresh-token') return realm === 'agent' ? [200, { accessToken: 'p2c3-agent' }] : [401, {}];
-  if (path === '/api/auth/agent/me') return realm === 'agent' ? [200, { account: { _id: 'agent-1', email: 'provider@example.test', agentType: 'agent' }, memberships: [] }] : [401, {}];
-  if (path === '/api/auth/refresh-token') return realm === 'student' ? [200, { accessToken: 'p2c3-student' }] : [401, {}];
-  if (path === '/api/auth/me') return realm === 'student' ? [200, { user: { _id: 'student-1', name: 'Bounded Student', role: 'User' } }] : [401, {}];
+  if (path === '/api/auth/agent/refresh-token') return ['agent', 'public'].includes(realm) ? [200, { accessToken: 'p2c3-agent' }] : [401, {}];
+  if (path === '/api/auth/agent/me') return ['agent', 'public'].includes(realm) ? [200, { account: { _id: 'agent-1', email: 'provider@example.test', agentType: 'agent' }, memberships: [] }] : [401, {}];
+  if (path === '/api/auth/refresh-token') return ['student', 'public'].includes(realm) ? [200, { accessToken: 'p2c3-student' }] : [401, {}];
+  if (path === '/api/auth/me') return ['student', 'public'].includes(realm) ? [200, { user: { _id: 'student-1', name: 'Bounded Student', role: 'User' } }] : [401, {}];
   if (path === '/api/agent/provider-domains/context') return [200, { needsOnboarding: false, workspaces: [{ subjectType: 'agent', subjectId: 'agent-1', kind: 'independent', domainId: 'education_mobility', path: '/agent/education' }] }];
   if (path === '/api/agent/profile') return [200, { profile: { agentType: 'agent', professionalName: 'Bounded Provider' } }];
   if (path === '/api/agent/business-services/enabled') return [200, { enabled: false }];
