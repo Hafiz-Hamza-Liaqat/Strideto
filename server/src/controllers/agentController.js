@@ -47,7 +47,8 @@ import { Consultation } from '../models/consultation/Consultation.js';
 import { ConsultationThread } from '../models/consultation/ConsultationThread.js';
 import { ConsultationMessage } from '../models/consultation/ConsultationMessage.js';
 import { ProfessionalCase } from '../models/case/ProfessionalCase.js';
-import { CaseThread, CaseMessage, CaseApprovalRequest } from '../models/case/CaseRecords.js';
+import { CaseThread, CaseMessage, CaseApprovalRequest, CaseTask, CaseDocumentRequest } from '../models/case/CaseRecords.js';
+import { ProfessionalCaseApplication } from '../models/case/ProfessionalCaseApplication.js';
 import { AgentLead } from '../models/agent/AgentLead.js';
 import { AgentService } from '../models/agent/AgentService.js';
 import { AgentMembership } from '../models/agent/AgentMembership.js';
@@ -156,6 +157,23 @@ export const getDashboard = asyncHandler(async (req, res) => {
   );
 
   const consultations = Object.fromEntries(consultationCounts.map((item) => [item._id, item.count]));
+  const attentionCaseMatch = membership ? {
+    organizationId: profile.organizationId,
+    authorizedMembershipIds: membership._id,
+    lifecycle: { $in: ['awaiting_student_acceptance', 'active'] },
+  } : null;
+  const attentionCases = attentionCaseMatch
+    ? await ProfessionalCase.find(attentionCaseMatch).sort({ updatedAt: -1, _id: -1 }).limit(50).select('_id').lean()
+    : [];
+  const attentionCaseIds = attentionCases.map((row) => row._id);
+  const [attentionTasks, attentionApplications, attentionDocuments] = attentionCaseIds.length ? await Promise.all([
+    CaseTask.find({ caseId: { $in: attentionCaseIds }, responsibleActor: 'agent', status: { $in: ['pending', 'in_progress'] } })
+      .sort({ dueAt: 1, createdAt: -1, _id: -1 }).limit(5).select('caseId title dueAt status').lean(),
+    ProfessionalCaseApplication.find({ caseId: { $in: attentionCaseIds }, status: { $in: ['preparing', 'ready_for_review', 'needs_changes'] } })
+      .sort({ deadlineAt: 1, updatedAt: -1, _id: -1 }).limit(5).select('caseId institutionSnapshot programSnapshot status deadlineAt').lean(),
+    CaseDocumentRequest.find({ caseId: { $in: attentionCaseIds }, status: { $in: ['requested', 'available'] } })
+      .sort({ dueAt: 1, createdAt: -1, _id: -1 }).limit(5).select('caseId documentType dueAt status').lean(),
+  ]) : [[], [], []];
   const providerState = marketplaceStripeConfiguration();
   const readiness = providerReadiness(providerAccount, isApproved);
 
@@ -206,6 +224,13 @@ export const getDashboard = asyncHandler(async (req, res) => {
       pendingReview: (marketplace.pending || 0) + (marketplace.under_review || 0),
       published: marketplace.approved || 0,
       needsChanges: marketplace.needs_changes || 0,
+    },
+    attention: {
+      limit: 5,
+      providerTasks: attentionTasks.map((row) => ({ id: String(row._id), caseId: String(row.caseId), title: row.title, status: row.status, dueAt: row.dueAt })),
+      applications: attentionApplications.map((row) => ({ id: String(row._id), caseId: String(row.caseId), title: row.programSnapshot?.name || row.institutionSnapshot?.officialName || 'Education application', status: row.status, dueAt: row.deadlineAt })),
+      documentRequests: attentionDocuments.map((row) => ({ id: String(row._id), caseId: String(row.caseId), title: row.documentType, status: row.status, dueAt: row.dueAt })),
+      unreadMessages: unreadMessages || 0,
     },
     commerce: {
       providerState,

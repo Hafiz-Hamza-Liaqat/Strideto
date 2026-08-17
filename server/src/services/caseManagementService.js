@@ -154,7 +154,43 @@ export async function proposeCase(agentAccountId, input = {}) {
   await event(record, 'case_proposed', 'agent', agentAccountId, { caseType: record.caseType, workflowVersion: record.workflowVersion }); await notify(record, 'student', record.studentUserId, 'case_proposal'); await audit(record, 'agent', agentAccountId, 'case.proposed', { caseType: record.caseType }); return safe(record);
 }
 export async function decideProposal(userId, caseId, input = {}) { const record = await caseForStudent(userId, caseId, true); if (record.lifecycle !== 'awaiting_student_acceptance') fail('Case proposal is no longer pending', 409); const accepted = input.decision === 'accept'; if (!accepted && input.decision !== 'reject') fail('Decision must be accept or reject'); record.lifecycle = accepted ? 'active' : 'cancelled'; record.openedAt = accepted ? new Date() : null; record.closedAt = accepted ? null : new Date(); if (!accepted) record.outcome = 'cancelled'; await record.save(); if (accepted) { const { recordHandoffConsent, CONSENT_PURPOSES } = await import('./consentGrantService.js'); await recordHandoffConsent({ subjectId: userId, counterpartyId: record.organizationId, counterpartyType: 'agent', purpose: CONSENT_PURPOSES.AGENT_CASE, resourceScope: `case:${record._id}`, grantedAt: new Date(), provenance: 'student_case_accept', auditIdentity: `case:${record._id}` }); } await event(record, accepted ? 'student_accepted' : 'student_rejected', 'student', userId); await notify(record, 'agent', record.assignedMembershipId, 'case_proposal_response'); await audit(record, 'student', userId, accepted ? 'case.accepted' : 'case.rejected'); return safe(record); }
-export async function listCases(actorType, actorId, query = {}) { const { page, limit, skip } = boundedPage(query); let filter; if (actorType === 'student') filter = { studentUserId: actorId }; else { const memberships = await agentScopes(actorId); filter = { $or: memberships.map((membership) => ({ organizationId: membership.organizationId, authorizedMembershipIds: membership._id })) }; } if (query.lifecycle) filter.lifecycle = query.lifecycle; const term = String(query.q || '').trim().slice(0, 80); if (term) filter.title = { $regex: term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' }; const [rows,total] = await Promise.all([ProfessionalCase.find(filter).sort({ updatedAt: -1, _id: -1 }).skip(skip).limit(limit).lean(), ProfessionalCase.countDocuments(filter)]); return { cases: rows.map(safe), page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)) }; }
+export async function listCases(actorType, actorId, query = {}) {
+  const { page, limit, skip } = boundedPage(query);
+  let filter;
+  if (actorType === 'student') filter = { studentUserId: actorId };
+  else {
+    const memberships = await agentScopes(actorId);
+    filter = { $or: memberships.map((membership) => ({ organizationId: membership.organizationId, authorizedMembershipIds: membership._id })) };
+  }
+  if (query.lifecycle) filter.lifecycle = query.lifecycle;
+  const term = String(query.q || '').trim().slice(0, 80);
+  if (term) filter.title = { $regex: term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), $options: 'i' };
+  const [rows, total] = await Promise.all([
+    ProfessionalCase.find(filter).sort({ updatedAt: -1, _id: -1 }).skip(skip).limit(limit).lean(),
+    ProfessionalCase.countDocuments(filter),
+  ]);
+  let attention;
+  if (actorType === 'student') {
+    const activeCases = await ProfessionalCase.find({ studentUserId: actorId, lifecycle: { $in: ['awaiting_student_acceptance', 'active'] } })
+      .sort({ updatedAt: -1, _id: -1 }).limit(50).select('_id title lifecycle').lean();
+    const ids = activeCases.map((row) => row._id);
+    const [tasks, applications, documents, approvals] = ids.length ? await Promise.all([
+      CaseTask.find({ caseId: { $in: ids }, responsibleActor: 'student', status: { $in: ['pending', 'in_progress'] } }).sort({ dueAt: 1, createdAt: -1, _id: -1 }).limit(5).select('caseId title status dueAt').lean(),
+      ProfessionalCaseApplication.find({ caseId: { $in: ids }, status: { $in: ['needs_changes', 'ready_for_review', 'preparing'] } }).sort({ deadlineAt: 1, updatedAt: -1, _id: -1 }).limit(5).select('caseId institutionSnapshot programSnapshot status deadlineAt').lean(),
+      CaseDocumentRequest.find({ caseId: { $in: ids }, status: 'requested' }).sort({ dueAt: 1, createdAt: -1, _id: -1 }).limit(5).select('caseId documentType status dueAt').lean(),
+      CaseApprovalRequest.find({ caseId: { $in: ids }, status: 'pending' }).sort({ requestedAt: 1, _id: 1 }).limit(5).select('caseId actionType status requestedAt').lean(),
+    ]) : [[], [], [], []];
+    attention = {
+      limit: 5,
+      proposals: activeCases.filter((row) => row.lifecycle === 'awaiting_student_acceptance').slice(0, 5).map((row) => ({ id: String(row._id), caseId: String(row._id), title: row.title, status: row.lifecycle })),
+      tasks: tasks.map((row) => ({ id: String(row._id), caseId: String(row.caseId), title: row.title, status: row.status, dueAt: row.dueAt })),
+      applications: applications.map((row) => ({ id: String(row._id), caseId: String(row.caseId), title: row.programSnapshot?.name || row.institutionSnapshot?.officialName || 'Education application', status: row.status, dueAt: row.deadlineAt })),
+      documentRequests: documents.map((row) => ({ id: String(row._id), caseId: String(row.caseId), title: row.documentType, status: row.status, dueAt: row.dueAt })),
+      approvals: approvals.map((row) => ({ id: String(row._id), caseId: String(row.caseId), title: row.actionType.replaceAll('_', ' '), status: row.status, dueAt: row.requestedAt })),
+    };
+  }
+  return { cases: rows.map(safe), page, limit, total, totalPages: Math.max(1, Math.ceil(total / limit)), ...(attention ? { attention } : {}) };
+}
 export async function getCase(actorType, actorId, caseId, query = {}) {
   const record = actorType === 'student'
     ? await caseForStudent(actorId, caseId)

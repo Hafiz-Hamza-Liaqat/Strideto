@@ -6,6 +6,7 @@ import { PortalWelcomeBanner } from '../../components/welcome/PortalWelcomeBanne
 import { MilestoneDelight } from '../../components/welcome/MilestoneDelight';
 import { AnnouncementFeed } from '../../components/announcements/AnnouncementFeed';
 import { useAgentAuth } from '../../context/AgentAuthContext';
+import { SeoHead } from '../../components/seo';
 
 const STATUS_LABELS = {
   draft: { label: 'Draft', color: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100' },
@@ -36,8 +37,8 @@ export default function AgentDashboard() {
       .finally(() => setLoading(false));
   }, []);
 
-  if (loading) return <div className="text-slate-500 dark:text-gray-400 text-sm">Loading dashboard…</div>;
-  if (error) return <div className="text-red-700 dark:text-red-400 text-sm" role="alert">{error}</div>;
+  if (loading) return <><SeoHead title="Education & Mobility" noindex /><h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Education & Mobility</h1><div className="mt-4 text-slate-500 dark:text-gray-400 text-sm" role="status">Loading dashboard…</div></>;
+  if (error) return <><SeoHead title="Education & Mobility" noindex /><h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Education & Mobility</h1><div className="mt-4 text-red-700 dark:text-red-400 text-sm" role="alert">{error}</div></>;
 
   const vs = dashboard?.verificationStatus || 'draft';
   const badge = STATUS_LABELS[vs] || STATUS_LABELS.draft;
@@ -73,6 +74,7 @@ export default function AgentDashboard() {
 
   return (
     <div className="space-y-6">
+      <SeoHead title="Education & Mobility" noindex />
       <PortalWelcomeBanner
         realm="agent"
         userId={agent?._id || agent?.agentProfileId}
@@ -114,6 +116,21 @@ export default function AgentDashboard() {
           Education-specific workspace. Student leads and education services are separate from Business Formation & Corporate Services. Empty cards show 0 or not configured — they are not missing data.
         </p>
       </div>
+
+      <section className={cardClass} aria-labelledby="education-attention-heading">
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <h2 id="education-attention-heading" className="text-lg font-semibold text-gray-900 dark:text-white">Needs your attention</h2>
+          {Number(dashboard?.attention?.unreadMessages || 0) > 0 && <Link to={ROUTES.AGENT_EDUCATION_MESSAGES} className="text-sm font-medium text-primary hover:underline">Unread Case messages: {dashboard.attention.unreadMessages}</Link>}
+        </div>
+        {(() => {
+          const items = [
+            ...(dashboard?.attention?.providerTasks || []).map((item) => ({ ...item, kind: 'Task' })),
+            ...(dashboard?.attention?.applications || []).map((item) => ({ ...item, kind: 'Application' })),
+            ...(dashboard?.attention?.documentRequests || []).map((item) => ({ ...item, kind: 'Document request' })),
+          ].slice(0, 8);
+          return items.length ? <ul className="mt-3 space-y-2">{items.map((item) => <li key={`${item.kind}-${item.id}`}><Link to={`${ROUTES.AGENT_EDUCATION_CASES}/${item.caseId}`} className="block rounded-lg border border-gray-200 p-3 hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:border-gray-700"><span className="text-xs font-semibold uppercase text-slate-500 dark:text-gray-400">{item.kind}</span><span className="block font-medium text-gray-900 dark:text-white">{item.title}</span><span className="text-xs text-slate-500 dark:text-gray-400">{item.status.replaceAll('_', ' ')}{item.dueAt ? ` · due ${new Date(item.dueAt).toLocaleDateString()}` : ''}</span></Link></li>)}</ul> : <p className="mt-3 text-sm text-slate-500 dark:text-gray-400">You are up to date. No current Education Case action needs attention.</p>;
+        })()}
+      </section>
 
       <div className={cardClass}>
         <div className="flex items-center justify-between gap-3">
