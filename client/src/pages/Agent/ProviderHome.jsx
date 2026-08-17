@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { agentApi } from '../../services/agentService';
 import { ROUTES } from '../../constants';
 import { PROVIDER_DOMAIN_IDS, publicProviderDomainProjection } from '@shared/provider/providerDomains.js';
@@ -35,6 +35,7 @@ function domainCardTitle(card) {
 export default function ProviderHome() {
   const { agent } = useAgentAuth();
   const navigate = useNavigate();
+  const [params, setSearchParams] = useSearchParams();
   const [data, setData] = useState(null);
   const [error, setError] = useState('');
   const [busy, setBusy] = useState('');
@@ -47,6 +48,13 @@ export default function ProviderHome() {
   useEffect(() => {
     load().finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    if (params.get('home') === '1') return;
+    const next = new URLSearchParams(params);
+    next.set('home', '1');
+    setSearchParams(next, { replace: true });
+  }, [params, setSearchParams]);
 
   const cards = useMemo(() => data?.cards || [], [data]);
   const groups = useMemo(() => {
@@ -88,7 +96,7 @@ export default function ProviderHome() {
       if (domainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES) {
         navigate(`${ROUTES.AGENT_BUSINESS_SERVICES_CAPABILITIES}?subjectType=${subject.subjectType}&subjectId=${subject.subjectId}`);
       } else {
-        navigate(ROUTES.AGENT_VERIFICATION);
+        navigate(withProviderSubject(ROUTES.AGENT_EDUCATION_VERIFICATION, subject));
       }
     } catch (err) {
       setError(err.response?.data?.error || 'Unable to add provider domain.');
@@ -136,7 +144,7 @@ export default function ProviderHome() {
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white break-words">{group.label}</h2>
               <p className={`${muted} break-words`}>{kindLabel(group.kind)}</p>
             </div>
-            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Your workspaces</h3>
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Your professional workspaces</h3>
             <div className={`grid gap-3 ${bothDomains || group.items.length > 1 ? 'md:grid-cols-2' : 'md:grid-cols-1'}`}>
               {group.items.map((card) => (
                 <article key={workspaceKey(card)} className={`${cardClass} min-w-0`}>

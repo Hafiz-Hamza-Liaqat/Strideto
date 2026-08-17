@@ -1,17 +1,8 @@
 import { useRef, useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { ROUTES } from '../../constants';
-import { PROVIDER_DOMAIN_IDS } from '@shared/provider/providerDomains.js';
 import { useOverlayA11y } from '../../a11y/useOverlayA11y';
-import {
-  dashboardNavLabel,
-  overviewPathForDomain,
-} from '../../config/agentNavConfig';
-import {
-  kindLabel,
-  withProviderSubject,
-  writeProviderWorkspacePref,
-} from '../../config/providerWorkspacePref';
+import { kindLabel, withProviderSubject, writeProviderWorkspacePref } from '../../config/providerWorkspacePref';
 
 function persistPref(subject, domainId) {
   writeProviderWorkspacePref({
@@ -21,15 +12,16 @@ function persistPref(subject, domainId) {
   });
 }
 
-function subjectHref(subject, domainId) {
-  if (!subject) return `${ROUTES.AGENT_DASHBOARD}?home=1`;
-  if (!domainId) return withProviderSubject(`${ROUTES.AGENT_DASHBOARD}?home=1`, subject);
-  return withProviderSubject(overviewPathForDomain(domainId), subject);
-}
-
-export function ActingAsControl({ subjects, current, activeDomainId, compact }) {
+export function ActingAsControl({
+  subjects,
+  current,
+  activeDomainId,
+  isProviderHome,
+  hideBacklink,
+}) {
   const [open, setOpen] = useState(false);
   const ref = useRef(null);
+  const location = useLocation();
   useOverlayA11y({ open, onClose: () => setOpen(false), containerRef: ref, trapFocus: true });
   const navigate = useNavigate();
   const currentLabel = current?.label || 'Provider';
@@ -37,10 +29,16 @@ export function ActingAsControl({ subjects, current, activeDomainId, compact }) 
 
   const selectSubject = (subject) => {
     const authorized = (subject.domainIds || []).filter(Boolean);
-    const keepDomain = authorized.includes(activeDomainId) ? activeDomainId : (authorized[0] || null);
+    const keepDomain = !isProviderHome && authorized.includes(activeDomainId)
+      ? activeDomainId
+      : null;
     persistPref(subject, keepDomain);
     setOpen(false);
-    navigate(subjectHref(subject, keepDomain));
+    if (isProviderHome || !keepDomain) {
+      navigate(withProviderSubject(`${ROUTES.AGENT_DASHBOARD}?home=1`, subject));
+      return;
+    }
+    navigate(withProviderSubject(`${location.pathname}${location.search}`, subject));
   };
 
   return (
@@ -100,7 +98,7 @@ export function ActingAsControl({ subjects, current, activeDomainId, compact }) 
           ) : null}
         </>
       )}
-      {compact ? null : (
+      {hideBacklink ? null : (
         <Link
           to={current ? withProviderSubject(`${ROUTES.AGENT_DASHBOARD}?home=1`, current) : `${ROUTES.AGENT_DASHBOARD}?home=1`}
           className="mt-2 inline-flex min-h-[36px] items-center px-1 text-xs font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded"
@@ -108,89 +106,6 @@ export function ActingAsControl({ subjects, current, activeDomainId, compact }) 
           ← Provider Dashboard
         </Link>
       )}
-    </div>
-  );
-}
-
-export function ActiveDashboardControl({
-  domainIds,
-  activeDomainId,
-  subject,
-  isProviderHome,
-  canAddCategory,
-}) {
-  const navigate = useNavigate();
-  const ids = domainIds.filter((id) => id === PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY
-    || id === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES);
-
-  const go = (domainId) => {
-    if (!subject || !domainId) return;
-    persistPref(subject, domainId);
-    navigate(withProviderSubject(overviewPathForDomain(domainId), subject));
-  };
-
-  if (!ids.length) return null;
-
-  const selectedId = isProviderHome ? null : (ids.includes(activeDomainId) ? activeDomainId : null);
-
-  return (
-    <div className="px-2 pb-3 min-w-0">
-      <p className="px-1 mb-1 text-[11px] font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">
-        Active dashboard
-      </p>
-      {ids.length === 1 ? (
-        <p className="px-1 text-sm font-medium text-gray-900 dark:text-white break-words">
-          {dashboardNavLabel(ids[0])}
-          <span className="block text-xs font-normal text-gray-500 dark:text-gray-400">Active dashboard</span>
-        </p>
-      ) : (
-        <>
-          <div className="hidden sm:grid grid-cols-1 gap-1" role="group" aria-label="Active dashboard">
-            {ids.map((id) => {
-              const pressed = selectedId === id;
-              return (
-                <button
-                  key={id}
-                  type="button"
-                  aria-pressed={pressed}
-                  onClick={() => go(id)}
-                  className={`w-full min-h-[44px] rounded-lg border px-3 py-2 text-left text-sm break-words focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 dark:focus-visible:ring-mint/50 ${
-                    pressed
-                      ? 'border-[var(--accent-orange,#F97316)] bg-primary/10 text-primary dark:text-mint font-semibold'
-                      : 'border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-800 dark:text-gray-100'
-                  }`}
-                >
-                  {dashboardNavLabel(id)}
-                </button>
-              );
-            })}
-          </div>
-          <label className="sm:hidden block px-1">
-            <span className="sr-only">Active dashboard</span>
-            <select
-              aria-label="Active dashboard"
-              className="mt-0.5 w-full min-h-[44px] rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-800 px-3 text-sm text-gray-900 dark:text-white focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
-              value={selectedId || ''}
-              onChange={(e) => {
-                if (e.target.value) go(e.target.value);
-              }}
-            >
-              <option value="">{isProviderHome ? 'Choose a dashboard' : 'Active dashboard'}</option>
-              {ids.map((id) => (
-                <option key={id} value={id}>{dashboardNavLabel(id)}</option>
-              ))}
-            </select>
-          </label>
-        </>
-      )}
-      {ids.length === 1 && canAddCategory ? (
-        <Link
-          to={subject ? withProviderSubject(`${ROUTES.AGENT_DASHBOARD}?home=1`, subject) : `${ROUTES.AGENT_DASHBOARD}?home=1`}
-          className="mt-2 inline-flex min-h-[36px] items-center px-1 text-xs font-medium text-primary hover:underline focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 rounded"
-        >
-          + Add another provider category
-        </Link>
-      ) : null}
     </div>
   );
 }
