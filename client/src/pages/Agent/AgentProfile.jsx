@@ -37,7 +37,7 @@ function normalizeList(value) {
   return Array.isArray(value) ? value : String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
 }
 
-export default function AgentProfile() {
+export default function AgentProfile({ variant = 'standalone' }) {
   const { i18n } = useTranslation();
   const countryOptions = useMemo(() => buildCountryOptions(i18n.language || 'en'), [i18n.language]);
 
@@ -94,7 +94,7 @@ export default function AgentProfile() {
         yearsOfExperience = Math.trunc(n);
       }
       // Shared identity only — Education specialties / destination expertise
-      // are edited under Education → My Education Services (same AgentProfile fields).
+      // are edited on Education & Mobility Profile (same AgentProfile fields).
       const { data } = await agentApi.updateProfile({
         professionalName: form.professionalName,
         professionalSummary: form.professionalSummary,
@@ -125,13 +125,21 @@ export default function AgentProfile() {
 
   if (loading) return <div className="text-slate-500 dark:text-gray-400 text-sm">Loading profile…</div>;
 
+  const isSection = variant === 'section';
+  const HeadingTag = isSection ? 'h2' : 'h1';
+
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{accountType === 'agency' ? 'Agency profile' : 'Professional profile'}</h1>
+        <HeadingTag className={`${isSection ? 'text-lg' : 'text-2xl'} font-semibold text-gray-900 dark:text-white`}>
+          {isSection
+            ? 'Shared provider / agency identity'
+            : (accountType === 'agency' ? 'Agency profile' : 'Professional profile')}
+        </HeadingTag>
         <p className="text-slate-500 dark:text-gray-400 text-sm mt-1">
-          Shared Provider identity and basics. Education specialties and destination expertise are managed in Education &amp; Mobility → My Education Services.
-          Verified trust badges come from verification only. Account type is {accountType}.
+          {isSection
+            ? 'Canonical organization identity. Saving here does not copy a second identity database and does not change Education specialties or Business capabilities.'
+            : 'Shared Provider identity and basics. Education specialties and destination expertise are managed on Education & Mobility Profile. Verified trust badges come from verification only. Account type is ' + accountType + '.'}
         </p>
       </div>
       {completeness && (

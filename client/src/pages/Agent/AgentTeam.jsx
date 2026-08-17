@@ -6,7 +6,20 @@ import { PROVIDER_DOMAIN_IDS, publicProviderDomainProjection } from '@shared/pro
 
 const inputClass = 'mt-1 w-full rounded-lg border border-gray-200 dark:border-gray-600 bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 px-3 py-2';
 
-export default function AgentTeam() {
+function dutyLabels(member, domainId) {
+  const access = (member.domainAccess || []).find((row) => row.domainId === domainId);
+  if (!access) {
+    return domainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES ? 'No Business access' : 'No Education access';
+  }
+  const groups = PROVIDER_DOMAIN_PERMISSION_GROUPS[domainId] || [];
+  const labels = groups
+    .filter((g) => (access.permissions || []).includes(g.permissionId))
+    .filter((g, i, arr) => arr.findIndex((x) => x.publicLabel === g.publicLabel) === i)
+    .map((g) => g.publicLabel);
+  return labels.length ? labels.join(' · ') : 'Workspace access';
+}
+
+export default function AgentTeam({ focusDomainId = null }) {
   const [members, setMembers] = useState([]);
   const [invites, setInvites] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -30,9 +43,16 @@ export default function AgentTeam() {
     setInvites(inviteRes.data.data || []);
     const agency = [...new Set((ctxRes.data.workspaces || [])
       .filter((w) => w.kind === 'agency')
-      .map((w) => w.domainId))];
+      .map((w) => w.domainId)
+      .filter((id) => !focusDomainId || id === focusDomainId))];
     setAgencyDomains(agency);
-    setSelectedDomains((current) => current.filter((id) => agency.includes(id)));
+    setSelectedDomains((current) => {
+      const next = current.filter((id) => agency.includes(id));
+      if (focusDomainId && agency.includes(focusDomainId) && !next.includes(focusDomainId)) {
+        return [...next, focusDomainId];
+      }
+      return next;
+    });
   };
 
   useEffect(() => {
@@ -90,13 +110,22 @@ export default function AgentTeam() {
 
   if (loading) return <p className="text-sm text-slate-500 dark:text-gray-400">Loading team…</p>;
 
+  const heading = focusDomainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES
+    ? 'Business Team'
+    : focusDomainId === PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY
+      ? 'Education Team'
+      : 'Agency team';
+  const intro = focusDomainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES
+    ? 'Business-domain duties for this agency. Membership is shared with Education; Business permissions do not grant Education consultation or marketplace duties. Domain access is not professional verification.'
+    : focusDomainId === PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY
+      ? 'Education-domain duties for this agency. Membership is shared with Business; Education permissions do not grant Business capability or quote duties. Domain access is not professional verification.'
+      : 'Roles remain owner, admin, and member. Last owner cannot be deactivated. Domain access is required on every invite and does not grant professional verification. Case document access is a separate sensitive duty and is never granted by owner or admin role alone.';
+
   return (
     <div className="space-y-5">
       <div>
-        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">Agency team</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-gray-400">
-          Roles remain owner, admin, and member. Last owner cannot be deactivated. Domain access is required on every invite and does not grant professional verification. Case document access is a separate sensitive duty and is never granted by owner or admin role alone.
-        </p>
+        <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{heading}</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-gray-400">{intro}</p>
       </div>
       {error && <p className="rounded-lg bg-red-50 dark:bg-red-950/40 p-3 text-sm text-red-700 dark:text-red-300" role="alert">{error}</p>}
       <label className="text-sm text-gray-900 dark:text-white">Search members
@@ -107,7 +136,7 @@ export default function AgentTeam() {
       ) : (
         <div className="overflow-x-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800">
           <table className="min-w-full text-left text-sm">
-            <thead className="bg-slate-50 dark:bg-gray-900"><tr><th className="p-3">Email</th><th className="p-3">Role</th><th className="p-3">Domains</th><th className="p-3">Status</th><th className="p-3">Action</th></tr></thead>
+            <thead className="bg-slate-50 dark:bg-gray-900"><tr><th className="p-3">Email</th><th className="p-3">Role</th><th className="p-3">{focusDomainId ? 'Domain duties' : 'Domains'}</th><th className="p-3">Status</th><th className="p-3">Action</th></tr></thead>
             <tbody>
               {members.map((member) => (
                 <tr key={member._id} className="border-t border-gray-200 dark:border-gray-700">
@@ -121,7 +150,9 @@ export default function AgentTeam() {
                     )}
                   </td>
                   <td className="p-3 break-words-safe">
-                    {(member.domainAccess || []).map((row) => publicProviderDomainProjection(row.domainId)?.shortName || row.domainId).join(', ') || 'legacy education'}
+                    {focusDomainId
+                      ? dutyLabels(member, focusDomainId)
+                      : ((member.domainAccess || []).map((row) => publicProviderDomainProjection(row.domainId)?.shortName || row.domainId).join(', ') || 'legacy education')}
                   </td>
                   <td className="p-3">{member.active ? 'Active' : 'Inactive'}</td>
                   <td className="p-3">

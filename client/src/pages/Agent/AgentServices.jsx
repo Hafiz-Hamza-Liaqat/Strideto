@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ISO_3166_ALPHA2, coerceCountryCode, countryDisplayName } from '@shared/international/country.js';
-import { AGENT_SERVICE_CATEGORIES } from '@shared/agent/constants.js';
 import { agentApi } from '../../services/agentService';
 import { MultiSelect } from '../../components/forms/MultiSelect';
 import { btnPrimary, cardClass, inputClass, labelClass, muted } from './agentUi';
+import { ROUTES } from '../../constants';
 
 const EMPTY = {
   title: '', category: 'study_abroad_guidance', description: '',
@@ -12,17 +13,8 @@ const EMPTY = {
   deliveryMode: 'online', pricingMode: 'contact_for_details', durationEstimate: '', amountMinor: '', currency: 'PKR',
 };
 
-const SPECIALTY_OPTIONS = Object.values(AGENT_SERVICE_CATEGORIES).map((value) => ({
-  value,
-  label: value.replaceAll('_', ' ').replace(/\b\w/g, (c) => c.toUpperCase()),
-}));
-
 function normalizeCodes(list) {
   return [...new Set((Array.isArray(list) ? list : []).map((item) => coerceCountryCode(item)).filter(Boolean))];
-}
-
-function normalizeList(value) {
-  return Array.isArray(value) ? value : String(value || '').split(',').map((item) => item.trim()).filter(Boolean);
 }
 
 export default function AgentServices() {
@@ -34,56 +26,21 @@ export default function AgentServices() {
   );
   const [services, setServices] = useState([]);
   const [form, setForm] = useState(EMPTY);
-  const [eduProfile, setEduProfile] = useState({ specialties: [], destinationCountries: [] });
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
-  const [eduBusy, setEduBusy] = useState(false);
   const [message, setMessage] = useState('');
-  const [eduMessage, setEduMessage] = useState('');
   const [error, setError] = useState('');
-  const [eduError, setEduError] = useState('');
   const [q, setQ] = useState('');
 
   const load = (query) => agentApi.getServices(query ? { params: query } : undefined).then(({ data }) => setServices(data.services));
-  const loadEduProfile = () => agentApi.getProfile().then(({ data }) => {
-    const profile = data.profile || {};
-    setEduProfile({
-      specialties: normalizeList(profile.specialties),
-      destinationCountries: normalizeCodes(profile.destinationCountries),
-    });
-  });
 
   useEffect(() => {
-    Promise.all([load(), loadEduProfile()])
+    load()
       .catch(() => setError('Unable to load Education services.'))
       .finally(() => setLoading(false));
   }, []);
 
   const set = (key) => (event) => setForm((current) => ({ ...current, [key]: event.target.value }));
-
-  const saveEduProfile = async (event) => {
-    event.preventDefault();
-    if (eduBusy) return;
-    setEduBusy(true);
-    setEduError('');
-    setEduMessage('');
-    try {
-      const { data } = await agentApi.updateProfile({
-        specialties: normalizeList(eduProfile.specialties),
-        destinationCountries: normalizeCodes(eduProfile.destinationCountries),
-      });
-      const profile = data.profile || {};
-      setEduProfile({
-        specialties: normalizeList(profile.specialties),
-        destinationCountries: normalizeCodes(profile.destinationCountries),
-      });
-      setEduMessage('Education professional profile saved.');
-    } catch (err) {
-      setEduError(err.response?.data?.error || 'Unable to save Education professional profile.');
-    } finally {
-      setEduBusy(false);
-    }
-  };
 
   const submit = async (event) => {
     event.preventDefault(); setBusy(true); setError(''); setMessage('');
@@ -118,48 +75,13 @@ export default function AgentServices() {
           Activation requires approved Education &amp; Mobility professional verification.
           An active service does not create a Marketplace promotional post — manage promotions separately under Marketplace.
         </p>
+        <p className={`mt-2 ${muted}`}>
+          Education specialties and destination expertise are edited on{' '}
+          <Link className="text-primary hover:underline" to={ROUTES.AGENT_EDUCATION_PROFILE}>Education &amp; Mobility Profile</Link>.
+        </p>
       </div>
       {error ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300" role="alert">{error}</p> : null}
       {message ? <p className="rounded-lg bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950/40 dark:text-green-300">{message}</p> : null}
-
-      <section className={`${cardClass} space-y-4`} aria-labelledby="edu-professional-profile-heading">
-        <div>
-          <h2 id="edu-professional-profile-heading" className="text-lg font-semibold text-gray-900 dark:text-white">
-            Education professional profile
-          </h2>
-          <p className={`mt-1 ${muted}`}>
-            Used for your Education &amp; Mobility professional profile and discovery.
-            These fields are not Business Services capabilities or jurisdictions.
-          </p>
-        </div>
-        {eduError ? <p className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-300" role="alert">{eduError}</p> : null}
-        {eduMessage ? <p className="rounded-lg bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950/40 dark:text-green-300" role="status">{eduMessage}</p> : null}
-        <form onSubmit={saveEduProfile} className="grid gap-4 md:grid-cols-2">
-          <label className={labelClass}>
-            Specialties
-            <MultiSelect
-              className="mt-1"
-              value={eduProfile.specialties}
-              onChange={(specialties) => setEduProfile((f) => ({ ...f, specialties: normalizeList(specialties) }))}
-              options={SPECIALTY_OPTIONS}
-              emptyLabel="Select Education specialties"
-            />
-          </label>
-          <label className={labelClass}>
-            Destination / country expertise
-            <MultiSelect
-              className="mt-1"
-              value={eduProfile.destinationCountries}
-              onChange={(destinationCountries) => setEduProfile((f) => ({ ...f, destinationCountries: normalizeCodes(destinationCountries) }))}
-              options={countryOptions}
-              emptyLabel="Select destination countries"
-            />
-          </label>
-          <button type="submit" disabled={eduBusy} aria-busy={eduBusy} className={`${btnPrimary} md:col-span-2`}>
-            {eduBusy ? 'Saving…' : 'Save Education professional profile'}
-          </button>
-        </form>
-      </section>
 
       <form className="flex flex-wrap gap-3" onSubmit={(e) => { e.preventDefault(); load(q ? { q } : undefined).catch(() => setError('Search failed.')); }}>
         <label className={labelClass}>Search<input value={q} onChange={(e) => setQ(e.target.value)} className={inputClass} placeholder="Service name" /></label>
