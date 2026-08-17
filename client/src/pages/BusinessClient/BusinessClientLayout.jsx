@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
-import { Link, NavLink, Outlet } from 'react-router-dom';
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom';
 import { SeoHead } from '../../components/seo';
 import { ROUTES } from '../../constants';
 import { ui } from '../../design-system/surfaceClasses';
@@ -22,7 +22,20 @@ function ActivationCard({ onActivated, busy, error }) {
   );
 }
 
+function businessClientRouteTitle(pathname) {
+  if (/\/requests\/new\/?$/.test(pathname)) return 'Request Service';
+  if (/\/requests\/[^/]+\/?$/.test(pathname)) return 'Request Details';
+  if (/\/requests\/?$/.test(pathname)) return 'Service Requests';
+  if (/\/quotes\/[^/]+\/?$/.test(pathname)) return 'Quote Details';
+  if (/\/quotes\/?$/.test(pathname)) return 'Quotes';
+  if (/\/cases\/[^/]+\/?$/.test(pathname)) return 'Case Details';
+  if (/\/cases\/?$/.test(pathname)) return 'Cases';
+  return 'Business Overview';
+}
+
 export default function BusinessClientLayout() {
+  const { pathname } = useLocation();
+  const routeTitle = businessClientRouteTitle(pathname);
   const [loading, setLoading] = useState(true);
   const [unavailable, setUnavailable] = useState(false);
   const [activated, setActivated] = useState(false);
@@ -74,9 +87,7 @@ export default function BusinessClientLayout() {
       <SeoHead title="Business | Strideto" noindex />
       <div className={`mx-auto max-w-5xl px-4 py-8 space-y-6 ${ui.page}`}>
         {loading ? (
-          <div className={`${ui.card} p-6 ${ui.muted}`} role="status" aria-busy="true">
-            Loading Business workspace…
-          </div>
+          <div className="space-y-4"><h1 className={ui.h1}>{routeTitle}</h1><div className={`${ui.card} p-6 ${ui.muted}`} role="status" aria-busy="true">Loading Business workspace…</div></div>
         ) : unavailable ? (
           <section className={`${ui.card} p-6`}>
             <h1 className={ui.h1}>Business Services unavailable</h1>
@@ -87,7 +98,8 @@ export default function BusinessClientLayout() {
         ) : (
           <>
             <header className="space-y-2 min-w-0">
-              <h1 className={ui.h1}>Business</h1>
+              <p className="text-sm font-semibold uppercase tracking-wide text-primary">Business Services workspace</p>
+              <h1 className={ui.h1}>{routeTitle}</h1>
               <p className={`${ui.muted} break-words-safe`}>
                 Request Business Services from approved providers. Review quotes and track service Cases in this workspace.
                 Payment is not taken here. Government filing is not started here.

@@ -6,7 +6,7 @@ import { ROUTES } from '../../../constants';
 import { CASE_TASK_CATALOG, CASE_TASK_KEYS } from '@shared/gbs/caseContract.js';
 import { gbsProviderApi } from '../../../services/gbsProviderApi';
 import { useGbsProvider } from './GbsProviderContext';
-import { StatusBadge, card, emptyBox, errorBox, input, label, muted, wrap } from './gbsUi';
+import { StatusBadge, card, errorBox, GbsRouteState, input, label, muted, wrap } from './gbsUi';
 import { ProviderRequirementPackPanel } from '../../../components/gbs/ProviderRequirementPackPanel';
 import { ProviderFilingAuthorizationPanel } from '../../../components/gbs/ProviderFilingAuthorizationPanel';
 import { GbsContextMessages } from '../../../components/gbs/GbsContextMessages';
@@ -111,18 +111,18 @@ export default function GbsCaseDetail() {
     }
   };
 
-  if (!selected) return <div className={emptyBox}>Select an authorized provider subject first.</div>;
-  if (loading) return <div className={`${card} ${muted}`} aria-busy="true">Loading case…</div>;
+  if (!selected) return <GbsRouteState title="Case Details">Select an authorized provider subject first.</GbsRouteState>;
+  if (loading) return <GbsRouteState title="Case Details" busy>Loading case…</GbsRouteState>;
   if (missing) {
     return (
-      <div className={emptyBox}>
+      <GbsRouteState title="Case Details">
         Case not found.{' '}
         <Link to={ROUTES.AGENT_BUSINESS_SERVICES_CASES} className={ui.link}>Back to cases</Link>
-      </div>
+      </GbsRouteState>
     );
   }
-  if (error && !item) return <div className={errorBox} role="alert">{error}</div>;
-  if (!item) return null;
+  if (error && !item) return <GbsRouteState title="Case Details" error>{error}</GbsRouteState>;
+  if (!item) return <GbsRouteState title="Case Details" error>Case unavailable.</GbsRouteState>;
 
   const canStart = item.status === 'open';
   const canRequest = item.status === 'in_progress' || item.status === 'awaiting_client';

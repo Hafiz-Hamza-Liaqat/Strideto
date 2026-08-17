@@ -5,7 +5,7 @@ import { ui } from '../../../design-system/surfaceClasses';
 import { ROUTES } from '../../../constants';
 import { gbsProviderApi } from '../../../services/gbsProviderApi';
 import { useGbsProvider } from './GbsProviderContext';
-import { StatusBadge, card, emptyBox, errorBox, muted } from './gbsUi';
+import { StatusBadge, card, emptyBox, GbsRouteState, h1, muted } from './gbsUi';
 import { caseStatusLabel, formatTimestamp } from '../../BusinessClient/businessClientFormat';
 
 export default function GbsCases() {
@@ -50,12 +50,13 @@ export default function GbsCases() {
     };
   }, [selected, page, status]);
 
-  if (!selected) return <div className={emptyBox}>Select an authorized provider subject first.</div>;
-  if (loading) return <div className={`${card} ${muted}`} aria-busy="true">Loading cases…</div>;
-  if (error) return <div className={errorBox} role="alert">{error}</div>;
+  if (!selected) return <GbsRouteState title="Cases">Select an authorized provider subject first.</GbsRouteState>;
+  if (loading) return <GbsRouteState title="Cases" busy>Loading cases…</GbsRouteState>;
+  if (error) return <GbsRouteState title="Cases" error>{error}</GbsRouteState>;
 
   return (
     <div className="space-y-4 min-w-0">
+      <h1 className={h1}>Cases</h1>
       <div>
         <label htmlFor="gbs-case-status" className="block text-sm font-medium mb-1">Status</label>
         <select id="gbs-case-status" className={ui.input} value={status} onChange={(e) => setStatus(e.target.value)}>

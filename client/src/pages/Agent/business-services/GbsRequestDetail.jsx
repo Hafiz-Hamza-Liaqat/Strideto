@@ -6,7 +6,7 @@ import { ROUTES } from '../../../constants';
 import { gbsProviderApi } from '../../../services/gbsProviderApi';
 import { GbsContextMessages } from '../../../components/gbs/GbsContextMessages';
 import { useGbsProvider } from './GbsProviderContext';
-import { StatusBadge, card, emptyBox, errorBox, muted, wrap } from './gbsUi';
+import { StatusBadge, card, errorBox, GbsRouteState, muted, wrap } from './gbsUi';
 import { actingForLabel, formatTimestamp, serviceRequestStatusLabel } from '../../BusinessClient/businessClientFormat';
 import { GBS_SERVICE_REQUEST_DECLINE_REASON_CODES } from '@shared/gbs/constants.js';
 
@@ -71,18 +71,18 @@ export default function GbsRequestDetail() {
     }
   };
 
-  if (!selected) return <div className={emptyBox}>Select an authorized provider subject first.</div>;
-  if (loading) return <div className={`${card} ${muted}`} aria-busy="true">Loading request…</div>;
+  if (!selected) return <GbsRouteState title="Request Details">Select an authorized provider subject first.</GbsRouteState>;
+  if (loading) return <GbsRouteState title="Request Details" busy>Loading request…</GbsRouteState>;
   if (missing) {
     return (
-      <div className={emptyBox}>
+      <GbsRouteState title="Request Details">
         Request not found.{' '}
         <Link to={ROUTES.AGENT_BUSINESS_SERVICES_REQUESTS} className={ui.link}>Back to inbox</Link>
-      </div>
+      </GbsRouteState>
     );
   }
-  if (error && !item) return <div className={errorBox} role="alert">{error}</div>;
-  if (!item) return null;
+  if (error && !item) return <GbsRouteState title="Request Details" error>{error}</GbsRouteState>;
+  if (!item) return <GbsRouteState title="Request Details" error>Request unavailable.</GbsRouteState>;
 
   const actions = item.actions || {};
 

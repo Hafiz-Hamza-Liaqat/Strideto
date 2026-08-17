@@ -1,11 +1,25 @@
 import { useEffect, useState } from 'react';
-import { Link, Outlet, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { SearchableSelect } from '../../../components/forms/SearchableSelect';
 import { ROUTES } from '../../../constants';
 import { PROVIDER_DOMAIN_IDS } from '@shared/provider/providerDomains.js';
 import { agentApi } from '../../../services/agentService';
 import { GbsProviderContextProvider, useGbsProvider } from './GbsProviderContext';
-import { card, errorBox, muted, page, skeleton, wrap } from './gbsUi';
+import { card, errorBox, h1, muted, page, skeleton, wrap } from './gbsUi';
+
+function businessProviderRouteTitle(pathname) {
+  if (/\/requests\/[^/]+\/?$/.test(pathname)) return 'Request Details';
+  if (/\/requests\/?$/.test(pathname)) return 'Service Requests';
+  if (/\/quotes\/[^/]+\/?$/.test(pathname)) return 'Quote Details';
+  if (/\/quotes\/?$/.test(pathname)) return 'Quotes';
+  if (/\/cases\/[^/]+\/?$/.test(pathname)) return 'Case Details';
+  if (/\/cases\/?$/.test(pathname)) return 'Cases';
+  if (/\/listings\/new\/?$/.test(pathname)) return 'Create Service';
+  if (/\/listings\/[^/]+\/edit\/?$/.test(pathname)) return 'Edit Service';
+  if (/\/listings\/?$/.test(pathname)) return 'My Services';
+  const leaf = pathname.replace(/\/+$/, '').split('/').pop();
+  return ({ profile: 'Business Profile', capabilities: 'Capabilities', jurisdictions: 'Jurisdictions', verification: 'Business Verification', team: 'Business Team', messages: 'Messages', notifications: 'Notifications', help: 'Help', settings: 'Settings' })[leaf] || 'Business Services Overview';
+}
 
 function SubjectSwitcher() {
   const { subjects, selected, selectSubject } = useGbsProvider();
@@ -85,7 +99,7 @@ function GbsSetupState({ enabled, loadError }) {
   if (!enabled) {
     return (
       <div className={card}>
-        <h2 className="font-semibold text-gray-900 dark:text-white">Coming soon</h2>
+        <h1 className={h1}>Coming soon: Business Services</h1>
         <p className={`mt-2 ${muted} ${wrap}`}>
           Business Formation & Corporate Services is not available in this environment.
         </p>
@@ -98,7 +112,7 @@ function GbsSetupState({ enabled, loadError }) {
 
   return (
     <div className={card}>
-      <h2 className="font-semibold text-gray-900 dark:text-white break-words">Business Formation & Corporate Services</h2>
+      <h1 className={h1}>Business Formation & Corporate Services</h1>
       <p className={`mt-2 ${muted} ${wrap}`}>
         This provider category has not been added to this provider subject. Opening this URL does not activate
         the domain and does not verify professional capabilities.
@@ -125,6 +139,7 @@ function GbsSetupState({ enabled, loadError }) {
 }
 
 function GbsWorkspaceShell() {
+  const { pathname } = useLocation();
   const [params] = useSearchParams();
   const { loading, error, enabled, subjects, selected, selectSubject } = useGbsProvider();
   const requested = requestedProviderSubject(params, null);
@@ -152,6 +167,7 @@ function GbsWorkspaceShell() {
   return (
     <div className={page}>
       <header className="space-y-3 min-w-0">
+        {loading ? <h1 className={h1}>{businessProviderRouteTitle(pathname)}</h1> : null}
         <p className={`${muted} ${wrap}`}>
           Company formation and corporate-services provider workspace. This is not the Education & Mobility Services catalog,
           not Identity verification, and not a public marketplace.

@@ -41,6 +41,15 @@ export function StatusBadge({ status, label: text }) {
   );
 }
 
+export function GbsRouteState({ title, children, error = false, busy = false }) {
+  return (
+    <div className="space-y-4 min-w-0">
+      <h1 className={h1}>{title}</h1>
+      <div className={error ? errorBox : `${card} ${muted}`} role={error ? 'alert' : 'status'} aria-busy={busy || undefined}>{children}</div>
+    </div>
+  );
+}
+
 export const SETUP_STEPS = [
   'Choose provider subject',
   'Add a Business Services capability',

@@ -4,7 +4,7 @@ import { ui } from '../../../design-system/surfaceClasses';
 import { ROUTES } from '../../../constants';
 import { gbsProviderApi } from '../../../services/gbsProviderApi';
 import { useGbsProvider } from './GbsProviderContext';
-import { StatusBadge, card, emptyBox, errorBox, muted, wrap } from './gbsUi';
+import { StatusBadge, card, emptyBox, GbsRouteState, h1, muted, wrap } from './gbsUi';
 
 export default function GbsListings() {
   const { selected } = useGbsProvider();
@@ -36,12 +36,13 @@ export default function GbsListings() {
     };
   }, [selected]);
 
-  if (!selected) return <div className={emptyBox}>Select an authorized provider subject first.</div>;
-  if (loading) return <div className={`${card} ${muted}`} aria-busy="true">Loading listings…</div>;
-  if (error) return <div className={errorBox} role="alert">{error}</div>;
+  if (!selected) return <GbsRouteState title="My Services">Select an authorized provider subject first.</GbsRouteState>;
+  if (loading) return <GbsRouteState title="My Services" busy>Loading listings…</GbsRouteState>;
+  if (error) return <GbsRouteState title="My Services" error>{error}</GbsRouteState>;
 
   return (
     <div className="space-y-4">
+      <h1 className={h1}>My Services</h1>
       <div className="flex flex-wrap items-center justify-between gap-3">
         <p className={`${muted} ${wrap}`}>Private drafts only. Approved does not mean public. Provider cannot publish.</p>
         <Link to={ROUTES.AGENT_BUSINESS_SERVICES_LISTING_NEW} className={ui.primaryBtn}>

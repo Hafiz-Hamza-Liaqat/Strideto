@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useGbsProvider } from './GbsProviderContext';
-import { StatusBadge, card, emptyBox, h2, muted, wrap } from './gbsUi';
+import { StatusBadge, card, GbsRouteState, h1, h2, muted, wrap } from './gbsUi';
 
 function eligibilityLabel(row) {
   if (row.currentReviewed) return 'current reviewed';
@@ -20,12 +20,13 @@ export default function GbsJurisdictions() {
     }));
   }, [catalog]);
 
-  if (!catalog) return <div className={emptyBox}>Catalog is unavailable.</div>;
+  if (!catalog) return <GbsRouteState title="Jurisdictions">Catalog is unavailable.</GbsRouteState>;
   const entityTypes = catalog.entityTypes || [];
   const capabilities = catalog.capabilities || [];
 
   return (
     <div className="space-y-6">
+      <h1 className={h1}>Jurisdictions</h1>
       <p className={`${muted} ${wrap}`}>
         Coverage is catalog-backed. Structural US states are listed for setup. Only current reviewed facts may be treated as legal truth. Draft jurisdictions are not CURRENT.
       </p>

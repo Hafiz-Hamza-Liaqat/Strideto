@@ -6,7 +6,7 @@ import { ROUTES } from '../../../constants';
 import { formatMoney } from '@shared/international/dateDisplay.js';
 import { gbsProviderApi } from '../../../services/gbsProviderApi';
 import { useGbsProvider } from './GbsProviderContext';
-import { StatusBadge, card, emptyBox, errorBox, muted } from './gbsUi';
+import { StatusBadge, card, emptyBox, GbsRouteState, h1, muted } from './gbsUi';
 import { quoteStatusLabel } from '../../BusinessClient/businessClientFormat';
 
 export default function GbsQuotes() {
@@ -51,12 +51,13 @@ export default function GbsQuotes() {
     };
   }, [selected, page, status]);
 
-  if (!selected) return <div className={emptyBox}>Select an authorized provider subject first.</div>;
-  if (loading) return <div className={`${card} ${muted}`} aria-busy="true">Loading quotes…</div>;
-  if (error) return <div className={errorBox} role="alert">{error}</div>;
+  if (!selected) return <GbsRouteState title="Quotes">Select an authorized provider subject first.</GbsRouteState>;
+  if (loading) return <GbsRouteState title="Quotes" busy>Loading quotes…</GbsRouteState>;
+  if (error) return <GbsRouteState title="Quotes" error>{error}</GbsRouteState>;
 
   return (
     <div className="space-y-4 min-w-0">
+      <h1 className={h1}>Quotes</h1>
       <div>
         <label htmlFor="gbs-quote-status" className="block text-sm font-medium mb-1">Status</label>
         <select id="gbs-quote-status" className={ui.input} value={status} onChange={(e) => setStatus(e.target.value)}>

@@ -5,7 +5,7 @@ import { ui } from '../../../design-system/surfaceClasses';
 import { ROUTES } from '../../../constants';
 import { gbsProviderApi } from '../../../services/gbsProviderApi';
 import { useGbsProvider } from './GbsProviderContext';
-import { StatusBadge, card, emptyBox, errorBox, muted, wrap } from './gbsUi';
+import { StatusBadge, card, emptyBox, GbsRouteState, h1, muted, wrap } from './gbsUi';
 import { serviceRequestStatusLabel } from '../../BusinessClient/businessClientFormat';
 
 export default function GbsRequests() {
@@ -50,12 +50,13 @@ export default function GbsRequests() {
     };
   }, [selected, page, status]);
 
-  if (!selected) return <div className={emptyBox}>Select an authorized provider subject first.</div>;
-  if (loading) return <div className={`${card} ${muted}`} aria-busy="true">Loading service requests…</div>;
-  if (error) return <div className={errorBox} role="alert">{error}</div>;
+  if (!selected) return <GbsRouteState title="Service Requests">Select an authorized provider subject first.</GbsRouteState>;
+  if (loading) return <GbsRouteState title="Service Requests" busy>Loading service requests…</GbsRouteState>;
+  if (error) return <GbsRouteState title="Service Requests" error>{error}</GbsRouteState>;
 
   return (
     <div className="space-y-4 min-w-0">
+      <h1 className={h1}>Service Requests</h1>
       <div className="flex flex-wrap items-end gap-3">
         <div>
           <label htmlFor="gbs-request-status" className="block text-sm font-medium mb-1">Status</label>

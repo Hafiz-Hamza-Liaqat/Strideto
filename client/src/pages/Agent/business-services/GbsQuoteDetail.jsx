@@ -8,7 +8,7 @@ import { fromDecimal, toDecimalString } from '@shared/international/money.js';
 import { gbsProviderApi } from '../../../services/gbsProviderApi';
 import { GbsContextMessages } from '../../../components/gbs/GbsContextMessages';
 import { useGbsProvider } from './GbsProviderContext';
-import { StatusBadge, card, emptyBox, errorBox, input, label, muted, wrap } from './gbsUi';
+import { StatusBadge, card, errorBox, GbsRouteState, input, label, muted, wrap } from './gbsUi';
 import { formatTimestamp, quoteStatusLabel } from '../../BusinessClient/businessClientFormat';
 
 function linesFromQuote(item) {
@@ -118,18 +118,18 @@ export default function GbsQuoteDetail() {
     }
   };
 
-  if (!selected) return <div className={emptyBox}>Select an authorized provider subject first.</div>;
-  if (loading) return <div className={`${card} ${muted}`} aria-busy="true">Loading quote…</div>;
+  if (!selected) return <GbsRouteState title="Quote Details">Select an authorized provider subject first.</GbsRouteState>;
+  if (loading) return <GbsRouteState title="Quote Details" busy>Loading quote…</GbsRouteState>;
   if (missing) {
     return (
-      <div className={emptyBox}>
+      <GbsRouteState title="Quote Details">
         Quote not found.{' '}
         <Link to={ROUTES.AGENT_BUSINESS_SERVICES_QUOTES} className={ui.link}>Back to quotes</Link>
-      </div>
+      </GbsRouteState>
     );
   }
-  if (error && !item) return <div className={errorBox} role="alert">{error}</div>;
-  if (!item) return null;
+  if (error && !item) return <GbsRouteState title="Quote Details" error>{error}</GbsRouteState>;
+  if (!item) return <GbsRouteState title="Quote Details" error>Quote unavailable.</GbsRouteState>;
 
   const draft = item.status === 'draft';
 

@@ -6,7 +6,7 @@ import { ui } from '../../../design-system/surfaceClasses';
 import { ROUTES } from '../../../constants';
 import { gbsProviderApi } from '../../../services/gbsProviderApi';
 import { useGbsProvider } from './GbsProviderContext';
-import { StatusBadge, card, errorBox, h2, input, label, muted, wrap } from './gbsUi';
+import { StatusBadge, card, errorBox, GbsRouteState, h1, h2, input, label, muted, wrap } from './gbsUi';
 
 const EMPTY = {
   capabilityId: '',
@@ -190,13 +190,14 @@ export default function GbsListingEditor() {
     }
   };
 
-  if (!selected) return <div className={errorBox}>Select an authorized provider subject first.</div>;
-  if (loading) return <div className={`${card} ${muted}`} aria-busy="true">Loading listing…</div>;
+  const pageTitle = listingId ? 'Edit Service' : 'Create Service';
+  if (!selected) return <GbsRouteState title={pageTitle} error>Select an authorized provider subject first.</GbsRouteState>;
+  if (loading) return <GbsRouteState title={pageTitle} busy>Loading listing…</GbsRouteState>;
 
   return (
     <div className="space-y-6">
       <div className="flex flex-wrap items-center justify-between gap-2">
-        <h2 className={h2}>{listingId ? 'Edit listing' : 'New listing'}</h2>
+        <h1 className={h1}>{pageTitle}</h1>
         <Link to={ROUTES.AGENT_BUSINESS_SERVICES_LISTINGS} className={ui.link}>Back to listings</Link>
       </div>
       {record ? (
