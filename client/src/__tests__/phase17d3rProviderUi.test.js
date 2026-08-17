@@ -55,8 +55,8 @@ const accept = read('pages/Agent/AgentAcceptInvitation.jsx');
 check(accept.includes('acceptedDomainIds') || accept.includes('accepted'), 'invitee confirms domains');
 
 const services = read('pages/Agent/AgentServices.jsx');
-check(services.includes('Education & Mobility Services'), 'education services labeled');
-check(/<option value="study_abroad_guidance">/.test(services), 'education categories remain education');
+check(services.includes('Education &amp; Mobility Services'), 'education services labeled');
+check(services.includes('AGENT_SERVICE_CATEGORY_OPTIONS'), 'education categories use canonical Education taxonomy');
 check(!/<option value="registered_agent">|<option value="business_formation">|<option value="ein_assistance">/.test(services), 'education form has no GBS category options');
 
 const gbsEditor = read('pages/Agent/business-services/GbsListingEditor.jsx');

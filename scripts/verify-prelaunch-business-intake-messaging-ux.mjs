@@ -16,8 +16,9 @@ function responseFor(path, realm) {
   if (path === '/api/agent/provider-domains/context') return [200, { needsOnboarding: false, workspaces: [{ subjectType: 'agent', subjectId: 'agent-1', kind: 'independent', domainId: 'business_services', path: '/agent/business-services' }] }];
   if (path === '/api/agent/profile') return [200, { profile: { agentType: 'agent' } }];
   if (path === '/api/agent/business-services/enabled') return [200, { enabled: true }];
-  if (path === '/api/agent/business-services/context') return [200, { enabled: true, subjects: [{ subjectType: 'agent', subjectId: 'agent-1', displayName: 'P1B Provider' }] }];
-  if (path === '/api/agent/business-services/catalog') return [200, { capabilities: [], jurisdictions: [], entityTypes: [] }];
+  if (path === '/api/agent/business-services/context') return [200, { enabled: true, subjects: [{ subjectType: 'agent', subjectId: 'agent-1', label: 'P1B Provider', displayName: 'P1B Provider' }] }];
+  if (path === '/api/agent/business-services/catalog') return [200, { launchCountryCodes: ['US'], capabilities: [], jurisdictions: [{ id: 'j:US-WY', name: 'Wyoming', countryCode: 'US', launchCandidate: true, currentReviewed: false }], entityTypes: [] }];
+  if (path === '/api/agent/business-services/capabilities') return [200, { items: [{ id: 'cap-1', capabilityId: 'business_formation', publicName: 'Business Formation', status: 'active', trustStatus: 'evidence_backed', scope: { jurisdictionIds: ['j:US-WY'], entityTypeIds: ['et:US-WY:LLC'], protectedTitleIds: [] }, jurisdictionReadiness: [{ jurisdictionId: 'j:US-WY', state: 'candidate', productionReady: false }], productionAuthority: false, review: { decision: 'approved' } }] }];
   if (path === '/api/business/enabled') return [200, { enabled: true }];
   if (path === '/api/business/overview') return [200, { requestCounts: {}, quoteCounts: {}, caseCounts: {} }];
   if (path === '/api/business/private-beta/services/p1b-private') return [200, { item: { listingSlug: 'p1b-private', title: request.title, providerDisplayName: 'P1B Provider', jurisdictionName: 'Wyoming', entityTypeIds: ['et:US-WY:LLC'], privateBeta: true } }];
@@ -33,8 +34,8 @@ function responseFor(path, realm) {
 }
 
 const routes = {
-  buyer: [`/business/requests/new?channel=private-beta&listingSlug=p1b-private`, `/business/requests/${request.publicRequestRef}`, `/business/quotes/${quote.publicQuoteRef}`, `/business/cases/${gbsCase.publicCaseRef}`],
-  provider: [`/agent/business-services/requests/${request.publicRequestRef}`, `/agent/business-services/quotes/${quote.publicQuoteRef}`, `/agent/business-services/cases/${gbsCase.publicCaseRef}`, '/agent/business-services/messages'],
+  buyer: ['/business', '/business/requests', `/business/requests/new?channel=private-beta&listingSlug=p1b-private`, `/business/requests/${request.publicRequestRef}`, '/business/quotes', `/business/quotes/${quote.publicQuoteRef}`, '/business/cases', `/business/cases/${gbsCase.publicCaseRef}`],
+  provider: ['/agent/business-services', '/agent/business-services/profile', '/agent/business-services/requests', `/agent/business-services/requests/${request.publicRequestRef}`, '/agent/business-services/quotes', `/agent/business-services/quotes/${quote.publicQuoteRef}`, '/agent/business-services/cases', `/agent/business-services/cases/${gbsCase.publicCaseRef}`, '/agent/business-services/capabilities', '/agent/business-services/jurisdictions', '/agent/business-services/listings', '/agent/business-services/listings/new', '/agent/business-services/verification', '/agent/business-services/team', '/agent/business-services/messages', '/agent/business-services/notifications', '/agent/business-services/help', '/agent/business-services/settings'],
 };
 
 const browser = await puppeteer.launch({ headless: true, ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors'] });
@@ -64,9 +65,11 @@ try {
           const result = await page.evaluate(() => {
             const visible = (node) => Boolean(node.offsetWidth || node.offsetHeight || node.getClientRects().length);
             const fields = [...document.querySelectorAll('input:not([type="hidden"]), select, textarea')].filter(visible);
-            return { h1: document.querySelector('h1')?.textContent?.trim() || '', overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, unlabeled: fields.filter((node) => !(node.labels?.length || node.getAttribute('aria-label') || node.getAttribute('aria-labelledby'))).length, boundary: document.body.innerText.includes('This page could not be displayed'), dark: document.documentElement.classList.contains('dark') };
+            const headings = [...document.querySelectorAll('h1')].filter(visible);
+            return { h1: headings[0]?.textContent?.trim() || '', h1Count: headings.length, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, unlabeled: fields.filter((node) => !(node.labels?.length || node.getAttribute('aria-label') || node.getAttribute('aria-labelledby'))).length, boundary: document.body.innerText.includes('This page could not be displayed'), dark: document.documentElement.classList.contains('dark') };
           });
           assert.ok(result.h1, `${realm} ${route} ${theme} ${width}: route h1 missing`);
+          assert.equal(result.h1Count, 1, `${realm} ${route} ${theme} ${width}: expected one visible h1`);
           assert.ok(result.overflow <= 2, `${realm} ${route} ${theme} ${width}: overflow ${result.overflow}`);
           assert.equal(result.unlabeled, 0, `${realm} ${route} ${theme} ${width}: unlabeled fields`);
           assert.equal(result.boundary, false, `${realm} ${route} ${theme} ${width}: error boundary`);
@@ -79,4 +82,4 @@ try {
   }
 } finally { await browser.close(); }
 assert.deepEqual(errors, [], `Browser errors:\n${errors.join('\n')}`);
-console.log(`P1B responsive Business intake/messaging acceptance: ${cells}/${cells} light/dark cells passed at 320, 375, 768, 1024, 1440.`);
+console.log(`P2B responsive Business verification/route semantics acceptance: ${cells}/${cells} light/dark cells passed at 320, 375, 768, 1024, 1440.`);
