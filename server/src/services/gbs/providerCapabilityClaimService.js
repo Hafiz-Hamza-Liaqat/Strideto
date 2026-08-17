@@ -18,6 +18,7 @@ import { validateEvidenceMetadataRow } from '../../../../shared/gbs/providerEvid
 import { GBS_AUDIT_EVENTS, redactAuditMetadata } from '../../../../shared/security/gbsAuditEvents.js';
 import { logAudit } from '../auditService.js';
 import { mutateProviderCapabilityRecord } from '../platform/optimisticConcurrency.js';
+import { resolveJurisdictionProductionReadiness } from '../../../../shared/gbs/providerCatalogProjection.js';
 
 const FORBIDDEN_CLAIM_FIELDS = [
   'trustStatus',
@@ -41,6 +42,10 @@ function stripForbidden(body = {}) {
 export function publicCapabilityProjection(record) {
   if (!record) return null;
   const def = getBusinessServicesCapability(record.capabilityId);
+  const jurisdictionReadiness = (record.scope?.jurisdictionIds || []).map((jurisdictionId) => {
+    const resolved = resolveJurisdictionProductionReadiness(jurisdictionId);
+    return { jurisdictionId, productionReady: resolved.productionReady, state: resolved.state, reason: resolved.reason };
+  });
   return {
     id: String(record._id || record.id),
     subjectType: record.subjectType,
@@ -50,6 +55,8 @@ export function publicCapabilityProjection(record) {
     status: record.status,
     trustStatus: record.trustStatus,
     scope: record.scope,
+    jurisdictionReadiness,
+    productionAuthority: jurisdictionReadiness.length === 0 || jurisdictionReadiness.every((row) => row.productionReady),
     evidenceRequired: def?.evidenceRequired === true,
     protectedTitleRequired: def?.protectedTitleRequired === true,
     requiredProtectedTitleId: def?.requiredProtectedTitleId || null,

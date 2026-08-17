@@ -36,8 +36,10 @@ import {
 import { evaluateListingPublicationGate } from '../../../../shared/gbs/listingPublicationGate.js';
 import { isBusinessServicesPublicMarketplaceEnabled } from '../../../../shared/gbs/constants.js';
 import { publicListingProjection } from '../../services/gbs/serviceListingService.js';
+import { resolveJurisdictionProductionReadiness } from '../../../../shared/gbs/providerCatalogProjection.js';
 
 const capabilityReview = createProviderCapabilityReviewService({
+  readinessResolver: resolveJurisdictionProductionReadiness,
   store: {
     async getById(id) {
       return ProviderCapability.findById(id).lean();
@@ -79,6 +81,16 @@ function isObjectId(id) {
 
 function capabilityProjection(record, subject = null) {
   const def = getBusinessServicesCapability(record.capabilityId);
+  const jurisdictionReadiness = (record.scope?.jurisdictionIds || []).map((jurisdictionId) => {
+    const resolved = resolveJurisdictionProductionReadiness(jurisdictionId);
+    return {
+      jurisdictionId,
+      name: resolved.jurisdiction?.name || '',
+      productionReady: resolved.productionReady,
+      state: resolved.state,
+      reason: resolved.reason,
+    };
+  });
   return {
     id: String(record._id || record.id),
     subjectType: record.subjectType,
@@ -90,6 +102,7 @@ function capabilityProjection(record, subject = null) {
     status: record.status,
     trustStatus: record.trustStatus,
     scope: record.scope || {},
+    jurisdictionReadiness,
     evidenceRequired: def?.evidenceRequired === true,
     evidence: (record.evidenceRefs || []).map((row, index) => adminSafeEvidenceProjection(row, index)),
     review: {
@@ -362,6 +375,7 @@ export async function getListingDetail(req, res) {
       env: process.env,
       listing: record,
       capability,
+      jurisdictionReadiness: resolveJurisdictionProductionReadiness(record.jurisdictionId),
     });
     const [label] = await attachSubjectLabels([record]);
     return res.json({

@@ -192,6 +192,11 @@ export default function GbsCapabilities() {
               <p className={`${muted} ${wrap}`}>
                 Jurisdictions: {(cap.scope?.jurisdictionIds || []).join(', ') || 'none'}
               </p>
+              {(cap.jurisdictionReadiness || []).map((row) => (
+                <p key={row.jurisdictionId} className={`${muted} ${wrap}`}>
+                  {row.jurisdictionId}: {row.productionReady ? 'current reviewed / available for live service' : `${row.state} / evidence review only; not available for live service`}
+                </p>
+              ))}
               {cap.scope?.entityTypeIds?.length ? (
                 <p className={`${muted} ${wrap}`}>Entity types: {cap.scope.entityTypeIds.join(', ')}</p>
               ) : null}

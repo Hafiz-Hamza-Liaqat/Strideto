@@ -35,6 +35,7 @@ export const LISTING_PUBLICATION_DENY_REASONS = Object.freeze({
   PROTECTED_TITLE_REQUIRED: 'listing_protected_title_required',
   PROTECTED_TITLE_POLICY_NOT_CONFIGURED: 'protected_title_policy_not_configured',
   JURISDICTION_FACTS_NOT_CURRENT: 'listing_jurisdiction_facts_not_current',
+  JURISDICTION_NOT_CURRENT_REVIEWED: 'listing_jurisdiction_not_current_reviewed',
   ADMIN_REVIEW_REQUIRED: 'listing_admin_review_required',
 });
 
@@ -71,6 +72,7 @@ export function evaluateListingPublicationGate({
   claimedOfficialFacts = [],
   now = new Date(),
   requireMarketplaceEnabled = true,
+  jurisdictionReadiness = null,
 } = {}) {
   if (requireMarketplaceEnabled !== false && !isBusinessServicesPublicMarketplaceEnabled(env)) {
     return { allowed: false, reason: LISTING_PUBLICATION_DENY_REASONS.MARKETPLACE_DISABLED };
@@ -116,6 +118,10 @@ export function evaluateListingPublicationGate({
   const scopeDecision = authorizeGbsProviderAction({ requested: listing, capability });
   if (!scopeDecision.allowed) {
     return { allowed: false, reason: mapAuthorityReason(scopeDecision.reason) };
+  }
+
+  if (jurisdictionReadiness && jurisdictionReadiness.productionReady !== true) {
+    return { allowed: false, reason: LISTING_PUBLICATION_DENY_REASONS.JURISDICTION_NOT_CURRENT_REVIEWED };
   }
 
   if (def.protectedTitleRequired) {

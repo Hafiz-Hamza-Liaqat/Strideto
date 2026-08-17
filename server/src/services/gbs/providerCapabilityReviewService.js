@@ -99,7 +99,7 @@ export function capabilityCoversJurisdiction(record, jurisdictionId) {
   return ids.includes(jurisdictionId);
 }
 
-function assertMayVerify({ record, actor, organizationVerified = false, titleId = null, now = new Date() }) {
+function assertMayVerify({ record, actor, organizationVerified = false, titleId = null, now = new Date(), readinessResolver = null }) {
   if (!actor?.isStaff) throw deny('staff_review_required');
   if (isSelf(actor, record)) throw deny('provider_self_verify_forbidden');
 
@@ -145,12 +145,20 @@ function assertMayVerify({ record, actor, organizationVerified = false, titleId 
   } else if (def.evidenceRequired) {
     assertRequiredAcceptedEvidence(record);
   }
+  if (readinessResolver) {
+    for (const jurisdictionId of record.scope?.jurisdictionIds || []) {
+      if (readinessResolver(jurisdictionId, { now }).productionReady !== true) {
+        throw deny('jurisdiction_not_current_reviewed');
+      }
+    }
+  }
 }
 
 export function createProviderCapabilityReviewService({
   store,
   audit = async () => {},
   mutateRecord = null,
+  readinessResolver = null,
 } = {}) {
   async function loadExact(subjectType, subjectId, id) {
     const record = await store.getById(id);
@@ -293,7 +301,7 @@ export function createProviderCapabilityReviewService({
         assertExpectedVersion(current.recordVersion, expectedVersion);
         return current;
       }
-      assertMayVerify({ record: current, actor, organizationVerified, titleId, now });
+      assertMayVerify({ record: current, actor, organizationVerified, titleId, now, readinessResolver });
       const next = bump(current, expectedVersion, {
         trustStatus: PROVIDER_TRUST_STATUSES.VERIFIED,
         status: GRANT_STATUSES.ACTIVE,

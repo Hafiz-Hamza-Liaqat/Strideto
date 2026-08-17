@@ -21,6 +21,7 @@ import { mutateGbsServiceListingRecord } from '../platform/optimisticConcurrency
 import { sameProviderSubject } from '../../../../shared/gbs/providerCapability.js';
 import { assertExpectedVersion } from '../../../../shared/platform/optimisticConcurrency.js';
 import { assignListingPublicSlugIfAbsent } from '../../utils/gbsListingSlug.js';
+import { resolveJurisdictionProductionReadiness } from '../../../../shared/gbs/providerCatalogProjection.js';
 
 const APPROVE_FROM = new Set([
   GBS_LISTING_MODERATION_STATUSES.UNDER_REVIEW,
@@ -166,7 +167,7 @@ function alreadyApplied(current, adminReviewStatus, moderationStatus, expectedVe
 
 export const listingReviewPolicyAction = POLICY_ACTIONS.ADMIN_GBS_LISTING_REVIEW;
 
-export async function approveServiceListing({ id, subjectType, subjectId, expectedVersion, actor, reason } = {}) {
+export async function approveServiceListing({ id, subjectType, subjectId, expectedVersion, actor, reason, readinessResolver = resolveJurisdictionProductionReadiness } = {}) {
   staffActor(actor);
   const current = await loadExact({ id, subjectType, subjectId });
   if (
@@ -184,6 +185,8 @@ export async function approveServiceListing({ id, subjectType, subjectId, expect
     throw deny('invalid_listing_review_transition', 409);
   }
   const capability = await assertSameSubjectCapability(current);
+  const readiness = readinessResolver(current.jurisdictionId);
+  if (readiness.productionReady !== true) throw deny('jurisdiction_not_current_reviewed', 403);
   const updated = await applyReview({
     current,
     expectedVersion,
@@ -199,6 +202,7 @@ export async function approveServiceListing({ id, subjectType, subjectId, expect
     env: process.env,
     listing: listing.toObject ? listing.toObject() : listing,
     capability,
+    jurisdictionReadiness: readiness,
   });
   return { listing, replay: false, publication };
 }

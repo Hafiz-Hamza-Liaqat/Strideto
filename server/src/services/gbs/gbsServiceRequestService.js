@@ -24,7 +24,7 @@ import {
   isValidServiceRequestStatus,
 } from '../../../../shared/gbs/constants.js';
 import { getBusinessServicesCapability } from '../../../../shared/gbs/businessServicesCapabilities.js';
-import { projectProviderCatalog } from '../../../../shared/gbs/providerCatalogProjection.js';
+import { projectProviderCatalog, resolveJurisdictionProductionReadiness } from '../../../../shared/gbs/providerCatalogProjection.js';
 import { evaluatePublicMarketplaceEligibility } from '../../../../shared/gbs/marketplaceEligibility.js';
 import {
   isBusinessServicesDomainEnrollmentActive,
@@ -356,7 +356,7 @@ async function assertActiveBusinessClient(userId) {
   if (!activeBuyer) throw deny('capability_denied', 403);
 }
 
-function evaluatePrivateBetaEligibility({ listing, capability, domain, env }) {
+function evaluatePrivateBetaEligibility({ listing, capability, domain, env, readinessResolver = resolveJurisdictionProductionReadiness }) {
   if (!listingModerationIsPubliclyEligible(listing)) return { allowed: false };
   if (!isBusinessServicesDomainEnrollmentActive(domain, listing)) return { allowed: false };
   return evaluateListingPublicationGate({
@@ -364,15 +364,16 @@ function evaluatePrivateBetaEligibility({ listing, capability, domain, env }) {
     listing,
     capability,
     protectedTitleEvidence: capability?.evidenceRefs || null,
+    jurisdictionReadiness: readinessResolver(listing.jurisdictionId),
     requireMarketplaceEnabled: false,
   });
 }
 
-export async function getPrivateBetaServiceEntry({ userId, listingSlug, env = process.env } = {}) {
+export async function getPrivateBetaServiceEntry({ userId, listingSlug, env = process.env, readinessResolver = resolveJurisdictionProductionReadiness } = {}) {
   await assertActiveBusinessClient(userId);
   const listing = await resolveListingForCreate({ listingSlug: String(listingSlug || '').trim().toLowerCase() });
   const { capability, domain } = await loadCreateEligibility(listing);
-  const eligibility = evaluatePrivateBetaEligibility({ listing, capability, domain, env });
+  const eligibility = evaluatePrivateBetaEligibility({ listing, capability, domain, env, readinessResolver });
   if (!eligibility.allowed) throw notFound();
   const identity = await resolveIdentity(listing);
   const capDef = getBusinessServicesCapability(listing.capabilityId);
@@ -393,7 +394,7 @@ export async function getPrivateBetaServiceEntry({ userId, listingSlug, env = pr
 }
 
 export async function createCustomerServiceRequest({
-  userId, body, headerCommandId, actor = {}, env = process.env, intakeChannel = 'public_marketplace',
+  userId, body, headerCommandId, actor = {}, env = process.env, intakeChannel = 'public_marketplace', readinessResolver = resolveJurisdictionProductionReadiness,
 } = {}) {
   await assertActiveBusinessClient(userId);
 
@@ -405,13 +406,14 @@ export async function createCustomerServiceRequest({
   const listing = await resolveListingForCreate(intake);
   const { capability, domain } = await loadCreateEligibility(listing);
   const eligibility = intakeChannel === 'private_beta'
-    ? evaluatePrivateBetaEligibility({ listing, capability, domain, env })
+    ? evaluatePrivateBetaEligibility({ listing, capability, domain, env, readinessResolver })
     : evaluatePublicMarketplaceEligibility({
         env,
         listing,
         capability: capability || null,
         domainEnrollment: domain || null,
         protectedTitleEvidence: capability?.evidenceRefs || null,
+        jurisdictionReadiness: readinessResolver(listing.jurisdictionId),
       });
   if (!eligibility.allowed) throw notFound();
 
@@ -856,6 +858,7 @@ export async function readyForQuoteProviderServiceRequest({
   actor = {},
   body,
   env = process.env,
+  readinessResolver = resolveJurisdictionProductionReadiness,
 } = {}) {
   const parsed = normalizeTransitionNote(body || {});
   if (!parsed.ok) throw deny(parsed.error, 400);
@@ -880,6 +883,7 @@ export async function readyForQuoteProviderServiceRequest({
     capability,
     domainEnrollment: domain,
     storedRequest: current,
+    jurisdictionReadiness: readinessResolver(listing.jurisdictionId),
   });
   if (!gate.allowed) {
     throw deny(gate.reason || 'listing_authority_invalid', 403);

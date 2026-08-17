@@ -124,3 +124,21 @@ export function currentGovernmentFee(fees, feeId) {
   const rows = (fees || []).filter((f) => f.feeId === feeId && f.superseded !== true);
   return rows.at(-1) || null;
 }
+
+/** Canonical legal-service readiness for one jurisdiction. Geography alone is never authority. */
+export function resolveJurisdictionProductionReadiness(
+  jurisdictionId,
+  { now = new Date(), manifest = loadGbsCatalogManifest(), catalog = null } = {}
+) {
+  const projection = catalog || projectProviderCatalog({ now, manifest });
+  const jurisdiction = projection.jurisdictions.find((row) => row.id === String(jurisdictionId || '')) || null;
+  if (!jurisdiction) {
+    return { jurisdiction: null, productionReady: false, state: 'not_configured', reason: 'jurisdiction_not_configured' };
+  }
+  return {
+    jurisdiction,
+    productionReady: jurisdiction.currentReviewed === true,
+    state: jurisdiction.currentReviewed ? 'current_reviewed' : jurisdiction.reviewStatus || 'structural',
+    reason: jurisdiction.currentReviewed ? 'current_reviewed' : 'jurisdiction_not_current_reviewed',
+  };
+}

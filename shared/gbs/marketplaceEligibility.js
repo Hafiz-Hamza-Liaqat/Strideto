@@ -45,6 +45,7 @@ export function evaluatePublicMarketplaceEligibility({
   domainEnrollment = null,
   protectedTitleEvidence = null,
   claimedOfficialFacts = [],
+  jurisdictionReadiness = null,
   now = new Date(),
 } = {}) {
   if (!isBusinessServicesPublicMarketplaceEnabled(env)) {
@@ -62,6 +63,7 @@ export function evaluatePublicMarketplaceEligibility({
     capability,
     protectedTitleEvidence,
     claimedOfficialFacts,
+    jurisdictionReadiness,
     now,
   });
 }

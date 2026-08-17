@@ -20,7 +20,7 @@ import {
   getBusinessServicesCapability,
   isKnownBusinessServicesCapability,
 } from '../../../../shared/gbs/businessServicesCapabilities.js';
-import { projectProviderCatalog } from '../../../../shared/gbs/providerCatalogProjection.js';
+import { projectProviderCatalog, resolveJurisdictionProductionReadiness } from '../../../../shared/gbs/providerCatalogProjection.js';
 import { evaluatePublicMarketplaceEligibility } from '../../../../shared/gbs/marketplaceEligibility.js';
 import { marketplaceListingProjection } from '../../../../shared/gbs/marketplaceProjection.js';
 import { PROVIDER_DOMAIN_IDS } from '../../../../shared/provider/providerDomains.js';
@@ -133,7 +133,7 @@ async function loadEligibilityContext(listings) {
   return { capByKey, domainByKey };
 }
 
-function isEligible(listing, ctx, env, now) {
+function isEligible(listing, ctx, env, now, readinessResolver = resolveJurisdictionProductionReadiness) {
   const cap = ctx.capByKey.get(`${listing.subjectType}:${String(listing.subjectId)}:${listing.capabilityId}`);
   const domain = ctx.domainByKey.get(`${listing.subjectType}:${String(listing.subjectId)}`);
   return evaluatePublicMarketplaceEligibility({
@@ -142,6 +142,7 @@ function isEligible(listing, ctx, env, now) {
     capability: cap || null,
     domainEnrollment: domain || null,
     protectedTitleEvidence: cap?.evidenceRefs || null,
+    jurisdictionReadiness: readinessResolver(listing.jurisdictionId, { now }),
     now,
   }).allowed;
 }
@@ -238,7 +239,7 @@ export async function getPublicMarketplaceEnabled() {
   return { enabled: marketplaceEnabled() };
 }
 
-export async function listPublicMarketplaceListings(query = {}, env = process.env) {
+export async function listPublicMarketplaceListings(query = {}, env = process.env, readinessResolver = resolveJurisdictionProductionReadiness) {
   if (!marketplaceEnabled(env)) throw marketplaceOff();
   const now = new Date();
   const lookups = catalogLookups(now);
@@ -274,7 +275,7 @@ export async function listPublicMarketplaceListings(query = {}, env = process.en
     .lean();
 
   const ctx = await loadEligibilityContext(candidates);
-  const eligible = candidates.filter((row) => isEligible(row, ctx, env, now));
+  const eligible = candidates.filter((row) => isEligible(row, ctx, env, now, readinessResolver));
   const total = eligible.length;
   const start = (parsed.page - 1) * parsed.limit;
   const pageRows = eligible.slice(start, start + parsed.limit);
@@ -300,7 +301,7 @@ export async function listPublicMarketplaceListings(query = {}, env = process.en
   };
 }
 
-export async function getPublicMarketplaceListing(slug, env = process.env) {
+export async function getPublicMarketplaceListing(slug, env = process.env, readinessResolver = resolveJurisdictionProductionReadiness) {
   if (!marketplaceEnabled(env)) throw marketplaceOff();
   const normalized = String(slug || '').trim().toLowerCase();
   if (!normalized || !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(normalized)) throw notFound();
@@ -310,14 +311,14 @@ export async function getPublicMarketplaceListing(slug, env = process.env) {
 
   const now = new Date();
   const ctx = await loadEligibilityContext([listing]);
-  if (!isEligible(listing, ctx, env, now)) throw notFound();
+  if (!isEligible(listing, ctx, env, now, readinessResolver)) throw notFound();
 
   const lookups = catalogLookups(now);
   const identity = await resolveIdentity(listing);
   return project(listing, identity, lookups, { includeDescription: true });
 }
 
-export async function listEligibleMarketplaceSitemapPaths(env = process.env, now = new Date()) {
+export async function listEligibleMarketplaceSitemapPaths(env = process.env, now = new Date(), readinessResolver = resolveJurisdictionProductionReadiness) {
   if (!marketplaceEnabled(env)) return [];
   const candidates = await GbsServiceListing.find({
     moderationStatus: GBS_LISTING_MODERATION_STATUSES.APPROVED,
@@ -329,7 +330,7 @@ export async function listEligibleMarketplaceSitemapPaths(env = process.env, now
   const ctx = await loadEligibilityContext(candidates);
   const paths = ['/business-services'];
   for (const row of candidates) {
-    if (!isEligible(row, ctx, env, now)) continue;
+    if (!isEligible(row, ctx, env, now, readinessResolver)) continue;
     if (row.publicSlug) paths.push(`/business-services/${row.publicSlug}`);
   }
   return paths;

@@ -48,6 +48,7 @@ export function evaluateReadyForQuoteAuthority({
   domainEnrollment = null,
   storedRequest = {},
   now = new Date(),
+  jurisdictionReadiness = null,
 } = {}) {
   if (!listing) {
     return { allowed: false, reason: SERVICE_REQUEST_PROGRESSION_DENY_REASONS.LISTING_NOT_FOUND };
@@ -74,6 +75,7 @@ export function evaluateReadyForQuoteAuthority({
     capability,
     protectedTitleEvidence: capability?.evidenceRefs || null,
     now,
+    jurisdictionReadiness,
     requireMarketplaceEnabled: false,
   });
 }
