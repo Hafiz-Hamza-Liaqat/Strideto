@@ -4,7 +4,7 @@ import { ui } from '../../../design-system/surfaceClasses';
 import { ROUTES } from '../../../constants';
 import { gbsProviderApi } from '../../../services/gbsProviderApi';
 import { useGbsProvider } from './GbsProviderContext';
-import { SETUP_STEPS, card, emptyBox, errorBox, h2, muted, wrap } from './gbsUi';
+import { SETUP_STEPS, card, emptyBox, errorBox, h1, h2, muted, wrap } from './gbsUi';
 
 const COUNTER_CARDS = [
   ['capabilityClaims', 'Capability claims'],
@@ -74,6 +74,7 @@ export default function GbsOverview() {
 
   return (
     <div className="space-y-6">
+      <h1 className={h1}>Overview</h1>
       {attention.length ? (
         <section className={card} aria-labelledby="gbs-attention-heading">
           <h2 id="gbs-attention-heading" className={h2}>Needs your attention</h2>

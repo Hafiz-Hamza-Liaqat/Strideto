@@ -5,7 +5,7 @@ import { ROUTES } from '../../../constants';
 import { PROVIDER_DOMAIN_IDS } from '@shared/provider/providerDomains.js';
 import { agentApi } from '../../../services/agentService';
 import { GbsProviderContextProvider, useGbsProvider } from './GbsProviderContext';
-import { card, errorBox, h1, muted, page, skeleton, wrap } from './gbsUi';
+import { card, errorBox, muted, page, skeleton, wrap } from './gbsUi';
 
 function SubjectSwitcher() {
   const { subjects, selected, selectSubject } = useGbsProvider();
@@ -152,10 +152,6 @@ function GbsWorkspaceShell() {
   return (
     <div className={page}>
       <header className="space-y-3 min-w-0">
-        <Link to={`${ROUTES.AGENT_DASHBOARD}?home=1`} className="text-sm font-medium text-primary hover:underline">
-          ← Provider Dashboard
-        </Link>
-        <h1 className={h1}>Business Formation & Corporate Services</h1>
         <p className={`${muted} ${wrap}`}>
           Company formation and corporate-services provider workspace. This is not the Education & Mobility Services catalog,
           not Identity verification, and not a public marketplace.
