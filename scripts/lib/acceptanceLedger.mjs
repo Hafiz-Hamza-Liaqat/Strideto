@@ -60,18 +60,29 @@ export function recordResult(run, result) {
   return entry;
 }
 
+export function recordLifecycle(run, event) {
+  const entry = { kind: 'lifecycle', ...event, recordedAt: new Date().toISOString() };
+  fs.appendFileSync(path.join(run.dir, 'ledger.jsonl'), `${JSON.stringify(entry)}\n`);
+  const metadata = JSON.parse(fs.readFileSync(path.join(run.dir, 'run.json'), 'utf8'));
+  metadata.lastUpdateTimestamp = entry.recordedAt;
+  metadata.current = { key: event.key, stage: event.stage, persona: event.persona, routeId: event.routeId, theme: event.theme, width: event.width };
+  writeJsonAtomic(path.join(run.dir, 'run.json'), metadata);
+  return entry;
+}
+
 export function reconcile(run, manifest, themes, widths) {
   const entries = readLedger(run);
   const visual = manifest.routes.filter((r) => ['FULL_MATRIX_UI', 'PARAMETRIC_UI'].includes(r.classification));
   const expected = new Set(visual.flatMap((route) => themes.flatMap((theme) => widths.map((width) => cellKey({ persona: route.persona, route, theme, width })) )));
   const counts = { PASS: 0, FAIL: 0, INCOMPLETE: 0 };
   const seen = new Map();
-  for (const entry of entries) { if (entry.kind === 'redirect') continue; counts[entry.status] = (counts[entry.status] || 0) + 1; seen.set(entry.key, (seen.get(entry.key) || 0) + 1); }
+  for (const entry of entries) { if (entry.kind !== 'visual') continue; counts[entry.status] = (counts[entry.status] || 0) + 1; seen.set(entry.key, (seen.get(entry.key) || 0) + 1); }
   const duplicates = [...seen].filter(([, count]) => count > 1).map(([key, count]) => ({ key, count }));
   const recorded = new Set(seen.keys());
   const unseen = [...expected].filter((key) => !recorded.has(key));
   const redirectEntries = entries.filter((entry) => entry.kind === 'redirect');
-  const summary = { plannedVisualCells: expected.size, uniqueVisualCellsRecorded: recorded.size, ...counts, unseen: unseen.length, duplicateCellKeys: duplicates, themeCounts: Object.fromEntries(themes.map((theme) => [theme.id, entries.filter((e) => e.theme === theme.id).length])), widthCounts: Object.fromEntries(widths.map((width) => [width, entries.filter((e) => e.width === width).length])), redirectPlanned: manifest.redirectContractCells, redirectRecorded: redirectEntries.length, redirectIncomplete: Math.max(0, manifest.redirectContractCells - new Set(redirectEntries.map((e) => e.key)).size), complete: recorded.size === expected.size && counts.INCOMPLETE === 0 && counts.FAIL === 0 && duplicates.length === 0 && redirectEntries.length === manifest.redirectContractCells };
+  const active = entries.filter((e) => e.kind === 'lifecycle' && e.stage === 'CELL_START').map((start) => ({ ...start, terminal: entries.some((e) => e.kind === 'visual' && e.key === start.key) })).filter((entry) => !entry.terminal);
+  const summary = { plannedVisualCells: expected.size, uniqueVisualCellsRecorded: recorded.size, ...counts, unseen: unseen.length, duplicateCellKeys: duplicates, activeCells: active, themeCounts: Object.fromEntries(themes.map((theme) => [theme.id, entries.filter((e) => e.kind === 'visual' && e.theme === theme.id).length])), widthCounts: Object.fromEntries(widths.map((width) => [width, entries.filter((e) => e.kind === 'visual' && e.width === width).length])), redirectPlanned: manifest.redirectContractCells, redirectRecorded: redirectEntries.length, redirectIncomplete: Math.max(0, manifest.redirectContractCells - new Set(redirectEntries.map((e) => e.key)).size), complete: recorded.size === expected.size && counts.INCOMPLETE === 0 && counts.FAIL === 0 && duplicates.length === 0 && active.length === 0 && redirectEntries.length === manifest.redirectContractCells };
   writeJsonAtomic(path.join(run.dir, 'summary.json'), summary);
   return summary;
 }

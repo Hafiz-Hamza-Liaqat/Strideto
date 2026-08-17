@@ -15,6 +15,20 @@ node scripts/pre-freeze-final-acceptance-harness.mjs --reconcile --run-id=final-
 node scripts/acceptance-ledger-self-test.mjs
 ```
 
+For bounded real-browser diagnostics, the runner accepts `--persona=`,
+`--route=`, `--theme=`, `--width=`, and `--max-cells=` filters. Lifecycle
+events (`BROWSER_LAUNCH_START`, `CELL_START`, `NAVIGATION_COMPLETE`,
+`ASSERTIONS_START`, `CELL_PERSISTED` via the visual record, and cleanup stages)
+are persisted alongside the cell ledger. A heartbeat is printed every ten
+seconds. Browser launch, page creation, theme setup, navigation, readiness,
+and cleanup are bounded by `STRIDETO_QA_STAGE_TIMEOUT_MS`.
+
+The first real-browser diagnostic identified the apparent hang as runner
+cleanup/timer liveness: a cell had already persisted PASS, but browser-close
+and uncleared stage timers kept the Node process alive without a final report.
+Stage timers now clear on resolution, and browser cleanup is bounded and
+recorded.
+
 The runner is serial by default. PASS cells are skipped on resume; FAIL
 records remain failures and unseen/INCOMPLETE cells are eligible for a later
 run. Resume refuses a different repository HEAD, manifest fingerprint, or

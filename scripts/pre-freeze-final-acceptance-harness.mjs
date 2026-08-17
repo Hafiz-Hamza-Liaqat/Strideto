@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import puppeteer from 'puppeteer';
 import { buildRouteInventory } from './lib/preMission27RouteInventory.mjs';
-import { createRun, openRun, cellKey, recordResult, reconcile, markRunStatus } from './lib/acceptanceLedger.mjs';
+import { createRun, openRun, cellKey, recordResult, recordLifecycle, reconcile, markRunStatus, readLedger } from './lib/acceptanceLedger.mjs';
 
 const BASE = process.env.STRIDETO_QA_BASE || 'https://127.0.0.1:8443';
 const WIDTHS = [320, 375, 768, 1024, 1440];
@@ -162,6 +162,7 @@ async function runSelfTest(manifest) {
 
 async function runFullMatrix(manifest) {
   assertManifest(manifest);
+  const lifecycle = { stage: 'MANIFEST_VALIDATED' };
   const cells = manifest.routes
     .filter((route) => ['FULL_MATRIX_UI', 'PARAMETRIC_UI'].includes(route.classification))
     .flatMap((route) => THEMES.flatMap((theme) => WIDTHS.map((width) => ({ route, theme, width }))));
@@ -169,41 +170,72 @@ async function runFullMatrix(manifest) {
   const runIdArg = process.argv.find((arg) => arg.startsWith('--run-id='))?.slice('--run-id='.length);
   const resume = process.argv.includes('--resume');
   const run = resume ? openRun(runIdArg, { head, manifest }) : createRun({ head, manifest, runnerVersion: 'b9c5978', mode: 'full', runId: runIdArg });
+  recordLifecycle(run, lifecycle);
   const existing = reconcile(run, manifest, THEMES, WIDTHS);
-  const completed = new Set(existing.uniqueVisualCellsRecorded ? (await import('./lib/acceptanceLedger.mjs')).readLedger(run).filter((entry) => entry.kind !== 'redirect' && entry.status === 'PASS').map((entry) => entry.key) : []);
-  const browser = await puppeteer.launch({ headless: true, ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors'] });
+  const completed = new Set(existing.uniqueVisualCellsRecorded ? readLedger(run).filter((entry) => entry.kind === 'visual' && entry.status === 'PASS').map((entry) => entry.key) : []);
+  const stageTimeout = Number(process.env.STRIDETO_QA_STAGE_TIMEOUT_MS || 45000);
+  const stage = (name, promise) => new Promise((resolve, reject) => {
+    const timer = setTimeout(() => reject(new Error(`QA stage timeout: ${name}`)), stageTimeout);
+    Promise.resolve(promise).then((value) => { clearTimeout(timer); resolve(value); }, (error) => { clearTimeout(timer); reject(error); });
+  });
+  recordLifecycle(run, { stage: 'BROWSER_LAUNCH_START' });
+  const browser = await stage('browser-launch', puppeteer.launch({ headless: true, ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors'] }));
+  recordLifecycle(run, { stage: 'BROWSER_LAUNCHED' });
   const failures = []; let passed = existing.PASS;
+  const maxCells = Number(process.argv.find((arg) => arg.startsWith('--max-cells='))?.slice('--max-cells='.length) || Infinity);
+  const personaFilter = process.argv.find((arg) => arg.startsWith('--persona='))?.slice('--persona='.length);
+  const routeFilter = process.argv.find((arg) => arg.startsWith('--route='))?.slice('--route='.length);
+  const themeFilter = process.argv.find((arg) => arg.startsWith('--theme='))?.slice('--theme='.length);
+  const widthFilter = Number(process.argv.find((arg) => arg.startsWith('--width='))?.slice('--width='.length) || 0);
+  const selectedCells = cells.filter(({ route, theme, width }) => (!personaFilter || route.persona === personaFilter) && (!routeFilter || route.routePattern === routeFilter || route.canonicalUrl === routeFilter) && (!themeFilter || theme.id === themeFilter) && (!widthFilter || width === widthFilter)).slice(0, maxCells);
+  const diagnosticRun = Number.isFinite(maxCells) || Boolean(personaFilter || routeFilter || themeFilter || widthFilter);
+  if (!selectedCells.length) throw new Error('No matrix cells matched the requested diagnostic filters');
+  let currentCell;
+  const heartbeat = setInterval(() => { const summary = reconcile(run, manifest, THEMES, WIDTHS); console.log(JSON.stringify({ runId: run.metadata.runId, head, completed: summary.uniqueVisualCellsRecorded, planned: selectedCells.length, passed: summary.PASS, failed: summary.FAIL, incomplete: summary.INCOMPLETE, remaining: Math.max(0, selectedCells.length - summary.uniqueVisualCellsRecorded), current: currentCell || null, stage: run.metadata.current?.stage || 'IDLE', elapsedMs: Date.now() - new Date(run.metadata.startTimestamp).getTime() })); }, 10000);
   try {
-    for (const { route, theme, width } of cells) {
+    for (const { route, theme, width } of selectedCells) {
       const key = cellKey({ persona: route.persona, route, theme, width });
       if (completed.has(key)) continue;
       const startedAt = new Date().toISOString();
-      const page = await browser.newPage(); const errors = []; const failed = []; let expectedAuth401 = 0; let expectedDomain403 = 0;
+      currentCell = { key, persona: route.persona, routeId: route.id, theme: theme.id, width };
+      recordLifecycle(run, { stage: 'CELL_START', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
+      const page = await stage('context-create', browser.newPage()); const errors = []; const failed = []; let expectedAuth401 = 0; let expectedDomain403 = 0;
       page.on('pageerror', (error) => errors.push(error.message));
       page.on('console', (message) => { if (message.type() !== 'error' || message.text().includes('icon from the Manifest')) return; if (message.text().includes('401 (Unauthorized)') && expectedAuth401 > 0) { expectedAuth401 -= 1; return; } if (message.text().includes('403 (Forbidden)') && expectedDomain403 > 0) { expectedDomain403 -= 1; return; } errors.push(message.text()); });
       page.on('requestfailed', (request) => failed.push(`${request.url()} ${request.failure()?.errorText || ''}`));
-      await page.evaluateOnNewDocument((value) => localStorage.setItem('edurozgaar-theme', value), theme.preference);
+      recordLifecycle(run, { stage: 'THEME_SETUP', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
+      await stage('theme-setup', page.evaluateOnNewDocument((value) => localStorage.setItem('edurozgaar-theme', value), theme.preference));
       await page.setRequestInterception(true);
       page.on('request', (request) => { const url = new URL(request.url()); if (!url.pathname.startsWith('/api/')) return request.continue(); const [status, body] = mockResponse(url.pathname, route.persona); if (status === 401 && (url.pathname.startsWith('/api/auth/') || url.pathname.startsWith('/api/admin/auth/'))) expectedAuth401 += 1; if (status === 403 && (url.pathname.includes('/business-services/') || url.pathname.includes('/education/'))) expectedDomain403 += 1; return request.respond({ status, contentType: 'application/json', body: JSON.stringify(body) }); });
       await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: theme.media }]);
       await page.setViewport({ width, height: width < 768 ? 1000 : 1100 });
       let result;
       try {
-        await page.goto(`${BASE}${route.canonicalUrl}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
-        await page.waitForSelector('h1', { timeout: 15000 });
+        recordLifecycle(run, { stage: 'NAVIGATION_START', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
+        await stage('navigation', page.goto(`${BASE}${route.canonicalUrl}`, { waitUntil: 'domcontentloaded', timeout: 30000 }));
+        recordLifecycle(run, { stage: 'NAVIGATION_COMPLETE', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
+        await stage('readiness-h1', page.waitForSelector('h1', { timeout: 15000 }));
+        recordLifecycle(run, { stage: 'ASSERTIONS_START', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
         result = await page.evaluate(() => ({ h1: document.querySelector('h1')?.textContent?.trim(), overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - document.documentElement.clientWidth, dark: document.documentElement.classList.contains('dark'), duplicateH1: document.querySelectorAll('h1').length !== 1 }));
         assert.ok(result.h1); assert.ok(result.overflow <= 2); assert.equal(result.dark, theme.media === 'dark'); assert.equal(result.duplicateH1, false); assert.deepEqual(errors, []); assert.deepEqual(failed, []); passed += 1;
         recordResult(run, { key, kind: 'visual', persona: route.persona, routeId: route.id, url: route.canonicalUrl, theme: theme.id, width, startedAt, endedAt: new Date().toISOString(), status: 'PASS', h1: result.h1, overflow: result.overflow, errors, failed });
+        recordLifecycle(run, { stage: 'CELL_PERSISTED', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
+        recordLifecycle(run, { stage: 'ASSERTIONS_COMPLETE', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
       } catch (error) { const status = error?.name === 'AbortError' ? 'INCOMPLETE' : 'FAIL'; const entry = { key, kind: 'visual', persona: route.persona, routeId: route.id, url: route.canonicalUrl, theme: theme.id, width, startedAt, endedAt: new Date().toISOString(), status, h1: result?.h1 || null, overflow: result?.overflow ?? null, error: error.message, errors, failed }; recordResult(run, entry); if (status === 'FAIL') failures.push(entry); }
-      await page.close();
+      await stage('context-close', page.close());
+      recordLifecycle(run, { stage: 'CONTEXT_CLOSED', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
       const current = reconcile(run, manifest, THEMES, WIDTHS);
       if ((current.uniqueVisualCellsRecorded % 25) === 0) console.log(JSON.stringify({ runId: run.metadata.runId, head, completed: current.uniqueVisualCellsRecorded, planned: current.plannedVisualCells, passed: current.PASS, failed: current.FAIL, incomplete: current.INCOMPLETE, remaining: current.unseen, persona: route.persona, route: route.id, theme: theme.id, width }));
     }
     markRunStatus(run, 'COMPLETED');
-  } catch (error) { markRunStatus(run, 'INTERRUPTED'); throw error; } finally { await browser.close(); }
+  } catch (error) { if (currentCell) recordLifecycle(run, { stage: 'CELL_INTERRUPTED', ...currentCell, error: error.message }); markRunStatus(run, 'INTERRUPTED'); throw error; } finally {
+    clearInterval(heartbeat);
+    try { await stage('browser-close', browser.close()); recordLifecycle(run, { stage: 'BROWSER_CLOSED' }); }
+    catch (error) { recordLifecycle(run, { stage: 'BROWSER_CLOSE_TIMEOUT', error: error.message }); markRunStatus(run, 'INTERRUPTED'); throw error; }
+  }
   const summary = reconcile(run, manifest, THEMES, WIDTHS);
   console.log(JSON.stringify({ matrix: summary, failures: failures.slice(0, 20) }, null, 2));
-  assert.equal(summary.INCOMPLETE, 0); assert.equal(summary.FAIL, 0);
+  if (!diagnosticRun) { assert.equal(summary.INCOMPLETE, 0); assert.equal(summary.FAIL, 0); }
 }
 
 const manifest = buildManifest();
