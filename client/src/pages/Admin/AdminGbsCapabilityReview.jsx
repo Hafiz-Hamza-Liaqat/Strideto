@@ -140,6 +140,14 @@ export default function AdminGbsCapabilityReview() {
                 <span className="ml-2 text-sm">{t('gbsGrantStatus')}: {cap.status}</span>
               </p>
               <p className="break-words text-sm">{t('gbsColScope')}: {(cap.scope?.jurisdictionIds || []).join(', ') || '—'}</p>
+              <p className="break-words text-sm">Countries: {(cap.scope?.countryCodes || []).join(', ') || '—'}</p>
+              <p className="break-words text-sm">Entity types: {(cap.scope?.entityTypeIds || []).join(', ') || '—'}</p>
+              <p className="break-words text-sm">Protected titles: {(cap.scope?.protectedTitleIds || []).join(', ') || '—'}</p>
+              {(cap.jurisdictionReadiness || []).map((row) => (
+                <p key={row.jurisdictionId} className="break-words text-sm">
+                  {row.name || row.jurisdictionId}: {row.productionReady ? 'current reviewed / production ready' : `${row.state} / evidence review only; not live`}
+                </p>
+              ))}
               <p className="text-sm">{t('gbsRecordVersion')}: {cap.recordVersion}</p>
               <p className="text-sm">{t('gbsColUpdated')}: {formatAdminDate(cap.updatedAt)}</p>
             </section>
@@ -171,6 +179,19 @@ export default function AdminGbsCapabilityReview() {
                           {t('gbsEvidenceJurisdiction')}: {row.jurisdictionId}
                         </p>
                       ) : null}
+                      <dl className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-sm text-gray-600 dark:text-gray-300">
+                        {row.referenceNumber ? <div><dt className="font-medium">Reference number</dt><dd className="break-words">{row.referenceNumber}</dd></div> : null}
+                        {row.issuingAuthorityId ? <div><dt className="font-medium">Issuing authority</dt><dd className="break-words">{row.issuingAuthorityId}</dd></div> : null}
+                        {row.titleId ? <div><dt className="font-medium">Protected title</dt><dd className="break-words">{row.titleId}</dd></div> : null}
+                        {row.effectiveFrom ? <div><dt className="font-medium">Effective from</dt><dd>{formatAdminDate(row.effectiveFrom)}</dd></div> : null}
+                        {row.effectiveTo ? <div><dt className="font-medium">Effective to</dt><dd>{formatAdminDate(row.effectiveTo)}</dd></div> : null}
+                      </dl>
+                      {row.officialRegistryUrl ? (
+                        <a href={row.officialRegistryUrl} target="_blank" rel="noopener noreferrer" className="inline-block text-sm text-primary dark:text-mint underline break-all">
+                          Open official evidence source
+                        </a>
+                      ) : null}
+                      {row.notes ? <p className="text-sm text-gray-600 dark:text-gray-300 break-words"><span className="font-medium">Provider notes:</span> {row.notes}</p> : null}
                       {row.submittedAt || row.effectiveFrom ? (
                         <p className="text-sm text-gray-600 dark:text-gray-300">
                           {t('gbsEvidenceSubmittedAt')}: {formatAdminDate(row.submittedAt || row.effectiveFrom)}

@@ -69,6 +69,13 @@ export function adminSafeEvidenceProjection(evidence = {}, evidenceIndex = 0) {
   return {
     ...publicSafeEvidenceProjection(evidence),
     evidenceIndex,
+    evidenceClass: evidence.evidenceClass || evidence.evidenceType || null,
+    referenceNumber: evidence.referenceNumber || null,
+    officialRegistryUrl: evidence.officialRegistryUrl || '',
+    issuingAuthorityId: evidence.issuingAuthorityId || null,
+    titleId: evidence.titleId || null,
+    notes: evidence.notes || '',
+    authorityClass: evidence.authorityClass || null,
   };
 }
 
