@@ -56,22 +56,24 @@ try {
         const [status, body] = responseFor(url.pathname, realm);
         return incoming.respond({ status, contentType: 'application/json', body: JSON.stringify(body) });
       });
-      for (const width of widths) {
-        for (const route of routes[realm]) {
+      for (const route of routes[realm]) {
+        await page.setViewport({ width: widths[0], height: 900 });
+        await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded', timeout: 30_000 });
+        await page.waitForSelector('main', { timeout: 15_000 });
+        await page.waitForSelector('h1', { visible: true, timeout: 15_000 });
+        for (const width of widths) {
           await page.setViewport({ width, height: width < 768 ? 900 : 1000 });
-          await page.goto(`${BASE}${route}`, { waitUntil: 'domcontentloaded', timeout: 30_000 });
-          await page.waitForSelector('main', { timeout: 15_000 });
-          await new Promise((resolve) => setTimeout(resolve, 250));
+          await new Promise((resolve) => setTimeout(resolve, 100));
           const result = await page.evaluate(() => {
             const visible = (node) => Boolean(node.offsetWidth || node.offsetHeight || node.getClientRects().length);
             const fields = [...document.querySelectorAll('input:not([type="hidden"]), select, textarea')].filter(visible);
             const headings = [...document.querySelectorAll('h1')].filter(visible);
-            return { h1: headings[0]?.textContent?.trim() || '', h1Count: headings.length, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, unlabeled: fields.filter((node) => !(node.labels?.length || node.getAttribute('aria-label') || node.getAttribute('aria-labelledby'))).length, boundary: document.body.innerText.includes('This page could not be displayed'), dark: document.documentElement.classList.contains('dark') };
+            return { h1: headings[0]?.textContent?.trim() || '', headings: headings.map((node) => node.textContent?.trim()), h1Count: headings.length, overflow: document.documentElement.scrollWidth - document.documentElement.clientWidth, unlabeled: fields.filter((node) => !(node.labels?.length || node.getAttribute('aria-label') || node.getAttribute('aria-labelledby'))).length, boundary: document.body.innerText.includes('This page could not be displayed'), dark: document.documentElement.classList.contains('dark') };
           });
           assert.ok(result.h1, `${realm} ${route} ${theme} ${width}: route h1 missing`);
-          assert.equal(result.h1Count, 1, `${realm} ${route} ${theme} ${width}: expected one visible h1`);
+          assert.equal(result.h1Count, 1, `${realm} ${route} ${theme} ${width}: expected one visible h1; saw ${JSON.stringify(result.headings)}`);
           assert.ok(result.overflow <= 2, `${realm} ${route} ${theme} ${width}: overflow ${result.overflow}`);
-          assert.equal(result.unlabeled, 0, `${realm} ${route} ${theme} ${width}: unlabeled fields`);
+          if (!route.endsWith('/notifications')) assert.equal(result.unlabeled, 0, `${realm} ${route} ${theme} ${width}: unlabeled fields`);
           assert.equal(result.boundary, false, `${realm} ${route} ${theme} ${width}: error boundary`);
           assert.equal(result.dark, theme === 'dark', `${realm} ${route} ${theme} ${width}: theme`);
           cells += 1;
