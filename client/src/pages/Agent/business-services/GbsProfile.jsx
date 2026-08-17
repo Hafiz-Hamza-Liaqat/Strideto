@@ -16,7 +16,7 @@ export default function GbsProfile() {
         <h2 id="business-eligibility-summary-heading" className="text-lg font-semibold text-gray-900 dark:text-white">
           Capabilities &amp; eligibility summary
         </h2>
-        <GbsVerification />
+        <GbsVerification embedded />
       </section>
     </div>
   );

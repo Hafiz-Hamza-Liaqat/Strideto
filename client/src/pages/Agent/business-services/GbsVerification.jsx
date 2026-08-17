@@ -6,15 +6,16 @@ import { useGbsProvider } from './GbsProviderContext';
 import { StatusBadge, card, errorBox, h1, muted, wrap } from './gbsUi';
 import { businessVerificationSummary } from './businessVerificationPresentation';
 
-function VerificationState({ children, error = false }) {
-  return <div className="space-y-4"><h1 className={h1}>Business Verification</h1><div className={error ? errorBox : card} role={error ? 'alert' : 'status'}>{children}</div></div>;
+function VerificationState({ children, error = false, embedded = false }) {
+  const Heading = embedded ? 'h3' : 'h1';
+  return <div className="space-y-4"><Heading className={h1}>Business Verification</Heading><div className={error ? errorBox : card} role={error ? 'alert' : 'status'}>{children}</div></div>;
 }
 
 /**
  * Business Verification is a summary surface only.
  * Capability/jurisdiction mutations stay on their dedicated pages.
  */
-export default function GbsVerification() {
+export default function GbsVerification({ embedded = false }) {
   const { selected, catalog } = useGbsProvider();
   const [caps, setCaps] = useState([]);
   const [listings, setListings] = useState([]);
@@ -48,9 +49,9 @@ export default function GbsVerification() {
     return () => { cancelled = true; };
   }, [selected]);
 
-  if (!selected) return <VerificationState>Select an authorized provider subject first.</VerificationState>;
-  if (loading) return <VerificationState>Loading Business Verification…</VerificationState>;
-  if (error) return <VerificationState error>{error}</VerificationState>;
+  if (!selected) return <VerificationState embedded={embedded}>Select an authorized provider subject first.</VerificationState>;
+  if (loading) return <VerificationState embedded={embedded}>Loading Business Verification…</VerificationState>;
+  if (error) return <VerificationState embedded={embedded} error>{error}</VerificationState>;
 
   const summary = businessVerificationSummary(caps);
   const { claims, jurisdictionIds } = summary;
@@ -59,7 +60,7 @@ export default function GbsVerification() {
   return (
     <div className="space-y-5 min-w-0">
       <header className="space-y-2">
-        <h1 className={h1}>Business Verification</h1>
+        {embedded ? <h3 className={h1}>Business Verification</h3> : <h1 className={h1}>Business Verification</h1>}
         <p className={`${muted} ${wrap}`}>
           Summary of organization and Business Services eligibility for{' '}
           <span className="text-gray-900 dark:text-white">{selected.label}</span>.
