@@ -70,8 +70,9 @@ test('application submission remains Provider-attested and Student-approved', ()
   assert.match(studentUi, /Provider-maintained STRIDETO workflow records/i);
 });
 
-test('Case detail returns zero or many applications and hides internal notes from Student', () => {
-  assert.match(service, /ProfessionalCaseApplication\.find\(\{ caseId: record\._id \}\)/);
+test('Case detail returns bounded zero-to-many applications and hides internal notes from Student', () => {
+  assert.match(service, /boundedChildren\(ProfessionalCaseApplication, \{ caseId: record\._id \}/);
+  assert.match(service, /applicationsResult\.pagination/);
   assert.match(service, /actorType === 'student' \? \{ visibility: 'shared' \}/);
   assert.match(providerApplicationsUi, /zero or many applications/i);
   assert.match(studentUi, /Some guidance Cases do not require applications/);
