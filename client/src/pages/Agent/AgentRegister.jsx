@@ -13,7 +13,7 @@ import { clearAuthFormDraft, useAuthFormDraft } from '../../hooks/useAuthFormDra
 import { inputControlClassName, selectControlClassName } from '../../components/forms/controlClasses.js';
 import { ProviderDomainCards } from '../../components/provider/ProviderDomainCards.jsx';
 import { agentAuthApi } from '../../services/agentService';
-import { listProviderDomains, publicProviderDomainProjection } from '@shared/provider/providerDomains.js';
+import { listProviderDomains, publicProviderDomainProjection, PROVIDER_DOMAIN_IDS } from '@shared/provider/providerDomains.js';
 
 const FALLBACK_DOMAINS = listProviderDomains().map((d) => ({
   ...publicProviderDomainProjection(d.domainId),
@@ -25,6 +25,9 @@ export default function AgentRegister() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const inviteToken = params.get('invite') || '';
+  const lockedDomain = !inviteToken ? String(params.get('domain') || '').trim() : '';
+  const lockedDomainKnown = lockedDomain
+    && listProviderDomains().some((d) => d.domainId === lockedDomain);
   const { register, error: ctxError, setError: setCtxError } = useAgentAuth();
   const [form, setForm] = useState({
     email: '',
@@ -42,6 +45,11 @@ export default function AgentRegister() {
     setForm((f) => ({ ...f, ...safe }));
     if (Array.isArray(safe.domainIds)) setDomainIds(safe.domainIds);
   });
+
+  useEffect(() => {
+    if (!lockedDomainKnown) return;
+    setDomainIds([lockedDomain]);
+  }, [lockedDomain, lockedDomainKnown]);
 
   useEffect(() => {
     agentAuthApi.providerDomainCatalog()
@@ -92,15 +100,26 @@ export default function AgentRegister() {
   };
 
   const selectable = useMemo(
-    () => domains.map((d) => ({ ...d, comingSoon: d.comingSoon || d.selectable === false })),
-    [domains]
+    () => domains
+      .map((d) => ({ ...d, comingSoon: d.comingSoon || d.selectable === false }))
+      .filter((d) => !lockedDomainKnown || d.domainId === lockedDomain),
+    [domains, lockedDomain, lockedDomainKnown]
   );
+
+  const registerTitle = lockedDomain === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES
+    ? 'Join as a Business Formation Provider'
+    : lockedDomain === PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY
+      ? 'Join as an Education & Mobility Provider'
+      : 'Join Strideto as a Service Provider';
+  const registerSubtitle = lockedDomainKnown
+    ? 'This registration enrolls only the selected professional product. You can add another product later from Provider Dashboard without merging professional profiles.'
+    : 'Choose the professional services you offer. Education & Mobility and Business Formation & Corporate Services are separate provider products — not automatic professional verification.';
 
   return (
     <AuthCard
       size="wide"
-      title="Join Strideto as a Service Provider"
-      subtitle="Choose the professional services you offer. Education & Mobility and Business Formation & Corporate Services are separate provider domains — not automatic professional verification."
+      title={registerTitle}
+      subtitle={registerSubtitle}
     >
       {ctxError && (
         <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm" role="alert">{ctxError}</div>
@@ -113,6 +132,10 @@ export default function AgentRegister() {
             error={domainError}
             onToggle={(id) => {
               setDomainError('');
+              if (lockedDomainKnown) {
+                setDomainIds([lockedDomain]);
+                return;
+              }
               setDomainIds((current) => (current.includes(id) ? current.filter((x) => x !== id) : [...current, id]));
             }}
           />

@@ -215,6 +215,9 @@ const EducationSettings = lazyLoad(() => import('../pages/Agent/EducationSetting
 const AgentAcceptInvitation = lazyLoad(() => import('../pages/Agent/AgentAcceptInvitation'));
 const AgentDirectory = lazyLoad(() => import('../pages/Public/AgentDirectory'));
 const AgentPublicProfile = lazyLoad(() => import('../pages/Public/AgentPublicProfile'));
+const EducationProviderEntry = lazyLoad(() => import('../pages/Public/EducationProviderEntry'));
+const BusinessProviderEntry = lazyLoad(() => import('../pages/Public/BusinessProviderEntry'));
+const LegacyProviderPortalLanding = lazyLoad(() => import('../pages/Public/LegacyProviderPortalLanding'));
 const AgentMarketplace = lazyLoad(() => import('../pages/Agent/AgentMarketplace'));
 const AgentMarketplaceForm = lazyLoad(() => import('../pages/Agent/AgentMarketplaceForm'));
 const AgentMarketplacePublic = lazyLoad(() => import('../pages/Public/AgentMarketplace'));
@@ -536,6 +539,9 @@ export const routes = [
       { path: ROUTES.AGENT_RESET_PASSWORD, element: withAuthLayout(<AgentResetPassword />, 'Agent account') },
       { path: ROUTES.AGENT_REGISTER, element: withAuthLayout(<AgentRegister />, 'Agent account') },
       { path: ROUTES.AGENT_ACCEPT_INVITATION, element: <AgentAcceptInvitation /> },
+      { path: ROUTES.PROVIDERS, element: <LegacyProviderPortalLanding /> },
+      { path: ROUTES.PROVIDERS_EDUCATION_MOBILITY, element: <EducationProviderEntry /> },
+      { path: ROUTES.PROVIDERS_BUSINESS_FORMATION, element: <BusinessProviderEntry /> },
       { path: ROUTES.AGENT_PUBLIC_DIRECTORY, element: <AgentDirectory /> },
       { path: ROUTES.AGENT_PUBLIC_MARKETPLACE, element: <AgentMarketplacePublic /> },
       { path: ROUTES.AGENT_PUBLIC_MARKETPLACE_DETAIL, element: <AgentMarketplaceDetail /> },

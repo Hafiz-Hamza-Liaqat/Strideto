@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { Link, useNavigate, useLocation, useSearchParams } from 'react-router-dom';
 import { useAgentAuth } from '../../context/AgentAuthContext';
 import { ROUTES } from '../../constants';
 import { LOGIN_REALMS, resolveLoginReturnPath } from '../../utils/loginReturn.js';
@@ -10,16 +10,35 @@ import { inputControlClassName } from '../../components/forms/controlClasses.js'
 export default function AgentLogin() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [params] = useSearchParams();
+  const portal = params.get('portal');
   const { login, error: ctxError, setError: setCtxError } = useAgentAuth();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
 
+  const defaultReturn = portal === 'business'
+    ? ROUTES.AGENT_BUSINESS_SERVICES
+    : portal === 'education'
+      ? ROUTES.AGENT_EDUCATION
+      : ROUTES.AGENT_DASHBOARD;
+
   const from = resolveLoginReturnPath(
     location.state?.from,
-    ROUTES.AGENT_DASHBOARD,
+    defaultReturn,
     LOGIN_REALMS.AGENT
   );
+
+  const title = portal === 'business'
+    ? 'Business Formation Provider Login'
+    : portal === 'education'
+      ? 'Education & Mobility Provider Login'
+      : 'Provider Portal Login';
+  const subtitle = portal === 'business'
+    ? 'Sign in to your Business Formation professional portal. Auth is shared with Education if you use both products.'
+    : portal === 'education'
+      ? 'Sign in to your Education & Mobility professional portal. Auth is shared with Business Formation if you use both products.'
+      : 'Sign in to your Strideto provider account. Choose Education or Business after sign-in when you use both products.';
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -40,7 +59,7 @@ export default function AgentLogin() {
   };
 
   return (
-    <AuthCard title="Provider Portal Login" subtitle="Sign in to your Strideto provider workspace.">
+    <AuthCard title={title} subtitle={subtitle}>
       {ctxError && (
         <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm" role="alert">{ctxError}</div>
       )}
