@@ -71,9 +71,23 @@ export async function activate(req, res) {
 export async function overview(req, res) {
   try {
     setPrivateResponseHeaders(res);
-    const data = await getCustomerOverview({ userId: req.user.userId });
-    const caseCounts = await countCustomerCases({ userId: req.user.userId });
-    return res.json({ ...data, caseCounts });
+    const [data, caseCounts, pendingQuotes, customerCases] = await Promise.all([
+      getCustomerOverview({ userId: req.user.userId }),
+      countCustomerCases({ userId: req.user.userId }),
+      listCustomerQuotes({ userId: req.user.userId, query: { page: 1, limit: 5, status: 'sent' } }),
+      listCustomerCases({ userId: req.user.userId, query: { page: 1, limit: 5, status: 'awaiting_client' } }),
+    ]);
+    return res.json({
+      ...data,
+      caseCounts,
+      attention: {
+        limit: 5,
+        pendingQuotes: pendingQuotes.items || [],
+        customerCases: customerCases.items || [],
+        documentExchange: 'unavailable_private_beta',
+        filingAuthorization: 'unavailable',
+      },
+    });
   } catch (err) {
     return sendError(res, err);
   }

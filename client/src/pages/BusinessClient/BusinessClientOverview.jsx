@@ -4,6 +4,7 @@ import { ROUTES } from '../../constants';
 import { ui } from '../../design-system/surfaceClasses';
 import { gbsBuyerApi } from '../../services/gbsBuyerApi';
 import { formatTimestamp, serviceRequestStatusLabel } from './businessClientFormat';
+import { SeoHead } from '../../components/seo';
 
 export default function BusinessClientOverview() {
   const [data, setData] = useState(null);
@@ -37,6 +38,15 @@ export default function BusinessClientOverview() {
 
   return (
     <div className="space-y-6 min-w-0">
+      <SeoHead title="Business Overview" noindex />
+      <section className={`${ui.card} p-5`} aria-labelledby="business-next-action-heading">
+        <h2 id="business-next-action-heading" className="text-lg font-semibold">Your next actions</h2>
+        {(data?.attention?.pendingQuotes || []).length > 0 ? <ul className="mt-3 space-y-2">{data.attention.pendingQuotes.map((quote) => <li key={quote.publicQuoteRef}><Link to={`${ROUTES.BUSINESS}/quotes/${quote.publicQuoteRef}`} className="block rounded-lg border border-amber-300 bg-amber-50 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:border-amber-700 dark:bg-amber-950/30"><span className="text-xs font-semibold uppercase text-amber-800 dark:text-amber-300">Quote awaiting your decision</span><span className="block font-semibold">{quote.titleSnapshot || quote.publicQuoteRef}</span><span className={`${ui.link} inline-flex min-h-[44px] items-center`}>Review Quote</span></Link></li>)}</ul> : null}
+        {(data?.attention?.customerCases || []).length > 0 ? <ul className="mt-3 space-y-2">{data.attention.customerCases.map((item) => <li key={item.publicCaseRef}><Link to={`${ROUTES.BUSINESS}/cases/${item.publicCaseRef}`} className="block rounded-lg border border-gray-200 p-4 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:border-gray-700"><span className="text-xs font-semibold uppercase text-slate-500 dark:text-slate-400">Information required</span><span className="block font-semibold">{item.titleSnapshot || item.publicCaseRef}</span><span className={ui.link}>Open Case</span></Link></li>)}</ul> : null}
+        {(data?.attention?.pendingQuotes || []).length === 0 && (data?.attention?.customerCases || []).length === 0 ? <p className={`mt-3 ${ui.muted}`}>You are up to date. No current quote or Case decision needs attention.</p> : null}
+        <p className={`mt-3 text-xs ${ui.muted}`}>Secure Business document exchange and filing authorization remain unavailable in this private beta. Use contextual Messages for communication.</p>
+        <Link to={`${ROUTES.BUSINESS}/messages`} className={`${ui.link} mt-2 inline-flex min-h-[44px] items-center`}>Open contextual messages</Link>
+      </section>
       <section aria-labelledby="business-status-heading">
         <h2 id="business-status-heading" className="text-lg font-semibold">Request status</h2>
         <ul className="mt-3 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">

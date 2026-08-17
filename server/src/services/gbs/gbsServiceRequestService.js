@@ -609,11 +609,10 @@ export async function getCustomerServiceRequest({ userId, requestRef } = {}) {
 }
 
 export async function getCustomerOverview({ userId } = {}) {
-  const recent = await GbsServiceRequest.find({ requesterUserId: userId })
-    .sort({ createdAt: -1 })
-    .limit(8)
-    .lean();
-  const all = await GbsServiceRequest.find({ requesterUserId: userId }).select('status').lean();
+  const [recent, groups] = await Promise.all([
+    GbsServiceRequest.find({ requesterUserId: userId }).sort({ createdAt: -1, _id: -1 }).limit(8).lean(),
+    GbsServiceRequest.aggregate([{ $match: { requesterUserId: new mongoose.Types.ObjectId(userId) } }, { $group: { _id: '$status', count: { $sum: 1 } } }]),
+  ]);
   const counts = {
     submitted: 0,
     provider_reviewing: 0,
@@ -622,10 +621,10 @@ export async function getCustomerOverview({ userId } = {}) {
     cancelled: 0,
     active: 0,
   };
-  for (const row of all) {
-    if (counts[row.status] != null) counts[row.status] += 1;
-    if (row.status === S.SUBMITTED || row.status === S.PROVIDER_REVIEWING || row.status === S.READY_FOR_QUOTE) {
-      counts.active += 1;
+  for (const row of groups) {
+    if (counts[row._id] != null) counts[row._id] = row.count;
+    if (row._id === S.SUBMITTED || row._id === S.PROVIDER_REVIEWING || row._id === S.READY_FOR_QUOTE) {
+      counts.active += row.count;
     }
   }
   return {

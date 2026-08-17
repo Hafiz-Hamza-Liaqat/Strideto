@@ -4,6 +4,7 @@
  * Origin: accepted GbsQuote only. Stop line: ready_for_submission.
  * No government filing, payment, documents, or messaging.
  */
+import mongoose from 'mongoose';
 import { GbsCase } from '../../models/gbs/GbsCase.js';
 import { GbsQuote } from '../../models/gbs/GbsQuote.js';
 import { GbsServiceRequest } from '../../models/gbs/GbsServiceRequest.js';
@@ -1287,7 +1288,10 @@ export async function cancelCustomerCase({
 }
 
 export async function countCustomerCases({ userId } = {}) {
-  const rows = await GbsCase.find({ requesterUserId: userId }).select('status').lean();
+  const rows = await GbsCase.aggregate([
+    { $match: { requesterUserId: new mongoose.Types.ObjectId(userId) } },
+    { $group: { _id: '$status', count: { $sum: 1 } } },
+  ]);
   const counts = {
     open: 0,
     in_progress: 0,
@@ -1299,9 +1303,9 @@ export async function countCustomerCases({ userId } = {}) {
     active: 0,
   };
   for (const row of rows) {
-    if (counts[row.status] != null) counts[row.status] += 1;
-    if (!isCaseTerminal(row.status) && row.status !== C.READY_FOR_SUBMISSION) counts.active += 1;
-    if (row.status === C.READY_FOR_SUBMISSION) counts.active += 1;
+    if (counts[row._id] != null) counts[row._id] = row.count;
+    if (!isCaseTerminal(row._id) && row._id !== C.READY_FOR_SUBMISSION) counts.active += row.count;
+    if (row._id === C.READY_FOR_SUBMISSION) counts.active += row.count;
   }
   return counts;
 }

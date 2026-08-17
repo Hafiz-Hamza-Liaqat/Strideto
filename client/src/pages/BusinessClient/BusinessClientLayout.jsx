@@ -84,7 +84,7 @@ export default function BusinessClientLayout() {
 
   return (
     <>
-      <SeoHead title="Business | Strideto" noindex />
+      <SeoHead title={routeTitle} noindex />
       <div className={`mx-auto max-w-5xl px-4 py-8 space-y-6 ${ui.page}`}>
         {loading ? (
           <div className="space-y-4"><h1 className={ui.h1}>{routeTitle}</h1><div className={`${ui.card} p-6 ${ui.muted}`} role="status" aria-busy="true">Loading Business workspace…</div></div>

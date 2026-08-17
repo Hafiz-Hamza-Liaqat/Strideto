@@ -6,6 +6,7 @@ import { PROVIDER_DOMAIN_IDS } from '@shared/provider/providerDomains.js';
 import { agentApi } from '../../../services/agentService';
 import { GbsProviderContextProvider, useGbsProvider } from './GbsProviderContext';
 import { card, errorBox, h1, muted, page, skeleton, wrap } from './gbsUi';
+import { SeoHead } from '../../../components/seo';
 
 function businessProviderRouteTitle(pathname) {
   if (/\/requests\/[^/]+\/?$/.test(pathname)) return 'Request Details';
@@ -140,6 +141,7 @@ function GbsSetupState({ enabled, loadError }) {
 
 function GbsWorkspaceShell() {
   const { pathname } = useLocation();
+  const routeTitle = businessProviderRouteTitle(pathname);
   const [params] = useSearchParams();
   const { loading, error, enabled, subjects, selected, selectSubject } = useGbsProvider();
   const requested = requestedProviderSubject(params, null);
@@ -166,6 +168,7 @@ function GbsWorkspaceShell() {
 
   return (
     <div className={page}>
+      <SeoHead title={routeTitle} noindex />
       <header className="space-y-3 min-w-0">
         {loading ? <h1 className={h1}>{businessProviderRouteTitle(pathname)}</h1> : null}
         <p className={`${muted} ${wrap}`}>

@@ -5,6 +5,7 @@ import { ROUTES } from '../../../constants';
 import { gbsProviderApi } from '../../../services/gbsProviderApi';
 import { useGbsProvider } from './GbsProviderContext';
 import { SETUP_STEPS, card, emptyBox, errorBox, h1, h2, muted, wrap } from './gbsUi';
+import { SeoHead } from '../../../components/seo';
 
 const COUNTER_CARDS = [
   ['capabilityClaims', 'Capability claims'],
@@ -74,6 +75,7 @@ export default function GbsOverview() {
 
   return (
     <div className="space-y-6">
+      <SeoHead title="Business Services Overview" noindex />
       <h1 className={h1}>Overview</h1>
       {attention.length ? (
         <section className={card} aria-labelledby="gbs-attention-heading">
@@ -89,6 +91,18 @@ export default function GbsOverview() {
           </ul>
         </section>
       ) : null}
+      <section className={card} aria-labelledby="gbs-operations-heading">
+        <h2 id="gbs-operations-heading" className={h2}>Operational attention</h2>
+        {(() => {
+          const rows = [
+            ...(summary?.attention?.requests || []).map((item) => ({ ...item, kind: 'Request', to: `${ROUTES.AGENT_BUSINESS_SERVICES_REQUESTS}/${item.ref}` })),
+            ...(summary?.attention?.quotes || []).map((item) => ({ ...item, kind: 'Quote awaiting customer', to: `${ROUTES.AGENT_BUSINESS_SERVICES_QUOTES}/${item.ref}` })),
+            ...(summary?.attention?.cases || []).map((item) => ({ ...item, kind: 'Case', to: `${ROUTES.AGENT_BUSINESS_SERVICES_CASES}/${item.ref}` })),
+            ...(summary?.attention?.messages || []).map((item) => ({ ...item, kind: 'Recent message', to: ROUTES.AGENT_BUSINESS_SERVICES_MESSAGES })),
+          ].slice(0, 10);
+          return rows.length ? <ul className="mt-3 grid gap-2 sm:grid-cols-2">{rows.map((item, index) => <li key={`${item.kind}-${item.ref}-${index}`}><Link to={item.to} className="block rounded-lg border border-gray-200 p-3 hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:border-gray-700"><span className={`${muted} text-xs font-semibold uppercase`}>{item.kind}</span><span className="block font-medium text-gray-900 dark:text-white">{item.title || item.ref}</span><span className={muted}>{item.status?.replaceAll('_', ' ') || item.contextType?.replaceAll('_', ' ')}</span></Link></li>)}</ul> : <p className={`${muted} mt-3`}>You are up to date. No current Business Services item needs attention.</p>;
+        })()}
+      </section>
       <section aria-labelledby="gbs-counters-heading">
         <h2 id="gbs-counters-heading" className={h2}>Workspace status</h2>
         <p className={`${muted} mt-1`}>Counts are server-authoritative for the selected subject only.</p>
