@@ -2,6 +2,7 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import puppeteer from 'puppeteer';
 import { buildRouteInventory } from './lib/preMission27RouteInventory.mjs';
+import { createRun, openRun, cellKey, recordResult, reconcile, markRunStatus } from './lib/acceptanceLedger.mjs';
 
 const BASE = process.env.STRIDETO_QA_BASE || 'https://127.0.0.1:8443';
 const WIDTHS = [320, 375, 768, 1024, 1440];
@@ -164,10 +165,19 @@ async function runFullMatrix(manifest) {
   const cells = manifest.routes
     .filter((route) => ['FULL_MATRIX_UI', 'PARAMETRIC_UI'].includes(route.classification))
     .flatMap((route) => THEMES.flatMap((theme) => WIDTHS.map((width) => ({ route, theme, width }))));
+  const head = process.env.STRIDETO_QA_HEAD || (await import('node:child_process')).execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
+  const runIdArg = process.argv.find((arg) => arg.startsWith('--run-id='))?.slice('--run-id='.length);
+  const resume = process.argv.includes('--resume');
+  const run = resume ? openRun(runIdArg, { head, manifest }) : createRun({ head, manifest, runnerVersion: 'b9c5978', mode: 'full', runId: runIdArg });
+  const existing = reconcile(run, manifest, THEMES, WIDTHS);
+  const completed = new Set(existing.uniqueVisualCellsRecorded ? (await import('./lib/acceptanceLedger.mjs')).readLedger(run).filter((entry) => entry.kind !== 'redirect' && entry.status === 'PASS').map((entry) => entry.key) : []);
   const browser = await puppeteer.launch({ headless: true, ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors'] });
-  const failures = []; let passed = 0;
+  const failures = []; let passed = existing.PASS;
   try {
     for (const { route, theme, width } of cells) {
+      const key = cellKey({ persona: route.persona, route, theme, width });
+      if (completed.has(key)) continue;
+      const startedAt = new Date().toISOString();
       const page = await browser.newPage(); const errors = []; const failed = []; let expectedAuth401 = 0; let expectedDomain403 = 0;
       page.on('pageerror', (error) => errors.push(error.message));
       page.on('console', (message) => { if (message.type() !== 'error' || message.text().includes('icon from the Manifest')) return; if (message.text().includes('401 (Unauthorized)') && expectedAuth401 > 0) { expectedAuth401 -= 1; return; } if (message.text().includes('403 (Forbidden)') && expectedDomain403 > 0) { expectedDomain403 -= 1; return; } errors.push(message.text()); });
@@ -177,21 +187,31 @@ async function runFullMatrix(manifest) {
       page.on('request', (request) => { const url = new URL(request.url()); if (!url.pathname.startsWith('/api/')) return request.continue(); const [status, body] = mockResponse(url.pathname, route.persona); if (status === 401 && (url.pathname.startsWith('/api/auth/') || url.pathname.startsWith('/api/admin/auth/'))) expectedAuth401 += 1; if (status === 403 && (url.pathname.includes('/business-services/') || url.pathname.includes('/education/'))) expectedDomain403 += 1; return request.respond({ status, contentType: 'application/json', body: JSON.stringify(body) }); });
       await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: theme.media }]);
       await page.setViewport({ width, height: width < 768 ? 1000 : 1100 });
+      let result;
       try {
         await page.goto(`${BASE}${route.canonicalUrl}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
         await page.waitForSelector('h1', { timeout: 15000 });
-        const result = await page.evaluate(() => ({ h1: document.querySelector('h1')?.textContent?.trim(), overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - document.documentElement.clientWidth, dark: document.documentElement.classList.contains('dark'), duplicateH1: document.querySelectorAll('h1').length !== 1 }));
+        result = await page.evaluate(() => ({ h1: document.querySelector('h1')?.textContent?.trim(), overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - document.documentElement.clientWidth, dark: document.documentElement.classList.contains('dark'), duplicateH1: document.querySelectorAll('h1').length !== 1 }));
         assert.ok(result.h1); assert.ok(result.overflow <= 2); assert.equal(result.dark, theme.media === 'dark'); assert.equal(result.duplicateH1, false); assert.deepEqual(errors, []); assert.deepEqual(failed, []); passed += 1;
-      } catch (error) { failures.push({ route: route.id, persona: route.persona, url: route.canonicalUrl, theme: theme.id, width, error: error.message, errors, failed }); }
+        recordResult(run, { key, kind: 'visual', persona: route.persona, routeId: route.id, url: route.canonicalUrl, theme: theme.id, width, startedAt, endedAt: new Date().toISOString(), status: 'PASS', h1: result.h1, overflow: result.overflow, errors, failed });
+      } catch (error) { const status = error?.name === 'AbortError' ? 'INCOMPLETE' : 'FAIL'; const entry = { key, kind: 'visual', persona: route.persona, routeId: route.id, url: route.canonicalUrl, theme: theme.id, width, startedAt, endedAt: new Date().toISOString(), status, h1: result?.h1 || null, overflow: result?.overflow ?? null, error: error.message, errors, failed }; recordResult(run, entry); if (status === 'FAIL') failures.push(entry); }
       await page.close();
+      const current = reconcile(run, manifest, THEMES, WIDTHS);
+      if ((current.uniqueVisualCellsRecorded % 25) === 0) console.log(JSON.stringify({ runId: run.metadata.runId, head, completed: current.uniqueVisualCellsRecorded, planned: current.plannedVisualCells, passed: current.PASS, failed: current.FAIL, incomplete: current.INCOMPLETE, remaining: current.unseen, persona: route.persona, route: route.id, theme: theme.id, width }));
     }
-  } finally { await browser.close(); }
-  const summary = { planned: cells.length, executed: passed + failures.length, passed, failed: failures.length, incomplete: cells.length - passed - failures.length, themes: Object.fromEntries(THEMES.map((theme) => [theme.id, cells.filter((cell) => cell.theme.id === theme.id).length])) };
+    markRunStatus(run, 'COMPLETED');
+  } catch (error) { markRunStatus(run, 'INTERRUPTED'); throw error; } finally { await browser.close(); }
+  const summary = reconcile(run, manifest, THEMES, WIDTHS);
   console.log(JSON.stringify({ matrix: summary, failures: failures.slice(0, 20) }, null, 2));
-  assert.equal(summary.incomplete, 0); assert.equal(summary.failed, 0);
+  assert.equal(summary.INCOMPLETE, 0); assert.equal(summary.FAIL, 0);
 }
 
 const manifest = buildManifest();
 if (process.argv.includes('--manifest')) { console.log(JSON.stringify(manifest, null, 2)); process.exit(0); }
 if (process.argv.includes('--full')) await runFullMatrix(manifest);
+if (process.argv.includes('--reconcile')) {
+  const runId = process.argv.find((arg) => arg.startsWith('--run-id='))?.slice('--run-id='.length);
+  const run = openRun(runId, { head: process.env.STRIDETO_QA_HEAD || (await import('node:child_process')).execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), manifest });
+  console.log(JSON.stringify(reconcile(run, manifest, THEMES, WIDTHS), null, 2));
+}
 if (process.argv.includes('--self-test') || process.argv.length === 2) await runSelfTest(manifest);
