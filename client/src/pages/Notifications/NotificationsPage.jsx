@@ -23,6 +23,9 @@ export function NotificationsPageContent({
   emptyStateActionLabel,
   emptyStateActionTo,
   emptyStateDescription,
+  title,
+  itemFilter,
+  rewriteLink,
 }) {
   const { t } = useTranslation(['dashboard', 'common']);
   const navigate = useNavigate();
@@ -69,19 +72,22 @@ export function NotificationsPageContent({
   };
 
   const handleActivate = (n) => {
-    const safe = isSafeInternalLink(n.link);
+    const target = rewriteLink ? rewriteLink(n.link) : n.link;
+    const safe = isSafeInternalLink(target);
     if (!n.read) {
       api.markRead(n._id).then(load).catch(() => {});
     }
-    if (safe) navigate(n.link);
+    if (safe) navigate(target);
   };
+
+  const visibleItems = itemFilter ? items.filter(itemFilter) : items;
 
   return (
     <>
       <SeoHead title={t('dashboard:notifications')} noindex />
       <div className="max-w-3xl mx-auto px-4 py-8">
         <div className="flex flex-wrap items-center justify-between gap-3 mb-6">
-          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{t('dashboard:notifications')}</h1>
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">{title || t('dashboard:notifications')}</h1>
           {unread > 0 && (
             <button type="button" onClick={markAll} className="text-sm text-primary dark:text-mint hover:underline">
               {t('dashboard:markAllRead')} ({unread})
@@ -107,7 +113,7 @@ export function NotificationsPageContent({
           <p className="text-gray-500">{t('common:loading')}</p>
         ) : error ? (
           <p className="text-red-600 dark:text-red-400" role="alert">{error}</p>
-        ) : items.length === 0 ? (
+        ) : visibleItems.length === 0 ? (
           <EmptyState
             icon="🔔"
             title="Stay updated"
@@ -117,8 +123,9 @@ export function NotificationsPageContent({
           />
         ) : (
           <ul className="space-y-3">
-            {items.map((n) => {
-              const safe = isSafeInternalLink(n.link);
+            {visibleItems.map((n) => {
+              const target = rewriteLink ? rewriteLink(n.link) : n.link;
+              const safe = isSafeInternalLink(target);
               return (
                 <li key={n._id} className={`p-4 rounded-xl border ${n.read ? 'border-gray-200 dark:border-gray-700' : 'border-primary/30 bg-primary/5'} bg-white dark:bg-gray-800`}>
                   <div className="flex justify-between gap-2">
