@@ -157,23 +157,9 @@ export const getDashboard = asyncHandler(async (req, res) => {
   );
 
   const consultations = Object.fromEntries(consultationCounts.map((item) => [item._id, item.count]));
-  const attentionCaseMatch = membership ? {
-    organizationId: profile.organizationId,
-    authorizedMembershipIds: membership._id,
-    lifecycle: { $in: ['awaiting_student_acceptance', 'active'] },
-  } : null;
-  const attentionCases = attentionCaseMatch
-    ? await ProfessionalCase.find(attentionCaseMatch).sort({ updatedAt: -1, _id: -1 }).limit(50).select('_id').lean()
-    : [];
-  const attentionCaseIds = attentionCases.map((row) => row._id);
-  const [attentionTasks, attentionApplications, attentionDocuments] = attentionCaseIds.length ? await Promise.all([
-    CaseTask.find({ caseId: { $in: attentionCaseIds }, responsibleActor: 'agent', status: { $in: ['pending', 'in_progress'] } })
-      .sort({ dueAt: 1, createdAt: -1, _id: -1 }).limit(5).select('caseId title dueAt status').lean(),
-    ProfessionalCaseApplication.find({ caseId: { $in: attentionCaseIds }, status: { $in: ['preparing', 'ready_for_review', 'needs_changes'] } })
-      .sort({ deadlineAt: 1, updatedAt: -1, _id: -1 }).limit(5).select('caseId institutionSnapshot programSnapshot status deadlineAt').lean(),
-    CaseDocumentRequest.find({ caseId: { $in: attentionCaseIds }, status: { $in: ['requested', 'available'] } })
-      .sort({ dueAt: 1, createdAt: -1, _id: -1 }).limit(5).select('caseId documentType dueAt status').lean(),
-  ]) : [[], [], []];
+  const [attentionTasks, attentionApplications, attentionDocuments] = membership
+    ? await getProviderAttention({ organizationId: profile.organizationId, membershipId: membership._id })
+    : [[], [], []];
   const providerState = marketplaceStripeConfiguration();
   const readiness = providerReadiness(providerAccount, isApproved);
 
@@ -241,6 +227,52 @@ export const getDashboard = asyncHandler(async (req, res) => {
     },
   });
 });
+
+/**
+ * Return compact, priority-ordered attention children without truncating the
+ * parent Case population first. Parent authority is enforced inside each
+ * database-side lookup, so no all-Case ID array is materialized in Node.
+ */
+export async function getProviderAttention({ organizationId, membershipId } = {}) {
+  const parentMatch = {
+    'case.organizationId': organizationId,
+    'case.authorizedMembershipIds': membershipId,
+    'case.lifecycle': { $in: ['awaiting_student_acceptance', 'active'] },
+  };
+  const [tasks, applications, documents] = await Promise.all([
+    CaseTask.aggregate([
+      { $match: { responsibleActor: 'agent', status: { $in: ['pending', 'in_progress'] } } },
+      { $lookup: { from: 'professional_cases', localField: 'caseId', foreignField: '_id', as: 'case' } },
+      { $unwind: '$case' },
+      { $match: parentMatch },
+      { $addFields: { priorityDueAt: { $ifNull: ['$dueAt', new Date('9999-12-31T00:00:00.000Z')] } } },
+      { $sort: { priorityDueAt: 1, createdAt: -1, _id: -1 } },
+      { $limit: 5 },
+      { $project: { _id: 1, caseId: 1, title: 1, status: 1, dueAt: 1 } },
+    ]),
+    ProfessionalCaseApplication.aggregate([
+      { $match: { status: { $in: ['preparing', 'ready_for_review', 'needs_changes'] } } },
+      { $lookup: { from: 'professional_cases', localField: 'caseId', foreignField: '_id', as: 'case' } },
+      { $unwind: '$case' },
+      { $match: parentMatch },
+      { $addFields: { priorityDeadlineAt: { $ifNull: ['$deadlineAt', new Date('9999-12-31T00:00:00.000Z')] } } },
+      { $sort: { priorityDeadlineAt: 1, updatedAt: -1, _id: -1 } },
+      { $limit: 5 },
+      { $project: { _id: 1, caseId: 1, title: 1, status: 1, deadlineAt: 1, programSnapshot: 1, institutionSnapshot: 1 } },
+    ]),
+    CaseDocumentRequest.aggregate([
+      { $match: { status: { $in: ['requested', 'available'] } } },
+      { $lookup: { from: 'professional_cases', localField: 'caseId', foreignField: '_id', as: 'case' } },
+      { $unwind: '$case' },
+      { $match: parentMatch },
+      { $addFields: { priorityDueAt: { $ifNull: ['$dueAt', new Date('9999-12-31T00:00:00.000Z')] } } },
+      { $sort: { priorityDueAt: 1, requestedAt: -1, _id: -1 } },
+      { $limit: 5 },
+      { $project: { _id: 1, caseId: 1, documentType: 1, status: 1, dueAt: 1 } },
+    ]),
+  ]);
+  return [tasks, applications, documents];
+}
 
 // ---------------------------------------------------------------------------
 // Profile

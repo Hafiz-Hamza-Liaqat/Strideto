@@ -24,7 +24,9 @@ test('attention summaries are bounded, canonical, and do not add workflow models
   const provider = read('server/src/services/gbs/providerWorkspaceSummaryService.js');
   const buyer = read('server/src/controllers/gbsBuyerController.js');
   for (const source of [education, cases, provider, buyer]) assert.match(source, /limit:\s*5|\.limit\(5\)/);
-  assert.match(education, /\.limit\(50\)\.select\('_id'\)/);
+  assert.match(education, /getProviderAttention/);
+  assert.match(education, /CaseTask\.aggregate/);
+  assert.doesNotMatch(education, /attentionCases[\s\S]*?\.limit\(50\)[\s\S]*?attentionCaseIds/);
   assert.match(cases, /studentUserId:\s*actorId/);
   assert.match(cases, /responsibleActor:\s*'student'/);
   assert.match(provider, /GbsServiceRequest\.find/);
