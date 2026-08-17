@@ -36,7 +36,7 @@ check('32 serious action reuses verification authority',()=>assert.match(constan
 check('33 content moderation action',()=>assert.match(constants,/content_hidden/));
 check('34 audit metadata safe',()=>assert.doesNotMatch(controller,/messageBody|documentContent|storageKey|email/));
 check('35 notifications pending, never delivered',()=>{assert.match(notificationModel,/enum: \['pending'\]/);assert.match(notificationModel,/deliveryAttempted/);});
-check('36 User cannot mutate Agent endpoints',()=>assert.match(routes,/const s=\[requireAuth,requireUserAuth\],a=\[requireAuth,requireAgentAuth\]/));
+check('36 User cannot mutate Agent endpoints',()=>assert.match(routes,/const s=\[\.\.\.studentProductAuth\],a=\[requireAuth,requireAgentAuth\]/));
 check('37 Employer cannot mutate Agent endpoints',()=>assert.match(routes,/requireAgentAuth/));
 check('38 public profile review integration',()=>assert.match(routes,/agents\/:slug\/reviews/));
 check('39 Agent cannot delete negative review',()=>assert.doesNotMatch(routes,/delete\('\/agent\/reviews/i));
