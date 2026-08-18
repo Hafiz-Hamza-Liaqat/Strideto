@@ -35,7 +35,7 @@ function isEmployerNoRefreshUrl(url = '') {
   return EMPLOYER_NO_REFRESH.some((path) => url.includes(path));
 }
 
-const employerAxios = axios.create({
+export const employerAxios = axios.create({
   baseURL: API_BASE_URL,
   timeout: 15000,
   withCredentials: true,

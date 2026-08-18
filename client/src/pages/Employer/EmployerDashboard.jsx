@@ -2,13 +2,16 @@ import { useState, useEffect, useRef } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
-import { employerApi } from '../../services/employerService';
+import { employerApi, employerAxios } from '../../services/employerService';
+import { createAnnouncementsApi } from '../../services/announcementsService';
 import { ROUTES } from '../../constants';
 import { VerificationBadge } from '../../components/common/VerificationBadge';
 import { PortalWelcomeBanner } from '../../components/welcome/PortalWelcomeBanner';
 import { MilestoneDelight } from '../../components/welcome/MilestoneDelight';
 import { AnnouncementFeed } from '../../components/announcements/AnnouncementFeed';
 import { useEmployerAuth } from '../../context/EmployerAuthContext';
+
+const employerAnnouncementsApi = createAnnouncementsApi(employerAxios);
 
 const Card = ({ title, value, sub, to }) => {
   const inner = (
@@ -120,7 +123,7 @@ export default function EmployerDashboard() {
         title="Verification approved"
         body="Your organization verification is approved. This congratulations appears once."
       />
-      <AnnouncementFeed title="Employer announcements" className="mb-6" />
+      <AnnouncementFeed title="Employer announcements" className="mb-6" api={employerAnnouncementsApi} />
       <section className="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
         <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Getting started</h2>
         <ul className="mt-2 space-y-1 text-sm">

@@ -1,12 +1,15 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { agentApi } from '../../services/agentService';
+import { agentApi, agentAxios } from '../../services/agentService';
+import { createAnnouncementsApi } from '../../services/announcementsService';
 import { ROUTES } from '../../constants';
 import { PortalWelcomeBanner } from '../../components/welcome/PortalWelcomeBanner';
 import { MilestoneDelight } from '../../components/welcome/MilestoneDelight';
 import { AnnouncementFeed } from '../../components/announcements/AnnouncementFeed';
 import { useAgentAuth } from '../../context/AgentAuthContext';
 import { SeoHead } from '../../components/seo';
+
+const agentAnnouncementsApi = createAnnouncementsApi(agentAxios, { urlPrefix: '/api' });
 
 const STATUS_LABELS = {
   draft: { label: 'Draft', color: 'bg-slate-100 text-slate-800 dark:bg-slate-800 dark:text-slate-100' },
@@ -87,7 +90,7 @@ export default function AgentDashboard() {
         title="Verification approved"
         body="Your agent verification is approved. This congratulations appears once."
       />
-      <AnnouncementFeed title="Agent announcements" />
+      <AnnouncementFeed title="Agent announcements" api={agentAnnouncementsApi} />
       <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
         <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Getting started</h2>
         <ul className="mt-2 space-y-1 text-sm">

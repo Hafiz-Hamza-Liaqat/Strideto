@@ -10,7 +10,12 @@ const TYPE_STYLES = {
   survey: 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30',
 };
 
-export function AnnouncementFeed({ title = 'Announcements', limit = 5, className = '' }) {
+export function AnnouncementFeed({
+  title = 'Announcements',
+  limit = 5,
+  className = '',
+  api = announcementsApi,
+}) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -18,7 +23,7 @@ export function AnnouncementFeed({ title = 'Announcements', limit = 5, className
 
   const load = () => {
     setLoading(true);
-    announcementsApi
+    api
       .feed({ limit })
       .then(({ data }) => setItems(data.items || []))
       .catch(() => setError('Announcements are unavailable right now.'))
@@ -27,11 +32,11 @@ export function AnnouncementFeed({ title = 'Announcements', limit = 5, className
 
   useEffect(() => {
     load();
-  }, [limit]);
+  }, [limit, api]);
 
   const markRead = async (id) => {
     try {
-      await announcementsApi.read(id);
+      await api.read(id);
       setItems((prev) => prev.map((item) => (item.id === id ? { ...item, read: true } : item)));
     } catch {
       /* non-blocking */
@@ -41,7 +46,7 @@ export function AnnouncementFeed({ title = 'Announcements', limit = 5, className
   const acknowledge = async (id) => {
     setBusyId(id);
     try {
-      await announcementsApi.ack(id);
+      await api.ack(id);
       setItems((prev) => prev.map((item) => (item.id === id ? { ...item, read: true, acknowledged: true } : item)));
     } finally {
       setBusyId(null);
@@ -51,7 +56,7 @@ export function AnnouncementFeed({ title = 'Announcements', limit = 5, className
   const vote = async (id, voteValue) => {
     setBusyId(id);
     try {
-      await announcementsApi.vote(id, voteValue);
+      await api.vote(id, voteValue);
       setItems((prev) => prev.map((item) => (
         item.id === id ? { ...item, read: true, acknowledged: true, surveyVote: voteValue } : item
       )));
