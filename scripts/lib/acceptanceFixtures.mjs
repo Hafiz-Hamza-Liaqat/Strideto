@@ -84,6 +84,41 @@ export function consultationNegativeResponse(requestingPersona, ownerPersona) {
   return [403, { error: 'Consultation access denied' }];
 }
 
+/**
+ * Mirrors getProviderHomeSummary() in
+ * server/src/controllers/providerDomainController.js and
+ * server/src/services/gbs/providerDomainService.js.
+ */
+export function providerHomeFixtureFor(persona) {
+  const education = persona === 'education-independent' || persona === 'education-agency';
+  const agency = persona.endsWith('-agency');
+  const domainId = education ? 'education_mobility' : 'business_services';
+  const subjectType = agency ? 'organization' : 'agent';
+  const subjectId = agency ? `507f1f77bcf86cd79943${persona.startsWith('education') ? '9201' : '9301'}` : `qa-${persona}`;
+  const label = education ? (agency ? 'QA Education Agency' : 'QA Education Independent') : (agency ? 'QA Business Agency' : 'QA Business Independent');
+  const domain = domainId === 'education_mobility'
+    ? { domainId, publicName: 'Education & Mobility', shortName: 'Education', description: 'Help students and professionals with education, admissions, scholarships, study-abroad guidance, career/mobility support and related services.', onboardingDescription: 'Help students and professionals with education, admissions, scholarships, study-abroad guidance, career/mobility support and related services.', workspaceLabel: 'Education & Mobility', iconKey: 'education', status: 'active' }
+    : { domainId, publicName: 'Business Formation & Corporate Services', shortName: 'Business Services', description: 'Help founders and businesses with company formation, LLC registration, Registered Agent services, registered offices, EIN assistance and related corporate services.', onboardingDescription: 'Help founders and businesses with company formation, LLC registration, Registered Agent services, registered offices, EIN assistance and related corporate services.', workspaceLabel: 'Business Formation & Corporate Services', iconKey: 'business', status: 'active' };
+  const workspace = {
+    subjectType, subjectId, kind: agency ? 'agency' : 'independent', label,
+    membershipRole: agency ? 'owner' : null, domainId, domain,
+    enrollmentStatus: 'active', path: domainId === 'business_services' ? '/agent/business-services' : '/agent/education',
+    counters: domainId === 'business_services'
+      ? { verifiedCapabilities: 0, capabilities: 0, listings: 0 }
+      : { verificationStatus: 'draft', activeServices: 0, leads: 0 },
+  };
+  return {
+    accountId: `qa-${persona}`,
+    initializationState: 'legacy',
+    needsOnboarding: false,
+    businessServicesProviderEnabled: !education,
+    publicMarketplaceEnabled: false,
+    workspaces: [workspace],
+    addableDomains: [],
+    cards: [workspace],
+  };
+}
+
 export class AcceptanceFixtureContractError extends Error {
   constructor({ method = 'GET', pathname, persona, routeId }) {
     super(`UNHANDLED_ACCEPTANCE_API method=${method} pathname=${pathname} persona=${persona} routeId=${routeId || 'unknown'}`);
@@ -119,6 +154,10 @@ export function mockResponse(pathname, persona, { method = 'GET', routeId = 'unk
   if (pathname === '/api/employer/dashboard') return [200, { activeJobs: 0, totalApplications: 0, totalViews: 0, shortlistedCandidates: 0, jobs: [], conversionRateLabel: 'n/a', verified: true, verificationStatus: 'approved', verificationLevel: 'verified', draftJobs: 0, pendingApprovalJobs: 0, closedJobs: 0, newApplications: 0, totalJobs: 0, interviews: 0, unreadNotifications: 0, verificationState: 'approved' }];
   if (pathname.includes('/admin/agent-marketplace')) return [200, { posts: [], permissions: ['workflow:review', 'workflow:approve'] }];
   if (pathname === '/api/agent/provider-domains/context') return [200, { accountId: `qa-${persona}`, needsOnboarding: false, workspaces: [] }];
+  if (pathname === '/api/agent/provider-domains/home') {
+    if (!['education-independent', 'education-agency', 'business-independent', 'business-agency'].includes(persona)) return [403, { error: 'provider domain denied' }];
+    return [200, providerHomeFixtureFor(persona)];
+  }
   if (pathname === '/api/agent/business-services/enabled') return persona.startsWith('business-') ? [200, { enabled: true, publicMarketplaceEnabled: false }] : [403, { error: 'business domain denied' }];
   if (pathname === '/api/agent/education/enabled') return persona.startsWith('education-') ? [200, { enabled: true }] : [403, { error: 'education domain denied' }];
   if (pathname === '/api/agent/profile') return [200, { profile: { agentType: persona.includes('agency') ? 'agency' : 'agent', professionalName: `QA ${persona}` } }];
