@@ -66,7 +66,7 @@ export default function AdminMediaLibrary() {
       <div className="space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Media Library</h2>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Media Library</h1>
             <p className="text-sm text-gray-500 mt-1">Centralized digital assets for page builder, blogs, CMS, and ads.</p>
           </div>
           <button

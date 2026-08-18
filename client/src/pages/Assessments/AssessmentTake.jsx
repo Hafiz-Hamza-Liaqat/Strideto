@@ -84,7 +84,12 @@ export default function AssessmentTake() {
   }, [secondsLeft]);
 
   if (!isAssessmentsEnabled()) {
-    return <div className="max-w-3xl mx-auto px-4 py-12"><p>{t('assessments:featureDisabled')}</p></div>;
+    return (
+      <div className="max-w-3xl mx-auto px-4 py-12">
+        <h1 className="sr-only">{t('assessments:title')}</h1>
+        <p>{t('assessments:featureDisabled')}</p>
+      </div>
+    );
   }
 
   if (result) {

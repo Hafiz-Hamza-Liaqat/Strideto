@@ -53,7 +53,7 @@ export default function AdminForms() {
       <div className="space-y-6">
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Forms</h2>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Forms</h1>
             <p className="text-sm text-gray-500 mt-1">Reusable forms for page builder, CMS, and platform modules.</p>
           </div>
           <div className="flex gap-2">

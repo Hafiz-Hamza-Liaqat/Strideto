@@ -63,7 +63,7 @@ export default function AdminBlockTemplates() {
       <div className="space-y-6">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">Block Templates</h2>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Block Templates</h1>
             <p className="text-sm text-gray-500 mt-1">Reusable starting points — copied into pages, never linked.</p>
           </div>
           <Link to={`${ROUTES.ADMIN}/page-builder`} className="text-sm text-primary underline">← Page Builder</Link>

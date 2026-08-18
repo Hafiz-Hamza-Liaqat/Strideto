@@ -324,7 +324,7 @@ export default function AdminExamPreparation() {
     <AdminRouteGuard permission={PERMISSIONS.CONTENT_MCQS}>
       <div>
         <div className="flex flex-wrap justify-between gap-2 mb-4">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('admin:manageExamPrep', { defaultValue: 'Exam Preparation' })}</h2>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t('admin:manageExamPrep', { defaultValue: 'Exam Preparation' })}</h1>
           <button type="button" onClick={openCreate} className="px-4 py-2 rounded-lg bg-primary text-white text-sm min-h-[44px]">
             {t('admin:create')}
           </button>

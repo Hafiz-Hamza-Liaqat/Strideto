@@ -57,7 +57,7 @@ function ResumeHeader({ vm, template, showPhoto }) {
           </div>
         )}
         <div className="min-w-0 flex-1">
-          <h1 className="resume-name">{name}</h1>
+          <p className="resume-name">{name}</p>
           {p.professionalTitle && <p className="resume-title">{p.professionalTitle}</p>}
           {contact && <p className="resume-contact">{contact}</p>}
           {socialParts.length > 0 && <p className="resume-social">{socialParts.join(' · ')}</p>}
@@ -68,7 +68,7 @@ function ResumeHeader({ vm, template, showPhoto }) {
 
   return (
     <header className="resume-header">
-      <h1 className="resume-name">{name}</h1>
+      <p className="resume-name">{name}</p>
       {p.professionalTitle && <p className="resume-title">{p.professionalTitle}</p>}
       {contact && <p className="resume-contact">{contact}</p>}
       {socialParts.length > 0 && <p className="resume-social">{socialParts.join(' · ')}</p>}

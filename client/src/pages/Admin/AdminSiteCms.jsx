@@ -361,7 +361,7 @@ export default function AdminSiteCms() {
     <AdminRouteGuard anyPermission={[PERMISSIONS.CONTENT_SITE, PERMISSIONS.CONTENT_NAV, PERMISSIONS.CONTENT_PAGES]}>
       <div className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-lg font-semibold text-gray-900 dark:text-white">{t('admin:siteCms', { defaultValue: 'Site CMS' })}</h2>
+          <h1 className="text-lg font-semibold text-gray-900 dark:text-white">{t('admin:siteCms', { defaultValue: 'Site CMS' })}</h1>
           <AdminLocaleSelect value={locale} onChange={setLocale} />
         </div>
 

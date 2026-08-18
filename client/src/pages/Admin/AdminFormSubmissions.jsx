@@ -76,7 +76,7 @@ export default function AdminFormSubmissions() {
         <div className="flex flex-wrap items-center justify-between gap-4">
           <div>
             <Link to={`${ROUTES.ADMIN}/forms`} className="text-sm text-primary underline">← Forms</Link>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mt-1">Form Submissions</h2>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white mt-1">Form Submissions</h1>
           </div>
           <button type="button" onClick={exportCsv} className="px-4 py-2 rounded-lg border text-sm">Export CSV</button>
         </div>

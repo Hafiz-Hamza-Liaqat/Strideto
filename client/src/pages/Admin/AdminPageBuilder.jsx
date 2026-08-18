@@ -263,7 +263,7 @@ export default function AdminPageBuilder() {
 
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('admin:pageBuilder', 'Page Builder')}</h2>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t('admin:pageBuilder', 'Page Builder')}</h1>
             <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
               Drag blocks to reorder · Autosave every 15s when dirty · Diagnostics below editor.
             </p>

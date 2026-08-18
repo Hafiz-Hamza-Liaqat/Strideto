@@ -56,7 +56,7 @@ export default function AdminSupport() {
   return (
     <AdminRouteGuard permission={PERMISSIONS.USERS_READ}>
       <div className="space-y-4">
-        <h2 className="text-xl font-semibold">{t('admin:supportTickets')}</h2>
+        <h1 className="text-xl font-semibold">{t('admin:supportTickets')}</h1>
         <div className="flex flex-wrap gap-2">
           <AdminSelectBare value={filters.status || ''} onChange={(e) => setFilters({ status: e.target.value || undefined })} className="px-3 py-2 rounded-lg border text-sm">
             <option value="">{t('admin:allStatuses')}</option>

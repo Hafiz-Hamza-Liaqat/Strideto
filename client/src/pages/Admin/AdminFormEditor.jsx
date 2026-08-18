@@ -124,7 +124,7 @@ export default function AdminFormEditor() {
   const { id } = useParams();
   const navigate = useNavigate();
   const toast = useToast();
-  const isNew = id === 'new';
+  const isNew = !id || id === 'new';
   const [form, setForm] = useState(() => createEmptyFormDefinition());
   const [selectedId, setSelectedId] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -226,7 +226,7 @@ export default function AdminFormEditor() {
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div>
             <Link to={`${ROUTES.ADMIN}/forms`} className="text-sm text-primary underline">← Forms</Link>
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mt-1">{isNew ? 'New Form' : form.name}</h2>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white mt-1">{isNew ? 'New Form' : form.name}</h1>
           </div>
           <div className="flex gap-2">
             <button type="button" disabled={saving} onClick={() => save(false)} className="px-4 py-2 rounded-lg border text-sm">Save draft</button>

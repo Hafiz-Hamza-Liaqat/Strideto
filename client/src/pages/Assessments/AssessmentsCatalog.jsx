@@ -32,6 +32,7 @@ export default function AssessmentsCatalog() {
     return (
       <div className="max-w-5xl mx-auto px-4 py-12">
         <SeoHead title={t('assessments:title')} noindex />
+        <h1 className="sr-only">{t('assessments:title')}</h1>
         <p role="alert">{t('assessments:featureDisabled')}</p>
       </div>
     );

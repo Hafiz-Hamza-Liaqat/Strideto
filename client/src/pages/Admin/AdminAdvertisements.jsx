@@ -289,7 +289,7 @@ export default function AdminAdvertisements() {
     <AdminRouteGuard permission={PERMISSIONS.MODERATE_ADS}>
       <div>
         <div className="flex flex-wrap justify-between gap-2 mb-4">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('admin:manageAdvertisements', { defaultValue: 'Advertisements' })}</h2>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t('admin:manageAdvertisements', { defaultValue: 'Advertisements' })}</h1>
           <div className="flex flex-wrap gap-2">
             <button type="button" onClick={loadSlots} className="px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-sm min-h-[44px]">
               {t('admin:refresh', { defaultValue: 'Refresh' })}

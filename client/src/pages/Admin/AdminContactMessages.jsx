@@ -72,7 +72,7 @@ export default function AdminContactMessages() {
     <AdminRouteGuard permission={PERMISSIONS.USERS_READ}>
       <div className="space-y-4">
         <div className="flex flex-wrap gap-2 justify-between items-center">
-          <h2 className="text-xl font-semibold">{t('admin:contactMessages')}</h2>
+          <h1 className="text-xl font-semibold">{t('admin:contactMessages')}</h1>
           <button type="button" onClick={exportCsv} className="px-3 py-1.5 text-sm rounded-lg border border-gray-300 dark:border-gray-600">{t('admin:exportCsv')}</button>
         </div>
         <AdminSelectBare value={filters.status || ''} onChange={(e) => setFilters({ status: e.target.value || undefined })} className="px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-sm">

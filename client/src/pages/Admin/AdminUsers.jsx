@@ -143,7 +143,7 @@ export default function AdminUsers() {
   return (
     <AdminRouteGuard permission={PERMISSIONS.USERS_READ}>
       <div>
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{t('admin:manageUsers')}</h2>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{t('admin:manageUsers')}</h1>
 
         {canAssignRole && selectedIds.length > 0 && (
           <div className="flex flex-wrap gap-2 mb-4 p-3 rounded-lg bg-gray-50 dark:bg-gray-800">

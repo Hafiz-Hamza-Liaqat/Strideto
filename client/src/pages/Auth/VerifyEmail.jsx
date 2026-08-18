@@ -180,7 +180,7 @@ export default function VerifyEmail() {
   return (
     <>
       <SeoHead title={t('forms:verifyEmail.title', { defaultValue: 'Verify email' })} noindex />
-      <AuthCard>
+      <AuthCard title={t('forms:verifyEmail.title', { defaultValue: 'Verify email' })}>
         <div className="text-center">
           {status === VERIFY_EMAIL_STATES.VERIFYING && (
             <p className="text-gray-600 dark:text-gray-300" role="status">

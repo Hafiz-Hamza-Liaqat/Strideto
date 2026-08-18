@@ -1,4 +1,4 @@
-import { createContext, useContext, useEffect, useMemo, useState } from 'react';
+import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState } from 'react';
 
 export const THEME_STORAGE_KEY = 'edurozgaar-theme';
 export const THEME_PREFERENCES = Object.freeze(['system', 'light', 'dark']);
@@ -32,7 +32,7 @@ export function ThemeProvider({ children }) {
 
   const resolvedTheme = preference === 'system' ? osTheme : preference;
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const root = document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(resolvedTheme);

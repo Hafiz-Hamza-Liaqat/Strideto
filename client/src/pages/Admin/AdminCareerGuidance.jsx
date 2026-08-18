@@ -126,7 +126,7 @@ export default function AdminCareerGuidance() {
     <AdminRouteGuard permission={PERMISSIONS.CONTENT_CAREER}>
       <div>
         <div className="flex flex-wrap justify-between gap-2 mb-4">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('admin:manageCareerArticles')}</h2>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t('admin:manageCareerArticles')}</h1>
           {canEdit && (
             <button type="button" onClick={openCreate} className="px-4 py-2 rounded-lg bg-primary text-white text-sm min-h-[44px]">{t('admin:addCareerArticle')}</button>
           )}

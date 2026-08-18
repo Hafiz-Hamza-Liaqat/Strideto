@@ -18,7 +18,7 @@ export default function AdminMonitoring() {
   return (
     <AdminRouteGuard permission={PERMISSIONS.ANALYTICS_READ}>
       <div className="space-y-6">
-        <h2 className="text-xl font-semibold">{t('admin:monitoring')}</h2>
+        <h1 className="text-xl font-semibold">{t('admin:monitoring')}</h1>
         {loading && <p>{t('common:loading')}</p>}
         {data && (
           <>

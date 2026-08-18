@@ -137,7 +137,7 @@ export default function AdminContentAdmissions() {
     <AdminRouteGuard permission={PERMISSIONS.CONTENT_ADMISSIONS}>
       <div>
         <div className="flex flex-wrap justify-between gap-2 mb-4">
-          <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('admin:manageAdmissions')}</h2>
+          <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t('admin:manageAdmissions')}</h1>
           {canEdit && (
             <button type="button" onClick={() => { setEditingId(null); setForm(EMPTY); setFormOpen(true); }} className="px-4 py-2 rounded-lg bg-primary text-white text-sm min-h-[44px]">
               {t('admin:addAdmission')}

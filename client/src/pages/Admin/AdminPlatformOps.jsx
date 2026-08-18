@@ -29,7 +29,7 @@ export default function AdminPlatformOps() {
   return (
     <AdminRouteGuard anyPermission={[PERMISSIONS.ANALYTICS_READ, PERMISSIONS.SYSTEM_SETTINGS]}>
       <div className="space-y-6">
-        <h2 className="text-xl font-semibold">{t('admin:platformOps')}</h2>
+        <h1 className="text-xl font-semibold">{t('admin:platformOps')}</h1>
         {loading && <p className="text-gray-500">{t('common:loading')}</p>}
         {error && <p className="text-red-600">{error}</p>}
         {data && (

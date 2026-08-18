@@ -169,7 +169,7 @@ export default function AdminNotifications() {
   return (
     <AdminRouteGuard permission={PERMISSIONS.NOTIFICATIONS_SEND}>
       <div className="space-y-6">
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white">{t('admin:manageNotifications', { defaultValue: 'Notifications' })}</h2>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t('admin:manageNotifications', { defaultValue: 'Notifications' })}</h1>
 
         {canEdit && (
           <section className="rounded-xl border border-gray-200 dark:border-gray-700 p-4 bg-gray-50 dark:bg-gray-800/50">

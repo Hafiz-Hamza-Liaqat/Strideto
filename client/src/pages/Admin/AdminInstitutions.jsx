@@ -93,7 +93,7 @@ export default function AdminInstitutions() {
     <AdminRouteGuard permission={PERMISSIONS.CONTENT_ADMISSIONS}>
       <div className="space-y-4">
         <div className="flex justify-between items-center">
-          <h2 className="text-xl font-semibold">{t('admin:institutions')}</h2>
+          <h1 className="text-xl font-semibold">{t('admin:institutions')}</h1>
           {canEdit && <button type="button" onClick={openCreate} className="px-4 py-2 rounded-lg bg-primary text-white text-sm">{t('admin:create')}</button>}
         </div>
         <AdminDataTable columns={columns} data={data} loading={loading} error={error} pagination={pagination} onPageChange={setPage} />

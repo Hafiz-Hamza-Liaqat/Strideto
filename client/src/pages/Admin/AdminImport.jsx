@@ -67,7 +67,7 @@ export default function AdminImport() {
     <AdminRouteGuard permission={PERMISSIONS.CONTENT_IMPORT}>
       <SeoHead title={t('admin:importTitle')} description={t('admin:importDescription')} noindex />
       <div>
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t('admin:importTitle')}</h2>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-2">{t('admin:importTitle')}</h1>
         <p className="text-sm text-gray-600 dark:text-gray-400 mb-6">{t('admin:importIntro')}</p>
 
         {meta && (

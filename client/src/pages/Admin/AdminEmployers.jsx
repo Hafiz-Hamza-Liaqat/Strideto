@@ -124,7 +124,7 @@ export default function AdminEmployers() {
   return (
     <AdminRouteGuard anyPermission={[PERMISSIONS.USERS_READ]}>
       <div>
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{t('admin:manageEmployers', { defaultValue: 'Manage Employers' })}</h2>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{t('admin:manageEmployers', { defaultValue: 'Manage Employers' })}</h1>
 
         <div className="flex flex-wrap gap-3 mb-4 p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
           <input

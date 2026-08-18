@@ -61,7 +61,7 @@ export default function AdminNewsletter() {
       <div className="space-y-8">
         <div>
           <div className="flex justify-between items-center mb-4">
-            <h2 className="text-xl font-semibold">{t('admin:newsletterSubscribers')}</h2>
+            <h1 className="text-xl font-semibold">{t('admin:newsletterSubscribers')}</h1>
             <button type="button" onClick={exportCsv} className="px-3 py-1.5 text-sm rounded-lg border">{t('admin:exportCsv')}</button>
           </div>
           <AdminDataTable columns={columns} data={data} loading={loading} error={error} pagination={pagination} onPageChange={setPage} />

@@ -57,7 +57,7 @@ export default function AdminPayments() {
   return (
     <AdminRouteGuard permission={PERMISSIONS.PAYMENTS_READ}>
       <div>
-        <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Legacy Payments</h2>
+        <h1 className="text-xl font-bold text-gray-900 dark:text-white mb-1">Legacy Payments</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
           Historical Payment records only. This is not the live Commerce ledger and does not prove collected revenue.
         </p>

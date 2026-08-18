@@ -99,7 +99,7 @@ export default function AlertsAdmin() {
     <AdminRouteGuard permission={PERMISSIONS.NOTIFICATIONS_SEND}>
       <SeoHead title={t('admin:alerts')} description={t('admin:alertsSeoDesc')} noindex />
       <div className="max-w-2xl">
-        <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{t('admin:multiChannelAlerts')}</h2>
+        <h1 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{t('admin:multiChannelAlerts')}</h1>
         <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
           Alerts are multi-channel operational distribution. Announcements, broadcast notifications, and newsletter remain separate. Live email, Telegram, WhatsApp, and LinkedIn are not configured.
         </p>
