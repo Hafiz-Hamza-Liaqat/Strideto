@@ -25,7 +25,7 @@ export function setCheckpointFaultInjector(injector) {
 }
 
 export function manifestFingerprint(manifest) {
-  return legacyDigest({ sourceRouteRecords: manifest.sourceRouteRecords, counts: manifest.counts, routes: manifest.routes.map(({ id, persona, routePattern, classification, canonicalUrl }) => ({ id, persona, routePattern, classification, canonicalUrl })), plannedVisualCells: manifest.plannedVisualCells, redirectContractCells: manifest.redirectContractCells });
+  return digest({ sourceRouteRecords: manifest.sourceRouteRecords, counts: manifest.counts, routes: manifest.routes.map(({ id, persona, productPersona, authRealm, requiredCapability, routePattern, classification, canonicalUrl }) => ({ id, persona, productPersona, authRealm, requiredCapability, routePattern, classification, canonicalUrl })), plannedVisualCells: manifest.plannedVisualCells, redirectContractCells: manifest.redirectContractCells });
 }
 
 export function candidateFingerprint({ head, manifest, manifestFingerprint: suppliedManifestFingerprint, themes = [], widths = [], acceptanceContractVersion = ACCEPTANCE_CONTRACT_VERSION, runnerVersion = 'unknown' }) {

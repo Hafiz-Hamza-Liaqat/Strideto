@@ -4,8 +4,16 @@ import puppeteer from 'puppeteer';
 import { buildRouteInventory } from './lib/preMission27RouteInventory.mjs';
 import { createRun, openRun, cellKey, recordResult, recordLifecycle, reconcile, markRunStatus, readLedger, ACCEPTANCE_CONTRACT_VERSION } from './lib/acceptanceLedger.mjs';
 import { FIXTURE, mockResponse } from './lib/acceptanceFixtures.mjs';
+import { approvedResponseFixture, classifyExpectedHttpFailure, classifyExpectedConsoleError, interceptionAudit } from './lib/acceptanceNetworkPolicy.mjs';
+import { authenticateRealBrowserPage } from './lib/acceptanceRealSessions.mjs';
+import { loadResolver, resolveCanonicalUrl, ACCEPTANCE_REAL_PARAM_NOT_RESOLVED } from './lib/acceptanceResolver.mjs';
+import { createRateLimitGuard, delay, retryAfterMs } from './lib/acceptanceRateLimitGuard.mjs';
+import fs from 'node:fs';
 
 const BASE = process.env.STRIDETO_QA_BASE || 'https://127.0.0.1:8443';
+// Optional process-scoped gateway for isolated real-API smoke. This rewrites
+// requests to the real API; it never fulfills product responses.
+const QA_API_ORIGIN = process.env.STRIDETO_QA_API_ORIGIN || '';
 const WIDTHS = [320, 375, 768, 1024, 1440];
 const THEMES = [
   { id: 'explicit-light', preference: 'light', media: 'light' },
@@ -72,12 +80,16 @@ function buildManifest() {
     const { classification, reason } = classify(record);
     sourceCounts[classification] += 1;
     for (const persona of personasFor(record)) {
-      const id = `${persona}:${record.pattern}:${classification}`;
+      const isBusinessClientRoute = record.realm === 'STUDENT' && record.route.startsWith('/business');
+      const productPersona = isBusinessClientRoute ? 'business-client' : persona;
+      const authRealm = isBusinessClientRoute ? 'user' : record.realm.toLowerCase();
       routes.push({
-        id, persona, product: record.realm, routePattern: record.pattern, classification,
+        id: `${productPersona}:${record.pattern}:${classification}`, persona: productPersona, productPersona, authRealm,
+        product: isBusinessClientRoute ? 'BUSINESS_CLIENT' : record.realm, routePattern: record.pattern, classification,
         canonicalUrl: materialize(record.route), fixtureRequirement: record.pattern.includes(':') ? 'disposable fixture resolver' : 'none',
         expectedH1: expectedH1(record), expectedActiveNav: record.realm === 'PUBLIC' ? { applies: false, reason: 'public route' } : { applies: true, routePattern: record.pattern },
-        authRealm: record.realm.toLowerCase(), requiredCapabilityDomain: record.realm === 'AGENT' ? (record.route.includes('/business-services') ? 'business_services' : 'education_mobility') : null,
+        requiredCapability: isBusinessClientRoute ? 'business_client' : null,
+        requiredCapabilityDomain: record.realm === 'AGENT' ? (record.route.includes('/business-services') ? 'business_services' : 'education_mobility') : null,
         sourceComponent: record.component, sourcePage: record.page, reason,
       });
     }
@@ -87,12 +99,27 @@ function buildManifest() {
   return { generatedFrom: 'scripts/lib/preMission27RouteInventory.mjs → client/src/routes/index.jsx', sourceRouteRecords: inventory.records.length, routes, counts, renderedPersonaRouteCombinations: visual.length, plannedVisualCells: visual.length * THEMES.length * WIDTHS.length, redirectContractCells: counts.REDIRECT_ONLY, aliasContractCells: counts.SHELL_EQUIVALENT_ALIAS, findings: inventory.findings };
 }
 
+function fulfillApprovedResponse(request, url, persona, routeId, errors) {
+  const approved = approvedResponseFixture(request.method(), url.pathname);
+  if (!approved || !approved.personas.includes(persona)) return false;
+  try {
+    const [status, body] = mockResponse(url.pathname, persona, { method: request.method(), routeId });
+    request.respond({ status, contentType: 'application/json', body: JSON.stringify(body) });
+  } catch (error) {
+    errors.push({ name: error.name, message: error.message, code: error.code });
+    request.abort('failed');
+  }
+  return true;
+}
+
 
 function assertManifest(manifest) {
   const ids = manifest.routes.map((route) => route.id);
   assert.equal(new Set(ids).size, ids.length, 'manifest IDs must be unique');
   for (const route of manifest.routes) {
     assert.ok(route.persona && route.routePattern && route.classification && route.reason);
+    assert.ok(route.productPersona && route.authRealm, 'manifest must separate product persona and auth realm');
+    if (route.productPersona === 'business-client') assert.equal(route.requiredCapability, 'business_client');
     if (['FULL_MATRIX_UI', 'PARAMETRIC_UI'].includes(route.classification)) assert.ok(route.expectedH1 && route.expectedActiveNav);
     if (route.classification === 'PARAMETRIC_UI') assert.equal(route.fixtureRequirement, 'disposable fixture resolver');
   }
@@ -123,9 +150,10 @@ async function runSelfTest(manifest) {
   const results = []; const failures = [];
   try {
     for (const [persona, route] of representatives) for (const theme of THEMES) for (const width of [320, 1440]) {
-      const page = await browser.newPage(); const errors = []; const failed = []; const consoleTasks = []; let expectedAuth401 = 0; let expectedDomain403 = 0;
+      const page = await browser.newPage(); const errors = []; const failed = []; const consoleTasks = []; const expectedHttpConsoleErrors = new Set();
       page.on('pageerror', (error) => errors.push(serializePageError(error)));
-      page.on('console', (message) => { if (message.type() !== 'error' || message.text().includes('icon from the Manifest')) return; if (message.text().includes('401 (Unauthorized)') && expectedAuth401 > 0) { expectedAuth401 -= 1; return; } if (message.text().includes('403 (Forbidden)') && expectedDomain403 > 0) { expectedDomain403 -= 1; return; } consoleTasks.push(serializeConsoleMessage(message).then((detail) => errors.push(detail))); });
+      page.on('console', (message) => { if (message.type() !== 'error' || message.text().includes('icon from the Manifest')) return; consoleTasks.push(serializeConsoleMessage(message).then((detail) => { const loc = detail.location.url; if (loc && (expectedHttpConsoleErrors.has(loc) || (detail.text?.startsWith('Failed to load resource') && classifyExpectedConsoleError({ persona, url: loc })))) return; errors.push(detail); })); });
+      page.on('response', (response) => { const expected = classifyExpectedHttpFailure({ persona, method: response.request().method(), status: response.status(), url: response.url() }); if (expected) expectedHttpConsoleErrors.add(response.url()); });
       page.on('requestfailed', (request) => failed.push(`${request.url()} ${request.failure()?.errorText || ''}`));
       await page.evaluateOnNewDocument((value) => localStorage.setItem('edurozgaar-theme', value), theme.preference);
       await page.setRequestInterception(true);
@@ -135,8 +163,6 @@ async function runSelfTest(manifest) {
         let status; let body;
         try { [status, body] = mockResponse(url.pathname, persona, { method: request.method(), routeId: `self-test:${route}` }); }
         catch (error) { errors.push({ name: error.name, message: error.message, code: error.code }); status = 599; body = { error: error.code, message: error.message }; }
-        if (status === 401 && (url.pathname.startsWith('/api/auth/') || url.pathname.startsWith('/api/admin/auth/'))) expectedAuth401 += 1;
-        if (status === 403 && (url.pathname.includes('/business-services/') || url.pathname.includes('/education/'))) expectedDomain403 += 1;
         return request.respond({ status, contentType: 'application/json', body: JSON.stringify(body) });
       });
       await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: theme.media }]);
@@ -167,6 +193,7 @@ async function runSelfTest(manifest) {
 
 async function runFullMatrix(manifest) {
   assertManifest(manifest);
+  const resolver = loadResolver();
   const lifecycle = { stage: 'MANIFEST_VALIDATED' };
   const cells = manifest.routes
     .filter((route) => ['FULL_MATRIX_UI', 'PARAMETRIC_UI'].includes(route.classification))
@@ -193,65 +220,207 @@ async function runFullMatrix(manifest) {
   const routeFilter = process.argv.find((arg) => arg.startsWith('--route='))?.slice('--route='.length);
   const themeFilter = process.argv.find((arg) => arg.startsWith('--theme='))?.slice('--theme='.length);
   const widthFilter = Number(process.argv.find((arg) => arg.startsWith('--width='))?.slice('--width='.length) || 0);
-  const selectedCells = cells.filter(({ route, theme, width }) => (!personaFilter || route.persona === personaFilter) && (!routeFilter || route.routePattern === routeFilter || route.canonicalUrl === routeFilter) && (!themeFilter || theme.id === themeFilter) && (!widthFilter || width === widthFilter)).slice(0, maxCells);
-  const diagnosticRun = Number.isFinite(maxCells) || Boolean(personaFilter || routeFilter || themeFilter || widthFilter);
+  const includeKeysFile = process.argv.find((arg) => arg.startsWith('--include-keys-file='))?.slice('--include-keys-file='.length);
+  const excludeKeysFile = process.argv.find((arg) => arg.startsWith('--exclude-keys-file='))?.slice('--exclude-keys-file='.length);
+  const loadKeySet = (file) => {
+    if (!file) return null;
+    const parsed = JSON.parse(fs.readFileSync(file, 'utf8'));
+    const keys = Array.isArray(parsed) ? parsed : parsed.keys;
+    if (!Array.isArray(keys)) throw new Error(`Invalid keys file: ${file}`);
+    return new Set(keys);
+  };
+  const includeKeys = loadKeySet(includeKeysFile);
+  const excludeKeys = loadKeySet(excludeKeysFile) || new Set();
+  const selectedCells = cells.filter(({ route, theme, width }) => {
+    const key = cellKey({ persona: route.persona, route, theme, width });
+    if (includeKeys && !includeKeys.has(key)) return false;
+    if (excludeKeys.has(key)) return false;
+    return (!personaFilter || route.persona === personaFilter) && (!routeFilter || route.routePattern === routeFilter || route.canonicalUrl === routeFilter) && (!themeFilter || theme.id === themeFilter) && (!widthFilter || width === widthFilter);
+  }).slice(0, maxCells);
+  const diagnosticRun = Number.isFinite(maxCells) || Boolean(personaFilter || routeFilter || themeFilter || widthFilter || includeKeysFile || excludeKeysFile);
   if (!selectedCells.length) throw new Error('No matrix cells matched the requested diagnostic filters');
+  const guard = createRateLimitGuard();
+  const sessions = new Map();
+  const routeRef = { current: null };
+  const closeSession = async (persona) => {
+    const session = sessions.get(persona);
+    if (!session) return;
+    sessions.delete(persona);
+    try { await session.page.close(); } catch { /* already closed */ }
+    try { await session.ctx.close(); } catch { /* already closed */ }
+  };
+
+  function isDetachedFrameError(error) {
+    return typeof error?.message === 'string' && error.message.includes('Attempted to use detached Frame');
+  }
+  const closeAllSessions = async () => { await Promise.all([...sessions.keys()].map((persona) => closeSession(persona))); };
+  const obtainSession = async (route, theme, width, errors, failed, consoleTasks, expectedHttpConsoleErrors) => {
+    const existing = sessions.get(route.persona);
+    if (existing && existing.themeId === theme.id && existing.width === width) {
+      routeRef.current = route;
+      existing.errors = errors; existing.failed = failed; existing.consoleTasks = consoleTasks; existing.expectedHttpConsoleErrors = expectedHttpConsoleErrors;
+      return existing;
+    }
+    await closeSession(route.persona);
+    recordLifecycle(run, { stage: 'THEME_SETUP', persona: route.persona, theme: theme.id, width });
+    const ctx = await stage('context-create', browser.createBrowserContext());
+    const page = await ctx.newPage();
+    const session = { ctx, page, persona: route.persona, themeId: theme.id, width, errors, failed, consoleTasks, expectedHttpConsoleErrors, last429Ms: 0 };
+    routeRef.current = route;
+    page.on('pageerror', (error) => session.errors.push(serializePageError(error)));
+    page.on('console', (message) => {
+      if (message.type() !== 'error' || message.text().includes('icon from the Manifest')) return;
+      session.consoleTasks.push(serializeConsoleMessage(message).then((detail) => {
+        const loc = detail.location.url;
+        if (loc && (session.expectedHttpConsoleErrors.has(loc) || (detail.text?.startsWith('Failed to load resource') && classifyExpectedConsoleError({ persona: routeRef.current?.persona, url: loc })))) return;
+        session.errors.push(detail);
+      }));
+    });
+    page.on('response', (response) => {
+      let pathname = '';
+      try { pathname = new URL(response.url()).pathname; } catch { pathname = ''; }
+      if (pathname.startsWith('/api/')) guard.noteApi();
+      if (response.status() === 429) {
+        session.last429Ms = retryAfterMs(response);
+        guard.note429();
+      }
+      const expected = classifyExpectedHttpFailure({ persona: routeRef.current.persona, method: response.request().method(), status: response.status(), url: response.url() });
+      if (expected) session.expectedHttpConsoleErrors.add(response.url());
+    });
+    page.on('requestfailed', (request) => {
+      const errorText = request.failure()?.errorText || '';
+      if (errorText === 'net::ERR_ABORTED') return;
+      session.failed.push(`${request.url()} ${errorText}`);
+    });
+    await stage('theme-setup', page.evaluateOnNewDocument((value) => localStorage.setItem('edurozgaar-theme', value), theme.preference));
+    await page.setRequestInterception(true);
+    page.on('request', (request) => {
+      const url = new URL(request.url());
+      if (!url.pathname.startsWith('/api/')) return request.continue();
+      if (fulfillApprovedResponse(request, url, routeRef.current.persona, routeRef.current.id, session.errors)) return;
+      if (QA_API_ORIGIN) return request.continue({ url: `${QA_API_ORIGIN}${url.pathname}${url.search}` });
+      return request.continue();
+    });
+    await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: theme.media }]);
+    await page.setViewport({ width, height: width < 768 ? 1000 : 1100 });
+    if (route.persona !== 'anonymous') {
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        session.last429Ms = 0;
+        try {
+          await stage('real-authentication', authenticateRealBrowserPage(page, route.persona, BASE));
+          guard.noteLogin();
+          break;
+        } catch (error) {
+          if (session.last429Ms && attempt < 3) {
+            guard.noteRetry();
+            await delay(session.last429Ms);
+            continue;
+          }
+          throw error;
+        }
+      }
+      await Promise.allSettled(session.consoleTasks);
+      session.errors.length = 0; session.failed.length = 0; session.consoleTasks.length = 0;
+    }
+    sessions.set(route.persona, session);
+    return session;
+  };
   let currentCell;
-  const heartbeat = setInterval(() => { const summary = reconcile(run, manifest, THEMES, WIDTHS); console.log(JSON.stringify({ runId: run.metadata.runId, head, completed: summary.uniqueVisualCellsRecorded, planned: selectedCells.length, passed: summary.PASS, failed: summary.FAIL, incomplete: summary.INCOMPLETE, remaining: Math.max(0, selectedCells.length - summary.uniqueVisualCellsRecorded), current: currentCell || null, stage: run.metadata.current?.stage || 'IDLE', elapsedMs: Date.now() - new Date(run.metadata.startTimestamp).getTime() })); }, 10000);
+  const heartbeat = setInterval(() => {
+    const summary = reconcile(run, manifest, THEMES, WIDTHS);
+    console.log(JSON.stringify({
+      runId: run.metadata.runId, head, completed: summary.uniqueVisualCellsRecorded, planned: selectedCells.length,
+      passed: summary.PASS, failed: summary.FAIL, incomplete: summary.INCOMPLETE,
+      remaining: Math.max(0, selectedCells.length - summary.uniqueVisualCellsRecorded),
+      current: currentCell || null, stage: run.metadata.current?.stage || 'IDLE',
+      elapsedMs: Date.now() - new Date(run.metadata.startTimestamp).getTime(),
+      rateLimit: { ...guard.stats, hitsInWindow: guard.hitsInWindow(), budget: guard.budget },
+    }));
+  }, 10000);
   try {
     for (const { route, theme, width } of selectedCells) {
       const key = cellKey({ persona: route.persona, route, theme, width });
-      if (completed.has(key)) continue;
+      if (completed.has(key) || excludeKeys.has(key)) continue;
+      await guard.beforeCell();
       const startedAt = new Date().toISOString();
       currentCell = { key, persona: route.persona, routeId: route.id, theme: theme.id, width };
       recordLifecycle(run, { stage: 'CELL_START', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
-      const page = await stage('context-create', browser.newPage()); const errors = []; const failed = []; const consoleTasks = []; let expectedAuth401 = 0; let expectedDomain403 = 0;
-      page.on('pageerror', (error) => errors.push(serializePageError(error)));
-      page.on('console', (message) => { if (message.type() !== 'error' || message.text().includes('icon from the Manifest')) return; if (message.text().includes('401 (Unauthorized)') && expectedAuth401 > 0) { expectedAuth401 -= 1; return; } if (message.text().includes('403 (Forbidden)') && expectedDomain403 > 0) { expectedDomain403 -= 1; return; } consoleTasks.push(serializeConsoleMessage(message).then((detail) => errors.push(detail))); });
-      page.on('requestfailed', (request) => failed.push(`${request.url()} ${request.failure()?.errorText || ''}`));
-      recordLifecycle(run, { stage: 'THEME_SETUP', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
-      await stage('theme-setup', page.evaluateOnNewDocument((value) => localStorage.setItem('edurozgaar-theme', value), theme.preference));
-      await page.setRequestInterception(true);
-      page.on('request', (request) => { const url = new URL(request.url()); if (!url.pathname.startsWith('/api/')) return request.continue(); let status; let body; try { [status, body] = mockResponse(url.pathname, route.persona, { method: request.method(), routeId: route.id }); } catch (error) { errors.push({ name: error.name, message: error.message, code: error.code }); status = 599; body = { error: error.code, message: error.message }; } if (status === 401 && (url.pathname.startsWith('/api/auth/') || url.pathname.startsWith('/api/admin/auth/'))) expectedAuth401 += 1; if (status === 403 && (url.pathname.includes('/business-services/') || url.pathname.includes('/education/'))) expectedDomain403 += 1; return request.respond({ status, contentType: 'application/json', body: JSON.stringify(body) }); });
-      await page.emulateMediaFeatures([{ name: 'prefers-color-scheme', value: theme.media }]);
-      await page.setViewport({ width, height: width < 768 ? 1000 : 1100 });
+      const errors = []; const failed = []; const consoleTasks = []; const expectedHttpConsoleErrors = new Set();
       let result;
-      try {
-        recordLifecycle(run, { stage: 'NAVIGATION_START', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
-        await stage('navigation', page.goto(`${BASE}${route.canonicalUrl}`, { waitUntil: 'domcontentloaded', timeout: 30000 }));
-        recordLifecycle(run, { stage: 'NAVIGATION_COMPLETE', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
-        await stage('readiness-h1', page.waitForSelector('h1', { timeout: 15000 }));
-        recordLifecycle(run, { stage: 'ASSERTIONS_START', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
-        await Promise.allSettled(consoleTasks);
-        result = await page.evaluate(() => ({ h1: document.querySelector('h1')?.textContent?.trim(), overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - document.documentElement.clientWidth, dark: document.documentElement.classList.contains('dark'), duplicateH1: document.querySelectorAll('h1').length !== 1 }));
-        assert.ok(result.h1); assert.ok(result.overflow <= 2); assert.equal(result.dark, theme.media === 'dark'); assert.equal(result.duplicateH1, false); assert.deepEqual(errors, []); assert.deepEqual(failed, []);
-        recordResult(run, { key, kind: 'visual', persona: route.persona, routeId: route.id, url: route.canonicalUrl, theme: theme.id, width, startedAt, endedAt: new Date().toISOString(), status: 'PASS', h1: result.h1, overflow: result.overflow, errors, failed });
+      let navigateUrl = route.canonicalUrl;
+      if (route.classification === 'PARAMETRIC_UI') {
+        const resolved = resolveCanonicalUrl(resolver, route.routePattern, route.persona);
+        if (resolved === null) {
+          const entry = { key, kind: 'visual', persona: route.persona, routeId: route.id, url: route.canonicalUrl, theme: theme.id, width, startedAt, endedAt: new Date().toISOString(), status: 'FAIL', h1: null, overflow: null, error: ACCEPTANCE_REAL_PARAM_NOT_RESOLVED, errors: [], failed: [] };
+          recordResult(run, entry);
+          failures.push(entry);
+          continue;
+        }
+        navigateUrl = resolved;
+      }
+      let session = await obtainSession(route, theme, width, errors, failed, consoleTasks, expectedHttpConsoleErrors);
+      let lastError;
+      let detachedFrameRetried = false;
+      for (let attempt = 0; attempt < 4; attempt += 1) {
+        session.errors.length = 0; session.failed.length = 0; session.consoleTasks.length = 0; session.expectedHttpConsoleErrors.clear(); session.last429Ms = 0;
+        try {
+          recordLifecycle(run, { stage: 'NAVIGATION_START', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
+          await stage('navigation', session.page.goto(`${BASE}${navigateUrl}`, { waitUntil: 'domcontentloaded', timeout: 30000 }));
+          recordLifecycle(run, { stage: 'NAVIGATION_COMPLETE', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
+          await stage('readiness-h1', session.page.waitForSelector('h1', { timeout: 15000 }));
+          recordLifecycle(run, { stage: 'ASSERTIONS_START', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
+          await Promise.allSettled(session.consoleTasks);
+          result = await session.page.evaluate(() => ({ h1: document.querySelector('h1')?.textContent?.trim(), overflow: Math.max(document.documentElement.scrollWidth, document.body.scrollWidth) - document.documentElement.clientWidth, dark: document.documentElement.classList.contains('dark'), duplicateH1: document.querySelectorAll('h1').length !== 1 }));
+          assert.ok(result.h1); assert.ok(result.overflow <= 2); assert.equal(result.dark, theme.media === 'dark'); assert.equal(result.duplicateH1, false); assert.deepEqual(session.errors, []); assert.deepEqual(session.failed, []);
+          lastError = null;
+          break;
+        } catch (error) {
+          if (error?.name === 'CheckpointPersistenceError' || error?.code === 'DUPLICATE_TERMINAL_CELL') throw error;
+          lastError = error;
+          if (isDetachedFrameError(error) && !detachedFrameRetried) {
+            detachedFrameRetried = true;
+            recordLifecycle(run, { stage: 'DETACHED_FRAME_RECOVERY', key, persona: route.persona, routeId: route.id, theme: theme.id, width, attempt: attempt + 1, error: error.message });
+            await closeSession(route.persona);
+            session = await obtainSession(route, theme, width, errors, failed, consoleTasks, expectedHttpConsoleErrors);
+            continue;
+          }
+          if (session.last429Ms && attempt < 3) {
+            guard.noteRetry();
+            recordLifecycle(run, { stage: 'RATE_LIMIT_RETRY', key, persona: route.persona, routeId: route.id, retryAfterMs: session.last429Ms, attempt: attempt + 1 });
+            await delay(session.last429Ms);
+            continue;
+          }
+          break;
+        }
+      }
+      if (!lastError) {
+        recordResult(run, { key, kind: 'visual', persona: route.persona, routeId: route.id, url: navigateUrl, theme: theme.id, width, startedAt, endedAt: new Date().toISOString(), status: 'PASS', h1: result.h1, overflow: result.overflow, errors: session.errors, failed: session.failed });
         recordLifecycle(run, { stage: 'CELL_PERSISTED', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
         recordLifecycle(run, { stage: 'ASSERTIONS_COMPLETE', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
-      } catch (error) {
-        if (error?.name === 'CheckpointPersistenceError' || error?.code === 'DUPLICATE_TERMINAL_CELL') throw error;
-        const status = error?.name === 'AbortError' ? 'INCOMPLETE' : 'FAIL';
-        const entry = { key, kind: 'visual', persona: route.persona, routeId: route.id, url: route.canonicalUrl, theme: theme.id, width, startedAt, endedAt: new Date().toISOString(), status, h1: result?.h1 || null, overflow: result?.overflow ?? null, error: error.message, errors, failed };
+      } else {
+        const status = lastError?.name === 'AbortError' ? 'INCOMPLETE' : 'FAIL';
+        const entry = { key, kind: 'visual', persona: route.persona, routeId: route.id, url: navigateUrl, theme: theme.id, width, startedAt, endedAt: new Date().toISOString(), status, h1: result?.h1 || null, overflow: result?.overflow ?? null, error: lastError.message, errors: session.errors, failed: session.failed };
         recordResult(run, entry); if (status === 'FAIL') failures.push(entry);
       }
-      await stage('context-close', page.close());
-      recordLifecycle(run, { stage: 'CONTEXT_CLOSED', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
+      try { await session.page.goto('about:blank', { waitUntil: 'domcontentloaded', timeout: 5000 }); } catch { /* isolation: stop live polling before the next cell/pace wait */ }
       const current = reconcile(run, manifest, THEMES, WIDTHS);
-      if ((current.uniqueVisualCellsRecorded % 25) === 0) console.log(JSON.stringify({ runId: run.metadata.runId, head, completed: current.uniqueVisualCellsRecorded, planned: current.plannedVisualCells, passed: current.PASS, failed: current.FAIL, incomplete: current.INCOMPLETE, remaining: current.unseen, persona: route.persona, route: route.id, theme: theme.id, width }));
+      if ((current.uniqueVisualCellsRecorded % 25) === 0) console.log(JSON.stringify({ runId: run.metadata.runId, head, completed: current.uniqueVisualCellsRecorded, planned: current.plannedVisualCells, passed: current.PASS, failed: current.FAIL, incomplete: current.INCOMPLETE, remaining: current.unseen, persona: route.persona, route: route.id, theme: theme.id, width, rateLimit: { ...guard.stats, hitsInWindow: guard.hitsInWindow() } }));
     }
+    recordLifecycle(run, { stage: 'RATE_LIMIT_STATS', ...guard.stats, hitsInWindow: guard.hitsInWindow(), budget: guard.budget, windowMs: guard.windowMs });
     markRunStatus(run, 'COMPLETED');
   } catch (error) { if (currentCell) recordLifecycle(run, { stage: 'CELL_INTERRUPTED', ...currentCell, error: error.message }); markRunStatus(run, 'INTERRUPTED'); throw error; } finally {
     clearInterval(heartbeat);
-    try { await stage('browser-close', browser.close()); recordLifecycle(run, { stage: 'BROWSER_CLOSED' }); }
+    try { await closeAllSessions(); await stage('browser-close', browser.close()); recordLifecycle(run, { stage: 'BROWSER_CLOSED' }); }
     catch (error) { recordLifecycle(run, { stage: 'BROWSER_CLOSE_TIMEOUT', error: error.message }); markRunStatus(run, 'INTERRUPTED'); throw error; } // eslint-disable-line no-unsafe-finally
   }
   const summary = reconcile(run, manifest, THEMES, WIDTHS);
-  console.log(JSON.stringify({ matrix: summary, failures: failures.slice(0, 20) }, null, 2));
+  console.log(JSON.stringify({ matrix: summary, failures: failures.slice(0, 20), rateLimit: { ...guard.stats, hitsInWindow: guard.hitsInWindow(), budget: guard.budget } }, null, 2));
   if (!diagnosticRun) { assert.equal(summary.INCOMPLETE, 0); assert.equal(summary.FAIL, 0); }
 }
 
 const manifest = buildManifest();
 if (process.argv.includes('--manifest')) { console.log(JSON.stringify(manifest, null, 2)); process.exit(0); }
+if (process.argv.includes('--network-audit')) { console.log(JSON.stringify({ mode: 'REAL_SAME_ORIGIN_API_DEFAULT', approvedResponseFixtures: interceptionAudit() }, null, 2)); process.exit(0); }
 if (process.argv.includes('--full')) await runFullMatrix(manifest);
 if (process.argv.includes('--reconcile')) {
   const runId = process.argv.find((arg) => arg.startsWith('--run-id='))?.slice('--run-id='.length);
