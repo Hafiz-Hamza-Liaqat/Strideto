@@ -202,7 +202,7 @@ async function runFullMatrix(manifest) {
   const head = process.env.STRIDETO_QA_HEAD || (await import('node:child_process')).execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
   const runIdArg = process.argv.find((arg) => arg.startsWith('--run-id='))?.slice('--run-id='.length);
   const resume = process.argv.includes('--resume');
-  const run = resume ? openRun(runIdArg, { head, manifest, themes: THEMES, widths: WIDTHS, runnerVersion: 'b9c5978', acceptanceContractVersion: ACCEPTANCE_CONTRACT_VERSION, forResume: true }) : createRun({ head, manifest, runnerVersion: 'b9c5978', mode: 'full', runId: runIdArg, themes: THEMES, widths: WIDTHS, acceptanceContractVersion: ACCEPTANCE_CONTRACT_VERSION });
+  const run = resume ? openRun(runIdArg, { head, manifest, themes: THEMES, widths: WIDTHS, runnerVersion: 'b5d5e6f', acceptanceContractVersion: ACCEPTANCE_CONTRACT_VERSION, forResume: true }) : createRun({ head, manifest, runnerVersion: 'b5d5e6f', mode: 'full', runId: runIdArg, themes: THEMES, widths: WIDTHS, acceptanceContractVersion: ACCEPTANCE_CONTRACT_VERSION });
   if (resume) markRunStatus(run, 'RUNNING');
   recordLifecycle(run, lifecycle);
   reconcile(run, manifest, THEMES, WIDTHS);
