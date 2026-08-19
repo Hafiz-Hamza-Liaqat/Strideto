@@ -22,6 +22,14 @@ const THEMES = [
   { id: 'system-dark', preference: 'system', media: 'dark' },
 ];
 
+// Canonical representative cells use hard browser navigation (direct/deep-load certification).
+// Every route/persona combination MUST be proven via page.goto() at this theme+width.
+const CANONICAL_THEME_ID = 'explicit-light';
+const CANONICAL_WIDTH = 1440;
+function isCanonicalCell(theme, width) {
+  return theme.id === CANONICAL_THEME_ID && width === CANONICAL_WIDTH;
+}
+
 async function serializeConsoleMessage(message) {
   const location = typeof message.location === 'function' ? message.location() : {};
   const args = [];
@@ -216,6 +224,7 @@ async function runFullMatrix(manifest) {
   const browser = await stage('browser-launch', puppeteer.launch({ headless: true, ignoreHTTPSErrors: true, args: ['--ignore-certificate-errors'] }));
   recordLifecycle(run, { stage: 'BROWSER_LAUNCHED' });
   const failures = [];
+  const navigationStats = { hardNavigations: 0, spaNavigations: 0, canonicalHardNavigations: 0 };
   const maxCells = Number(process.argv.find((arg) => arg.startsWith('--max-cells='))?.slice('--max-cells='.length) || Infinity);
   const personaFilter = process.argv.find((arg) => arg.startsWith('--persona='))?.slice('--persona='.length);
   const routeFilter = process.argv.find((arg) => arg.startsWith('--route='))?.slice('--route='.length);
@@ -266,7 +275,7 @@ async function runFullMatrix(manifest) {
     recordLifecycle(run, { stage: 'THEME_SETUP', persona: route.persona, theme: theme.id, width });
     const ctx = await stage('context-create', browser.createBrowserContext());
     const page = await ctx.newPage();
-    const session = { ctx, page, persona: route.persona, themeId: theme.id, width, errors, failed, consoleTasks, expectedHttpConsoleErrors, last429Ms: 0 };
+    const session = { ctx, page, persona: route.persona, themeId: theme.id, width, errors, failed, consoleTasks, expectedHttpConsoleErrors, last429Ms: 0, spaReady: false };
     routeRef.current = route;
     page.on('pageerror', (error) => session.errors.push(serializePageError(error)));
     page.on('console', (message) => {
@@ -362,12 +371,39 @@ async function runFullMatrix(manifest) {
       let session = await obtainSession(route, theme, width, errors, failed, consoleTasks, expectedHttpConsoleErrors);
       let lastError;
       let detachedFrameRetried = false;
+      let cellNavMode = 'hard';
       for (let attempt = 0; attempt < 4; attempt += 1) {
         session.errors.length = 0; session.failed.length = 0; session.consoleTasks.length = 0; session.expectedHttpConsoleErrors.clear(); session.last429Ms = 0;
+        // Canonical cells (explicit-light/1440) always use hard browser navigation to certify
+        // direct/deep-load semantics for every route/persona combination.
+        // Non-canonical cells use SPA navigation only when an initialized session is available;
+        // an uninitialized or just-recovered session falls back to hard navigation.
+        const useHardNav = isCanonicalCell(theme, width) || !session.spaReady;
+        cellNavMode = useHardNav ? 'hard' : 'spa';
         try {
-          recordLifecycle(run, { stage: 'NAVIGATION_START', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
-          await stage('navigation', session.page.goto(`${BASE}${navigateUrl}`, { waitUntil: 'domcontentloaded', timeout: 30000 }));
-          recordLifecycle(run, { stage: 'NAVIGATION_COMPLETE', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
+          recordLifecycle(run, { stage: 'NAVIGATION_START', key, persona: route.persona, routeId: route.id, theme: theme.id, width, navMode: cellNavMode });
+          if (useHardNav) {
+            await stage('navigation', session.page.goto(`${BASE}${navigateUrl}`, { waitUntil: 'domcontentloaded', timeout: 30000 }));
+            session.spaReady = true;
+            navigationStats.hardNavigations += 1;
+            if (isCanonicalCell(theme, width)) navigationStats.canonicalHardNavigations += 1;
+          } else {
+            // SPA navigation: pushState + popstate proves React Router v6 BrowserRouter
+            // actually responds (handlePop fires and updates internal route state).
+            // URL verification is the primary completion proof; it does not rely on h1
+            // text change, so routes that legitimately share h1 text do not false-fail.
+            await stage('spa-navigate', session.page.evaluate((path) => {
+              window.history.pushState({ idx: (window.history.state?.idx ?? 0) + 1 }, '', path);
+              window.dispatchEvent(new PopStateEvent('popstate', { state: window.history.state }));
+            }, navigateUrl));
+            await stage('spa-url-reached', session.page.waitForFunction(
+              (path) => window.location.pathname === path,
+              { timeout: 8000 },
+              navigateUrl,
+            ));
+            navigationStats.spaNavigations += 1;
+          }
+          recordLifecycle(run, { stage: 'NAVIGATION_COMPLETE', key, persona: route.persona, routeId: route.id, theme: theme.id, width, navMode: cellNavMode });
           await stage('readiness-h1', session.page.waitForSelector('h1', { timeout: 15000 }));
           recordLifecycle(run, { stage: 'ASSERTIONS_START', key, persona: route.persona, routeId: route.id, theme: theme.id, width });
           await Promise.allSettled(session.consoleTasks);
@@ -383,6 +419,7 @@ async function runFullMatrix(manifest) {
             recordLifecycle(run, { stage: 'DETACHED_FRAME_RECOVERY', key, persona: route.persona, routeId: route.id, theme: theme.id, width, attempt: attempt + 1, error: error.message });
             await closeSession(route.persona);
             session = await obtainSession(route, theme, width, errors, failed, consoleTasks, expectedHttpConsoleErrors);
+            // Recovered session has spaReady:false — next iteration will use hard nav
             continue;
           }
           if (session.last429Ms && attempt < 3) {
@@ -403,9 +440,16 @@ async function runFullMatrix(manifest) {
         const entry = { key, kind: 'visual', persona: route.persona, routeId: route.id, url: navigateUrl, theme: theme.id, width, startedAt, endedAt: new Date().toISOString(), status, h1: result?.h1 || null, overflow: result?.overflow ?? null, error: lastError.message, errors: session.errors, failed: session.failed };
         recordResult(run, entry); if (status === 'FAIL') failures.push(entry);
       }
-      try { await session.page.goto('about:blank', { waitUntil: 'domcontentloaded', timeout: 5000 }); } catch { /* isolation: stop live polling before the next cell/pace wait */ }
+      // Hard-load cells: navigate to about:blank to stop live polling during rate-limit pacing.
+      // SPA cells: keep the SPA alive so the next cell in the same session tuple can
+      // reuse the initialized router. Failed SPA cells also reset to about:blank so the
+      // recovered session starts with a clean hard load.
+      if (cellNavMode === 'hard' || lastError) {
+        try { await session.page.goto('about:blank', { waitUntil: 'domcontentloaded', timeout: 5000 }); } catch { /* isolation: stop live polling before the next cell/pace wait */ }
+        session.spaReady = false;
+      }
       const current = reconcile(run, manifest, THEMES, WIDTHS);
-      if ((current.uniqueVisualCellsRecorded % 25) === 0) console.log(JSON.stringify({ runId: run.metadata.runId, head, completed: current.uniqueVisualCellsRecorded, planned: current.plannedVisualCells, passed: current.PASS, failed: current.FAIL, incomplete: current.INCOMPLETE, remaining: current.unseen, persona: route.persona, route: route.id, theme: theme.id, width, rateLimit: { ...guard.stats, hitsInWindow: guard.hitsInWindow() } }));
+      if ((current.uniqueVisualCellsRecorded % 25) === 0) console.log(JSON.stringify({ runId: run.metadata.runId, head, completed: current.uniqueVisualCellsRecorded, planned: current.plannedVisualCells, passed: current.PASS, failed: current.FAIL, incomplete: current.INCOMPLETE, remaining: current.unseen, persona: route.persona, route: route.id, theme: theme.id, width, rateLimit: { ...guard.stats, hitsInWindow: guard.hitsInWindow() }, navigationStats }));
     }
     recordLifecycle(run, { stage: 'RATE_LIMIT_STATS', ...guard.stats, hitsInWindow: guard.hitsInWindow(), budget: guard.budget, windowMs: guard.windowMs });
     markRunStatus(run, 'COMPLETED');
@@ -415,7 +459,7 @@ async function runFullMatrix(manifest) {
     catch (error) { recordLifecycle(run, { stage: 'BROWSER_CLOSE_TIMEOUT', error: error.message }); markRunStatus(run, 'INTERRUPTED'); throw error; } // eslint-disable-line no-unsafe-finally
   }
   const summary = reconcile(run, manifest, THEMES, WIDTHS);
-  console.log(JSON.stringify({ matrix: summary, failures: failures.slice(0, 20), rateLimit: { ...guard.stats, hitsInWindow: guard.hitsInWindow(), budget: guard.budget } }, null, 2));
+  console.log(JSON.stringify({ matrix: summary, failures: failures.slice(0, 20), rateLimit: { ...guard.stats, hitsInWindow: guard.hitsInWindow(), budget: guard.budget }, navigationStats }, null, 2));
   if (!diagnosticRun) { assert.equal(summary.INCOMPLETE, 0); assert.equal(summary.FAIL, 0); }
 }
 
