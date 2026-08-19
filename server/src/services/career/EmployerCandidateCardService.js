@@ -30,7 +30,8 @@ function workPreferenceFromProfile(profile) {
   const modes = pref.workModes || pref.modes || [];
   if (Array.isArray(modes) && modes.length) return modes.join(', ');
   if (pref.remote != null) return pref.remote ? 'remote' : 'onsite';
-  return profile?.availability || '';
+  const avail = profile?.availability;
+  return typeof avail === 'string' ? avail : '';
 }
 
 function experienceYears(profile) {
