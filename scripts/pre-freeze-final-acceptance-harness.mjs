@@ -195,9 +195,10 @@ async function runFullMatrix(manifest) {
   assertManifest(manifest);
   const resolver = loadResolver();
   const lifecycle = { stage: 'MANIFEST_VALIDATED' };
-  const cells = manifest.routes
-    .filter((route) => ['FULL_MATRIX_UI', 'PARAMETRIC_UI'].includes(route.classification))
-    .flatMap((route) => THEMES.flatMap((theme) => WIDTHS.map((width) => ({ route, theme, width }))));
+  const visualRoutes = manifest.routes.filter((route) => ['FULL_MATRIX_UI', 'PARAMETRIC_UI'].includes(route.classification));
+  // theme+width-major ordering: all routes for a given (theme,width) batch together so the
+  // per-persona session cache can reuse the authenticated context across consecutive routes.
+  const cells = THEMES.flatMap((theme) => WIDTHS.flatMap((width) => visualRoutes.map((route) => ({ route, theme, width }))));
   const head = process.env.STRIDETO_QA_HEAD || (await import('node:child_process')).execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
   const runIdArg = process.argv.find((arg) => arg.startsWith('--run-id='))?.slice('--run-id='.length);
   const resume = process.argv.includes('--resume');
