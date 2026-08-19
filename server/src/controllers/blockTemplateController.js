@@ -27,11 +27,11 @@ function validateTemplateBody(body) {
 }
 
 export const listBlockTemplates = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 100, q, category, sort } = req.query;
+  const { q, category, sort } = req.query;
   const filter = {};
   if (category && category !== 'all') filter.category = String(category);
 
-  const { skip, limit: lim } = paginateQuery(page, limit);
+  const { page, skip, limit: lim } = paginateQuery(req, 20, 200);
   const [items, total] = await Promise.all([
     CmsBlockTemplate.find(filter).sort({ favorite: -1, name: 1 }).skip(skip).limit(lim).lean(),
     CmsBlockTemplate.countDocuments(filter),

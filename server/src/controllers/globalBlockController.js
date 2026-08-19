@@ -30,11 +30,11 @@ function validateGlobalBody(body) {
 }
 
 export const listGlobalBlocks = asyncHandler(async (req, res) => {
-  const { page = 1, limit = 100, q, blockType } = req.query;
+  const { q, blockType } = req.query;
   const filter = {};
   if (blockType) filter.blockType = String(blockType);
 
-  const { skip, limit: lim } = paginateQuery(page, limit);
+  const { page, skip, limit: lim } = paginateQuery(req, 20, 200);
   let items = await CmsGlobalBlock.find(filter).sort({ name: 1 }).skip(skip).limit(lim).lean();
   const total = await CmsGlobalBlock.countDocuments(filter);
 

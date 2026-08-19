@@ -10,7 +10,7 @@ import { useToast } from '../../context/ToastContext';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
 
 export default function AdminBlockTemplates() {
-  const toast = useToast();
+  const { toast } = useToast();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [q, setQ] = useState('');
