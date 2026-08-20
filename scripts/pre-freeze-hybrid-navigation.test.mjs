@@ -296,8 +296,8 @@ const isCanonicalCell = (theme, width) => theme.id === CANONICAL_THEME_ID && wid
   assert.match(source, /isCanonicalCell\(theme, width\)/, 'harness must call isCanonicalCell to determine nav mode');
   assert.match(source, /const useHardNav = isCanonicalCell/, 'canonical override must appear in useHardNav expression');
 
-  // Conditional about:blank: SPA cells must keep SPA alive
-  assert.match(source, /cellNavMode === 'hard' \|\| lastError/, 'about:blank must be conditional on hard nav or error');
+  // Conditional about:blank: canonical cells and error path reset; non-canonical HARD keeps SPA alive
+  assert.match(source, /isCanonicalCell\(theme, width\) \|\| lastError/, 'about:blank must be conditional on canonical cell or error');
 
   // navigationStats must be tracked and reported
   assert.match(source, /navigationStats/, 'harness must track and report navigationStats');
@@ -352,6 +352,75 @@ const isCanonicalCell = (theme, width) => theme.id === CANONICAL_THEME_ID && wid
   assert.equal(newOnly.length, 0, 'new-only keys must be 0');
 
   console.log(JSON.stringify({ test: 'cell-equivalence-vs-legacy', oldKeys: oldKeys.size, newKeys: newKeys.size, oldOnly: oldOnly.length, newOnly: newOnly.length, result: 'PASS' }));
+}
+
+// ── 10. Cross-cell SPA state preservation ─────────────────────────────────────
+
+{
+  // Proves that a successful HARD navigation for a non-canonical cell does NOT reset
+  // spaReady=false. The about:blank isolation path must only fire for canonical cells
+  // (explicit-light/1440) or on an error. Non-canonical HARD bootstraps the SPA and
+  // must leave spaReady=true so subsequent cells in the same tuple use SPA navigation.
+
+  // Pick a non-canonical tuple (explicit-dark / 1440): not canonical because theme differs.
+  const nonCanonTheme = { id: 'explicit-dark' };
+  const nonCanonWidth = 1440;
+  assert.equal(isCanonicalCell(nonCanonTheme, nonCanonWidth), false, 'test fixture must be non-canonical');
+
+  // Simulate the state machine for 3 sequential cells in the same session.
+  function simulateAboutBlankReset(theme, width, lastError) {
+    // Mirrors the fixed harness condition:
+    return isCanonicalCell(theme, width) || Boolean(lastError);
+  }
+
+  let spaReady = false; // new session
+  const navModes = [];
+
+  for (let i = 0; i < 3; i += 1) {
+    const useHardNav = isCanonicalCell(nonCanonTheme, nonCanonWidth) || !spaReady;
+    navModes.push(useHardNav ? 'hard' : 'spa');
+    if (useHardNav) {
+      // Successful hard nav: spaReady=true is set unconditionally
+      spaReady = true;
+      // about:blank reset fires only for canonical OR error — neither applies here
+      const resetsPage = simulateAboutBlankReset(nonCanonTheme, nonCanonWidth, null);
+      if (resetsPage) spaReady = false;
+    }
+  }
+
+  assert.equal(navModes[0], 'hard', 'cell 0 (new session): must use HARD nav');
+  assert.equal(navModes[1], 'spa', 'cell 1 (after successful HARD): must use SPA nav');
+  assert.equal(navModes[2], 'spa', 'cell 2: must use SPA nav (spaReady preserved)');
+
+  // Error path: a failed cell (lastError set) must still reset spaReady=false.
+  spaReady = true; // already bootstrapped
+  const errorReset = simulateAboutBlankReset(nonCanonTheme, nonCanonWidth, new Error('simulated'));
+  if (errorReset) spaReady = false;
+  assert.equal(spaReady, false, 'error path must reset spaReady=false');
+
+  // Canonical batch (explicit-light/1440): always HARD; about:blank fires after each cell.
+  const canonTheme = { id: CANONICAL_THEME_ID };
+  spaReady = false;
+  const canonModes = [];
+  for (let i = 0; i < 3; i += 1) {
+    const useHardNav = isCanonicalCell(canonTheme, CANONICAL_WIDTH) || !spaReady;
+    canonModes.push(useHardNav ? 'hard' : 'spa');
+    if (useHardNav) {
+      spaReady = true;
+      if (simulateAboutBlankReset(canonTheme, CANONICAL_WIDTH, null)) spaReady = false;
+    }
+  }
+  assert.ok(canonModes.every((m) => m === 'hard'), 'canonical cells must remain HARD regardless of spaReady');
+
+  // New session for a different tuple (new persona/theme/width) bootstraps HARD.
+  spaReady = false; // new session
+  const newTupleMode = (isCanonicalCell({ id: 'system-dark' }, 375) || !spaReady) ? 'hard' : 'spa';
+  assert.equal(newTupleMode, 'hard', 'new session tuple must bootstrap with HARD nav');
+
+  // Cell universe unchanged
+  assert.equal(cells.length, 7340, 'cell universe must remain 7340');
+
+  console.log(JSON.stringify({ test: 'cross-cell-spa-preservation', nonCanonCell0: navModes[0], nonCanonCell1: navModes[1], nonCanonCell2: navModes[2], errorPathResetsSpready: true, canonicalAlwaysHard: true, newTupleBootstrapsHard: true, cellUniverse: 7340, result: 'PASS' }));
 }
 
 console.log(JSON.stringify({ suite: 'pre-freeze-hybrid-navigation', result: 'ALL PASS' }));

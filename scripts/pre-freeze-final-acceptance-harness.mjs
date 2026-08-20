@@ -440,11 +440,11 @@ async function runFullMatrix(manifest) {
         const entry = { key, kind: 'visual', persona: route.persona, routeId: route.id, url: navigateUrl, theme: theme.id, width, startedAt, endedAt: new Date().toISOString(), status, h1: result?.h1 || null, overflow: result?.overflow ?? null, error: lastError.message, errors: session.errors, failed: session.failed };
         recordResult(run, entry); if (status === 'FAIL') failures.push(entry);
       }
-      // Hard-load cells: navigate to about:blank to stop live polling during rate-limit pacing.
-      // SPA cells: keep the SPA alive so the next cell in the same session tuple can
-      // reuse the initialized router. Failed SPA cells also reset to about:blank so the
-      // recovered session starts with a clean hard load.
-      if (cellNavMode === 'hard' || lastError) {
+      // Canonical cells (explicit-light/1440): navigate to about:blank to isolate polling
+      // between paced hard-load batches. Non-canonical HARD (bootstrap first cell of a new
+      // session): keep the SPA alive so subsequent cells in the same tuple can reuse the
+      // initialized router via SPA navigation. Error path: always reset to about:blank.
+      if (isCanonicalCell(theme, width) || lastError) {
         try { await session.page.goto('about:blank', { waitUntil: 'domcontentloaded', timeout: 5000 }); } catch { /* isolation: stop live polling before the next cell/pace wait */ }
         session.spaReady = false;
       }
@@ -456,7 +456,23 @@ async function runFullMatrix(manifest) {
   } catch (error) { if (currentCell) recordLifecycle(run, { stage: 'CELL_INTERRUPTED', ...currentCell, error: error.message }); markRunStatus(run, 'INTERRUPTED'); throw error; } finally {
     clearInterval(heartbeat);
     try { await closeAllSessions(); await stage('browser-close', browser.close()); recordLifecycle(run, { stage: 'BROWSER_CLOSED' }); }
-    catch (error) { recordLifecycle(run, { stage: 'BROWSER_CLOSE_TIMEOUT', error: error.message }); markRunStatus(run, 'INTERRUPTED'); throw error; } // eslint-disable-line no-unsafe-finally
+    catch (closeError) { // eslint-disable-line no-unsafe-finally
+      if (closeError?.code === 'EBUSY') {
+        // Windows temp-profile cleanup may throw EBUSY after Chrome has already exited.
+        // Wait a short bounded period, then confirm the harness-owned process has gone.
+        await new Promise((resolve) => setTimeout(resolve, 500));
+        const proc = browser.process?.();
+        const processExited = !proc || proc.exitCode !== null || proc.killed || !browser.connected;
+        if (processExited) {
+          // Browser process is gone; only Puppeteer temp-dir cleanup failed — nonfatal.
+          recordLifecycle(run, { stage: 'BROWSER_CLOSE_EBUSY_DEFERRED', error: closeError.message });
+        } else {
+          recordLifecycle(run, { stage: 'BROWSER_CLOSE_TIMEOUT', error: closeError.message }); markRunStatus(run, 'INTERRUPTED'); throw closeError;
+        }
+      } else {
+        recordLifecycle(run, { stage: 'BROWSER_CLOSE_TIMEOUT', error: closeError.message }); markRunStatus(run, 'INTERRUPTED'); throw closeError;
+      }
+    }
   }
   const summary = reconcile(run, manifest, THEMES, WIDTHS);
   console.log(JSON.stringify({ matrix: summary, failures: failures.slice(0, 20), rateLimit: { ...guard.stats, hitsInWindow: guard.hitsInWindow(), budget: guard.budget }, navigationStats }, null, 2));
