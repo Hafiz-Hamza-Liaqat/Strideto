@@ -250,6 +250,17 @@ async function runFullMatrix(manifest) {
   const diagnosticRun = Number.isFinite(maxCells) || Boolean(personaFilter || routeFilter || themeFilter || widthFilter || includeKeysFile || excludeKeysFile);
   if (!selectedCells.length) throw new Error('No matrix cells matched the requested diagnostic filters');
   const guard = createRateLimitGuard();
+  // Precompute the last non-skipped cell index for each (persona, themeId, width) group.
+  // After a group's last active cell completes the session is closed immediately so stale
+  // background /api polling cannot hold hitsInWindow above the guard release threshold
+  // while the next batch's guard.beforeCell() waits to proceed.
+  const lastActiveCellIdx = new Map();
+  selectedCells.forEach(({ route, theme, width }, idx) => {
+    const k = cellKey({ persona: route.persona, route, theme, width });
+    if (!completed.has(k) && !excludeKeys.has(k)) {
+      lastActiveCellIdx.set(`${route.persona}|${theme.id}|${width}`, idx);
+    }
+  });
   const sessions = new Map();
   const routeRef = { current: null };
   const closeSession = async (persona) => {
@@ -348,7 +359,8 @@ async function runFullMatrix(manifest) {
     }));
   }, 10000);
   try {
-    for (const { route, theme, width } of selectedCells) {
+    for (let cellIdx = 0; cellIdx < selectedCells.length; cellIdx++) {
+      const { route, theme, width } = selectedCells[cellIdx];
       const key = cellKey({ persona: route.persona, route, theme, width });
       if (completed.has(key) || excludeKeys.has(key)) continue;
       await guard.beforeCell();
@@ -364,6 +376,7 @@ async function runFullMatrix(manifest) {
           const entry = { key, kind: 'visual', persona: route.persona, routeId: route.id, url: route.canonicalUrl, theme: theme.id, width, startedAt, endedAt: new Date().toISOString(), status: 'FAIL', h1: null, overflow: null, error: ACCEPTANCE_REAL_PARAM_NOT_RESOLVED, errors: [], failed: [] };
           recordResult(run, entry);
           failures.push(entry);
+          if (lastActiveCellIdx.get(`${route.persona}|${theme.id}|${width}`) === cellIdx) await closeSession(route.persona);
           continue;
         }
         navigateUrl = resolved;
@@ -447,6 +460,12 @@ async function runFullMatrix(manifest) {
       if (isCanonicalCell(theme, width) || lastError) {
         try { await session.page.goto('about:blank', { waitUntil: 'domcontentloaded', timeout: 5000 }); } catch { /* isolation: stop live polling before the next cell/pace wait */ }
         session.spaReady = false;
+      }
+      // Close this persona's session after its last active cell in the current
+      // (theme, width) batch so stale background polling cannot accumulate hits
+      // in the guard window and block guard.beforeCell() for the next batch.
+      if (lastActiveCellIdx.get(`${route.persona}|${theme.id}|${width}`) === cellIdx) {
+        await closeSession(route.persona);
       }
       const current = reconcile(run, manifest, THEMES, WIDTHS);
       if ((current.uniqueVisualCellsRecorded % 25) === 0) console.log(JSON.stringify({ runId: run.metadata.runId, head, completed: current.uniqueVisualCellsRecorded, planned: current.plannedVisualCells, passed: current.PASS, failed: current.FAIL, incomplete: current.INCOMPLETE, remaining: current.unseen, persona: route.persona, route: route.id, theme: theme.id, width, rateLimit: { ...guard.stats, hitsInWindow: guard.hitsInWindow() }, navigationStats }));
