@@ -73,7 +73,7 @@ function buildPairwiseCells(vRoutes) {
       if (isCanonicalCell(theme, width)) {
         for (const route of vRoutes) selected.push({ route, theme, width });
       } else if (width === CANONICAL_WIDTH) {
-        // Non-canonical theme + canonical width: never selected.
+        // Non-canonical theme + canonical width: handled by sentinels.
       } else {
         const widthPos = NON_CANONICAL_WIDTHS.indexOf(width);
         for (const [routeIdx, route] of vRoutes.entries()) {
@@ -87,7 +87,16 @@ function buildPairwiseCells(vRoutes) {
   return selected;
 }
 
-const cells = buildPairwiseCells(visualRoutes);
+// 3 sentinel cells for 20/20 global coverage: mirrors buildSentinelCells in the harness.
+const SENTINEL_THEMES = THEMES.filter((t) => t.id !== CANONICAL_THEME_ID);
+const SENTINEL_COUNT = SENTINEL_THEMES.length; // 3
+
+function buildSentinelCells(vRoutes) {
+  const fullMatrix = vRoutes.filter((r) => r.classification === 'FULL_MATRIX_UI');
+  return SENTINEL_THEMES.map((theme, i) => ({ route: fullMatrix[i], theme, width: CANONICAL_WIDTH }));
+}
+
+const cells = [...buildPairwiseCells(visualRoutes), ...buildSentinelCells(visualRoutes)];
 
 // Simulate lastActiveCellIdx computation (mirrors the harness logic).
 function buildLastActiveCellIdx(selectedCells, completed = new Set(), excludeKeys = new Set()) {
@@ -138,12 +147,12 @@ function simulateSessionLifecycle(selectedCells, lastActiveCellIdx, completed = 
 // ── 1. Cell universe: 1835 (pairwise v3) ────────────────────────────────────
 
 {
-  assert.equal(cells.length, 1835, 'cell universe must be 1835 (pairwise contract v3)');
+  assert.equal(cells.length, 1838, 'cell universe must be 1838 (1835 pairwise + 3 sentinels, v3)');
   assert.equal(visualRoutes.length, 367, 'representative combinations must be 367');
-  assert.equal(cells.length, visualRoutes.length * CELLS_PER_ROUTE, 'total cells must equal routes × cells-per-route');
+  assert.equal(cells.length, visualRoutes.length * CELLS_PER_ROUTE + SENTINEL_COUNT, 'total cells = routes × CELLS_PER_ROUTE + sentinels');
   const keySet = new Set(cells.map(cellKey));
-  assert.equal(keySet.size, 1835, 'all 1835 cell keys must be unique (no duplicates)');
-  console.log(JSON.stringify({ test: 'cell-universe', totalCells: cells.length, uniqueCells: keySet.size, cellsPerRoute: CELLS_PER_ROUTE, result: 'PASS' }));
+  assert.equal(keySet.size, 1838, 'all 1838 cell keys must be unique (no duplicates)');
+  console.log(JSON.stringify({ test: 'cell-universe', totalCells: cells.length, uniqueCells: keySet.size, baselineCells: 1835, sentinelCells: SENTINEL_COUNT, result: 'PASS' }));
 }
 
 // ── 2. lastActiveCellIdx identifies correct last index per group ──────────────
@@ -221,9 +230,8 @@ function simulateSessionLifecycle(selectedCells, lastActiveCellIdx, completed = 
 {
   const lastIdx = buildLastActiveCellIdx(cells);
 
-  // With pairwise v3 there are 17 non-empty (theme, width) mini-batches:
-  // explicit-light/{320,375,768,1024,1440} = 5; explicit-dark/{320,375,768,1024} = 4;
-  // system-light/{320,375,768,1024} = 4; system-dark/{320,375,768,1024} = 4.
+  // With pairwise v3 there are 20 non-empty (theme, width) mini-batches:
+  // 17 pairwise + 3 sentinel (explicit-dark/1440, system-light/1440, system-dark/1440).
   const sessions = new Map();
   let batchKey = null;
   const batchBoundaryViolations = [];
@@ -257,8 +265,9 @@ function simulateSessionLifecycle(selectedCells, lastActiveCellIdx, completed = 
 
   assert.deepEqual(batchBoundaryViolations, [], `Stale sessions at batch boundaries: ${JSON.stringify(batchBoundaryViolations.slice(0, 3))}`);
 
-  // Count distinct (theme,width) mini-batches present in cells
+  // Count distinct (theme,width) mini-batches: 17 pairwise + 3 sentinel = 20
   const batchKeys = new Set(cells.map(({ theme, width }) => `${theme.id}|${width}`));
+  assert.equal(batchKeys.size, 20, 'must have 20 non-empty mini-batches (17 pairwise + 3 sentinels)');
   console.log(JSON.stringify({ test: 'no-stale-sessions-between-batches', batchCount: batchKeys.size, batchBoundaries: batchKeys.size - 1, violations: batchBoundaryViolations.length, result: 'PASS' }));
 }
 
@@ -416,4 +425,4 @@ function simulateSessionLifecycle(selectedCells, lastActiveCellIdx, completed = 
   console.log(JSON.stringify({ test: 'skipped-cells-excluded-from-lastActiveCellIdx', completedCells: completedKeys.size, result: 'PASS' }));
 }
 
-console.log(JSON.stringify({ suite: 'pre-freeze-session-lifecycle', contractVersion: 'pre-freeze-acceptance-contract-v3', plannedVisualCells: 1835, result: 'ALL PASS' }));
+console.log(JSON.stringify({ suite: 'pre-freeze-session-lifecycle', contractVersion: 'pre-freeze-acceptance-contract-v3', plannedVisualCells: 1838, baselineCells: 1835, sentinelCells: 3, result: 'ALL PASS' }));

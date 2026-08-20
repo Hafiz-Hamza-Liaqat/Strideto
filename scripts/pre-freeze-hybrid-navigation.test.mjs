@@ -30,6 +30,8 @@ const CANONICAL_THEME_ID = 'explicit-light';
 const CANONICAL_WIDTH    = 1440;
 const NON_CANONICAL_WIDTHS = WIDTHS.filter((w) => w !== CANONICAL_WIDTH);
 const CELLS_PER_ROUTE = NON_CANONICAL_WIDTHS.length + 1; // 5
+const SENTINEL_THEMES = THEMES.filter((t) => t.id !== CANONICAL_THEME_ID);
+const SENTINEL_COUNT = SENTINEL_THEMES.length; // 3
 
 function personasFor(record) {
   if (record.realm === 'PUBLIC') return ['anonymous'];
@@ -88,15 +90,22 @@ function buildPairwiseCells(vRoutes) {
   return selected;
 }
 
-const cells = buildPairwiseCells(visualRoutes);
+function buildSentinelCells(vRoutes) {
+  const fullMatrix = vRoutes.filter((r) => r.classification === 'FULL_MATRIX_UI');
+  return SENTINEL_THEMES.map((theme, i) => ({ route: fullMatrix[i], theme, width: CANONICAL_WIDTH }));
+}
+
+const pairwiseCells = buildPairwiseCells(visualRoutes);
+const sentinelCells = buildSentinelCells(visualRoutes);
+const cells = [...pairwiseCells, ...sentinelCells];
 
 // ── 1. Cell-set equivalence ───────────────────────────────────────────────────
 
 {
   const keys = cells.map(cellKey);
   const keySet = new Set(keys);
-  assert.equal(keys.length, 1835, 'total cell count must be 1835 (pairwise contract v3)');
-  assert.equal(keySet.size, 1835, 'all cell keys must be unique (no duplicates)');
+  assert.equal(keys.length, 1838, 'total cell count must be 1838 (1835 pairwise + 3 sentinels)');
+  assert.equal(keySet.size, 1838, 'all cell keys must be unique (no duplicates)');
   assert.equal(visualRoutes.length, 367, 'representative combinations must be 367');
   assert.equal(CELLS_PER_ROUTE, 5, 'cells per route must be 5 (4 non-canonical + 1 canonical)');
 
@@ -107,7 +116,7 @@ const cells = buildPairwiseCells(visualRoutes);
     assert.ok(['FULL_MATRIX_UI', 'PARAMETRIC_UI'].includes(cell.route.classification), `classification must be visual: ${cell.route.classification}`);
   }
 
-  console.log(JSON.stringify({ test: 'cell-set-equivalence', totalCells: keys.length, uniqueCells: keySet.size, result: 'PASS' }));
+  console.log(JSON.stringify({ test: 'cell-set-equivalence', totalCells: keys.length, pairwiseCells: pairwiseCells.length, sentinelCells: sentinelCells.length, uniqueCells: keySet.size, result: 'PASS' }));
 }
 
 // ── 2. Canonical cell designation ────────────────────────────────────────────
@@ -117,7 +126,7 @@ const cells = buildPairwiseCells(visualRoutes);
   const nonCanonicalCells = cells.filter((c) => !isCanonicalCell(c.theme, c.width));
 
   assert.equal(canonicalCells.length, 367, 'exactly 367 canonical cells (one per persona/route combination)');
-  assert.equal(nonCanonicalCells.length, 1835 - 367, `non-canonical cells must be ${1835 - 367}`);
+  assert.equal(nonCanonicalCells.length, 1838 - 367, `non-canonical cells must be ${1838 - 367}`);
 
   // Every visual route must appear in exactly one canonical cell
   const canonicalRouteIds = canonicalCells.map((c) => c.route.id);
@@ -361,7 +370,7 @@ const cells = buildPairwiseCells(visualRoutes);
 
 {
   // Build a second copy with the same algorithm → must produce identical key set.
-  const cells2 = buildPairwiseCells(visualRoutes);
+  const cells2 = [...buildPairwiseCells(visualRoutes), ...buildSentinelCells(visualRoutes)];
   const keys1 = new Set(cells.map(cellKey));
   const keys2 = new Set(cells2.map(cellKey));
   assert.equal(keys1.size, keys2.size, 'pairwise selection must be deterministic (same size)');
@@ -370,17 +379,19 @@ const cells = buildPairwiseCells(visualRoutes);
   assert.equal(onlyIn1.length, 0, 'first invocation must match second (no keys only in first)');
   assert.equal(onlyIn2.length, 0, 'second invocation must match first (no keys only in second)');
 
-  // Each visual route must appear in exactly CELLS_PER_ROUTE cells with all 5 widths unique.
+  // Each visual route must appear in exactly CELLS_PER_ROUTE pairwise cells with all 5 widths unique.
+  // Sentinel routes appear in CELLS_PER_ROUTE + 1 cells total (pairwise + one sentinel).
+  const sentinelRouteIds = new Set(sentinelCells.map((s) => `${s.route.persona}|${s.route.id}`));
   for (const route of visualRoutes) {
-    const routeCells = cells.filter((c) => c.route.id === route.id && c.route.persona === route.persona);
-    assert.equal(routeCells.length, CELLS_PER_ROUTE, `route ${route.id} must appear in exactly ${CELLS_PER_ROUTE} cells`);
+    const routeCells = pairwiseCells.filter((c) => c.route.id === route.id && c.route.persona === route.persona);
+    assert.equal(routeCells.length, CELLS_PER_ROUTE, `route ${route.id} must appear in exactly ${CELLS_PER_ROUTE} pairwise cells`);
     const widthSet = new Set(routeCells.map((c) => c.width));
     assert.equal(widthSet.size, WIDTHS.length, `route ${route.id} must have all ${WIDTHS.length} unique widths`);
     const themeSet = new Set(routeCells.map((c) => c.theme.id));
     assert.equal(themeSet.size, THEMES.length, `route ${route.id} must have all ${THEMES.length} themes present`);
   }
 
-  console.log(JSON.stringify({ test: 'pairwise-selection-determinism', cells: cells.length, routeWidthCoverage: 'PASS', routeThemeCoverage: 'PASS', result: 'PASS' }));
+  console.log(JSON.stringify({ test: 'pairwise-selection-determinism', cells: cells.length, pairwiseCells: pairwiseCells.length, sentinelCells: sentinelCells.length, routeWidthCoverage: 'PASS', routeThemeCoverage: 'PASS', result: 'PASS' }));
 }
 
 // ── 10. Cross-cell SPA state preservation ─────────────────────────────────────
@@ -446,10 +457,10 @@ const cells = buildPairwiseCells(visualRoutes);
   const newTupleMode = (isCanonicalCell({ id: 'system-dark' }, 375) || !spaReady) ? 'hard' : 'spa';
   assert.equal(newTupleMode, 'hard', 'new session tuple must bootstrap with HARD nav');
 
-  // Cell universe is 1835 (pairwise contract v3)
-  assert.equal(cells.length, 1835, 'cell universe must be 1835 (pairwise contract v3)');
+  // Cell universe is 1838 (pairwise contract v3 + 3 sentinels)
+  assert.equal(cells.length, 1838, 'cell universe must be 1838 (1835 pairwise + 3 sentinels)');
 
-  console.log(JSON.stringify({ test: 'cross-cell-spa-preservation', nonCanonCell0: navModes[0], nonCanonCell1: navModes[1], nonCanonCell2: navModes[2], errorPathResetsSpready: true, canonicalAlwaysHard: true, newTupleBootstrapsHard: true, cellUniverse: 1835, result: 'PASS' }));
+  console.log(JSON.stringify({ test: 'cross-cell-spa-preservation', nonCanonCell0: navModes[0], nonCanonCell1: navModes[1], nonCanonCell2: navModes[2], errorPathResetsSpready: true, canonicalAlwaysHard: true, newTupleBootstrapsHard: true, cellUniverse: 1838, result: 'PASS' }));
 }
 
-console.log(JSON.stringify({ suite: 'pre-freeze-hybrid-navigation', contractVersion: 'pre-freeze-acceptance-contract-v3', plannedVisualCells: 1835, result: 'ALL PASS' }));
+console.log(JSON.stringify({ suite: 'pre-freeze-hybrid-navigation', contractVersion: 'pre-freeze-acceptance-contract-v3', plannedVisualCells: 1838, result: 'ALL PASS' }));
