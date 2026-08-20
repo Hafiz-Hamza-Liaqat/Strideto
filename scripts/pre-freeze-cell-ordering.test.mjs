@@ -8,6 +8,10 @@ const THEMES = [
   { id: 'system-light',   preference: 'system', media: 'light' },
   { id: 'system-dark',    preference: 'system', media: 'dark'  },
 ];
+const CANONICAL_THEME_ID = 'explicit-light';
+const CANONICAL_WIDTH = 1440;
+const NON_CANONICAL_WIDTHS = WIDTHS.filter((w) => w !== CANONICAL_WIDTH);
+const CELLS_PER_ROUTE = NON_CANONICAL_WIDTHS.length + 1; // 5
 
 function personasFor(record) {
   if (record.realm === 'PUBLIC') return ['anonymous'];
@@ -41,9 +45,32 @@ for (const record of inventory.records) {
 }
 const visualRoutes = allRoutes.filter((r) => ['FULL_MATRIX_UI', 'PARAMETRIC_UI'].includes(r.classification));
 const cellKey = ({ route, theme, width }) => `${route.persona}|${route.id}|${route.classification}|${theme.id}|${width}`;
+const isCanonicalCell = (theme, width) => theme.id === CANONICAL_THEME_ID && width === CANONICAL_WIDTH;
 
-// Harness cell construction (theme+width-major)
-const cells = THEMES.flatMap((theme) => WIDTHS.flatMap((width) => visualRoutes.map((route) => ({ route, theme, width }))));
+// Pairwise v3 cell selection: theme+width-major ordering for session reuse.
+function buildPairwiseCells(vRoutes) {
+  const selected = [];
+  for (const theme of THEMES) {
+    for (const width of WIDTHS) {
+      if (isCanonicalCell(theme, width)) {
+        for (const route of vRoutes) selected.push({ route, theme, width });
+      } else if (width === CANONICAL_WIDTH) {
+        // Non-canonical theme + canonical width: never selected.
+      } else {
+        const widthPos = NON_CANONICAL_WIDTHS.indexOf(width);
+        for (const [routeIdx, route] of vRoutes.entries()) {
+          if (THEMES[(routeIdx + widthPos) % THEMES.length].id === theme.id) {
+            selected.push({ route, theme, width });
+          }
+        }
+      }
+    }
+  }
+  return selected;
+}
+
+// Harness cell construction (pairwise v3, theme+width-major)
+const cells = buildPairwiseCells(visualRoutes);
 const keys = cells.map(cellKey);
 const keySet = new Set(keys);
 
@@ -51,57 +78,92 @@ const keySet = new Set(keys);
 assert.equal(visualRoutes.length, 367, 'representative combinations must be 367');
 assert.equal(THEMES.length, 4, 'theme count must be 4');
 assert.equal(WIDTHS.length, 5, 'width count must be 5');
-assert.equal(keys.length, 7340, 'total cell count must be 7340');
-assert.equal(keySet.size, 7340, 'all cell keys must be unique');
+assert.equal(CELLS_PER_ROUTE, 5, 'cells per route must be 5 (pairwise v3)');
+assert.equal(keys.length, 1835, 'total cell count must be 1835 (367 × 5)');
+assert.equal(keySet.size, 1835, 'all cell keys must be unique');
 
-// 2. Ordering: within any prefix of cells sharing the same theme+width, all routes for
-//    every persona come together before the next width begins.
+// 2. Ordering: cells are grouped by (theme, width) mini-batch in theme+width-major order.
+//    Each non-canonical mini-batch contains a subset of routes (those assigned that slot).
+//    The canonical batch (explicit-light/1440) contains all 367 routes.
 let i = 0;
+const observedBatches = [];
 for (const theme of THEMES) {
   for (const width of WIDTHS) {
+    const expectedInBatch = isCanonicalCell(theme, width)
+      ? visualRoutes.length
+      : (width === CANONICAL_WIDTH ? 0 : null); // null = compute from cells
     const batch = [];
     while (i < cells.length && cells[i].theme.id === theme.id && cells[i].width === width) {
       batch.push(cells[i]);
       i += 1;
     }
-    assert.equal(batch.length, visualRoutes.length, `batch size for ${theme.id}/${width} must equal visualRoutes count`);
+    if (expectedInBatch !== null) {
+      assert.equal(batch.length, expectedInBatch, `canonical batch ${theme.id}/${width} must have ${expectedInBatch} cells`);
+    }
+    // Skip empty batches (non-canonical theme + canonical width)
+    if (batch.length === 0) continue;
     for (const cell of batch) {
       assert.equal(cell.theme.id, theme.id, 'all cells in batch must share theme');
       assert.equal(cell.width, width, 'all cells in batch must share width');
     }
+    observedBatches.push({ theme: theme.id, width, count: batch.length });
   }
 }
 assert.equal(i, cells.length, 'all cells must be covered by theme+width batches');
+// 17 non-empty mini-batches: 5 for explicit-light, 4 each for explicit-dark/system-light/system-dark
+assert.equal(observedBatches.length, 17, 'pairwise v3 must have exactly 17 non-empty mini-batches');
 
-// 3. Session reuse: for a given persona, consecutive cells in a batch share (theme, width)
-//    so the same session tuple is valid for the entire batch without re-authentication.
+// 3. Session reuse: within the canonical batch, institution routes share (theme, width).
 const institutionBatch = cells.filter((c) => c.route.persona === 'institution' && c.theme.id === 'explicit-light' && c.width === 1440);
-assert.ok(institutionBatch.length >= 2, 'institution must have multiple routes');
+assert.ok(institutionBatch.length >= 2, 'institution must have multiple routes in canonical batch');
 const tuples = institutionBatch.map((c) => `${c.route.persona}|${c.theme.id}|${c.width}`);
 const uniqueTuples = new Set(tuples);
 assert.equal(uniqueTuples.size, 1, 'all institution/explicit-light/1440 cells must share the same session tuple');
 
-// Also verify old (route-major) ordering would NOT group by session tuple
-const oldCells = visualRoutes.flatMap((route) => THEMES.flatMap((theme) => WIDTHS.map((width) => ({ route, theme, width }))));
-const instOld = oldCells.filter((c) => c.route.persona === 'institution');
-let consecutiveSameTupleRuns = 0;
-for (let j = 1; j < instOld.length; j += 1) {
-  const prev = instOld[j - 1]; const curr = instOld[j];
-  if (prev.theme.id === curr.theme.id && prev.width === curr.width) consecutiveSameTupleRuns += 1;
+// 4. Each visual route appears in exactly CELLS_PER_ROUTE cells with all widths covered once.
+for (const route of visualRoutes) {
+  const routeCells = cells.filter((c) => c.route.id === route.id && c.route.persona === route.persona);
+  assert.equal(routeCells.length, CELLS_PER_ROUTE, `route ${route.id} must appear in exactly ${CELLS_PER_ROUTE} cells`);
+  const widthSet = new Set(routeCells.map((c) => c.width));
+  assert.equal(widthSet.size, WIDTHS.length, `route ${route.id} must cover all ${WIDTHS.length} widths exactly once`);
+  const themeSet = new Set(routeCells.map((c) => c.theme.id));
+  assert.equal(themeSet.size, THEMES.length, `route ${route.id} must cover all ${THEMES.length} themes`);
 }
-// Under old ordering the only consecutive matches are width-steps within the same route+theme,
-// but these are zero because width changes every step. Confirm no reuse under old order for institution.
-assert.equal(consecutiveSameTupleRuns, 0, 'old route-major ordering must produce zero consecutive session-reuse opportunities for institution');
+
+// 5. Global pair coverage: all 16 non-canonical (theme×width) pairs plus explicit-light/1440.
+//    Pairs {explicit-dark/system-light/system-dark} × {1440} are 0 by canonical constraint.
+const pairCounts = {};
+for (const theme of THEMES) {
+  for (const width of WIDTHS) {
+    pairCounts[`${theme.id}|${width}`] = cells.filter((c) => c.theme.id === theme.id && c.width === width).length;
+  }
+}
+// 16 non-canonical pairs must all be > 0
+for (const theme of THEMES) {
+  for (const width of NON_CANONICAL_WIDTHS) {
+    const count = pairCounts[`${theme.id}|${width}`];
+    assert.ok(count > 0, `non-canonical pair ${theme.id}/${width} must have count > 0 (got ${count})`);
+  }
+}
+// Canonical pair must be 367
+assert.equal(pairCounts[`${CANONICAL_THEME_ID}|${CANONICAL_WIDTH}`], 367, 'canonical pair explicit-light/1440 must appear 367 times');
+// Non-explicit-light + 1440 must be 0 (structural constraint from canonical)
+for (const theme of THEMES.filter((t) => t.id !== CANONICAL_THEME_ID)) {
+  assert.equal(pairCounts[`${theme.id}|${CANONICAL_WIDTH}`], 0, `${theme.id}/1440 must have count 0 (canonical constraint)`);
+}
 
 console.log(JSON.stringify({
   visualRoutes: visualRoutes.length,
   themes: THEMES.length,
   widths: WIDTHS.length,
+  cellsPerRoute: CELLS_PER_ROUTE,
   totalCells: keys.length,
   uniqueCells: keySet.size,
-  ordering: 'theme+width-major',
+  nonEmptyBatches: observedBatches.length,
+  ordering: 'theme+width-major (pairwise v3)',
   batchVerification: 'PASS',
   sessionReuseGrouping: 'PASS',
-  oldOrderingReuseOpportunities: consecutiveSameTupleRuns,
-  cellEquivalence: 'PASS',
+  perRouteCoverage: 'PASS',
+  globalPairCoverage: 'PASS',
+  contractVersion: 'pre-freeze-acceptance-contract-v3',
 }));

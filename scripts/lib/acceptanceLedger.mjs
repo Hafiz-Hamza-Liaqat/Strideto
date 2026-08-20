@@ -4,7 +4,7 @@ import path from 'node:path';
 
 export const LEDGER_VERSION = 1;
 export const ARTIFACT_ROOT = path.resolve('qa-artifacts', 'acceptance-runs');
-export const ACCEPTANCE_CONTRACT_VERSION = 'pre-freeze-acceptance-contract-v2';
+export const ACCEPTANCE_CONTRACT_VERSION = 'pre-freeze-acceptance-contract-v3';
 
 function canonical(value) {
   if (Array.isArray(value)) return `[${value.map((item) => canonical(item)).join(',')}]`;
@@ -147,10 +147,12 @@ export function recordLifecycle(run, event) {
   return entry;
 }
 
-export function reconcile(run, manifest, themes, widths) {
+export function reconcile(run, manifest, themes, widths, { expectedCellKeys = null } = {}) {
   const entries = readLedger(run);
   const visual = manifest.routes.filter((r) => ['FULL_MATRIX_UI', 'PARAMETRIC_UI'].includes(r.classification));
-  const expected = new Set(visual.flatMap((route) => themes.flatMap((theme) => widths.map((width) => cellKey({ persona: route.persona, route, theme, width })) )));
+  const expected = expectedCellKeys !== null
+    ? expectedCellKeys
+    : new Set(visual.flatMap((route) => themes.flatMap((theme) => widths.map((width) => cellKey({ persona: route.persona, route, theme, width })))));
   const rawCounts = { PASS: 0, FAIL: 0, INCOMPLETE: 0 };
   const grouped = new Map();
   for (const entry of entries) { if (entry.kind !== 'visual') continue; rawCounts[entry.status] = (rawCounts[entry.status] || 0) + 1; if (!grouped.has(entry.key)) grouped.set(entry.key, []); grouped.get(entry.key).push(entry); }

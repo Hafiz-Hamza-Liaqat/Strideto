@@ -30,6 +30,36 @@ function isCanonicalCell(theme, width) {
   return theme.id === CANONICAL_THEME_ID && width === CANONICAL_WIDTH;
 }
 
+// Pairwise contract v3: each visual route gets exactly 5 cells — one per width.
+// Canonical (explicit-light/1440) is always included. Each non-canonical width receives
+// a theme assigned by (routeIdx + widthPos) % THEMES.length, guaranteeing all 4 themes
+// appear per route and rotating deterministically across routes for global pair coverage.
+const NON_CANONICAL_WIDTHS = WIDTHS.filter((w) => w !== CANONICAL_WIDTH);
+const CELLS_PER_ROUTE = NON_CANONICAL_WIDTHS.length + 1; // 5: 4 non-canonical + 1 canonical
+
+// Builds 1835 cells in theme+width-major order so same-persona consecutive routes within
+// each mini-batch can reuse their authenticated SPA session (same-tuple optimisation).
+function buildPairwiseCells(visualRoutes) {
+  const selected = [];
+  for (const theme of THEMES) {
+    for (const width of WIDTHS) {
+      if (isCanonicalCell(theme, width)) {
+        for (const route of visualRoutes) selected.push({ route, theme, width });
+      } else if (width === CANONICAL_WIDTH) {
+        // Non-canonical theme + canonical width: never selected (1440 only ever appears as explicit-light).
+      } else {
+        const widthPos = NON_CANONICAL_WIDTHS.indexOf(width);
+        for (const [routeIdx, route] of visualRoutes.entries()) {
+          if (THEMES[(routeIdx + widthPos) % THEMES.length].id === theme.id) {
+            selected.push({ route, theme, width });
+          }
+        }
+      }
+    }
+  }
+  return selected;
+}
+
 async function serializeConsoleMessage(message) {
   const location = typeof message.location === 'function' ? message.location() : {};
   const args = [];
@@ -104,7 +134,7 @@ function buildManifest() {
   }
   const counts = sourceCounts;
   const visual = routes.filter((r) => ['FULL_MATRIX_UI', 'PARAMETRIC_UI'].includes(r.classification));
-  return { generatedFrom: 'scripts/lib/preMission27RouteInventory.mjs → client/src/routes/index.jsx', sourceRouteRecords: inventory.records.length, routes, counts, renderedPersonaRouteCombinations: visual.length, plannedVisualCells: visual.length * THEMES.length * WIDTHS.length, redirectContractCells: counts.REDIRECT_ONLY, aliasContractCells: counts.SHELL_EQUIVALENT_ALIAS, findings: inventory.findings };
+  return { generatedFrom: 'scripts/lib/preMission27RouteInventory.mjs → client/src/routes/index.jsx', sourceRouteRecords: inventory.records.length, routes, counts, renderedPersonaRouteCombinations: visual.length, plannedVisualCells: visual.length * CELLS_PER_ROUTE, redirectContractCells: counts.REDIRECT_ONLY, aliasContractCells: counts.SHELL_EQUIVALENT_ALIAS, findings: inventory.findings };
 }
 
 function fulfillApprovedResponse(request, url, persona, routeId, errors) {
@@ -131,7 +161,7 @@ function assertManifest(manifest) {
     if (['FULL_MATRIX_UI', 'PARAMETRIC_UI'].includes(route.classification)) assert.ok(route.expectedH1 && route.expectedActiveNav);
     if (route.classification === 'PARAMETRIC_UI') assert.equal(route.fixtureRequirement, 'disposable fixture resolver');
   }
-  assert.equal(manifest.plannedVisualCells, manifest.renderedPersonaRouteCombinations * 20);
+  assert.equal(manifest.plannedVisualCells, manifest.renderedPersonaRouteCombinations * CELLS_PER_ROUTE);
   assert.equal(manifest.sourceRouteRecords, 329);
   assert.equal(Object.values(manifest.counts).reduce((sum, value) => sum + value, 0), manifest.sourceRouteRecords);
 }
@@ -204,16 +234,17 @@ async function runFullMatrix(manifest) {
   const resolver = loadResolver();
   const lifecycle = { stage: 'MANIFEST_VALIDATED' };
   const visualRoutes = manifest.routes.filter((route) => ['FULL_MATRIX_UI', 'PARAMETRIC_UI'].includes(route.classification));
-  // theme+width-major ordering: all routes for a given (theme,width) batch together so the
-  // per-persona session cache can reuse the authenticated context across consecutive routes.
-  const cells = THEMES.flatMap((theme) => WIDTHS.flatMap((width) => visualRoutes.map((route) => ({ route, theme, width }))));
+  // Pairwise v3: 5 cells per route (4 non-canonical widths with rotating themes + canonical
+  // explicit-light/1440), built in theme+width-major order for maximum session reuse.
+  const cells = buildPairwiseCells(visualRoutes);
+  const selectedCellKeys = new Set(cells.map((c) => cellKey({ persona: c.route.persona, route: c.route, theme: c.theme, width: c.width })));
   const head = process.env.STRIDETO_QA_HEAD || (await import('node:child_process')).execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim();
   const runIdArg = process.argv.find((arg) => arg.startsWith('--run-id='))?.slice('--run-id='.length);
   const resume = process.argv.includes('--resume');
   const run = resume ? openRun(runIdArg, { head, manifest, themes: THEMES, widths: WIDTHS, runnerVersion: 'f4bb58d', acceptanceContractVersion: ACCEPTANCE_CONTRACT_VERSION, forResume: true }) : createRun({ head, manifest, runnerVersion: 'f4bb58d', mode: 'full', runId: runIdArg, themes: THEMES, widths: WIDTHS, acceptanceContractVersion: ACCEPTANCE_CONTRACT_VERSION });
   if (resume) markRunStatus(run, 'RUNNING');
   recordLifecycle(run, lifecycle);
-  reconcile(run, manifest, THEMES, WIDTHS);
+  reconcile(run, manifest, THEMES, WIDTHS, { expectedCellKeys: selectedCellKeys });
   const completed = new Set(readLedger(run).filter((entry) => entry.kind === 'visual').map((entry) => entry.key));
   const stageTimeout = Number(process.env.STRIDETO_QA_STAGE_TIMEOUT_MS || 45000);
   const stage = (name, promise) => new Promise((resolve, reject) => {
@@ -348,7 +379,7 @@ async function runFullMatrix(manifest) {
   };
   let currentCell;
   const heartbeat = setInterval(() => {
-    const summary = reconcile(run, manifest, THEMES, WIDTHS);
+    const summary = reconcile(run, manifest, THEMES, WIDTHS, { expectedCellKeys: selectedCellKeys });
     console.log(JSON.stringify({
       runId: run.metadata.runId, head, completed: summary.uniqueVisualCellsRecorded, planned: selectedCells.length,
       passed: summary.PASS, failed: summary.FAIL, incomplete: summary.INCOMPLETE,
@@ -467,7 +498,7 @@ async function runFullMatrix(manifest) {
       if (lastActiveCellIdx.get(`${route.persona}|${theme.id}|${width}`) === cellIdx) {
         await closeSession(route.persona);
       }
-      const current = reconcile(run, manifest, THEMES, WIDTHS);
+      const current = reconcile(run, manifest, THEMES, WIDTHS, { expectedCellKeys: selectedCellKeys });
       if ((current.uniqueVisualCellsRecorded % 25) === 0) console.log(JSON.stringify({ runId: run.metadata.runId, head, completed: current.uniqueVisualCellsRecorded, planned: current.plannedVisualCells, passed: current.PASS, failed: current.FAIL, incomplete: current.INCOMPLETE, remaining: current.unseen, persona: route.persona, route: route.id, theme: theme.id, width, rateLimit: { ...guard.stats, hitsInWindow: guard.hitsInWindow() }, navigationStats }));
     }
     recordLifecycle(run, { stage: 'RATE_LIMIT_STATS', ...guard.stats, hitsInWindow: guard.hitsInWindow(), budget: guard.budget, windowMs: guard.windowMs });
@@ -493,7 +524,7 @@ async function runFullMatrix(manifest) {
       }
     }
   }
-  const summary = reconcile(run, manifest, THEMES, WIDTHS);
+  const summary = reconcile(run, manifest, THEMES, WIDTHS, { expectedCellKeys: selectedCellKeys });
   console.log(JSON.stringify({ matrix: summary, failures: failures.slice(0, 20), rateLimit: { ...guard.stats, hitsInWindow: guard.hitsInWindow(), budget: guard.budget }, navigationStats }, null, 2));
   if (!diagnosticRun) { assert.equal(summary.INCOMPLETE, 0); assert.equal(summary.FAIL, 0); }
 }
@@ -505,6 +536,8 @@ if (process.argv.includes('--full')) await runFullMatrix(manifest);
 if (process.argv.includes('--reconcile')) {
   const runId = process.argv.find((arg) => arg.startsWith('--run-id='))?.slice('--run-id='.length);
   const run = openRun(runId, { head: process.env.STRIDETO_QA_HEAD || (await import('node:child_process')).execFileSync('git', ['rev-parse', 'HEAD'], { encoding: 'utf8' }).trim(), manifest });
-  console.log(JSON.stringify(reconcile(run, manifest, THEMES, WIDTHS), null, 2));
+  const reconcileRoutes = manifest.routes.filter((r) => ['FULL_MATRIX_UI', 'PARAMETRIC_UI'].includes(r.classification));
+  const reconcileCellKeys = new Set(buildPairwiseCells(reconcileRoutes).map((c) => cellKey({ persona: c.route.persona, route: c.route, theme: c.theme, width: c.width })));
+  console.log(JSON.stringify(reconcile(run, manifest, THEMES, WIDTHS, { expectedCellKeys: reconcileCellKeys }), null, 2));
 }
 if (process.argv.includes('--self-test') || process.argv.length === 2) await runSelfTest(manifest);

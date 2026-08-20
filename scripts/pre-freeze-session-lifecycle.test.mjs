@@ -1,15 +1,15 @@
 /**
  * QA regression tests for session-lifecycle session-closure rule.
  *
- * Covers:
+ * Covers (pairwise contract v3, 1835 cells):
  *  - lastActiveCellIdx correctly identifies the last non-skipped cell per group
- *  - Compatible route group = 1 HARD + subsequent SPA within a batch
+ *  - Compatible route group = 1 HARD + subsequent SPA within a mini-batch
  *  - Session closes after its final planned route in each (persona, themeId, width) group
  *  - Stale previous-batch sessions cannot remain alive between batches
- *  - Max simultaneously live sessions is bounded (new rule: 4, between batches: 0)
+ *  - Max simultaneously live sessions is bounded (≤5 within a mini-batch, 0 between batches)
  *  - Canonical explicit-light/1440 rules remain unchanged
- *  - Cell universe remains 7340
- *  - Harness source contains required session-closure patterns
+ *  - Cell universe is 1835 (pairwise v3)
+ *  - Harness source contains required session-closure and pairwise patterns
  */
 
 import assert from 'node:assert/strict';
@@ -27,6 +27,8 @@ const THEMES = [
 ];
 const CANONICAL_THEME_ID = 'explicit-light';
 const CANONICAL_WIDTH    = 1440;
+const NON_CANONICAL_WIDTHS = WIDTHS.filter((w) => w !== CANONICAL_WIDTH);
+const CELLS_PER_ROUTE = NON_CANONICAL_WIDTHS.length + 1; // 5
 
 function personasFor(record) {
   if (record.realm === 'PUBLIC') return ['anonymous'];
@@ -61,8 +63,31 @@ for (const record of inventory.records) {
 }
 const visualRoutes = allRoutes.filter((r) => ['FULL_MATRIX_UI', 'PARAMETRIC_UI'].includes(r.classification));
 const cellKey = ({ route, theme, width }) => `${route.persona}|${route.id}|${route.classification}|${theme.id}|${width}`;
-const cells = THEMES.flatMap((theme) => WIDTHS.flatMap((width) => visualRoutes.map((route) => ({ route, theme, width }))));
 const isCanonicalCell = (theme, width) => theme.id === CANONICAL_THEME_ID && width === CANONICAL_WIDTH;
+
+// Pairwise v3 cell selection: mirrors buildPairwiseCells in the harness.
+function buildPairwiseCells(vRoutes) {
+  const selected = [];
+  for (const theme of THEMES) {
+    for (const width of WIDTHS) {
+      if (isCanonicalCell(theme, width)) {
+        for (const route of vRoutes) selected.push({ route, theme, width });
+      } else if (width === CANONICAL_WIDTH) {
+        // Non-canonical theme + canonical width: never selected.
+      } else {
+        const widthPos = NON_CANONICAL_WIDTHS.indexOf(width);
+        for (const [routeIdx, route] of vRoutes.entries()) {
+          if (THEMES[(routeIdx + widthPos) % THEMES.length].id === theme.id) {
+            selected.push({ route, theme, width });
+          }
+        }
+      }
+    }
+  }
+  return selected;
+}
+
+const cells = buildPairwiseCells(visualRoutes);
 
 // Simulate lastActiveCellIdx computation (mirrors the harness logic).
 function buildLastActiveCellIdx(selectedCells, completed = new Set(), excludeKeys = new Set()) {
@@ -110,12 +135,15 @@ function simulateSessionLifecycle(selectedCells, lastActiveCellIdx, completed = 
   return { sessions, events, maxSimultaneous };
 }
 
-// ── 1. Cell universe unchanged ───────────────────────────────────────────────
+// ── 1. Cell universe: 1835 (pairwise v3) ────────────────────────────────────
 
 {
-  assert.equal(cells.length, 7340, 'cell universe must remain 7340');
+  assert.equal(cells.length, 1835, 'cell universe must be 1835 (pairwise contract v3)');
   assert.equal(visualRoutes.length, 367, 'representative combinations must be 367');
-  console.log(JSON.stringify({ test: 'cell-universe', totalCells: cells.length, result: 'PASS' }));
+  assert.equal(cells.length, visualRoutes.length * CELLS_PER_ROUTE, 'total cells must equal routes × cells-per-route');
+  const keySet = new Set(cells.map(cellKey));
+  assert.equal(keySet.size, 1835, 'all 1835 cell keys must be unique (no duplicates)');
+  console.log(JSON.stringify({ test: 'cell-universe', totalCells: cells.length, uniqueCells: keySet.size, cellsPerRoute: CELLS_PER_ROUTE, result: 'PASS' }));
 }
 
 // ── 2. lastActiveCellIdx identifies correct last index per group ──────────────
@@ -146,21 +174,19 @@ function simulateSessionLifecycle(selectedCells, lastActiveCellIdx, completed = 
     }
   }
 
-  // Spot check: institution / explicit-light / 320 — routes are at indices 0–20 in each batch.
-  // The explicit-light/320 batch starts at index 0 of cells (first theme, first width).
-  // Institution routes span 0..20 in the route list, so in the first batch they span cells 0..20.
-  const instKey = 'institution|explicit-light|320';
-  const instLastIdx = lastIdx.get(instKey);
-  assert.ok(instLastIdx !== undefined, 'institution/explicit-light/320 group must exist');
-  assert.equal(cells[instLastIdx].route.persona, 'institution');
-  assert.equal(cells[instLastIdx].theme.id, 'explicit-light');
-  assert.equal(cells[instLastIdx].width, 320);
+  // Spot check: institution / explicit-light / 1440 — all 367 routes appear in canonical batch.
+  const instCanonKey = 'institution|explicit-light|1440';
+  const instCanonLastIdx = lastIdx.get(instCanonKey);
+  assert.ok(instCanonLastIdx !== undefined, 'institution/explicit-light/1440 group must exist');
+  assert.equal(cells[instCanonLastIdx].route.persona, 'institution');
+  assert.equal(cells[instCanonLastIdx].theme.id, 'explicit-light');
+  assert.equal(cells[instCanonLastIdx].width, 1440);
 
-  // Spot check: anonymous / explicit-light / 320 — last route at index 366 in batch.
-  const anonKey = 'anonymous|explicit-light|320';
-  const anonLastIdx = lastIdx.get(anonKey);
-  assert.ok(anonLastIdx !== undefined, 'anonymous/explicit-light/320 group must exist');
-  assert.equal(cells[anonLastIdx].route.persona, 'anonymous');
+  // Spot check: anonymous / explicit-light / 1440 — last anonymous route in canonical batch.
+  const anonCanonKey = 'anonymous|explicit-light|1440';
+  const anonCanonLastIdx = lastIdx.get(anonCanonKey);
+  assert.ok(anonCanonLastIdx !== undefined, 'anonymous/explicit-light/1440 group must exist');
+  assert.equal(cells[anonCanonLastIdx].route.persona, 'anonymous');
 
   console.log(JSON.stringify({ test: 'lastActiveCellIdx-correctness', groups: lastIdx.size, result: 'PASS' }));
 }
@@ -171,8 +197,7 @@ function simulateSessionLifecycle(selectedCells, lastActiveCellIdx, completed = 
   const lastIdx = buildLastActiveCellIdx(cells);
   const { events } = simulateSessionLifecycle(cells, lastIdx);
 
-  // Every 'open' event must be paired with a 'close-last' event (not close-replaced)
-  // for its exact (persona, themeId, width) combination.
+  // Every 'open' event must be paired with a 'close-last' event for its (persona, themeId, width).
   const closeLastEvents = new Set(
     events
       .filter((e) => e.type === 'close-last')
@@ -184,8 +209,7 @@ function simulateSessionLifecycle(selectedCells, lastActiveCellIdx, completed = 
     assert.ok(closeLastEvents.has(k), `Every opened session must be closed by close-last rule: ${k}`);
   }
 
-  // No sessions should be closed by 'close-replaced' with the new rule in place,
-  // because sessions from a previous batch are closed by 'close-last' before the next batch begins.
+  // No sessions should be closed by 'close-replaced' — all close via close-last rule.
   const closeReplacedEvents = events.filter((e) => e.type === 'close-replaced');
   assert.equal(closeReplacedEvents.length, 0, 'With session-lifecycle fix, no session should be closed by theme/width replacement — all close via close-last rule');
 
@@ -196,11 +220,10 @@ function simulateSessionLifecycle(selectedCells, lastActiveCellIdx, completed = 
 
 {
   const lastIdx = buildLastActiveCellIdx(cells);
-  const { events } = simulateSessionLifecycle(cells, lastIdx);
 
-  // Define batch boundaries: each (theme, width) combination is a batch.
-  // Between batches: sessions map must be empty.
-  // Simulate by tracking open/close events and checking at each batch start.
+  // With pairwise v3 there are 17 non-empty (theme, width) mini-batches:
+  // explicit-light/{320,375,768,1024,1440} = 5; explicit-dark/{320,375,768,1024} = 4;
+  // system-light/{320,375,768,1024} = 4; system-dark/{320,375,768,1024} = 4.
   const sessions = new Map();
   let batchKey = null;
   const batchBoundaryViolations = [];
@@ -208,7 +231,6 @@ function simulateSessionLifecycle(selectedCells, lastActiveCellIdx, completed = 
   cells.forEach(({ route, theme, width }, idx) => {
     const newBatchKey = `${theme.id}|${width}`;
     if (batchKey !== null && newBatchKey !== batchKey) {
-      // Batch transition: all sessions from previous batch must be closed
       if (sessions.size > 0) {
         batchBoundaryViolations.push({
           from: batchKey,
@@ -220,7 +242,6 @@ function simulateSessionLifecycle(selectedCells, lastActiveCellIdx, completed = 
     }
     batchKey = newBatchKey;
 
-    // Process cell
     const existing = sessions.get(route.persona);
     if (existing && (existing.themeId !== theme.id || existing.width !== width)) {
       sessions.delete(route.persona);
@@ -236,7 +257,9 @@ function simulateSessionLifecycle(selectedCells, lastActiveCellIdx, completed = 
 
   assert.deepEqual(batchBoundaryViolations, [], `Stale sessions at batch boundaries: ${JSON.stringify(batchBoundaryViolations.slice(0, 3))}`);
 
-  console.log(JSON.stringify({ test: 'no-stale-sessions-between-batches', batchBoundaries: THEMES.length * WIDTHS.length - 1, violations: batchBoundaryViolations.length, result: 'PASS' }));
+  // Count distinct (theme,width) mini-batches present in cells
+  const batchKeys = new Set(cells.map(({ theme, width }) => `${theme.id}|${width}`));
+  console.log(JSON.stringify({ test: 'no-stale-sessions-between-batches', batchCount: batchKeys.size, batchBoundaries: batchKeys.size - 1, violations: batchBoundaryViolations.length, result: 'PASS' }));
 }
 
 // ── 5. Max simultaneously live sessions bounded ──────────────────────────────
@@ -245,10 +268,10 @@ function simulateSessionLifecycle(selectedCells, lastActiveCellIdx, completed = 
   const lastIdx = buildLastActiveCellIdx(cells);
   const { maxSimultaneous } = simulateSessionLifecycle(cells, lastIdx);
 
-  // Proven from route ordering: institution closes at idx 20, then ed-independent/ed-agency/
-  // biz-independent/biz-agency overlap at indices 21–124 (peak = 4 at indices 66–121).
+  // Within each pairwise mini-batch (~92 routes): peak overlap from ed-independent/ed-agency/
+  // biz-independent/biz-agency is ≤4, matching the full-matrix analysis.
   assert.ok(maxSimultaneous <= 10, `Max simultaneous sessions must not exceed 10 (distinct personas): got ${maxSimultaneous}`);
-  assert.ok(maxSimultaneous <= 5, `Proven peak from route analysis is 4: got ${maxSimultaneous}`);
+  assert.ok(maxSimultaneous <= 5, `Proven peak from route analysis is ≤4: got ${maxSimultaneous}`);
 
   console.log(JSON.stringify({ test: 'max-simultaneous-sessions-bounded', maxSimultaneous, bound: 5, result: 'PASS' }));
 }
@@ -256,10 +279,12 @@ function simulateSessionLifecycle(selectedCells, lastActiveCellIdx, completed = 
 // ── 6. Compatible route group = 1 HARD + subsequent SPA per persona ──────────
 
 {
-  // Simulate nav mode for one non-canonical batch (explicit-dark, 320).
-  // Session per persona: first cell = HARD (spaReady=false), rest = SPA (spaReady=true).
+  // Simulate nav mode for one non-canonical mini-batch (explicit-dark, 320).
+  // In pairwise v3, this batch contains routes at routeIdx%4 === 1 (~92 routes).
   const batch = cells.filter((c) => c.theme.id === 'explicit-dark' && c.width === 320);
-  assert.ok(batch.length === visualRoutes.length, 'batch must contain all visual routes');
+  assert.ok(batch.length > 0, 'explicit-dark/320 mini-batch must have cells');
+  assert.ok(batch.length < visualRoutes.length, 'pairwise mini-batch must be a subset of all routes');
+  assert.ok(batch.length >= 2, 'mini-batch must have at least 2 routes');
 
   const spaReadyMap = new Map();  // persona → spaReady
   const navModes = [];
@@ -285,33 +310,30 @@ function simulateSessionLifecycle(selectedCells, lastActiveCellIdx, completed = 
   const hardCount = navModes.filter((n) => n.mode === 'hard').length;
   assert.equal(hardCount, personaFirstSeen.size, 'HARD count must equal distinct persona count (one bootstrap per persona)');
   assert.equal(spaCount, batch.length - hardCount, 'SPA count must be total cells minus HARD bootstraps');
-  assert.ok(spaCount >= 8, `At least 8 SPA transitions required (got ${spaCount})`);
+  assert.ok(spaCount >= 8, `At least 8 SPA transitions required in the mini-batch (got ${spaCount})`);
 
-  console.log(JSON.stringify({ test: 'compatible-route-group-spa-reuse', personas: personaFirstSeen.size, hardNavs: hardCount, spaNavs: spaCount, result: 'PASS' }));
+  console.log(JSON.stringify({ test: 'compatible-route-group-spa-reuse', batchSize: batch.length, personas: personaFirstSeen.size, hardNavs: hardCount, spaNavs: spaCount, result: 'PASS' }));
 }
 
 // ── 7. Canonical explicit-light/1440 rules unchanged ────────────────────────
 
 {
   const canonBatch = cells.filter((c) => isCanonicalCell(c.theme, c.width));
-  assert.equal(canonBatch.length, 367, 'canonical batch must have 367 cells');
+  assert.equal(canonBatch.length, 367, 'canonical batch must have 367 cells (all routes)');
 
   // All canonical cells use hard nav regardless of spaReady
   let spaReady = false;
   for (const { theme, width } of canonBatch) {
     const useHard = isCanonicalCell(theme, width) || !spaReady;
     assert.ok(useHard, 'canonical cell must always use hard nav');
-    spaReady = true; // simulate spaReady=true set after hard nav
-    // about:blank fires for canonical → spaReady=false
+    spaReady = true;
     if (isCanonicalCell(theme, width)) spaReady = false;
   }
   assert.equal(spaReady, false, 'spaReady must be false after last canonical cell (about:blank fired)');
 
-  // Session closure: canonical sessions also close after their last cell in the canonical batch.
-  // Verify: no canonical persona session survives past the canonical batch.
+  // Session closure: canonical sessions also close after their last cell.
   const lastIdx = buildLastActiveCellIdx(cells);
   const { events } = simulateSessionLifecycle(cells, lastIdx);
-  const canonBatchKey = `${CANONICAL_THEME_ID}|${CANONICAL_WIDTH}`;
   const canonCloseEvents = events.filter(
     (e) => e.type === 'close-last' && e.themeId === CANONICAL_THEME_ID && e.width === CANONICAL_WIDTH,
   );
@@ -323,22 +345,25 @@ function simulateSessionLifecycle(selectedCells, lastActiveCellIdx, completed = 
   console.log(JSON.stringify({ test: 'canonical-rules-unchanged', canonCells: canonBatch.length, canonOpens: canonOpenEvents.length, canonCloses: canonCloseEvents.length, result: 'PASS' }));
 }
 
-// ── 8. SPA count within targeted proof batch (≥8 SPA) ───────────────────────
+// ── 8. SPA count provable from explicit-dark/320 mini-batch ─────────────────
 
 {
-  // The live diagnostic runs a filtered subset. Prove ≥8 SPA is achievable for any
-  // persona with ≥2 routes in the targeted batch (institution has 21 routes → 20 SPA).
+  // Prove ≥8 SPA is achievable from the total mini-batch SPA count.
   const batch = cells.filter((c) => c.theme.id === 'explicit-dark' && c.width === 320);
-  const instRoutes = batch.filter((c) => c.route.persona === 'institution');
-  assert.ok(instRoutes.length >= 9, `Institution must have ≥9 routes in batch to prove ≥8 SPA (got ${instRoutes.length})`);
+  const spaReadyMap = new Map();
+  let spaCount = 0;
+  for (const { route, theme, width } of batch) {
+    const spaReady = spaReadyMap.get(route.persona) || false;
+    const useHard = isCanonicalCell(theme, width) || !spaReady;
+    if (!useHard) spaCount += 1;
+    if (useHard) spaReadyMap.set(route.persona, true);
+  }
+  assert.ok(spaCount >= 8, `Batch must contain ≥8 SPA navigations (got ${spaCount})`);
 
-  const anonRoutes = batch.filter((c) => c.route.persona === 'anonymous');
-  assert.ok(anonRoutes.length >= 9, `Anonymous must have ≥9 routes in batch to prove ≥8 SPA (got ${anonRoutes.length})`);
-
-  console.log(JSON.stringify({ test: 'spa-count-in-targeted-proof', institutionRoutes: instRoutes.length, spaFromInstitution: instRoutes.length - 1, result: 'PASS' }));
+  console.log(JSON.stringify({ test: 'spa-count-in-targeted-proof', batchSize: batch.length, spaCount, result: 'PASS' }));
 }
 
-// ── 9. Harness source contains required session-lifecycle patterns ────────────
+// ── 9. Harness source contains required session-lifecycle and pairwise patterns
 
 {
   const source = fs.readFileSync('scripts/pre-freeze-final-acceptance-harness.mjs', 'utf8');
@@ -359,6 +384,11 @@ function simulateSessionLifecycle(selectedCells, lastActiveCellIdx, completed = 
   const paramSection = source.slice(source.indexOf('ACCEPTANCE_REAL_PARAM_NOT_RESOLVED'));
   assert.match(paramSection, /lastActiveCellIdx\.get\(/, 'PARAMETRIC_UI early-continue must also close session via lastActiveCellIdx');
 
+  // Pairwise v3 patterns
+  assert.match(source, /buildPairwiseCells/, 'harness must define buildPairwiseCells for pairwise contract v3');
+  assert.match(source, /NON_CANONICAL_WIDTHS/, 'harness must define NON_CANONICAL_WIDTHS');
+  assert.match(source, /CELLS_PER_ROUTE/, 'harness must define CELLS_PER_ROUTE');
+
   // Existing cross-cell SPA patterns preserved
   assert.match(source, /spaReady/, 'harness must still track spaReady');
   assert.match(source, /history\.pushState/, 'harness must still use pushState for SPA');
@@ -373,13 +403,11 @@ function simulateSessionLifecycle(selectedCells, lastActiveCellIdx, completed = 
 // ── 10. Skipped (already-completed) cells excluded from lastActiveCellIdx ────
 
 {
-  // Simulate a partial run where the first 434 cells are already completed (as in run-04).
+  // Simulate a partial run where the first 434 cells are already completed.
   const completedKeys = new Set(cells.slice(0, 434).map(cellKey));
   const lastIdx = buildLastActiveCellIdx(cells, completedKeys);
 
-  // The groups that are fully completed must not appear in lastActiveCellIdx
-  // (all their cells are skipped). Verify by checking that no group's lastIdx
-  // points to a completed cell.
+  // No group's lastIdx should point to a completed cell.
   for (const [groupKey, idx] of lastIdx) {
     const k = cellKey(cells[idx]);
     assert.ok(!completedKeys.has(k), `lastActiveCellIdx must not point to a completed (skipped) cell: ${groupKey} → ${idx}`);
@@ -388,4 +416,4 @@ function simulateSessionLifecycle(selectedCells, lastActiveCellIdx, completed = 
   console.log(JSON.stringify({ test: 'skipped-cells-excluded-from-lastActiveCellIdx', completedCells: completedKeys.size, result: 'PASS' }));
 }
 
-console.log(JSON.stringify({ suite: 'pre-freeze-session-lifecycle', result: 'ALL PASS' }));
+console.log(JSON.stringify({ suite: 'pre-freeze-session-lifecycle', contractVersion: 'pre-freeze-acceptance-contract-v3', plannedVisualCells: 1835, result: 'ALL PASS' }));

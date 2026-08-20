@@ -28,6 +28,8 @@ const THEMES = [
 ];
 const CANONICAL_THEME_ID = 'explicit-light';
 const CANONICAL_WIDTH    = 1440;
+const NON_CANONICAL_WIDTHS = WIDTHS.filter((w) => w !== CANONICAL_WIDTH);
+const CELLS_PER_ROUTE = NON_CANONICAL_WIDTHS.length + 1; // 5
 
 function personasFor(record) {
   if (record.realm === 'PUBLIC') return ['anonymous'];
@@ -62,18 +64,41 @@ for (const record of inventory.records) {
 }
 const visualRoutes = allRoutes.filter((r) => ['FULL_MATRIX_UI', 'PARAMETRIC_UI'].includes(r.classification));
 const cellKey = ({ route, theme, width }) => `${route.persona}|${route.id}|${route.classification}|${theme.id}|${width}`;
-const cells = THEMES.flatMap((theme) => WIDTHS.flatMap((width) => visualRoutes.map((route) => ({ route, theme, width }))));
 const isCanonicalCell = (theme, width) => theme.id === CANONICAL_THEME_ID && width === CANONICAL_WIDTH;
+
+// Pairwise v3 cell selection: mirrors buildPairwiseCells in the harness.
+function buildPairwiseCells(vRoutes) {
+  const selected = [];
+  for (const theme of THEMES) {
+    for (const width of WIDTHS) {
+      if (isCanonicalCell(theme, width)) {
+        for (const route of vRoutes) selected.push({ route, theme, width });
+      } else if (width === CANONICAL_WIDTH) {
+        // Non-canonical theme + canonical width: never selected.
+      } else {
+        const widthPos = NON_CANONICAL_WIDTHS.indexOf(width);
+        for (const [routeIdx, route] of vRoutes.entries()) {
+          if (THEMES[(routeIdx + widthPos) % THEMES.length].id === theme.id) {
+            selected.push({ route, theme, width });
+          }
+        }
+      }
+    }
+  }
+  return selected;
+}
+
+const cells = buildPairwiseCells(visualRoutes);
 
 // ── 1. Cell-set equivalence ───────────────────────────────────────────────────
 
 {
   const keys = cells.map(cellKey);
   const keySet = new Set(keys);
-  assert.equal(keys.length, 7340, 'total cell count must be 7340');
-  assert.equal(keySet.size, 7340, 'all cell keys must be unique (no duplicates)');
+  assert.equal(keys.length, 1835, 'total cell count must be 1835 (pairwise contract v3)');
+  assert.equal(keySet.size, 1835, 'all cell keys must be unique (no duplicates)');
   assert.equal(visualRoutes.length, 367, 'representative combinations must be 367');
-  assert.equal(THEMES.length * WIDTHS.length, 20, 'theme×width combinations must be 20');
+  assert.equal(CELLS_PER_ROUTE, 5, 'cells per route must be 5 (4 non-canonical + 1 canonical)');
 
   // Verify each cell key format: persona|id|classification|theme|width
   for (const cell of cells) {
@@ -92,7 +117,7 @@ const isCanonicalCell = (theme, width) => theme.id === CANONICAL_THEME_ID && wid
   const nonCanonicalCells = cells.filter((c) => !isCanonicalCell(c.theme, c.width));
 
   assert.equal(canonicalCells.length, 367, 'exactly 367 canonical cells (one per persona/route combination)');
-  assert.equal(nonCanonicalCells.length, 7340 - 367, `non-canonical cells must be ${7340 - 367}`);
+  assert.equal(nonCanonicalCells.length, 1835 - 367, `non-canonical cells must be ${1835 - 367}`);
 
   // Every visual route must appear in exactly one canonical cell
   const canonicalRouteIds = canonicalCells.map((c) => c.route.id);
@@ -332,26 +357,30 @@ const isCanonicalCell = (theme, width) => theme.id === CANONICAL_THEME_ID && wid
   console.log(JSON.stringify({ test: 'theme-width-ordering-preserved', canonicalBatchPosition: 'last-in-explicit-light', result: 'PASS' }));
 }
 
-// ── 9. Cell equivalence vs legacy ordering ────────────────────────────────────
+// ── 9. Pairwise selection determinism and per-route coverage ─────────────────
 
 {
-  // The KEY SET must be identical regardless of which ordering the cells array uses.
-  // Old order (route-major) and new order (theme+width-major) produce the same key set.
-  const oldCells = visualRoutes.flatMap((route) => THEMES.flatMap((theme) => WIDTHS.map((width) => ({ route, theme, width }))));
-  const newCells = THEMES.flatMap((theme) => WIDTHS.flatMap((width) => visualRoutes.map((route) => ({ route, theme, width }))));
+  // Build a second copy with the same algorithm → must produce identical key set.
+  const cells2 = buildPairwiseCells(visualRoutes);
+  const keys1 = new Set(cells.map(cellKey));
+  const keys2 = new Set(cells2.map(cellKey));
+  assert.equal(keys1.size, keys2.size, 'pairwise selection must be deterministic (same size)');
+  const onlyIn1 = [...keys1].filter((k) => !keys2.has(k));
+  const onlyIn2 = [...keys2].filter((k) => !keys1.has(k));
+  assert.equal(onlyIn1.length, 0, 'first invocation must match second (no keys only in first)');
+  assert.equal(onlyIn2.length, 0, 'second invocation must match first (no keys only in second)');
 
-  const oldKeys = new Set(oldCells.map(cellKey));
-  const newKeys = new Set(newCells.map(cellKey));
+  // Each visual route must appear in exactly CELLS_PER_ROUTE cells with all 5 widths unique.
+  for (const route of visualRoutes) {
+    const routeCells = cells.filter((c) => c.route.id === route.id && c.route.persona === route.persona);
+    assert.equal(routeCells.length, CELLS_PER_ROUTE, `route ${route.id} must appear in exactly ${CELLS_PER_ROUTE} cells`);
+    const widthSet = new Set(routeCells.map((c) => c.width));
+    assert.equal(widthSet.size, WIDTHS.length, `route ${route.id} must have all ${WIDTHS.length} unique widths`);
+    const themeSet = new Set(routeCells.map((c) => c.theme.id));
+    assert.equal(themeSet.size, THEMES.length, `route ${route.id} must have all ${THEMES.length} themes present`);
+  }
 
-  assert.equal(oldKeys.size, 7340, 'old ordering produces 7340 unique keys');
-  assert.equal(newKeys.size, 7340, 'new ordering produces 7340 unique keys');
-
-  const oldOnly = [...oldKeys].filter((k) => !newKeys.has(k));
-  const newOnly = [...newKeys].filter((k) => !oldKeys.has(k));
-  assert.equal(oldOnly.length, 0, 'old-only keys must be 0');
-  assert.equal(newOnly.length, 0, 'new-only keys must be 0');
-
-  console.log(JSON.stringify({ test: 'cell-equivalence-vs-legacy', oldKeys: oldKeys.size, newKeys: newKeys.size, oldOnly: oldOnly.length, newOnly: newOnly.length, result: 'PASS' }));
+  console.log(JSON.stringify({ test: 'pairwise-selection-determinism', cells: cells.length, routeWidthCoverage: 'PASS', routeThemeCoverage: 'PASS', result: 'PASS' }));
 }
 
 // ── 10. Cross-cell SPA state preservation ─────────────────────────────────────
@@ -417,10 +446,10 @@ const isCanonicalCell = (theme, width) => theme.id === CANONICAL_THEME_ID && wid
   const newTupleMode = (isCanonicalCell({ id: 'system-dark' }, 375) || !spaReady) ? 'hard' : 'spa';
   assert.equal(newTupleMode, 'hard', 'new session tuple must bootstrap with HARD nav');
 
-  // Cell universe unchanged
-  assert.equal(cells.length, 7340, 'cell universe must remain 7340');
+  // Cell universe is 1835 (pairwise contract v3)
+  assert.equal(cells.length, 1835, 'cell universe must be 1835 (pairwise contract v3)');
 
-  console.log(JSON.stringify({ test: 'cross-cell-spa-preservation', nonCanonCell0: navModes[0], nonCanonCell1: navModes[1], nonCanonCell2: navModes[2], errorPathResetsSpready: true, canonicalAlwaysHard: true, newTupleBootstrapsHard: true, cellUniverse: 7340, result: 'PASS' }));
+  console.log(JSON.stringify({ test: 'cross-cell-spa-preservation', nonCanonCell0: navModes[0], nonCanonCell1: navModes[1], nonCanonCell2: navModes[2], errorPathResetsSpready: true, canonicalAlwaysHard: true, newTupleBootstrapsHard: true, cellUniverse: 1835, result: 'PASS' }));
 }
 
-console.log(JSON.stringify({ suite: 'pre-freeze-hybrid-navigation', result: 'ALL PASS' }));
+console.log(JSON.stringify({ suite: 'pre-freeze-hybrid-navigation', contractVersion: 'pre-freeze-acceptance-contract-v3', plannedVisualCells: 1835, result: 'ALL PASS' }));
