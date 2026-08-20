@@ -32,12 +32,38 @@ export async function authenticateRealBrowserPage(page, persona, baseUrl) {
   await page.waitForSelector(emailSelector, { timeout: 15000 });
   await page.type(emailSelector, credentials.email);
   await page.type(passwordSelector, credentials.password);
-  // Wait for post-login navigation so auth cookies are set before the caller navigates away.
-  await Promise.all([
-    page.waitForNavigation({ waitUntil: 'domcontentloaded', timeout: 30000 }),
-    page.click('button[type="submit"]'),
-  ]);
-  return { persona, loginPath };
+  // Start observing auth response BEFORE triggering form submission to prevent race conditions.
+  const authResponsePromise = page.waitForResponse(
+    (response) => {
+      const req = response.request();
+      const method = typeof req?.method === 'function' ? req.method() : req?.method;
+      if (method !== 'POST') return false;
+      try {
+        const pathname = new URL(response.url()).pathname;
+        return pathname.endsWith('/login') && (pathname.includes('/auth') || pathname.startsWith('/api/'));
+      } catch {
+        return false;
+      }
+    },
+    { timeout: 15000 },
+  );
+
+  await page.waitForSelector('button[type="submit"]', { timeout: 15000 });
+  await page.click('button[type="submit"]');
+
+  const authResponse = await authResponsePromise;
+  if (!authResponse.ok()) {
+    throw new Error(`REAL_API_LOGIN_HTTP_ERROR persona=${persona} status=${authResponse.status()}`);
+  }
+
+  // Wait for post-login destination URL update (client-side SPA navigation or document redirect)
+  await page.waitForFunction(
+    (path) => window.location.pathname !== path,
+    { timeout: 15000 },
+    loginPath,
+  );
+
+  return { persona, loginPath, status: authResponse.status() };
 }
 
 /**
