@@ -1,25 +1,33 @@
 import { useMemo } from 'react';
 import { useGbsProvider } from './GbsProviderContext';
 import { StatusBadge, card, GbsRouteState, h1, h2, muted, wrap } from './gbsUi';
+import { countryDisplayName } from '@shared/international/country.js';
+
+const DISCOVERABILITY_ONLY_CODES = Object.freeze([
+  'DE', 'FR', 'IN', 'JP', 'NL', 'IE', 'NZ', 'ZA', 'SA',
+]);
 
 function eligibilityLabel(row) {
   if (row.currentReviewed) return 'current reviewed';
   if (row.reviewStatus === 'stale') return 'stale / not current';
   if (row.launchCandidate) return 'candidate / review readiness';
-  return 'structural availability';
+  return 'Coverage not yet verified';
 }
 
 export default function GbsJurisdictions() {
   const { catalog } = useGbsProvider();
   const grouped = useMemo(() => {
-    const countries = catalog?.launchCountryCodes || [];
     const jurisdictions = catalog?.jurisdictions || [];
-    return countries.map((code) => {
-      const allForCountry = jurisdictions.filter((j) => j.countryCode === code);
-      const countryEntry = allForCountry.find((j) => !j.parentJurisdictionId) || null;
-      const countryName = countryEntry?.name || code;
-      const subnational = allForCountry.filter((j) => !!j.parentJurisdictionId);
-      return { code, countryName, countryEntry, subnational };
+    const launchSet = new Set(catalog?.launchCountryCodes || []);
+    const countryLevel = jurisdictions.filter((j) => !j.parentJurisdictionId);
+    const sorted = [
+      ...countryLevel.filter((j) => launchSet.has(j.countryCode)),
+      ...countryLevel.filter((j) => !launchSet.has(j.countryCode)),
+    ];
+    return sorted.map((countryEntry) => {
+      const code = countryEntry.countryCode;
+      const subnational = jurisdictions.filter((j) => !!j.parentJurisdictionId && j.countryCode === code);
+      return { code, countryName: countryEntry.name || code, countryEntry, subnational, isLaunch: launchSet.has(code) };
     });
   }, [catalog]);
 
@@ -46,7 +54,12 @@ export default function GbsJurisdictions() {
       </section>
       {grouped.map((group) => (
         <section key={group.code} className="space-y-3">
-          <h2 className={h2}>{group.countryName}</h2>
+          <h2 className={h2}>
+            {group.countryName}
+            {!group.isLaunch && (
+              <span className={`ml-2 text-xs font-normal ${muted}`}>— Coverage not yet verified</span>
+            )}
+          </h2>
           {group.countryEntry && (
             <div className={`${card} flex flex-wrap items-center justify-between gap-2`}>
               <span className={`text-sm font-medium text-gray-700 dark:text-gray-300 ${wrap}`}>
@@ -87,6 +100,23 @@ export default function GbsJurisdictions() {
           )}
         </section>
       ))}
+
+      <section className="space-y-3">
+        <h2 className={h2}>International discoverability index</h2>
+        <p className={`${muted} text-sm ${wrap}`}>
+          The following countries are listed for discoverability only. Provider coverage is not yet available in these markets. No formation rules, fees, or entity types are catalogued.
+        </p>
+        <ul className="grid grid-cols-1 lg:grid-cols-2 gap-3">
+          {DISCOVERABILITY_ONLY_CODES.map((code) => (
+            <li key={code} className={`${card} flex flex-wrap items-center justify-between gap-2`}>
+              <span className={`text-sm font-medium text-gray-700 dark:text-gray-300 ${wrap}`}>
+                {countryDisplayName(code)}
+              </span>
+              <StatusBadge status="draft" label="Coverage not yet verified" />
+            </li>
+          ))}
+        </ul>
+      </section>
     </div>
   );
 }

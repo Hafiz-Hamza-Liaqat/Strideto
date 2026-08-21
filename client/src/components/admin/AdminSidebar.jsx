@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
+import Logo from '../brand/Logo';
 import {
   ADMIN_NAV_GROUPS,
   filterAdminNavGroups,
@@ -235,6 +236,9 @@ function SidebarPanel({ mobile, onClose, groups, can, t, logout }) {
   return (
     <>
       <div className={`p-3 border-b border-gray-200 dark:border-gray-700 shrink-0 ${mobile ? '' : 'hidden lg:block'}`}>
+        <Link to={ROUTES.HOME} onClick={onNavigate} className="inline-block mb-2 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 rounded" aria-label="Strideto home">
+          <Logo variant="full" height={26} tone="auto" />
+        </Link>
         <Link
           to={ROUTES.HOME}
           onClick={onNavigate}

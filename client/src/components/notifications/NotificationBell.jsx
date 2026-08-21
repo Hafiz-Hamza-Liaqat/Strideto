@@ -4,7 +4,6 @@ import { useTranslation } from 'react-i18next';
 import { ROUTES } from '../../constants';
 import { inboxApi } from '../../services/listingsService';
 import { useAuth } from '../../context/AuthContext';
-import { useActiveWorkspace } from '../../context/ActiveWorkspaceContext';
 import { useUserNavbarSession } from '../../hooks/useUserNavbarSession';
 import { registerOverlayEscape } from '../../a11y/overlayStack';
 import { isSafeInternalLink } from '../../utils/notificationLink';
@@ -128,15 +127,14 @@ export function NotificationBellCore({ api, enabled, viewAllRoute }) {
   );
 }
 
-/** User/staff realm bell — behavior unchanged from before this refactor. */
+/** User/staff realm bell — visible whenever the student auth session is active on a student path. */
 export function NotificationBell() {
   const { isAuthenticated } = useAuth();
   const { enabled: userNavbarSession } = useUserNavbarSession();
-  const { canActAsStudent } = useActiveWorkspace();
   return (
     <NotificationBellCore
       api={inboxApi}
-      enabled={userNavbarSession && isAuthenticated && canActAsStudent}
+      enabled={userNavbarSession && isAuthenticated}
       viewAllRoute={ROUTES.NOTIFICATIONS}
     />
   );
