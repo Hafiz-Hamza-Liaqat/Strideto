@@ -33,7 +33,7 @@ export function OfficialScholarshipsRail() {
           <li key={s._id || s.slug}>
             <Link to={`${ROUTES.CANONICAL_SCHOLARSHIPS}/${s.slug}`} className="block p-3 rounded-lg bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 min-w-0">
               <p className="font-medium text-gray-900 dark:text-white break-words-safe">{s.title}</p>
-              <p className="text-sm text-gray-500 break-words-safe">{s.provider?.name || s.provider || ''}</p>
+              <p className="text-sm text-gray-500 break-words-safe">{typeof s.provider === 'string' ? s.provider : (s.provider?.name || '')}</p>
               <div className="mt-1">
                 <PublicTrustBadge
                   kind={s.institutionId || s.organizationId ? AUTHORITY_KINDS.INSTITUTION_SCHOLARSHIP : AUTHORITY_KINDS.SOURCE_BACKED}
