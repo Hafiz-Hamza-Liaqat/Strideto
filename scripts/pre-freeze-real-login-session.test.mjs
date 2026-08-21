@@ -171,6 +171,7 @@ test('authenticateRealBrowserPage maps persona routes and selectors correctly', 
 
   await authenticateRealBrowserPage(mockInstitutionPage, 'institution', 'https://127.0.0.1:8443');
   assert.ok(institutionSelectors.includes('#institution-email'), 'Institution realm must use #institution-email selector');
+  assert.ok(institutionSelectors.includes('#institution-password'), 'Institution realm must use #institution-password selector');
 
   const mockAgentPage = {
     async goto(url) {
@@ -193,3 +194,104 @@ test('authenticateRealBrowserPage maps persona routes and selectors correctly', 
   const agentRes = await authenticateRealBrowserPage(mockAgentPage, 'education-independent', 'https://127.0.0.1:8443');
   assert.equal(agentRes.loginPath, '/agent/login');
 });
+
+test('authenticateRealBrowserPage waits for form readiness (email, password, submit) before typing', async () => {
+  process.env.STRIDETO_QA_EDUCATION_INDEPENDENT = JSON.stringify({ email: 'edu@test.qa', password: 'password123' });
+
+  const events = [];
+  const mockPage = {
+    async goto(url) { events.push(`goto:${url}`); },
+    async waitForSelector(sel) { events.push(`wait:${sel}`); },
+    async type(sel, text) { events.push(`type:${sel}`); },
+    waitForResponse() {
+      events.push('waitForResponse');
+      return Promise.resolve({
+        ok: () => true,
+        status: () => 200,
+        request: () => ({ method: () => 'POST' }),
+        url: () => 'https://127.0.0.1:8443/api/auth/agent/login',
+      });
+    },
+    async click(sel) { events.push(`click:${sel}`); },
+    async waitForFunction() { events.push('waitForFunction'); },
+  };
+
+  await authenticateRealBrowserPage(mockPage, 'education-independent', 'https://127.0.0.1:8443');
+
+  // Verify all 3 readiness checks precede any typing
+  const waitEmailIdx = events.indexOf('wait:input[type="email"]');
+  const waitPassIdx = events.indexOf('wait:input[type="password"]');
+  const waitSubmitIdx = events.indexOf('wait:button[type="submit"]');
+  const typeEmailIdx = events.indexOf('type:input[type="email"]');
+  const typePassIdx = events.indexOf('type:input[type="password"]');
+  const clickSubmitIdx = events.indexOf('click:button[type="submit"]');
+
+  assert.ok(waitEmailIdx !== -1, 'Must wait for email selector');
+  assert.ok(waitPassIdx !== -1, 'Must wait for password selector');
+  assert.ok(waitSubmitIdx !== -1, 'Must wait for submit selector');
+  assert.ok(waitEmailIdx < typeEmailIdx, 'Wait email must precede typing email');
+  assert.ok(waitPassIdx < typePassIdx, 'Wait password must precede typing password');
+  assert.ok(waitSubmitIdx < clickSubmitIdx, 'Wait submit must precede clicking submit');
+  assert.ok(typeEmailIdx < clickSubmitIdx, 'Typing email must precede submit');
+  assert.ok(typePassIdx < clickSubmitIdx, 'Typing password must precede submit');
+});
+
+test('authenticateRealBrowserPage handles asynchronous password element arrival', async () => {
+  process.env.STRIDETO_QA_EMPLOYER = JSON.stringify({ email: 'employer@test.qa', password: 'password123' });
+
+  let passwordReady = false;
+  const mockPage = {
+    async goto() {},
+    async waitForSelector(sel) {
+      if (sel === 'input[type="password"]') {
+        // Simulate async render delay
+        await new Promise((r) => setTimeout(r, 20));
+        passwordReady = true;
+      }
+    },
+    async type(sel) {
+      if (sel === 'input[type="password"]') {
+        assert.ok(passwordReady, 'Password input must be ready before typing');
+      }
+    },
+    waitForResponse() {
+      return Promise.resolve({
+        ok: () => true,
+        status: () => 200,
+        request: () => ({ method: () => 'POST' }),
+        url: () => 'https://127.0.0.1:8443/api/auth/employer/login',
+      });
+    },
+    async click() {},
+    async waitForFunction() {},
+  };
+
+  const res = await authenticateRealBrowserPage(mockPage, 'employer', 'https://127.0.0.1:8443');
+  assert.equal(res.status, 200);
+});
+
+test('authenticateRealBrowserPage fails boundedly if password selector never appears', async () => {
+  process.env.STRIDETO_QA_ADMIN = JSON.stringify({ email: 'admin@test.qa', password: 'password123' });
+
+  const mockPage = {
+    async goto() {},
+    async waitForSelector(sel) {
+      if (sel === 'input[type="password"]') {
+        throw new Error('TimeoutError: waiting for selector `input[type="password"]` failed: timeout 15000ms exceeded');
+      }
+    },
+    async type() {},
+    waitForResponse() {},
+    async click() {},
+    async waitForFunction() {},
+  };
+
+  await assert.rejects(
+    () => authenticateRealBrowserPage(mockPage, 'admin', 'https://127.0.0.1:8443'),
+    (err) => {
+      assert.match(err.message, /input\[type="password"\]/);
+      return true;
+    },
+  );
+});
+

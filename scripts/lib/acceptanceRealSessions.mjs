@@ -29,9 +29,15 @@ export async function authenticateRealBrowserPage(page, persona, baseUrl) {
   await page.goto(`${baseUrl}${loginPath}`, { waitUntil: 'domcontentloaded', timeout: 30000 });
   const emailSelector = persona === 'institution' ? '#institution-email' : 'input[type="email"]';
   const passwordSelector = persona === 'institution' ? '#institution-password' : 'input[type="password"]';
+
+  // Wait for login form readiness before typing into inputs
   await page.waitForSelector(emailSelector, { timeout: 15000 });
+  await page.waitForSelector(passwordSelector, { timeout: 15000 });
+  await page.waitForSelector('button[type="submit"]', { timeout: 15000 });
+
   await page.type(emailSelector, credentials.email);
   await page.type(passwordSelector, credentials.password);
+
   // Start observing auth response BEFORE triggering form submission to prevent race conditions.
   const authResponsePromise = page.waitForResponse(
     (response) => {
@@ -48,7 +54,6 @@ export async function authenticateRealBrowserPage(page, persona, baseUrl) {
     { timeout: 15000 },
   );
 
-  await page.waitForSelector('button[type="submit"]', { timeout: 15000 });
   await page.click('button[type="submit"]');
 
   const authResponse = await authResponsePromise;

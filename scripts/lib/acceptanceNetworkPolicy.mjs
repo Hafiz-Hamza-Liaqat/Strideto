@@ -25,6 +25,20 @@ const EXPECTED_HTTP_FAILURES = Object.freeze([
     pathname: '/api/auth/refresh-token',
     reason: 'Anonymous session bootstrap has no user refresh cookie.',
   }),
+  Object.freeze({
+    persona: 'employer',
+    method: 'POST',
+    status: 401,
+    pathname: '/api/auth/refresh-token',
+    reason: 'Employer session has no user realm refresh cookie; user-realm background token check correctly 401s.',
+  }),
+  Object.freeze({
+    persona: 'admin',
+    method: 'GET',
+    status: 403,
+    pathname: '/api/auth/saved',
+    reason: 'Admin realm does not have student-saved capability; background saved-items query correctly returns 403.',
+  }),
   // Realm-isolated refresh probes: the SPA auth layer checks realm tokens on
   // every page load. Anonymous visitors to institution/employer/agent realm pages
   // (login, register, reset, invitation, public namespace pages) trigger these
@@ -45,6 +59,14 @@ const EXPECTED_HTTP_FAILURES = Object.freeze([
   // Cross-domain 403: business providers do not have access to education domain.
   Object.freeze({ persona: 'business-independent', method: 'GET', status: 403, pathname: '/api/agent/education/enabled', reason: 'Business provider is not enrolled in education domain.' }),
   Object.freeze({ persona: 'business-agency', method: 'GET', status: 403, pathname: '/api/agent/education/enabled', reason: 'Business agency is not enrolled in education domain.' }),
+  // Agent public profile route: renders fallback when agent profile is missing/unapproved/fixture-excluded.
+  Object.freeze({
+    persona: 'anonymous',
+    method: 'GET',
+    status: 404,
+    pathnamePrefix: '/api/agents/',
+    reason: 'Agent public profile route has graceful fallback for unseeded/unapproved/fixture-excluded provider profiles.',
+  }),
   // Static CMS pages: these routes have Fallback components that render h1 when CMS record is absent.
   // The CMS API returns 404 when no content is seeded; Chromium logs this as a console error.
   // Classification: HARNESS_EXPECTATION — graceful product behavior, not a product defect.
