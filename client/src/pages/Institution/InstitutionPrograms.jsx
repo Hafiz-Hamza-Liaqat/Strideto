@@ -57,18 +57,29 @@ export default function InstitutionPrograms() {
       ) : (
         <div className="grid gap-4 lg:grid-cols-2">
           {programs.map((program) => (
-            <article key={program._id} className="min-w-0 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 shadow-sm">
+            <article key={program._id} className="min-w-0 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm flex flex-col gap-2">
               <div className="flex flex-wrap items-start justify-between gap-3">
-                <h2 className="min-w-0 break-words text-lg font-semibold text-gray-900 dark:text-white">{program.name}</h2>
+                <div className="min-w-0">
+                  <p className="text-xs font-semibold uppercase tracking-wide text-primary dark:text-mint">Academic program</p>
+                  <h2 className="mt-0.5 min-w-0 break-words text-xl font-bold text-gray-900 dark:text-white leading-snug">{program.name}</h2>
+                </div>
                 <StatusBadge value={program.status} />
               </div>
-              <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{program.degreeLevel || 'Degree level unknown'} · {program.studyMode || 'Study mode unknown'} · {program.country || 'Country unknown'}</p>
-              <div className="mt-3 flex flex-wrap gap-2"><StatusBadge label="Freshness" value={program.freshnessState || 'unknown'} /></div>
+              <div className="flex flex-wrap gap-x-3 gap-y-1">
+                <span className="text-sm text-gray-600 dark:text-gray-400">{program.degreeLevel || 'Level unknown'}</span>
+                <span className="text-gray-300 dark:text-gray-600" aria-hidden="true">·</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">{program.studyMode || 'Mode unknown'}</span>
+                <span className="text-gray-300 dark:text-gray-600" aria-hidden="true">·</span>
+                <span className="text-sm text-gray-600 dark:text-gray-400">{program.country || 'Country unknown'}</span>
+              </div>
+              <div className="flex flex-wrap gap-2 items-center">
+                <StatusBadge label="Freshness" value={program.freshnessState || 'unknown'} />
+              </div>
               {program.tuition?.currency && Number.isInteger(program.tuition.amountMinor)
-                ? <p className="mt-3 text-sm font-semibold text-gray-800 dark:text-gray-200">Tuition: {formatMoney(program.tuition)} {program.tuition.currency.toUpperCase()}</p>
-                : <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">Tuition amount: unknown</p>}
-              <div className="mt-4 flex flex-wrap gap-2">
-                {canEdit ? <Link className={secondaryButton} to={`/institution/programs/${program._id}/edit`}>Edit Program</Link> : null}
+                ? <p className="text-sm font-semibold text-gray-800 dark:text-gray-200">Tuition: {formatMoney(program.tuition)} {program.tuition.currency.toUpperCase()}</p>
+                : <p className="text-sm text-gray-500 dark:text-gray-400">Tuition: not specified</p>}
+              <div className="mt-auto flex flex-wrap gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
+                {canEdit ? <Link className={secondaryButton} to={`/institution/programs/${program._id}/edit`}>Edit</Link> : null}
                 {canEdit && program.status === 'draft' ? (
                   <PublishingActionButton
                     authority={authority}

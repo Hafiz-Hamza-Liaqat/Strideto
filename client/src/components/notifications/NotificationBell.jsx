@@ -141,3 +141,15 @@ export function NotificationBell() {
     />
   );
 }
+
+/** Admin shell bell — shows unread admin inbox notifications near role badge. */
+export function AdminNotificationBell() {
+  const { isAuthenticated } = useAuth();
+  return (
+    <NotificationBellCore
+      api={inboxApi}
+      enabled={isAuthenticated}
+      viewAllRoute={`${ROUTES.ADMIN}/notifications`}
+    />
+  );
+}

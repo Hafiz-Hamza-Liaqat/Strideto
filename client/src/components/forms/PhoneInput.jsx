@@ -107,7 +107,7 @@ export function PhoneInput({
 
   return (
     <div className={`flex flex-col gap-2 sm:flex-row min-w-0 ${className}`}>
-      <div className="min-w-0 sm:w-[min(100%,18rem)] sm:shrink-0">
+      <div className="min-w-0 sm:w-[min(45%,14rem)] sm:shrink-0">
         <SearchableSelect
           id={countryId || `${id}-country`}
           aria-label="Phone country"

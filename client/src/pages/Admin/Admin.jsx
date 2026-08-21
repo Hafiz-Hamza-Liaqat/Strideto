@@ -3,6 +3,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
 import { AdminSidebar } from '../../components/admin/AdminSidebar';
+import { AdminNotificationBell } from '../../components/notifications/NotificationBell';
 import { ROUTES } from '../../constants';
 import { usePermissions } from '../../hooks/usePermissions';
 
@@ -37,11 +38,14 @@ export default function Admin() {
               ) : (
                 <p className="text-sm font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">{t('admin:title')}</p>
               )}
-              {!permLoading && role && (
-                <span className="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-                  {role}
-                </span>
-              )}
+              <div className="flex items-center gap-2">
+                {!permLoading && role && (
+                  <span className="text-xs px-2 py-1 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+                    {role}
+                  </span>
+                )}
+                <AdminNotificationBell />
+              </div>
             </div>
 
             <div className="min-w-0">

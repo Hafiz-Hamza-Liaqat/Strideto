@@ -88,24 +88,44 @@ export default function AgentMarketplace() {
         ) : (
           <div className="mt-8 grid gap-4 md:grid-cols-2">
             {data.posts.map((post) => (
-              <Link
+              <article
                 key={post.id}
-                to={`${ROUTES.AGENT_PUBLIC_MARKETPLACE}/${post.slug}`}
-                className={`${ui.card} p-5 transition hover:border-blue-400 dark:hover:border-blue-500`}
+                className={`${ui.card} p-5 flex flex-col gap-2 min-w-0 transition hover:border-blue-400 dark:hover:border-blue-500 hover:shadow-md`}
               >
-                <div className="flex justify-between gap-3">
-                  <span className="text-xs uppercase text-blue-700 dark:text-blue-300">{post.postType.replaceAll('_', ' ')}</span>
-                  <span className="text-xs text-slate-500 dark:text-gray-400">{post.agent?.agentType}</span>
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="inline-flex items-center rounded-full bg-blue-50 dark:bg-blue-950/50 px-2.5 py-0.5 text-xs font-semibold uppercase tracking-wide text-blue-700 dark:text-blue-300">
+                    {post.postType.replaceAll('_', ' ')}
+                  </span>
+                  {post.agent?.agentType && (
+                    <span className="text-xs text-slate-500 dark:text-gray-400">{post.agent.agentType}</span>
+                  )}
                 </div>
-                <h2 className="mt-2 text-lg font-semibold break-words-safe">{post.title}</h2>
-                <p className="mt-2 text-sm text-slate-600 dark:text-gray-300 break-words-safe">{post.summary}</p>
-                <p className="mt-4 text-xs text-slate-500 dark:text-gray-400">
-                  By {post.agent?.professionalName || post.organization?.displayName}
-                </p>
+                <h2 className="text-lg font-bold text-gray-900 dark:text-white break-words leading-snug">
+                  <Link
+                    to={`${ROUTES.AGENT_PUBLIC_MARKETPLACE}/${post.slug}`}
+                    className="hover:text-primary dark:hover:text-mint focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded"
+                  >
+                    {post.title}
+                  </Link>
+                </h2>
+                {post.summary && (
+                  <p className="text-sm text-slate-600 dark:text-gray-300 break-words line-clamp-3">{post.summary}</p>
+                )}
                 {post.freshnessWarning ? (
-                  <p className="mt-3 rounded bg-amber-50 dark:bg-amber-950/40 p-2 text-xs text-amber-800 dark:text-amber-200">{post.freshnessWarning}</p>
+                  <p className="rounded bg-amber-50 dark:bg-amber-950/40 p-2 text-xs text-amber-800 dark:text-amber-200">{post.freshnessWarning}</p>
                 ) : null}
-              </Link>
+                <div className="mt-auto flex flex-wrap items-center justify-between gap-2 pt-3 border-t border-gray-100 dark:border-gray-700">
+                  <p className="text-xs font-medium text-slate-600 dark:text-gray-400 break-words min-w-0">
+                    {post.agent?.professionalName || post.organization?.displayName || 'Unknown provider'}
+                  </p>
+                  <Link
+                    to={`${ROUTES.AGENT_PUBLIC_MARKETPLACE}/${post.slug}`}
+                    className="shrink-0 text-xs font-semibold text-primary dark:text-mint hover:underline"
+                  >
+                    View post →
+                  </Link>
+                </div>
+              </article>
             ))}
           </div>
         )}
