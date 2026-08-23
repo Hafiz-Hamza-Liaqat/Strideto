@@ -86,7 +86,7 @@ export function parseEducationEntry(input = {}) {
     startDate: input.startDate ? new Date(input.startDate) : null,
     endDate: input.endDate ? new Date(input.endDate) : null,
     completionStatus: trimStr(input.completionStatus, 40),
-    graduationYear: input.graduationYear != null ? Number(input.graduationYear) : null,
+    graduationYear: (input.graduationYear != null && input.graduationYear !== '') ? Number(input.graduationYear) : null,
     gradingSystem: trimStr(input.gradingSystem, 40),
     gradeValue: trimStr(input.gradeValue, 40),
     gradeScale: trimStr(input.gradeScale, 40),

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   WIZARD_STEPS,
@@ -25,6 +25,39 @@ const inputClass =
 const labelClass = 'block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1';
 
 const TIP_KEYS = ['tip1', 'tip2', 'tip3', 'tip4'];
+
+/**
+ * Textarea that shows raw text while editing and only commits the parsed
+ * skill array to the parent on blur. Prevents Enter/comma/spaces being
+ * consumed by parseSkillLines on every keystroke.
+ */
+function SkillDraftTextarea({ skills, onCommit, ...props }) {
+  const [draft, setDraft] = useState(() => (skills || []).join('\n'));
+  const editingRef = useRef(false);
+  const prevSkillsRef = useRef(skills);
+
+  useEffect(() => {
+    if (!editingRef.current && skills !== prevSkillsRef.current) {
+      prevSkillsRef.current = skills;
+      setDraft((skills || []).join('\n'));
+    }
+  }, [skills]);
+
+  return (
+    <textarea
+      {...props}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onFocus={() => { editingRef.current = true; }}
+      onBlur={() => {
+        editingRef.current = false;
+        const parsed = parseSkillLines(draft);
+        prevSkillsRef.current = parsed;
+        onCommit(parsed);
+      }}
+    />
+  );
+}
 
 export function ResumeForm({ stepIndex, resume, onChange }) {
   const { t } = useTranslation('resume');
@@ -221,20 +254,15 @@ export function ResumeForm({ stepIndex, resume, onChange }) {
   }
 
   if (step.id === 'skills') {
-    const techText = (resume.skills?.technical || []).join('\n');
-    const softText = (resume.skills?.soft || []).join('\n');
     return (
       <div className="space-y-6">
         <div>
           <label className={labelClass}>{t('technicalSkills')}</label>
           <p className="text-xs text-gray-500 dark:text-gray-400 mb-2">{t('skillsMultilineHint')}</p>
-          <textarea
+          <SkillDraftTextarea
+            skills={resume.skills?.technical || []}
+            onCommit={(technical) => onChange({ ...resume, skills: { ...resume.skills, technical } })}
             className={`${inputClass} min-h-[140px] font-mono text-sm`}
-            value={techText}
-            onChange={(e) => {
-              const technical = parseSkillLines(e.target.value);
-              onChange({ ...resume, skills: { ...resume.skills, technical } });
-            }}
             placeholder={SKILL_SUGGESTIONS.technical.join('\n')}
             rows={8}
           />
@@ -242,13 +270,10 @@ export function ResumeForm({ stepIndex, resume, onChange }) {
         </div>
         <div>
           <label className={labelClass}>{t('softSkills')}</label>
-          <textarea
+          <SkillDraftTextarea
+            skills={resume.skills?.soft || []}
+            onCommit={(soft) => onChange({ ...resume, skills: { ...resume.skills, soft } })}
             className={`${inputClass} min-h-[100px] font-mono text-sm`}
-            value={softText}
-            onChange={(e) => {
-              const soft = parseSkillLines(e.target.value);
-              onChange({ ...resume, skills: { ...resume.skills, soft } });
-            }}
             placeholder={SKILL_SUGGESTIONS.soft.join('\n')}
             rows={5}
           />

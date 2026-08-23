@@ -60,12 +60,14 @@ export function talentProfileToResumeView(profile, resumeVersion = null) {
     })),
     certifications: (profile.certificationReferences || []).map((c) => c.name).filter(Boolean),
     languages: (profile.languages || []).map((l) => l.language).filter(Boolean),
-    references: [],
-    awards: [],
-    volunteerExperience: [],
-    publications: [],
-    interests: profile.interests || [],
-    professionalMemberships: [],
+    // Additional sections: prefer ResumeVersion snapshot (user-edited) over canonical profile.
+    // Backward-compatible: old ResumeVersion records without these fields return [].
+    references: resumeVersion?.snapshot?.references || [],
+    awards: resumeVersion?.snapshot?.awards || [],
+    volunteerExperience: resumeVersion?.snapshot?.volunteerExperience || [],
+    publications: resumeVersion?.snapshot?.publications || [],
+    interests: resumeVersion?.snapshot?.interests || profile.interests || [],
+    professionalMemberships: resumeVersion?.snapshot?.professionalMemberships || [],
   };
 }
 

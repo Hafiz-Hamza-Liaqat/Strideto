@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import {
   formatPhoneE164,
@@ -75,6 +75,25 @@ export function PhoneInput({
   const userChoseCountryRef = useRef(false);
   const lastPrefRef = useRef(preferred);
 
+  // Keep a local draft for the national-number field so partial input (e164 == null)
+  // does not get erased when the parent stores '' on each intermediate keystroke.
+  const prevValueRef = useRef(value);
+  const [draftNational, setDraftNational] = useState(parsed.nationalNumber);
+
+  useEffect(() => {
+    const prev = prevValueRef.current;
+    prevValueRef.current = value;
+    if (value) {
+      // Parent has a valid E.164 — sync draft from it (load from server / successful save)
+      setDraftNational(parsed.nationalNumber);
+    } else if (prev) {
+      // Parent transitioned from a valid value to empty — explicit clear/reset
+      setDraftNational('');
+    }
+    // prev='' and value='' → user is mid-typing; keep draft unchanged
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- parsed.nationalNumber is deterministic from value
+  }, [value]);
+
   const options = useMemo(() => listPhoneCountries(locale), [locale]);
 
   const emit = (next, { userCountry = false } = {}) => {
@@ -131,7 +150,9 @@ export function PhoneInput({
             emit({
               countryCode,
               callingCode: getCountryCallingCode(countryCode) || '',
-              nationalNumber: parsed.nationalNumber,
+              // Use draftNational so partial digits typed before country change are preserved.
+              // parsed.nationalNumber would be '' whenever parent value is still empty.
+              nationalNumber: draftNational,
             }, { userCountry: true });
           }}
         />
@@ -152,13 +173,12 @@ export function PhoneInput({
           inputMode="numeric"
           autoComplete="tel-national"
           disabled={disabled}
-          value={parsed.nationalNumber}
-          onChange={(event) =>
-            emit({
-              ...parsed,
-              nationalNumber: stripNationalInput(event.target.value),
-            })
-          }
+          value={draftNational}
+          onChange={(event) => {
+            const national = stripNationalInput(event.target.value);
+            setDraftNational(national);
+            emit({ ...parsed, nationalNumber: national });
+          }}
           className={`${inputControlClassName({ error })} ps-16`}
         />
       </div>

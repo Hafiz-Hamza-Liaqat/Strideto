@@ -61,16 +61,23 @@ export const TalentProfileReadService = {
       return talentProfileToResumeView(profile, version);
     }
 
+    // UNQUERIED distinguishes "not yet queried" (feature disabled) from "queried, got null"
+    // (feature enabled, no primary version). The final profile fallback must issue exactly
+    // one query when the feature branch was skipped, and reuse the cached null otherwise.
+    const UNQUERIED = Symbol('unqueried');
+    let profileVersion = UNQUERIED;
     if (profile && isTalentProfileEnabled()) {
-      const version = await ResumeVersionRepository.findPrimaryByProfileId(profile._id);
-      if (version) return talentProfileToResumeView(profile, version);
+      profileVersion = await ResumeVersionRepository.findPrimaryByProfileId(profile._id);
+      if (profileVersion) return talentProfileToResumeView(profile, profileVersion);
     }
 
     const legacy = await Resume.findOne({ userId }).sort({ updatedAt: -1 }).lean();
     if (legacy) return legacyResumeToResumeView(legacy);
 
     if (profile) {
-      const version = await ResumeVersionRepository.findPrimaryByProfileId(profile._id);
+      const version = profileVersion === UNQUERIED
+        ? await ResumeVersionRepository.findPrimaryByProfileId(profile._id)
+        : profileVersion;
       return talentProfileToResumeView(profile, version);
     }
 
@@ -104,17 +111,28 @@ export const TalentProfileReadService = {
         certifications: payload.certificationReferences,
         projects: payload.portfolioReferences,
         socialProfile: payload.socialProfile,
+        // Additional sections not owned by TalentProfile canonical schema
+        references: view.references || [],
+        awards: view.awards || [],
+        volunteerExperience: view.volunteerExperience || [],
+        publications: view.publications || [],
+        interests: view.interests || [],
+        professionalMemberships: view.professionalMemberships || [],
       },
     };
 
+    // Find-or-create primary, then return the view directly to avoid a
+    // second findPrimaryByProfileId query inside getResumeBuilderView.
     const existingPrimary = await ResumeVersionRepository.findPrimaryByProfileId(profile._id);
+    let savedVersion;
     if (existingPrimary) {
-      await ResumeVersionRepository.updateById(existingPrimary._id, versionPayload);
+      savedVersion = await ResumeVersionRepository.updateById(existingPrimary._id, versionPayload);
     } else {
-      await ResumeVersionService.create(userId, { ...versionPayload, isPrimary: true }, actor);
+      savedVersion = await ResumeVersionService.create(userId, { ...versionPayload, isPrimary: true }, actor);
     }
 
-    return this.getResumeBuilderView(userId);
+    const v = savedVersion?.toObject?.() ?? savedVersion;
+    return talentProfileToResumeView(profile, v);
   },
 
   async getDashboardSummary(userId) {

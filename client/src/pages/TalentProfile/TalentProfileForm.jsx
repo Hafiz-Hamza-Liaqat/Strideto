@@ -1,3 +1,4 @@
+import { useEffect, useRef, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { FormField } from '../../components/common/FormField';
 import { DateInput } from '../../components/forms/NativeTemporalInput';
@@ -19,6 +20,32 @@ import {
   parseListInput,
   formatListInput,
 } from './talentProfileMapper';
+
+/**
+ * Input that shows a comma-separated draft while editing and only commits the
+ * parsed array to the parent on blur. Prevents commas/spaces being consumed on
+ * every keystroke.
+ */
+function DraftListInput({ value, onCommit, ...props }) {
+  const [draft, setDraft] = useState(() => formatListInput(value));
+  const prevRef = useRef(value);
+
+  useEffect(() => {
+    if (prevRef.current !== value) {
+      prevRef.current = value;
+      setDraft(formatListInput(value));
+    }
+  }, [value]);
+
+  return (
+    <input
+      {...props}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => onCommit(parseListInput(draft))}
+    />
+  );
+}
 
 export const inputClass =
   'w-full px-4 py-2.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white focus:ring-2 focus:ring-primary focus:border-primary outline-none min-h-[44px]';
@@ -401,7 +428,7 @@ export function TalentProfileForm({ form, setForm, activeTab }) {
               <input id="sp-dest" className={inputClass} placeholder="GB, DE, CA" value={formatListInput(sp.destinationCountries)} onChange={(e) => updateNested(setForm, 'studentPreferences.destinationCountries', parseListInput(e.target.value).map((c) => c.toUpperCase()))} />
             </FormField>
             <FormField label={t('talent:goals.fieldsOfStudy')} id="sp-fields" className="sm:col-span-2">
-              <input id="sp-fields" className={inputClass} value={formatListInput(sp.fieldsOfStudy)} onChange={(e) => updateNested(setForm, 'studentPreferences.fieldsOfStudy', parseListInput(e.target.value))} />
+              <DraftListInput id="sp-fields" className={inputClass} value={sp.fieldsOfStudy || []} onCommit={(arr) => updateNested(setForm, 'studentPreferences.fieldsOfStudy', arr)} />
             </FormField>
             <FormField label={t('talent:goals.targetIntake')} id="sp-intake">
               <input id="sp-intake" className={inputClass} value={sp.targetIntake || ''} onChange={(e) => updateNested(setForm, 'studentPreferences.targetIntake', e.target.value)} />
@@ -422,7 +449,7 @@ export function TalentProfileForm({ form, setForm, activeTab }) {
         <SectionCard title={t('talent:goals.budgetTitle')}>
           <div className="grid sm:grid-cols-2 gap-4">
             {[['tuition', t('talent:goals.tuition')], ['living', t('talent:goals.living')], ['general', t('talent:goals.general')]].map(([field, label]) => (
-              <div key={field} className="sm:col-span-2 grid sm:grid-cols-2 gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
+              <div key={field} className="sm:col-span-2 grid sm:grid-cols-2 gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700 items-end">
                 <FormField label={label + ' — ' + t('talent:goals.budgetAmount')} id={`bp-${field}-amt`}>
                   <input id={`bp-${field}-amt`} type="number" min="0" className={inputClass} value={bp[field]?.amountMinor ?? ''} onChange={(e) => updateNested(setForm, `budgetProfile.${field}.amountMinor`, e.target.value)} />
                 </FormField>
@@ -471,7 +498,7 @@ export function TalentProfileForm({ form, setForm, activeTab }) {
                 rows={2}
                 placeholder={t('talent:experience.achievements')}
                 value={(row.achievements || []).join('\n')}
-                onChange={(e) => updateArrayItem(setForm, 'experience', i, { achievements: e.target.value.split('\n').map((s) => s.trim()).filter(Boolean) })}
+                onChange={(e) => updateArrayItem(setForm, 'experience', i, { achievements: e.target.value.split('\n') })}
               />
               <Button type="button" variant="outline" onClick={() => removeArrayItem(setForm, 'experience', i)}>{t('talent:experience.remove')}</Button>
             </div>

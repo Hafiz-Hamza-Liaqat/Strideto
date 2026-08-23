@@ -13,6 +13,13 @@ const resumeSnapshotSchema = new mongoose.Schema(
     certifications: { type: mongoose.Schema.Types.Mixed, default: [] },
     projects: { type: mongoose.Schema.Types.Mixed, default: [] },
     socialProfile: { type: mongoose.Schema.Types.Mixed, default: {} },
+    // Additional Resume Builder sections not owned by TalentProfile canonical schema
+    references: { type: mongoose.Schema.Types.Mixed, default: [] },
+    awards: { type: mongoose.Schema.Types.Mixed, default: [] },
+    volunteerExperience: { type: mongoose.Schema.Types.Mixed, default: [] },
+    publications: { type: mongoose.Schema.Types.Mixed, default: [] },
+    interests: { type: mongoose.Schema.Types.Mixed, default: [] },
+    professionalMemberships: { type: mongoose.Schema.Types.Mixed, default: [] },
   },
   { _id: false }
 );

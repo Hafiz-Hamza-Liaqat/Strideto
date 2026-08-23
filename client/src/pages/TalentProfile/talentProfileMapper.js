@@ -414,7 +414,7 @@ export function formToProfilePayload(form) {
     }),
     experience: (form.experience || []).map((e) => ({
       ...e,
-      achievements: (e.achievements || []).filter(Boolean),
+      achievements: (e.achievements || []).map((s) => s.trim()).filter(Boolean),
     })),
     skills: form.skills,
     languages: form.languages,
