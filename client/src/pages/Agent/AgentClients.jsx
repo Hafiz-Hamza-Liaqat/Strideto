@@ -15,7 +15,7 @@ export default function AgentClients() {
       .then(({ data }) => { setState({ loading: false, data, error: '' }); if (nextPage > (data.totalPages || 1)) setPage(data.totalPages || 1); })
       .catch((err) => setState({ loading: false, data: null, error: err.response?.data?.error || 'Unable to load clients.' }));
   };
-  useEffect(() => { load(page, appliedQ); }, [page, appliedQ]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load(page, appliedQ); }, [page, appliedQ]);
   return (
     <div className="space-y-5">
       <div>

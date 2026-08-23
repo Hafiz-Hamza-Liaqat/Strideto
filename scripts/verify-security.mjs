@@ -62,10 +62,18 @@ else fail('employer refresh/logout');
 const resumes = read('server/src/routes/resumes.js');
 const chatbot = read('server/src/routes/chatbot.js');
 const badges = read('server/src/routes/badges.js');
+const userCapabilityAuth = read('server/src/middleware/requireUserCapability.js');
+
+const canonicalStudentAuth =
+  /studentProductAuth\s*=\s*\[\s*requireAuth,\s*requireUserAuth,\s*requireStudentCapability,?\s*\]/s.test(
+    userCapabilityAuth
+  );
+
 if (
-  resumes.includes('requireUserAuth') &&
-  chatbot.includes('requireUserAuth') &&
-  badges.includes('requireUserAuth')
+  canonicalStudentAuth &&
+  resumes.includes('...studentProductAuth') &&
+  chatbot.includes('...studentProductAuth') &&
+  badges.includes('...studentProductAuth')
 ) pass('candidate requireUserAuth');
 else fail('candidate requireUserAuth');
 

@@ -20,7 +20,6 @@ import {
   isCapabilityEraIncomplete,
 } from '../../../../shared/capability/capabilityInitialization.js';
 import {
-  DEFAULT_ADMIN_ROLE_TRANSITION_MODE,
   ROLE_CAPABILITY_TRANSITION_MODES,
   resolveRoleCapabilityTransitionMode,
 } from '../../../../shared/capability/roleCapabilityTransition.js';

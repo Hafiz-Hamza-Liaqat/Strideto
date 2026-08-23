@@ -1,4 +1,3 @@
-import mongoose from 'mongoose';
 import {
   AgentEducationMarketplaceFreeEntitlement,
   EDUCATION_FREE_ENTITLEMENT_STATUSES as ES,

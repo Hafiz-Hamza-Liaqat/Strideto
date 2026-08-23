@@ -17,7 +17,6 @@ import { IdempotencyRecord } from '../models/platform/IdempotencyRecord.js';
 import { AuditLog } from '../models/AuditLog.js';
 import { ORGANIZATION_TYPES, ORGANIZATION_STATUSES } from '../../../shared/international/organization.js';
 import { AGENT_TYPES, AGENT_MEMBER_ROLES } from '../../../shared/agent/constants.js';
-import { GRANT_STATUSES } from '../../../shared/capability/grantStatus.js';
 import { PROVIDER_TRUST_STATUSES } from '../../../shared/gbs/constants.js';
 import { OPTIMISTIC_CONCURRENCY_CODE } from '../../../shared/platform/optimisticConcurrency.js';
 import {

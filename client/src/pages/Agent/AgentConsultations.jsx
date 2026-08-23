@@ -26,7 +26,7 @@ export default function AgentConsultations() {
       .catch((e) => setError(e.response?.data?.error || 'Unable to load consultations.'))
       .finally(() => setLoading(false));
   };
-  useEffect(() => { load({ ...applied, page }); }, [page, applied]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { load({ ...applied, page }); }, [page, applied]);
   return (
     <div className="space-y-5">
       <div className="flex flex-wrap items-end justify-between gap-3">

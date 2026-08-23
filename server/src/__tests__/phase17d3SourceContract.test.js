@@ -94,7 +94,7 @@ check(!/fetch\(/.test(storedUrl), 'no fetch of provider URLs');
 
 const clientRoutes = read('client/src/routes/index.jsx');
 check(clientRoutes.includes("path: 'business-services'"), 'Agent portal has business-services routes');
-check(!/path: '\/business-services'|path: \"\/business-services\"/.test(clientRoutes), 'no public /business-services route');
+check(!/path: '\/business-services'|path: "\/business-services"/.test(clientRoutes), 'no public /business-services route');
 check(!/path: '\/business'|ROUTES\.BUSINESS_CLIENT/.test(clientRoutes), 'no Business Client /business workspace');
 check(clientRoutes.includes('GbsWorkspaceLayout'), 'GBS uses Agent nested layout');
 check(clientRoutes.includes('ProtectedAgentRoute'), 'GBS remains inside ProtectedAgentRoute');
