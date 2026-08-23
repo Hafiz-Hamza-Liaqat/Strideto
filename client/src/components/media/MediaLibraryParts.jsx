@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { API_BASE_URL } from '../../constants';
 import { adminContentApi } from '../../services/adminContentApi';
 import { getAccessToken } from '../../services/axiosBase';
+import { refreshUserAccessToken } from '../../services/axiosBase';
 import { resolveImagePreviewUrl } from '../admin/AdminImageUrlField';
 import { adminFieldClass } from '../admin/AdminImageUrlField';
 import { useToast } from '../../context/ToastContext';
@@ -24,41 +25,85 @@ function formatBytes(n) {
 function uploadWithProgress(file, { folder, onProgress, signal }) {
   return new Promise((resolve, reject) => {
     const token = getAccessToken();
+
     if (!token) {
       reject(new Error('Authentication required'));
       return;
     }
 
-    const form = new FormData();
-    form.append('files', file);
-    if (folder) form.append('folder', folder);
-    const xhr = new XMLHttpRequest();
-    const base = API_BASE_URL.replace(/\/$/, '');
-    xhr.open('POST', `${base}/admin/media/upload`);
-    xhr.setRequestHeader('Authorization', `Bearer ${token}`);
-    xhr.upload.onprogress = (e) => {
-      if (e.lengthComputable && onProgress)
-        onProgress(Math.round((e.loaded / e.total) * 100));
-    };
-    xhr.onload = () => {
-      try {
-        const data = JSON.parse(xhr.responseText || '{}');
-        if (xhr.status >= 200 && xhr.status < 300) resolve(data);
-        else if (xhr.status === 409 && data.duplicate)
-          resolve({ duplicate: true, asset: data.asset });
-        else reject(new Error(data.error || 'Upload failed'));
-      } catch {
-        reject(new Error('Invalid upload response'));
-      }
-    };
-    xhr.onerror = () => reject(new Error('Network error'));
-    if (signal) {
-      signal.addEventListener('abort', () => {
-        xhr.abort();
+    const attemptUpload = (token, retried = false) => {
+      if (signal?.aborted) {
         reject(new Error('Cancelled'));
-      });
-    }
-    xhr.send(form);
+        return;
+      }
+
+      const form = new FormData();
+      form.append('files', file);
+      if (folder) form.append('folder', folder);
+
+      const xhr = new XMLHttpRequest();
+      const base = API_BASE_URL.replace(/\/$/, '');
+
+      xhr.open('POST', `${base}/admin/media/upload`);
+      xhr.setRequestHeader('Authorization', `Bearer ${token}`);
+
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && onProgress)
+          onProgress(Math.round((e.loaded / e.total) * 100));
+      };
+
+      xhr.onload = async () => {
+        if (xhr.status === 401 && !retried) {
+          try {
+            const newToken = await refreshUserAccessToken();
+
+            if (!newToken) {
+              reject(new Error('Authentication required'));
+              return;
+            }
+
+            if (signal?.aborted) {
+              reject(new Error('Cancelled'));
+              return;
+            }
+
+            attemptUpload(newToken, true);
+          } catch {
+            reject(new Error('Authentication required'));
+          }
+
+          return;
+        }
+
+        try {
+          const data = JSON.parse(xhr.responseText || '{}');
+
+          if (xhr.status >= 200 && xhr.status < 300) resolve(data);
+          else if (xhr.status === 409 && data.duplicate)
+            resolve({ duplicate: true, asset: data.asset });
+          else reject(new Error(data.error || 'Upload failed'));
+        } catch {
+          reject(new Error('Invalid upload response'));
+        }
+      };
+
+      xhr.onerror = () => reject(new Error('Network error'));
+
+      if (signal) {
+        signal.addEventListener(
+          'abort',
+          () => {
+            xhr.abort();
+            reject(new Error('Cancelled'));
+          },
+          { once: true }
+        );
+      }
+
+      xhr.send(form);
+    };
+
+    attemptUpload(token);
   });
 }
 
@@ -114,7 +159,7 @@ function UploadQueueItem({ item, onRetry, onCancel }) {
 }
 
 export function MediaUploadDropzone({ folder = 'general', onUploaded }) {
-  const toast = useToast();
+  const { toast } = useToast();
   const inputRef = useRef(null);
   const [dragOver, setDragOver] = useState(false);
   const [queue, setQueue] = useState([]);
@@ -264,7 +309,7 @@ export function MediaAssetDetailPanel({
   onUpdated,
   onDeleted,
 }) {
-  const toast = useToast();
+  const { toast } = useToast();
   const [form, setForm] = useState(() => ({
     filename: asset?.filename || '',
     altText: asset?.altText || '',

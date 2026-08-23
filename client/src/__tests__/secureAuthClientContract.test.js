@@ -248,6 +248,24 @@ const mediaLibraryParts = read('components/media/MediaLibraryParts.jsx');
     'MediaLibraryParts.jsx: Authorization uses only the current in-memory token'
   );
   check(
+    /import \{ refreshUserAccessToken \} from '\.\.\/\.\.\/services\/axiosBase';/.test(
+      mediaLibraryParts
+    ),
+    'MediaLibraryParts.jsx: imports the canonical User-realm refresh helper'
+  );
+  check(
+    /if \(xhr\.status === 401 && !retried\)/.test(mediaLibraryParts),
+    'MediaLibraryParts.jsx: retries authentication only after a 401'
+  );
+  check(
+    /const newToken = await refreshUserAccessToken\(\)/.test(mediaLibraryParts),
+    'MediaLibraryParts.jsx: refreshes through the canonical HttpOnly-cookie flow'
+  );
+  check(
+    /attemptUpload\(newToken, true\)/.test(mediaLibraryParts),
+    'MediaLibraryParts.jsx: retries the upload exactly once with the refreshed token'
+  );
+  check(
     /form\.append\('files', file\)/.test(mediaLibraryParts) &&
       /if \(folder\) form\.append\('folder', folder\)/.test(mediaLibraryParts),
     'MediaLibraryParts.jsx: preserves upload payload fields'
