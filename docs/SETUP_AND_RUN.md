@@ -41,15 +41,11 @@ The app stores jobs, users, resumes, and everything else in **MongoDB**. You mus
 2. **Create a project** → **Build a database** → choose **FREE** (M0).
 3. **Create database user:** Database Access → Add New User → set username and password → Create User.
 4. **Allow network access:** Network Access → Add IP Address → “Allow access from anywhere” (0.0.0.0/0) for testing.
-5. **Get connection string:** Databases → Connect → “Connect your application” → copy the URI. It looks like:
-   ```
-   mongodb+srv://USERNAME:PASSWORD@cluster0.xxxxx.mongodb.net/
-   ```
-6. **Edit the URI:** replace `<password>` with your database user password, and add the database name at the end:
-   ```
-   mongodb+srv://USERNAME:YourActualPassword@cluster0.xxxxx.mongodb.net/strideto?retryWrites=true&w=majority
-   ```
-   Use this full string as your **MONGO_URI** in the next part.
+5. **Get connection string:** Databases → Connect → “Connect your application” → copy the URI shown by Atlas.
+6. **Edit the URI:** Add the database name at the end (`/strideto`) and replace the placeholder password with your database user's password.
+   Set this full connection string as your **MONGO_URI** environment variable.
+
+   > **Security:** Never commit database credentials to source control. Set `MONGO_URI` only in your local `.env` file (which is git-ignored) or in your deployment environment's secret store (e.g. Render “Secret File” or “Environment” settings, Vercel environment variables).
 
 ---
 

@@ -42,6 +42,10 @@ services:
         sync: false
       - key: MAIL_FROM
         value: "Strideto <noreply@strideto.com>"
+      - key: REFRESH_SECRET
+        sync: false
+      - key: BUSINESS_SERVICES_PROVIDER_ENABLED
+        value: "1"
 
   - type: worker
     name: strideto-worker
