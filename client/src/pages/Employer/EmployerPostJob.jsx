@@ -33,6 +33,9 @@ const defaultForm = {
   specialization: '',
   jobType: 'Private',
   type: 'full-time',
+  workMode: '',
+  experience: '',
+  educationRequirement: '',
   salaryRange: '',
   skillsRequired: '',
   jobDescription: '',
@@ -566,7 +569,7 @@ export default function EmployerPostJob() {
           <legend className="text-sm font-medium text-gray-900 dark:text-gray-100 mb-1">
             {t('employer:classificationLegend')}
           </legend>
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
             <div className="min-w-0">
               <label htmlFor={FIELD_IDS.jobType} className={labelClass}>
                 {t('employer:jobTypeLabel')}
@@ -609,6 +612,26 @@ export default function EmployerPostJob() {
                 <option value="internship">{t('common:internship')}</option>
               </select>
               <FieldError id={`${FIELD_IDS.type}-error`} message={translateFieldError(fieldErrors.type)} />
+            </div>
+            <div className="min-w-0">
+              <label htmlFor={FIELD_IDS.workMode} className={labelClass}>
+                {t('employer:workModeLabel', { defaultValue: 'Work mode' })}
+                <OptionalMark t={t} />
+              </label>
+              <select
+                id={FIELD_IDS.workMode}
+                name="workMode"
+                value={form.workMode}
+                onChange={handleChange}
+                disabled={submitting}
+                className={inputClass}
+              >
+                <option value="">{t('employer:workModeNotSpecified', { defaultValue: 'Not specified' })}</option>
+                <option value="on_site">{t('employer:workModeOnSite', { defaultValue: 'On-site' })}</option>
+                <option value="remote">{t('employer:workModeRemote', { defaultValue: 'Remote' })}</option>
+                <option value="hybrid">{t('employer:workModeHybrid', { defaultValue: 'Hybrid' })}</option>
+              </select>
+              <FieldError id={`${FIELD_IDS.workMode}-error`} message={translateFieldError(fieldErrors.workMode)} />
             </div>
           </div>
         </fieldset>
@@ -655,6 +678,40 @@ export default function EmployerPostJob() {
             {t('employer:skillsHelp')}
           </p>
           <FieldError id={`${FIELD_IDS.skillsRequired}-error`} message={translateFieldError(fieldErrors.skillsRequired)} />
+        </div>
+
+        <div>
+          <label htmlFor={FIELD_IDS.experience} className={labelClass}>
+            {t('employer:experienceLabel', { defaultValue: 'Experience requirement' })}
+            <OptionalMark t={t} />
+          </label>
+          <input
+            id={FIELD_IDS.experience}
+            name="experience"
+            value={form.experience}
+            onChange={handleChange}
+            disabled={submitting}
+            className={inputClass}
+            placeholder={t('employer:experiencePlaceholder', { defaultValue: 'e.g. 2+ years in software development' })}
+          />
+          <FieldError id={`${FIELD_IDS.experience}-error`} message={translateFieldError(fieldErrors.experience)} />
+        </div>
+
+        <div>
+          <label htmlFor={FIELD_IDS.educationRequirement} className={labelClass}>
+            {t('employer:educationReqLabel', { defaultValue: 'Education requirement' })}
+            <OptionalMark t={t} />
+          </label>
+          <input
+            id={FIELD_IDS.educationRequirement}
+            name="educationRequirement"
+            value={form.educationRequirement}
+            onChange={handleChange}
+            disabled={submitting}
+            className={inputClass}
+            placeholder={t('employer:educationReqPlaceholder', { defaultValue: "e.g. Bachelor's degree in Computer Science" })}
+          />
+          <FieldError id={`${FIELD_IDS.educationRequirement}-error`} message={translateFieldError(fieldErrors.educationRequirement)} />
         </div>
 
         <div>

@@ -158,6 +158,7 @@ export default function EmployerVerification() {
         evidenceType: form.get('evidenceType') || 'organization_document',
         sourceUrl: reference,
         evidenceRef: reference,
+        claimedAuthority: String(form.get('claimedAuthority') || '').trim(),
       });
       await load();
       e.target.reset();
@@ -287,27 +288,49 @@ export default function EmployerVerification() {
         </form>
       ) : null}
 
-      <form onSubmit={addEvidence} className="max-w-xl space-y-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
+      <section className="max-w-xl rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 space-y-3">
         <h2 className="font-semibold">{t('employer:supportingEvidence')}</h2>
         <p className="text-xs text-slate-500">{t('employer:mapsSupportingOnly')}</p>
-        <label className="block text-sm">
-          {t('employer:evidenceType')}
-          <select name="evidenceType" className="mt-1 w-full min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3">
-            <option value="organization_document">organization_document</option>
-            <option value="official_domain">official_domain</option>
-            <option value="google_maps">google_maps</option>
-            <option value="business_registration">business_registration</option>
-            <option value="representative_authority">representative_authority</option>
-          </select>
-        </label>
-        <label className="block text-sm">
-          {t('employer:evidenceReference')}
-          <input name="reference" required className="mt-1 w-full min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3" />
-        </label>
-        <button type="submit" disabled={busy || !canSubmit} className="min-h-[44px] px-4 py-2 border rounded-lg disabled:opacity-50">
-          {t('employer:addEvidence')}
-        </button>
-      </form>
+        {details?.evidence?.length > 0 ? (
+          <ul className="space-y-2">
+            {details.evidence.map((ev) => (
+              <li key={ev.id} className="text-xs border border-gray-200 dark:border-gray-700 rounded p-2 space-y-1">
+                <div className="flex justify-between">
+                  <span className="font-medium">{ev.evidenceType}</span>
+                  <span className={ev.status === 'rejected' ? 'text-red-600' : ev.status === 'approved' ? 'text-green-600' : 'text-amber-600'}>{ev.status}</span>
+                </div>
+                {ev.sourceUrl ? <div className="text-slate-500 truncate">{ev.sourceUrl}</div> : null}
+                {ev.rejectionReason ? (
+                  <p className="text-red-700 dark:text-red-300">Admin feedback: {ev.rejectionReason}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        ) : null}
+        <form onSubmit={addEvidence} className="space-y-3 pt-2 border-t border-gray-100 dark:border-gray-700">
+          <label className="block text-sm">
+            {t('employer:evidenceType')}
+            <select name="evidenceType" className="mt-1 w-full min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3">
+              <option value="organization_document">organization_document</option>
+              <option value="official_domain">official_domain</option>
+              <option value="google_maps">google_maps</option>
+              <option value="business_registration">business_registration</option>
+              <option value="representative_authority">representative_authority</option>
+            </select>
+          </label>
+          <label className="block text-sm">
+            Issuing authority name
+            <input name="claimedAuthority" className="mt-1 w-full min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3" placeholder="e.g. Companies House, SEC, local trade registry" />
+          </label>
+          <label className="block text-sm">
+            {t('employer:evidenceReference')}
+            <input name="reference" required className="mt-1 w-full min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-900 px-3" placeholder="Official registry URL or document reference" />
+          </label>
+          <button type="submit" disabled={busy || !canSubmit} className="min-h-[44px] px-4 py-2 border rounded-lg disabled:opacity-50">
+            {t('employer:addEvidence')}
+          </button>
+        </form>
+      </section>
     </>
   );
 }

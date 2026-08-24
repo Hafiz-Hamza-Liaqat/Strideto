@@ -200,6 +200,7 @@ const jobSchema = new mongoose.Schema(
       type: String,
       enum: PUBLICATION_MIGRATION_STATUSES,
     },
+    workMode: { type: String, enum: ['remote', 'hybrid', 'on_site'] },
     remote: { type: Boolean, default: false },
     hybrid: { type: Boolean, default: false },
     isFixture: { type: Boolean, default: false, index: true },

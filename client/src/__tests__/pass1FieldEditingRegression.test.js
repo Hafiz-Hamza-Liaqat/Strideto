@@ -327,6 +327,50 @@ test('PhoneInput country-change: broken path would erase draft digits (documents
   assert.equal(emittedBroken, '', 'old emit using parsed.nationalNumber would erase the draft digits');
 });
 
+// -----------------------------------------------------------------------
+// A4 Achievements — named regression strings must survive editing and save
+// -----------------------------------------------------------------------
+
+test('A4: achievements textarea draft preserves spaces and newlines during editing', () => {
+  const raw = 'Managed a team of 8 employees\nImproved operational efficiency by 25%';
+  // DraftAchievementsTextarea splits on newline on blur — intermediate keystrokes keep raw draft
+  const draft = raw.split('\n');
+  assert.deepEqual(draft, ['Managed a team of 8 employees', 'Improved operational efficiency by 25%']);
+  assert.ok(draft[0].includes('team of 8'), 'spaces within line must survive');
+  assert.ok(draft[1].includes('25%'), 'special chars must survive');
+  assert.ok(!draft.includes(''), 'no blank lines in this canonical input');
+});
+
+test('A4: achievements payload preserves both named lines at save boundary', async () => {
+  const { formToProfilePayload } = await import('../pages/TalentProfile/talentProfileMapper.js');
+  const form = {
+    personal: { firstName: 'A', lastName: 'B', phone: '' },
+    headline: '', summary: '', avatarUrl: '', visibility: 'private', locale: 'en',
+    socialProfile: { linkedInUrl: '', githubUrl: '', portfolioUrl: '', twitterUrl: '', websiteUrl: '' },
+    preferences: {
+      workMode: 'hybrid', employmentStatus: 'open_to_work',
+      preferredCountries: [], preferredIndustries: [], willingToRelocate: false, timeZone: '',
+      salaryExpectation: { min: '', max: '', currency: 'USD', period: 'yearly' },
+    },
+    education: [], skills: [], languages: [], certificationReferences: [],
+    portfolioReferences: [], examScores: [], studyGoals: [],
+    studentPreferences: { destinationCountries: [], preferredCities: [], fieldsOfStudy: [], degreeLevels: [], targetIntake: '', targetYear: '', studyMode: '', scholarshipRequired: false, fundingPreference: '', preferredCurrency: '' },
+    budgetProfile: { tuition: { amountMinor: '', currency: '' }, living: { amountMinor: '', currency: '' }, general: { amountMinor: '', currency: '' }, period: '', fundingSource: '', notes: '' },
+    experience: [{
+      company: 'Acme', role: 'Manager', employmentType: 'full_time', country: 'PK',
+      location: 'Lahore', startDate: '2022-01', endDate: '', isCurrent: true,
+      description: 'Led operations',
+      achievements: ['Managed a team of 8 employees', 'Improved operational efficiency by 25%'],
+    }],
+  };
+  const payload = formToProfilePayload(form);
+  const achievements = payload.experience[0].achievements;
+  assert.deepEqual(achievements, ['Managed a team of 8 employees', 'Improved operational efficiency by 25%']);
+  assert.equal(achievements.length, 2, 'both named lines must appear in save payload');
+  assert.ok(achievements[0].includes('team of 8'), 'first line preserved verbatim');
+  assert.ok(achievements[1].includes('efficiency by 25%'), 'second line preserved verbatim');
+});
+
 test('PhoneInput country-change: type 1–3 digits then change country — digits preserved', async () => {
   const { formatPhoneE164, getCountryCallingCode } = await import('../../../shared/international/phone.js');
   // Simulate: user types '2', '21', '212' (3 digits) on US number, then selects CA.

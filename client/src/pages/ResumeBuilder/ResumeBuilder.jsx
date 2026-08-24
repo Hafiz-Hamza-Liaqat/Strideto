@@ -20,18 +20,27 @@ import { EmptyState } from '../../components/common/EmptyState';
 
 export default function ResumeBuilder() {
   const { t } = useTranslation(['resume', 'common']);
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, loading: authLoading } = useAuth();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit') || searchParams.get('id');
   const optimizeForJobId = searchParams.get('optimizeForJob');
   const [resume, setResume] = useState(defaultResume);
   const [resumeId, setResumeId] = useState(null);
   const [stepIndex, setStepIndex] = useState(0);
-  const [loading, setLoading] = useState(!!editId);
+  // Show loading skeleton when auth is still bootstrapping, when an editId must be fetched,
+  // OR when the user is already authenticated and the talent-profile API will be called on mount.
+  // Covers both bootstrap races: authLoading=true at mount (Case A) and
+  // authLoading=false+isAuthenticated=true at mount (Case B) where loadTalent runs immediately.
+  const [loading, setLoading] = useState(
+    !!(editId || authLoading || (isAuthenticated && shouldUseTalentProfileApi()))
+  );
   const [saving, setSaving] = useState(false);
   const [optimizeResult, setOptimizeResult] = useState(null);
   const previewRef = useRef(null);
   const optimizeRequested = useRef(false);
+  // Tracks which editId has been initially hydrated (null = not yet; '' = no-editId flow done).
+  // Once set for a given key, subsequent effect re-runs must NOT overwrite dirty user edits.
+  const hydrationRef = useRef(null);
   const { toast } = useToast();
 
   const [, setResumeSource] = useState(null);
@@ -56,10 +65,25 @@ export default function ResumeBuilder() {
   });
 
   useEffect(() => {
+    // Auth bootstrap in progress — keep skeleton up; do not commit to the editable empty form.
+    if (authLoading) {
+      setLoading(true);
+      return;
+    }
+
     if (!isAuthenticated) {
       setLoading(false);
       return;
     }
+
+    // Guard: once initial remote hydration has completed for a given editId key,
+    // do NOT re-fetch and overwrite dirty local resume state.
+    // Use '' as the sentinel for the no-editId (talent-profile) flow so null means "not yet hydrated".
+    const hydrateKey = editId || '';
+    if (hydrationRef.current !== null && hydrationRef.current === hydrateKey) {
+      return;
+    }
+    hydrationRef.current = hydrateKey;
 
     const loadTalent = () =>
       talentApi.getResumeBuilder().then(({ data }) => {
@@ -77,7 +101,6 @@ export default function ResumeBuilder() {
       });
 
     if (shouldUseTalentProfileApi() && !editId) {
-      setLoading(true);
       loadTalent()
         .catch(() => toast.error(t('resume:loadError')))
         .finally(() => setLoading(false));
@@ -100,7 +123,7 @@ export default function ResumeBuilder() {
         .catch(() => toast.error(t('resume:loadError')))
         .finally(() => setLoading(false));
     }
-  }, [editId, isAuthenticated, toast, t]);
+  }, [editId, isAuthenticated, authLoading, toast, t]);
 
   useEffect(() => {
     if (!optimizeForJobId || !isAuthenticated || optimizeRequested.current) return;

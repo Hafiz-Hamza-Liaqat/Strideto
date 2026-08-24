@@ -95,6 +95,11 @@ export default function InstitutionVerification() {
       document.getElementById('institution-verification-org-type-other')?.focus();
       return;
     }
+    if (profile.licenseIssuedAt && profile.licenseExpiresAt && profile.licenseExpiresAt <= profile.licenseIssuedAt) {
+      setError('Expiry date must be after the issue date.');
+      document.getElementById('institution-verification-expiry-date')?.focus();
+      return;
+    }
     const phone = typeof phoneValue === 'object'
       ? (phoneValue.e164 || '')
       : String(phoneValue || '');
@@ -321,6 +326,25 @@ export default function InstitutionVerification() {
           <button disabled={busy} className={`${primaryButton} md:col-span-2`}>{busy ? 'Submitting…' : details?.status === 'needs_information' ? 'Resubmit' : 'Submit for verification'}</button>
         </form>
       ) : <PageState>This dossier is locked while status is {details?.status}. You cannot self-approve.</PageState>}
+      {details?.evidence?.length > 0 ? (
+        <Panel>
+          <h2 className="font-semibold text-gray-900 dark:text-white mb-3">Submitted evidence</h2>
+          <ul className="space-y-2">
+            {details.evidence.map((ev) => (
+              <li key={ev.id} className="text-xs border border-gray-200 dark:border-gray-700 rounded p-2 space-y-1">
+                <div className="flex justify-between">
+                  <span className="font-medium text-gray-900 dark:text-white">{ev.evidenceType}</span>
+                  <span className={ev.status === 'rejected' ? 'text-red-600' : ev.status === 'approved' ? 'text-green-600' : 'text-amber-600'}>{ev.status}</span>
+                </div>
+                {ev.sourceUrl ? <div className="text-gray-500 truncate">{ev.sourceUrl}</div> : null}
+                {ev.rejectionReason ? (
+                  <p className="text-red-700 dark:text-red-300">Admin feedback: {ev.rejectionReason}</p>
+                ) : null}
+              </li>
+            ))}
+          </ul>
+        </Panel>
+      ) : null}
     </div>
   );
 }

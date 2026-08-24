@@ -28,6 +28,7 @@ import {
   NOT_SPECIFIED,
   WORK_MODE_LABELS,
   formatPublicOpenings,
+  deriveJobWorkMode,
 } from '@shared/publicDiscovery/publicTruth.js';
 
 const JOB_TYPE_BADGE = {
@@ -86,7 +87,7 @@ export default function JobDetail() {
   const { slug } = useParams();
   const navigate = useNavigate();
   const location = useLocation();
-  const { canActAsStudent, isAuthenticated: workspaceAuth, realm } = useActiveWorkspace();
+  const { canActAsStudent, isAuthenticated: workspaceAuth, realm, isHydrating } = useActiveWorkspace();
   const studentWriteBlocked = workspaceAuth && realm !== 'student' && realm !== 'guest';
   const fileInputRef = useRef(null);
   const [job, setJob] = useState(null);
@@ -255,7 +256,7 @@ export default function JobDetail() {
   const applicationLink = publicHttpUrlOrNull(job.applicationLink);
   const applyEmail = job.applyEmail || '';
   const openings = formatPublicOpenings(job.openingsCount);
-  const workMode = job.workMode || 'unspecified';
+  const workMode = deriveJobWorkMode(job) || 'unspecified';
   const availability = job.availability || JOB_AVAILABILITY.OPEN;
   const accepting = job.acceptingApplications !== false && availability === JOB_AVAILABILITY.OPEN;
   const locationLine = [job.province || job.location, job.city].filter(Boolean).join(', ') || NOT_SPECIFIED;
@@ -346,7 +347,12 @@ export default function JobDetail() {
       {studentWriteBlocked && !isExternal && accepting && (
         <StudentAuthorityNotice />
       )}
-      {!canActAsStudent && !studentWriteBlocked && !isExternal && accepting && (
+      {isHydrating && !canActAsStudent && !studentWriteBlocked && !isExternal && accepting && (
+        <span className="inline-flex items-center justify-center min-h-[44px] px-4 py-2 rounded-lg bg-primary/60 text-white font-medium w-full sm:w-auto animate-pulse" aria-busy="true">
+          {t('loading', { ns: 'common' })}
+        </span>
+      )}
+      {!isHydrating && !canActAsStudent && !studentWriteBlocked && !isExternal && accepting && (
         <Link to={ROUTES.LOGIN} state={loginState} className={ACTION_PRIMARY}>{t('loginToApply', { ns: 'jobs' })}</Link>
       )}
       <SaveButton type="job" id={job._id} saved={savedIds.has(job._id)} onToggle={handleSaveToggle} />

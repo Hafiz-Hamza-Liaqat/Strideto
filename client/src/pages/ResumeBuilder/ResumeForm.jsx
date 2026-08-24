@@ -34,11 +34,12 @@ const TIP_KEYS = ['tip1', 'tip2', 'tip3', 'tip4'];
 function SkillDraftTextarea({ skills, onCommit, ...props }) {
   const [draft, setDraft] = useState(() => (skills || []).join('\n'));
   const editingRef = useRef(false);
-  const prevSkillsRef = useRef(skills);
+  const prevSkillsSerialRef = useRef(JSON.stringify(skills ?? []));
 
   useEffect(() => {
-    if (!editingRef.current && skills !== prevSkillsRef.current) {
-      prevSkillsRef.current = skills;
+    const serial = JSON.stringify(skills ?? []);
+    if (!editingRef.current && prevSkillsSerialRef.current !== serial) {
+      prevSkillsSerialRef.current = serial;
       setDraft((skills || []).join('\n'));
     }
   }, [skills]);
@@ -52,7 +53,7 @@ function SkillDraftTextarea({ skills, onCommit, ...props }) {
       onBlur={() => {
         editingRef.current = false;
         const parsed = parseSkillLines(draft);
-        prevSkillsRef.current = parsed;
+        prevSkillsSerialRef.current = JSON.stringify(parsed);
         onCommit(parsed);
       }}
     />

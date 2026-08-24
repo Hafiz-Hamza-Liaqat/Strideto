@@ -75,23 +75,28 @@ export function PhoneInput({
   const userChoseCountryRef = useRef(false);
   const lastPrefRef = useRef(preferred);
 
-  // Keep a local draft for the national-number field so partial input (e164 == null)
-  // does not get erased when the parent stores '' on each intermediate keystroke.
+  // Keep local drafts so partial input is not erased when the parent stores '' on each
+  // intermediate keystroke (e164 is null until the number is complete).
   const prevValueRef = useRef(value);
   const [draftNational, setDraftNational] = useState(parsed.nationalNumber);
+  // selectedCountry persists the user-chosen ISO code independently of the E.164 value
+  // so the country dropdown does not snap back to empty whenever e164 is still null.
+  const [selectedCountry, setSelectedCountry] = useState(parsed.countryCode || preferred);
 
   useEffect(() => {
     const prev = prevValueRef.current;
     prevValueRef.current = value;
     if (value) {
-      // Parent has a valid E.164 — sync draft from it (load from server / successful save)
+      // Parent has a valid E.164 — sync both draft and country from it (load / successful save)
       setDraftNational(parsed.nationalNumber);
+      if (parsed.countryCode) setSelectedCountry(parsed.countryCode);
     } else if (prev) {
       // Parent transitioned from a valid value to empty — explicit clear/reset
       setDraftNational('');
+      setSelectedCountry(preferred || '');
     }
-    // prev='' and value='' → user is mid-typing; keep draft unchanged
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- parsed.nationalNumber is deterministic from value
+    // prev='' and value='' → user is mid-typing; keep drafts unchanged
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- parsed.* is deterministic from value
   }, [value]);
 
   const options = useMemo(() => listPhoneCountries(locale), [locale]);
@@ -116,6 +121,7 @@ export function PhoneInput({
     lastPrefRef.current = preferred;
     if (parsed.countryCode === preferred) return;
     if (parsed.nationalNumber && parsed.countryCode) return;
+    setSelectedCountry(preferred);
     emit({
       countryCode: preferred,
       callingCode: getCountryCallingCode(preferred) || '',
@@ -130,7 +136,7 @@ export function PhoneInput({
         <SearchableSelect
           id={countryId || `${id}-country`}
           aria-label="Phone country"
-          value={parsed.countryCode}
+          value={selectedCountry}
           disabled={disabled}
           error={error}
           placeholder="Search country or +code"
@@ -147,6 +153,7 @@ export function PhoneInput({
             </>
           )}
           onChange={(countryCode) => {
+            setSelectedCountry(countryCode);
             emit({
               countryCode,
               callingCode: getCountryCallingCode(countryCode) || '',
@@ -162,7 +169,11 @@ export function PhoneInput({
           className="pointer-events-none absolute inset-y-0 start-0 flex items-center ps-3 text-sm text-gray-500 dark:text-gray-400"
           aria-hidden="true"
         >
-          {parsed.callingCode ? `+${parsed.callingCode}` : '+'}
+          {parsed.callingCode
+            ? `+${parsed.callingCode}`
+            : selectedCountry
+              ? `+${getCountryCallingCode(selectedCountry) || ''}`
+              : '+'}
         </span>
         <label htmlFor={nationalId || id} className="sr-only">
           Phone number
@@ -177,7 +188,9 @@ export function PhoneInput({
           onChange={(event) => {
             const national = stripNationalInput(event.target.value);
             setDraftNational(national);
-            emit({ ...parsed, nationalNumber: national });
+            const effectiveCountry = parsed.countryCode || selectedCountry;
+            const effectiveCallingCode = parsed.callingCode || getCountryCallingCode(selectedCountry) || '';
+            emit({ countryCode: effectiveCountry, callingCode: effectiveCallingCode, dialCode: effectiveCallingCode, nationalNumber: national });
           }}
           className={`${inputControlClassName({ error })} ps-16`}
         />

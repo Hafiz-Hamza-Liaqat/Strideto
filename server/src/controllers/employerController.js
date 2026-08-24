@@ -265,6 +265,7 @@ export const createJob = asyncHandler(async (req, res) => {
     specialization: taxonomy.specialization,
     type: body.type || 'full-time',
     jobType: body.jobType || 'Private',
+    workMode: ['remote', 'hybrid', 'on_site'].includes(body.workMode) ? body.workMode : undefined,
     educationRequirement: body.educationRequirement,
     experience: body.experience,
     applyType,
@@ -390,7 +391,7 @@ export const updateJob = asyncHandler(async (req, res) => {
 
   const allowed = [
     'title', 'company', 'organization', 'location', 'countryCode', 'region', 'province', 'city',
-    'category', 'jobFamily', 'specialization', 'type', 'jobType',
+    'category', 'jobFamily', 'specialization', 'type', 'jobType', 'workMode',
     'educationRequirement', 'experience', 'applicationLink', 'applyEmail', 'description', 'requirements',
     'salaryRange', 'skillsRequired', 'deadline', 'jobTitle', 'companyName', 'jobDescription', 'applyLink', 'applicationDeadline',
   ];
@@ -412,6 +413,12 @@ export const updateJob = asyncHandler(async (req, res) => {
         job.jobFamily = String(body[key] || '').trim() || undefined;
       } else if (key === 'specialization') {
         job.specialization = String(body[key] || '').trim() || undefined;
+      } else if (key === 'workMode') {
+        const wm = body[key];
+        if (wm && !['remote', 'hybrid', 'on_site'].includes(wm)) {
+          return res.status(400).json({ error: 'workMode must be remote, hybrid, or on_site', field: 'workMode' });
+        }
+        job.workMode = wm || undefined;
       } else job[key] = body[key];
     }
   });

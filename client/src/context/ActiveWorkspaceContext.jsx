@@ -13,7 +13,6 @@ import { useEmployerAuth } from './EmployerAuthContext';
 import { useAgentAuth } from './AgentAuthContext';
 import { useInstitutionAuth } from './InstitutionAuthContext';
 import { onSessionExpired } from '../auth/sessionExpired';
-import { getAccessToken } from '../services/axiosBase';
 import {
   ACTIVE_WORKSPACE_EVENT,
   WORKSPACE_DESTINATIONS,
@@ -48,7 +47,16 @@ export function ActiveWorkspaceProvider({ children }) {
 
   const [preference, setPreference] = useState(readActiveWorkspacePreference);
   const [identity, setIdentity] = useState(guestWorkspaceIdentity);
-  const [isHydrating, setIsHydrating] = useState(() => !!readActiveWorkspacePreference());
+  // isHydrating starts true when:
+  //  (a) a stored workspace preference exists and must be validated, OR
+  //  (b) student auth is still bootstrapping (loading) so we cannot yet know the realm, OR
+  //  (c) student is already authenticated with no stored preference — we will auto-assign in the effect
+  const [isHydrating, setIsHydrating] = useState(() => {
+    if (readActiveWorkspacePreference()) return true;
+    if (studentAuth.loading) return true;
+    if (studentAuth.isAuthenticated) return true;
+    return false;
+  });
   const [discovered, setDiscovered] = useState([]);
   const discoveryInFlightRef = useRef(null);
   const validatedPrefRef = useRef(null);
@@ -121,7 +129,6 @@ export function ActiveWorkspaceProvider({ children }) {
     if (live) return live;
     if (realm === 'student') {
       if (studentLoading) return { pending: true };
-      if (getAccessToken() && !studentAuth.isAuthenticated) return { pending: true };
       return null;
     }
     if (realm === 'employer') {
@@ -137,13 +144,29 @@ export function ActiveWorkspaceProvider({ children }) {
       return session ? projectInstitutionIdentity(session) : null;
     }
     return null;
-  }, [projectLive, studentLoading, studentAuth.isAuthenticated, employerEnsure, agentEnsure, institutionEnsure]);
+  }, [projectLive, studentLoading, employerEnsure, agentEnsure, institutionEnsure]);
 
   useEffect(() => {
     let cancelled = false;
     const preferred = preference;
 
     if (!preferred) {
+      // Student auth bootstrap in progress — hold hydration until loading settles.
+      if (studentLoading) {
+        setIsHydrating(true);
+        return undefined;
+      }
+      // Student is authenticated with no stored preference — auto-select student realm
+      // without writing to localStorage, so the user's explicit realm switches are preserved.
+      if (studentAuth.isAuthenticated) {
+        const live = projectLive('student');
+        if (live) {
+          setIdentity(live);
+          setIsHydrating(false);
+          return undefined;
+        }
+      }
+      // No authenticated realm — fall through to guest.
       validatedPrefRef.current = null;
       setIdentity(guestWorkspaceIdentity());
       setIsHydrating(false);
@@ -158,7 +181,7 @@ export function ActiveWorkspaceProvider({ children }) {
       return undefined;
     }
 
-    if (preferred === 'student' && (studentLoading || (getAccessToken() && !projectLive('student')))) {
+    if (preferred === 'student' && studentLoading) {
       setIsHydrating(true);
       return undefined;
     }
@@ -173,9 +196,6 @@ export function ActiveWorkspaceProvider({ children }) {
       if (result?.isAuthenticated) {
         validatedPrefRef.current = preferred;
         setIdentity(result);
-      } else if (preferred === 'student' && getAccessToken()) {
-        setIsHydrating(true);
-        return;
       } else {
         validatedPrefRef.current = null;
         clearActiveWorkspacePreferenceIfRealm(preferred);

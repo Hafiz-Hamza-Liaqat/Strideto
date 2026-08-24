@@ -26,13 +26,41 @@ import {
  * parsed array to the parent on blur. Prevents commas/spaces being consumed on
  * every keystroke.
  */
-function DraftListInput({ value, onCommit, ...props }) {
-  const [draft, setDraft] = useState(() => formatListInput(value));
-  const prevRef = useRef(value);
+// Newline-separated textarea that holds a local draft so rapid keystrokes don't
+// re-derive the string from the array on every render (which loses cursor position).
+function DraftAchievementsTextarea({ value: arrayValue, onCommit, ...props }) {
+  const serialize = (arr) => (arr || []).join('\n');
+  const [draft, setDraft] = useState(() => serialize(arrayValue));
+  const prevSerialRef = useRef(serialize(arrayValue));
 
   useEffect(() => {
-    if (prevRef.current !== value) {
-      prevRef.current = value;
+    const serial = serialize(arrayValue);
+    if (prevSerialRef.current !== serial) {
+      prevSerialRef.current = serial;
+      setDraft(serial);
+    }
+  }, [arrayValue]);
+
+  return (
+    <textarea
+      {...props}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={() => onCommit(draft.split('\n'))}
+    />
+  );
+}
+
+function DraftListInput({ value, onCommit, ...props }) {
+  const [draft, setDraft] = useState(() => formatListInput(value));
+  // Serialize to string so that new-but-equal array references (e.g. undefined || [])
+  // do not reset the draft while the user is typing.
+  const prevSerialRef = useRef(JSON.stringify(value ?? []));
+
+  useEffect(() => {
+    const serial = JSON.stringify(value ?? []);
+    if (prevSerialRef.current !== serial) {
+      prevSerialRef.current = serial;
       setDraft(formatListInput(value));
     }
   }, [value]);
@@ -449,11 +477,11 @@ export function TalentProfileForm({ form, setForm, activeTab }) {
         <SectionCard title={t('talent:goals.budgetTitle')}>
           <div className="grid sm:grid-cols-2 gap-4">
             {[['tuition', t('talent:goals.tuition')], ['living', t('talent:goals.living')], ['general', t('talent:goals.general')]].map(([field, label]) => (
-              <div key={field} className="sm:col-span-2 grid sm:grid-cols-2 gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700 items-end">
-                <FormField label={label + ' — ' + t('talent:goals.budgetAmount')} id={`bp-${field}-amt`}>
+              <div key={field} className="sm:col-span-2 flex flex-col sm:flex-row gap-3 p-3 rounded-lg bg-gray-50 dark:bg-gray-700">
+                <FormField label={label + ' — ' + t('talent:goals.budgetAmount')} id={`bp-${field}-amt`} className="flex-1 min-w-0">
                   <input id={`bp-${field}-amt`} type="number" min="0" className={inputClass} value={bp[field]?.amountMinor ?? ''} onChange={(e) => updateNested(setForm, `budgetProfile.${field}.amountMinor`, e.target.value)} />
                 </FormField>
-                <FormField label={t('talent:goals.budgetCurrency')} id={`bp-${field}-cur`}>
+                <FormField label={t('talent:goals.budgetCurrency')} id={`bp-${field}-cur`} className="sm:w-28 sm:shrink-0">
                   <input id={`bp-${field}-cur`} className={inputClass} placeholder="USD" maxLength={3} value={bp[field]?.currency || ''} onChange={(e) => updateNested(setForm, `budgetProfile.${field}.currency`, e.target.value.toUpperCase())} />
                 </FormField>
               </div>
@@ -493,12 +521,12 @@ export function TalentProfileForm({ form, setForm, activeTab }) {
                 <input className={inputClass} placeholder={t('talent:experience.endDate')} value={row.endDate} onChange={(e) => updateArrayItem(setForm, 'experience', i, { endDate: e.target.value })} disabled={row.isCurrent} />
               </div>
               <textarea className={inputClass} rows={3} placeholder={t('talent:experience.responsibilities')} value={row.description} onChange={(e) => updateArrayItem(setForm, 'experience', i, { description: e.target.value })} />
-              <textarea
+              <DraftAchievementsTextarea
                 className={inputClass}
                 rows={2}
                 placeholder={t('talent:experience.achievements')}
-                value={(row.achievements || []).join('\n')}
-                onChange={(e) => updateArrayItem(setForm, 'experience', i, { achievements: e.target.value.split('\n') })}
+                value={row.achievements}
+                onCommit={(lines) => updateArrayItem(setForm, 'experience', i, { achievements: lines })}
               />
               <Button type="button" variant="outline" onClick={() => removeArrayItem(setForm, 'experience', i)}>{t('talent:experience.remove')}</Button>
             </div>

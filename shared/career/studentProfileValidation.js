@@ -112,7 +112,7 @@ export function validateEducationEntry(input = {}) {
       errors.push('education country must be a valid ISO 3166-1 alpha-2 code');
     }
   }
-  if (input.graduationYear != null) {
+  if (input.graduationYear != null && input.graduationYear !== '') {
     const y = Number(input.graduationYear);
     if (!Number.isInteger(y) || y < 1900 || y > 2100) {
       errors.push('graduationYear must be a year between 1900 and 2100');
