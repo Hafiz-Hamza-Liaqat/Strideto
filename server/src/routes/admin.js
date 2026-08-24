@@ -54,6 +54,7 @@ import { getPlatformHealth } from '../controllers/platformOpsController.js';
 import { uploadAdminImage as uploadAdminImageMw } from '../middleware/imageUpload.js';
 import { uploadMediaFiles } from '../middleware/mediaUpload.js';
 import { adminVerificationRouter } from './adminVerification.js';
+import { adminCapabilityOverrideRouter } from './adminCapabilityOverride.js';
 import { adminGbsRouter } from './adminGbs.js';
 import { adminEducationRouter } from './adminEducation.js';
 import { adminFreshnessRouter } from './adminFreshness.js';
@@ -123,6 +124,8 @@ adminRouter.patch('/privacy-requests/:id', requirePermission(PERMISSIONS.USERS_R
 
 // Verification queue (Mission 2) — sub-router handles its own permission guards
 adminRouter.use('/verification', adminVerificationRouter);
+// Super-admin capability override — requireSuperAdmin enforced in sub-router
+adminRouter.use('/capability-override', adminCapabilityOverrideRouter);
 adminRouter.use('/gbs', adminGbsRouter);
 
 adminRouter.get('/export/:resource', requirePermission(PERMISSIONS.EXPORT_DATA), exportCtrl.exportData);

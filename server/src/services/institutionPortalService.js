@@ -52,8 +52,10 @@ import {
 } from '../../../shared/institution/institutionPortal.js';
 import {
   canExercisePrivilegedCapability,
-  isBlocked,
+  isSuspendedOrRevoked,
+  VERIFICATION_STATUSES,
 } from '../../../shared/international/verification.js';
+import { OVERRIDE_TYPES } from './capability/overrideService.js';
 import { ACCEPTANCE_SCOPES } from '../../../shared/education/acceptanceExplorer.js';
 import { PUB_STATUSES } from '../../../shared/education/taxonomy.js';
 import { withFixtureExclusion } from '../../../shared/publicDiscovery/fixtureExclusion.js';
@@ -109,14 +111,24 @@ export async function resolveVerification(organizationId) {
 export async function assertApprovedVerification(organizationId) {
   const v = await resolveVerification(organizationId);
   if (!v) throw Object.assign(new Error('Organization verification record not found'), { code: 'NOT_FOUND', status: 404 });
-  if (isBlocked(v.status)) {
-    throw Object.assign(new Error('Organization is suspended, revoked, or rejected'), { code: 'BLOCKED', status: 403 });
+  // Absolute hard deny: suspended and revoked are terminal — no override type lifts them.
+  if (isSuspendedOrRevoked(v.status)) {
+    throw Object.assign(new Error('Organization is suspended or revoked'), { code: 'BLOCKED', status: 403 });
   }
   if (!canExercisePrivilegedCapability(v.status)) {
-    throw Object.assign(
-      new Error('Organization verification must be approved to exercise this capability'),
-      { code: 'VERIFICATION_REQUIRED', status: 403 }
-    );
+    // Active super-admin override may bypass the pre-approval gate.
+    // For qa_test overrides: REJECTED is not a hard blocker (cross-role QA testing).
+    // For manual_exception and other types: REJECTED is still a hard deny.
+    const { getOverrideService } = await import('./capability/overrideRuntime.js');
+    const override = await getOverrideService().getActiveOverride(String(organizationId));
+    const isRejected = v.status === VERIFICATION_STATUSES.REJECTED;
+    const isQaTestOverride = override?.overrideType === OVERRIDE_TYPES.QA_TEST;
+    if (!override || (isRejected && !isQaTestOverride)) {
+      throw Object.assign(
+        new Error('Organization verification must be approved to exercise this capability'),
+        { code: isRejected ? 'BLOCKED' : 'VERIFICATION_REQUIRED', status: 403 }
+      );
+    }
   }
   return v;
 }

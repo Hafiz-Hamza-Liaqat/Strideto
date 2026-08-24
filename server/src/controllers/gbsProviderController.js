@@ -1,4 +1,5 @@
 import { isBusinessServicesProviderEnabled, isBusinessServicesPublicMarketplaceEnabled } from '../../../shared/gbs/constants.js';
+import { AgentProfile } from '../models/agent/AgentProfile.js';
 import { projectProviderCatalog } from '../../../shared/gbs/providerCatalogProjection.js';
 import {
   resolveAuthorizedProviderSubjects,
@@ -31,6 +32,15 @@ import {
   getBusinessProfessionalProfile,
   updateBusinessProfessionalProfile,
 } from '../services/gbs/gbsProviderProfessionalProfileService.js';
+
+async function resolveOrganizationId(agentAccountId) {
+  if (!agentAccountId) return null;
+  const profile = await AgentProfile.findOne(
+    { agentAccountId: String(agentAccountId) },
+    { organizationId: 1 }
+  ).lean();
+  return profile?.organizationId ? String(profile.organizationId) : null;
+}
 
 function actorFrom(req) {
   return {
@@ -203,10 +213,12 @@ export async function createListing(req, res) {
     if (!commandId) {
       return res.status(400).json({ error: 'creationCommandId is required' });
     }
+    const organizationId = await resolveOrganizationId(req.agent?.agentAccountId);
     const { listing, replay, risk } = await createServiceListingDraft({
       input: { ...req.body, ...subject },
       actor: actorFrom(req),
       commandId,
+      organizationId,
     });
     return res.status(replay ? 200 : 201).json({
       item: publicListingProjection(listing),
@@ -221,12 +233,14 @@ export async function createListing(req, res) {
 export async function patchListing(req, res) {
   try {
     const subject = await requireSubject(req, PROVIDER_DOMAIN_PERMISSIONS.BUSINESS_LISTINGS_MANAGE);
+    const organizationId = await resolveOrganizationId(req.agent?.agentAccountId);
     const record = await updateServiceListing({
       id: req.params.listingId,
       ...subject,
       expectedVersion: req.body?.expectedVersion,
       input: req.body,
       actor: actorFrom(req),
+      organizationId,
     });
     return res.json({ item: publicListingProjection(record) });
   } catch (err) {
@@ -237,11 +251,13 @@ export async function patchListing(req, res) {
 export async function submitListing(req, res) {
   try {
     const subject = await requireSubject(req, PROVIDER_DOMAIN_PERMISSIONS.BUSINESS_LISTINGS_MANAGE);
+    const organizationId = await resolveOrganizationId(req.agent?.agentAccountId);
     const record = await submitServiceListingForReview({
       id: req.params.listingId,
       ...subject,
       expectedVersion: req.body?.expectedVersion,
       actor: actorFrom(req),
+      organizationId,
     });
     return res.json({ item: publicListingProjection(record) });
   } catch (err) {

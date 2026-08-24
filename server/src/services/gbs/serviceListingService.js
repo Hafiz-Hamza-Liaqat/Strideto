@@ -28,6 +28,8 @@ import {
 } from '../platform/idempotencyService.js';
 import { IDEMPOTENCY_CODES } from '../../../../shared/platform/idempotency.js';
 import { AGENT_SERVICE_CATEGORIES } from '../../../../shared/agent/constants.js';
+import { ORGANIZATION_CAPABILITY_IDS } from '../../../../shared/capability/organizationCapabilities.js';
+import { OVERRIDE_TYPES } from '../capability/overrideService.js';
 
 function deny(code, status = 403) {
   return Object.assign(new Error(code), { status, code });
@@ -54,13 +56,31 @@ async function loadVerifiedCapability({ subjectType, subjectId, capabilityId }) 
   }).lean();
 }
 
-async function assertListingAuthority(value, actor) {
+async function assertListingAuthority(value, actor, { organizationId } = {}) {
   const capability = await loadVerifiedCapability(value);
   const decision = authorizeGbsProviderAction({
     requested: listingToRequested(value),
     capability,
   });
   if (!decision.allowed) {
+    // For qa_test overrides: bypass NOT_VERIFIED when the organization has an active
+    // qa_test override that covers BUSINESS_SERVICES_PROVIDER. This is the only
+    // override-aware injection point for the GBS seller route; all other deny reasons
+    // (scope mismatch, subject mismatch, unknown capability) still hard-deny.
+    if (
+      decision.reason === GBS_AUTHORITY_DENY_REASONS.NOT_VERIFIED &&
+      organizationId
+    ) {
+      const { getOverrideService } = await import('../capability/overrideRuntime.js');
+      const override = await getOverrideService().getActiveOverride(String(organizationId));
+      if (
+        override?.overrideType === OVERRIDE_TYPES.QA_TEST &&
+        Array.isArray(override.capabilities) &&
+        override.capabilities.includes(ORGANIZATION_CAPABILITY_IDS.BUSINESS_SERVICES_PROVIDER)
+      ) {
+        return capability;
+      }
+    }
     await logAudit({
       actor,
       action: GBS_AUDIT_EVENTS.GBS_LISTING_SCOPE_DENIED,
@@ -112,7 +132,7 @@ export function publicListingProjection(record) {
   };
 }
 
-export async function createServiceListingDraft({ input, actor, commandId } = {}) {
+export async function createServiceListingDraft({ input, actor, commandId, organizationId } = {}) {
   const parsed = validateServiceListingRecord({
     ...input,
     moderationStatus: GBS_LISTING_MODERATION_STATUSES.DRAFT,
@@ -131,7 +151,7 @@ export async function createServiceListingDraft({ input, actor, commandId } = {}
       errors: parsed.errors,
     });
   }
-  await assertListingAuthority(parsed.value, actor);
+  await assertListingAuthority(parsed.value, actor, { organizationId });
   const risk = classifyGbsListingRisk(parsed.value);
 
   const store = getMongoIdempotencyStore();
@@ -235,6 +255,7 @@ export async function updateServiceListing({
   expectedVersion,
   input,
   actor,
+  organizationId,
 } = {}) {
   const current = await GbsServiceListing.findOne({
     _id: id,
@@ -262,7 +283,7 @@ export async function updateServiceListing({
       errors: parsed.errors,
     });
   }
-  await assertListingAuthority(parsed.value, actor);
+  await assertListingAuthority(parsed.value, actor, { organizationId });
   const risk = classifyGbsListingRisk(parsed.value);
   const material = isMaterialListingChange(current, parsed.value);
   const wasApproved = current.moderationStatus === GBS_LISTING_MODERATION_STATUSES.APPROVED;
@@ -325,6 +346,7 @@ export async function submitServiceListingForReview({
   subjectId,
   expectedVersion,
   actor,
+  organizationId,
 } = {}) {
   const current = await GbsServiceListing.findOne({
     _id: id,
@@ -340,7 +362,7 @@ export async function submitServiceListingForReview({
       errors: parsed.errors,
     });
   }
-  await assertListingAuthority(parsed.value, actor);
+  await assertListingAuthority(parsed.value, actor, { organizationId });
   const risk = classifyGbsListingRisk(parsed.value);
   const nextStatus = GBS_LISTING_MODERATION_STATUSES.UNDER_REVIEW;
   const updated = await mutateGbsServiceListingRecord({

@@ -101,6 +101,16 @@ export function isBlocked(status) {
   return status === VS.SUSPENDED || status === VS.REVOKED || status === VS.REJECTED;
 }
 
+/**
+ * True only for the absolute terminal blocked states (suspended or revoked).
+ * Unlike isBlocked, this does NOT include REJECTED — which a qa_test super-admin
+ * override may selectively bypass for cross-role QA testing without mutating
+ * verification truth.
+ */
+export function isSuspendedOrRevoked(status) {
+  return status === VS.SUSPENDED || status === VS.REVOKED;
+}
+
 // ---------------------------------------------------------------------------
 // 2. Evidence Types & Statuses
 // ---------------------------------------------------------------------------

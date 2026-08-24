@@ -44,9 +44,11 @@ import {
 import { ORGANIZATION_TYPES } from '../../../shared/international/organization.js';
 import {
   canExercisePrivilegedCapability,
+  isSuspendedOrRevoked,
   deriveBadges,
   VERIFICATION_STATUSES,
 } from '../../../shared/international/verification.js';
+import { OVERRIDE_TYPES } from './capability/overrideService.js';
 import { coerceCountryCode } from '../../../shared/international/country.js';
 import { canonicalizeStoredPhone } from '../../../shared/international/phone.js';
 import { validateAgentOnboardingStep } from '../../../shared/agent/onboardingPolicy.js';
@@ -453,13 +455,34 @@ export async function assertApprovedVerification(organizationId) {
   const record = await OrganizationVerification.findOne({ organizationId }, { status: 1 }).lean();
   const status = record?.status || VERIFICATION_STATUSES.DRAFT;
 
-  if (!canExercisePrivilegedCapability(status)) {
+  // Absolute hard deny: suspended and revoked are terminal — no override type lifts them.
+  if (isSuspendedOrRevoked(status)) {
     const err = new Error(
-      'This feature requires approved verification status. Current status: ' + status
+      'Organization is blocked from exercising capabilities. Current status: ' + status
     );
     err.status = 403;
     err.verificationStatus = status;
+    err.code = 'BLOCKED';
     throw err;
+  }
+
+  if (!canExercisePrivilegedCapability(status)) {
+    // Active super-admin override may bypass the pre-approval gate.
+    // For qa_test overrides: REJECTED is not a hard blocker (cross-role QA testing).
+    // For manual_exception and other types: REJECTED is still a hard deny.
+    const { getOverrideService } = await import('./capability/overrideRuntime.js');
+    const override = await getOverrideService().getActiveOverride(String(organizationId));
+    const isRejected = status === VERIFICATION_STATUSES.REJECTED;
+    const isQaTestOverride = override?.overrideType === OVERRIDE_TYPES.QA_TEST;
+    if (!override || (isRejected && !isQaTestOverride)) {
+      const err = new Error(
+        'This feature requires approved verification status. Current status: ' + status
+      );
+      err.status = 403;
+      err.verificationStatus = status;
+      err.code = isRejected ? 'BLOCKED' : 'VERIFICATION_REQUIRED';
+      throw err;
+    }
   }
 }
 
@@ -954,17 +977,41 @@ export async function updateLeadStatus(agentAccountId, leadId, status) {
 // ---------------------------------------------------------------------------
 
 export async function getPublicProfileBySlug(slug) {
-  const profile = await AgentProfile.findOne(withFixtureExclusion({ slug })).lean();
+  // Normal path: launch-eligible, fixture-excluded profile.
+  let profile = await AgentProfile.findOne(withFixtureExclusion({ slug })).lean();
+  let qaTestAccess = false;
+
   if (!profile || !isPubliclyLaunchVisible(profile)) {
-    const err = new Error('Profile not found');
-    err.status = 404;
-    throw err;
+    // QA direct-link path: find without launch/fixture filter, then require an active
+    // qa_test super-admin override. Profile does NOT become organically verified.
+    const rawProfile = await AgentProfile.findOne({ slug }).lean();
+    if (!rawProfile) {
+      const err = new Error('Profile not found');
+      err.status = 404;
+      throw err;
+    }
+    const rawVerStatus = await getVerificationStatus(rawProfile.organizationId);
+    // Suspended/revoked are absolute — even qa_test cannot expose these.
+    if (isSuspendedOrRevoked(rawVerStatus)) {
+      const err = new Error('Profile not found');
+      err.status = 404;
+      throw err;
+    }
+    const { getOverrideService } = await import('./capability/overrideRuntime.js');
+    const override = await getOverrideService().getActiveOverride(String(rawProfile.organizationId));
+    if (!override || override.overrideType !== OVERRIDE_TYPES.QA_TEST) {
+      const err = new Error('Profile not found');
+      err.status = 404;
+      throw err;
+    }
+    profile = rawProfile;
+    qaTestAccess = true;
   }
 
   // Mission 2 is the only authority for public visibility. Profile
   // completeness/status never promotes an organization to verified.
   const verStatus = await getVerificationStatus(profile.organizationId);
-  if (!canExercisePrivilegedCapability(verStatus)) {
+  if (!qaTestAccess && !canExercisePrivilegedCapability(verStatus)) {
     const err = new Error('Profile not found');
     err.status = 404;
     throw err;
@@ -983,7 +1030,8 @@ export async function getPublicProfileBySlug(slug) {
   // Education public "Verified by Strideto" uses the same OrganizationVerification
   // APPROVED gate as assertApprovedVerification / Education Marketplace privilege.
   // Business capability approval is separate and must not fabricate this mark.
-  const educationVerified = canExercisePrivilegedCapability(verStatus);
+  // QA test providers are never organically verified — the badge is always false.
+  const educationVerified = !qaTestAccess && canExercisePrivilegedCapability(verStatus);
 
   return {
     slug: profile.slug,
@@ -1000,6 +1048,7 @@ export async function getPublicProfileBySlug(slug) {
     phone: profile.phone,
     officeLocation: profile.officeLocation || null,
     verificationStatus: verStatus,
+    ...(qaTestAccess ? { qaTestProvider: true, qaTestLabel: 'QA Test Provider — Not Verified' } : {}),
     educationProfessionalVerification: {
       verified: educationVerified,
       scope: 'education_mobility',

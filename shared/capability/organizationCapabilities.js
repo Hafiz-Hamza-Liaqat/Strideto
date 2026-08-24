@@ -8,6 +8,7 @@ export const ORGANIZATION_CAPABILITY_IDS = Object.freeze({
   EMPLOYER: 'employer',
   BUSINESS_CLIENT: 'business_client',
   BUSINESS_SERVICES_PROVIDER: 'business_services_provider',
+  INSTITUTION_PORTAL: 'institution_portal',
 });
 
 export const ORGANIZATION_CAPABILITY_REGISTRY = Object.freeze({
@@ -28,6 +29,13 @@ export const ORGANIZATION_CAPABILITY_REGISTRY = Object.freeze({
   [ORGANIZATION_CAPABILITY_IDS.BUSINESS_SERVICES_PROVIDER]: Object.freeze({
     id: ORGANIZATION_CAPABILITY_IDS.BUSINESS_SERVICES_PROVIDER,
     description: 'Organization-scoped Business Services provider (Agency) capability',
+    scopeRules: Object.freeze(['organization']),
+    policyVersion: '17d-1.0',
+    deprecated: false,
+  }),
+  [ORGANIZATION_CAPABILITY_IDS.INSTITUTION_PORTAL]: Object.freeze({
+    id: ORGANIZATION_CAPABILITY_IDS.INSTITUTION_PORTAL,
+    description: 'Institution portal and admission workflow authority',
     scopeRules: Object.freeze(['organization']),
     policyVersion: '17d-1.0',
     deprecated: false,

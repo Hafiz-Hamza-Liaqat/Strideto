@@ -119,6 +119,8 @@ export const GBS_AUDIT_EVENTS = Object.freeze({
   GBS_CASE_FILING_AUTHORIZATION_USED: 'gbs_case_filing_authorization_used',
   GBS_CASE_EXTERNAL_FILING_ATTESTED: 'gbs_case_external_filing_attested',
   GBS_CASE_EXTERNAL_FILING_SUBMISSION_CREATED: 'gbs_case_external_filing_submission_created',
+  CAPABILITY_OVERRIDE_GRANTED: 'capability_override_granted',
+  CAPABILITY_OVERRIDE_REVOKED: 'capability_override_revoked',
 });
 
 const EVENT_SET = new Set(Object.values(GBS_AUDIT_EVENTS));

@@ -98,6 +98,277 @@ function SafeSourceLink({ label, value }) {
   );
 }
 
+const CAPABILITY_LABELS = {
+  employer: 'Employer (job posting)',
+  business_client: 'Business Client (GBS buyer)',
+  business_services_provider: 'Business Services Provider',
+  institution_portal: 'Institution Portal / Admissions',
+};
+
+const ALL_CAPABILITIES = Object.entries(CAPABILITY_LABELS);
+
+function SuperAdminCapabilityOverride({ orgId }) {
+  const { toast } = useToast();
+  const [status, setStatus] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [showGrant, setShowGrant] = useState(false);
+  const [overrideType, setOverrideType] = useState('qa_test');
+  const [selectedCaps, setSelectedCaps] = useState([]);
+  const [reason, setReason] = useState('');
+  const [expiresAt, setExpiresAt] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await axiosInstance.get(`/admin/capability-override/${orgId}`);
+      setStatus(res.data);
+    } catch {
+      setStatus(null);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, [orgId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  const toggleCap = (cap) =>
+    setSelectedCaps((prev) =>
+      prev.includes(cap) ? prev.filter((c) => c !== cap) : [...prev, cap]
+    );
+
+  const submitGrant = async () => {
+    if (!reason.trim()) { toast.error('Reason is required'); return; }
+    if (selectedCaps.length === 0) { toast.error('Select at least one capability'); return; }
+    setSubmitting(true);
+    try {
+      await axiosInstance.post(`/admin/capability-override/${orgId}/grant`, {
+        overrideType,
+        reason: reason.trim(),
+        capabilities: selectedCaps,
+        expiresAt: expiresAt || undefined,
+      });
+      toast.success('Capability override granted');
+      setShowGrant(false);
+      setReason('');
+      setSelectedCaps([]);
+      setExpiresAt('');
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Grant failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const submitRevoke = async () => {
+    const revokeReason = window.prompt('Reason for revoking this override (required):');
+    if (!revokeReason?.trim()) return;
+    setSubmitting(true);
+    try {
+      await axiosInstance.post(`/admin/capability-override/${orgId}/revoke`, {
+        reason: revokeReason.trim(),
+      });
+      toast.success('Capability override revoked');
+      load();
+    } catch (err) {
+      toast.error(err.response?.data?.error || 'Revoke failed');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const override = status?.override;
+  const isActive = override?.active && (!override?.expiresAt || new Date(override.expiresAt) > new Date());
+
+  return (
+    <div className="rounded-lg border-2 border-red-300 dark:border-red-700 bg-red-50 dark:bg-red-900/20 p-4 space-y-3">
+      <div className="flex items-center justify-between">
+        <h3 className="text-sm font-bold text-red-900 dark:text-red-200 uppercase tracking-wide">
+          Super Admin Override
+        </h3>
+        <span className="text-xs font-semibold px-2 py-0.5 rounded bg-red-200 dark:bg-red-800 text-red-900 dark:text-red-100">
+          Internal QA Only
+        </span>
+      </div>
+
+      <p className="text-xs text-red-800 dark:text-red-300">
+        Grants synthetic capability access for QA or manual exception purposes only.
+        Evidence truth and verification status are never modified. Public verification badges reflect real evidence only.
+      </p>
+
+      {loading ? (
+        <p className="text-xs text-gray-500">Loading override status…</p>
+      ) : (
+        <>
+          <dl className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs">
+            <div>
+              <dt className="text-gray-500 dark:text-gray-400">Verification status</dt>
+              <dd className="font-medium text-gray-900 dark:text-white">{status?.verificationStatus || '—'}</dd>
+            </div>
+            <div>
+              <dt className="text-gray-500 dark:text-gray-400">Override status</dt>
+              <dd className={`font-bold ${isActive ? 'text-orange-700 dark:text-orange-300' : 'text-gray-500 dark:text-gray-400'}`}>
+                {isActive ? 'ACTIVE — QA Override' : 'None / inactive'}
+              </dd>
+            </div>
+            {isActive && (
+              <>
+                <div>
+                  <dt className="text-gray-500 dark:text-gray-400">Type</dt>
+                  <dd className="font-medium text-gray-900 dark:text-white">{override.overrideType?.replace('_', ' ')}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 dark:text-gray-400">Granted by</dt>
+                  <dd className="font-medium text-gray-900 dark:text-white">{override.grantedByUserId} ({override.grantedByRole})</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 dark:text-gray-400">Granted at</dt>
+                  <dd className="font-medium text-gray-900 dark:text-white">{new Date(override.grantedAt).toLocaleString()}</dd>
+                </div>
+                <div>
+                  <dt className="text-gray-500 dark:text-gray-400">Expires</dt>
+                  <dd className="font-medium text-gray-900 dark:text-white">
+                    {override.expiresAt ? new Date(override.expiresAt).toLocaleString() : 'No expiry set'}
+                  </dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-gray-500 dark:text-gray-400">Reason</dt>
+                  <dd className="font-medium text-gray-900 dark:text-white">{override.reason}</dd>
+                </div>
+                <div className="sm:col-span-2">
+                  <dt className="text-gray-500 dark:text-gray-400">Override capabilities</dt>
+                  <dd className="font-medium text-gray-900 dark:text-white">
+                    {(override.capabilities || []).map((c) => CAPABILITY_LABELS[c] || c).join(', ')}
+                  </dd>
+                </div>
+              </>
+            )}
+          </dl>
+
+          <div className="flex flex-wrap gap-2 pt-1">
+            <button
+              type="button"
+              onClick={() => setShowGrant((v) => !v)}
+              disabled={submitting}
+              className="min-h-[44px] text-xs px-3 py-1.5 bg-orange-600 text-white rounded hover:bg-orange-700 disabled:opacity-50"
+            >
+              {isActive ? 'Update QA Override' : 'Grant QA Override'}
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                const r = window.prompt('Override reason for manual exception (required):');
+                if (r?.trim()) {
+                  axiosInstance.post(`/admin/capability-override/${orgId}/grant`, {
+                    overrideType: 'manual_exception',
+                    reason: r.trim(),
+                    capabilities: selectedCaps.length ? selectedCaps : (override?.capabilities || []),
+                    expiresAt: undefined,
+                  }).then(() => { toast.success('Manual exception granted'); load(); })
+                    .catch((err) => toast.error(err.response?.data?.error || 'Failed'));
+                }
+              }}
+              disabled={submitting}
+              className="min-h-[44px] text-xs px-3 py-1.5 bg-purple-700 text-white rounded hover:bg-purple-800 disabled:opacity-50"
+            >
+              Grant Manual Exception
+            </button>
+            {isActive && (
+              <button
+                type="button"
+                onClick={submitRevoke}
+                disabled={submitting}
+                className="min-h-[44px] text-xs px-3 py-1.5 bg-red-700 text-white rounded hover:bg-red-800 disabled:opacity-50"
+              >
+                Revoke Override
+              </button>
+            )}
+          </div>
+
+          {showGrant && (
+            <div className="mt-3 space-y-3 border-t border-red-200 dark:border-red-700 pt-3">
+              <div>
+                <label className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Override type
+                </label>
+                <select
+                  value={overrideType}
+                  onChange={(e) => setOverrideType(e.target.value)}
+                  className="text-sm border border-gray-300 dark:border-gray-600 rounded p-1.5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                >
+                  <option value="qa_test">QA Test</option>
+                  <option value="manual_exception">Manual Exception</option>
+                </select>
+              </div>
+              <div>
+                <p className="text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Capabilities to override (select required only)
+                </p>
+                <div className="space-y-1">
+                  {ALL_CAPABILITIES.map(([id, label]) => (
+                    <label key={id} className="flex items-center gap-2 text-xs text-gray-800 dark:text-gray-200 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={selectedCaps.includes(id)}
+                        onChange={() => toggleCap(id)}
+                        className="rounded"
+                      />
+                      {label}
+                    </label>
+                  ))}
+                </div>
+              </div>
+              <div>
+                <label htmlFor="override-reason" className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Reason <span className="text-red-600">*</span>
+                </label>
+                <textarea
+                  id="override-reason"
+                  value={reason}
+                  onChange={(e) => setReason(e.target.value)}
+                  placeholder="Internal justification for this override"
+                  rows={2}
+                  className="w-full text-sm border border-gray-300 dark:border-gray-600 rounded p-2 bg-white dark:bg-gray-800 text-gray-900 dark:text-white resize-none"
+                />
+              </div>
+              <div>
+                <label htmlFor="override-expires" className="block text-xs font-semibold text-gray-700 dark:text-gray-300 mb-1">
+                  Expiry (recommended — defaults to 7 days if left blank)
+                </label>
+                <input
+                  id="override-expires"
+                  type="datetime-local"
+                  value={expiresAt}
+                  onChange={(e) => setExpiresAt(e.target.value)}
+                  className="text-sm border border-gray-300 dark:border-gray-600 rounded p-1.5 bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                />
+              </div>
+              <div className="flex gap-2">
+                <button
+                  type="button"
+                  onClick={submitGrant}
+                  disabled={submitting}
+                  className="min-h-[44px] text-xs px-3 py-1.5 bg-orange-700 text-white rounded hover:bg-orange-800 disabled:opacity-50"
+                >
+                  {submitting ? 'Granting…' : 'Confirm Grant'}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => { setShowGrant(false); setReason(''); setSelectedCaps([]); setExpiresAt(''); }}
+                  className="min-h-[44px] text-xs px-3 py-1.5 border border-gray-300 dark:border-gray-600 rounded text-gray-700 dark:text-gray-300"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+        </>
+      )}
+    </div>
+  );
+}
+
 function VerificationDetailPanel({ orgId, onClose, onAction, can }) {
   const { toast } = useToast();
   const [detail, setDetail] = useState(null);
@@ -444,6 +715,10 @@ function VerificationDetailPanel({ orgId, onClose, onAction, can }) {
                 ))}
               </ol>
             </div>
+          )}
+
+          {can(PERMISSIONS.CAPABILITY_OVERRIDE) && (
+            <SuperAdminCapabilityOverride orgId={orgId} />
           )}
         </div>
       </div>

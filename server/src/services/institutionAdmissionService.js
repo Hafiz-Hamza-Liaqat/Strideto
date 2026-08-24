@@ -20,6 +20,7 @@ import {
   isValidInstitutionAdmissionTransition,
 } from '../../../shared/institution/institutionPortal.js';
 import { INSTITUTION_ROLES } from '../../../shared/institution/institutionPortal.js';
+import { ORGANIZATION_CAPABILITY_IDS } from '../../../shared/capability/organizationCapabilities.js';
 
 function domainError(status, code, message) {
   return Object.assign(new Error(message), { status, code });
@@ -108,11 +109,38 @@ export async function submitStudentApplication({
 
   const { InstitutionClaim } = await import('../models/institution/InstitutionClaim.js');
   const { CLAIM_STATES } = await import('../../../shared/institution/institutionPortal.js');
-  const claim = await InstitutionClaim.findOne({
+  let claim = await InstitutionClaim.findOne({
     canonicalInstitutionId: program.institutionId,
     state: CLAIM_STATES.APPROVED,
   }).lean();
-  if (!claim) throw domainError(409, 'CLAIM_REQUIRED', 'This Program is not linked to a claimed Institution');
+
+  if (!claim) {
+    // QA bypass: an unapproved claim + active qa_test super-admin override on the linked org
+    // allows the admission workflow for cross-role QA testing without mutating claim state.
+    const anyClaim = await InstitutionClaim.findOne({
+      canonicalInstitutionId: program.institutionId,
+    }).lean();
+    if (anyClaim) {
+      const { getOverrideService } = await import('./capability/overrideRuntime.js');
+      const override = await getOverrideService().getActiveOverride(String(anyClaim.organizationId));
+      if (
+        override?.overrideType === 'qa_test' &&
+        Array.isArray(override.capabilities) &&
+        override.capabilities.includes(ORGANIZATION_CAPABILITY_IDS.INSTITUTION_PORTAL)
+      ) {
+        const { OrganizationVerification } = await import('../models/OrganizationVerification.js');
+        const { isSuspendedOrRevoked } = await import('../../../shared/international/verification.js');
+        const ver = await OrganizationVerification.findOne(
+          { organizationId: anyClaim.organizationId },
+          { status: 1 }
+        ).lean();
+        if (!isSuspendedOrRevoked(ver?.status)) {
+          claim = anyClaim; // use for org routing only; claim.state remains unchanged
+        }
+      }
+    }
+    if (!claim) throw domainError(409, 'CLAIM_REQUIRED', 'This Program is not linked to a claimed Institution');
+  }
 
   const doc = await InstitutionAdmissionApplication.create({
     organizationId: claim.organizationId,
