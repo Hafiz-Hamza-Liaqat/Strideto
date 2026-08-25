@@ -29,7 +29,6 @@ const {
   isAdmissionPublicReady,
   isScholarshipPublicReady,
   isInternshipPublicReady,
-  isJobPublicReady,
 } = readiness;
 const { normalizeBlogContent, detectContentFormat, shouldShowBlogToc } = blogContent;
 const { withFixtureExclusion } = fixture;

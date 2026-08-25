@@ -26,24 +26,19 @@ function check(cond, msg) {
 
 const { deriveCmsLaunchEligible, deriveJobLaunchEligible, CMS_STATUS } = launch;
 const {
-  isBlogPublicReady,
   isAdmissionPublicReady,
   isScholarshipPublicReady,
   isInternshipPublicReady,
   isJobPublicReady,
-  VIEW_PUBLIC_HINT,
 } = readiness;
 const {
-  listBlogCategoryOptions,
   canonicalBlogCategoryLabel,
-  blogCategoryFilterValues,
   BLOG_CATEGORY_REGISTRY,
 } = taxonomy;
 const {
   normalizeBlogContent,
   detectContentFormat,
   shouldShowBlogToc,
-  legacyMarkdownToHtml,
 } = blogContent;
 const { withFixtureExclusion, isPubliclyLaunchVisible } = fixture;
 

@@ -55,7 +55,7 @@ const mongooseOverrideStore = {
   },
 };
 
-async function notifyProviderOrganization({ action, organizationId, overrideType, capabilities, expiresAt, grantedAt, revokedAt }) {
+async function notifyProviderOrganization({ action, organizationId, overrideType: _overrideType, capabilities, expiresAt, grantedAt, revokedAt }) {
   const org = await Organization.findById(organizationId).select('organizationType').lean();
   if (!org) return;
 

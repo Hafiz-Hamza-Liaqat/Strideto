@@ -59,7 +59,6 @@ await check('PROFILE-02 missing active membership triggers 404 and audit event',
   assert.match(fn, /agent_public_profile_integrity_failure/, 'integrity failure audit event must be emitted');
   assert.match(fn, /err\.status = 404.*Profile not found|Profile not found[\s\S]*err\.status = 404/, 'must 404 on integrity failure');
   // Must not continue to return org/services/trust data
-  const integrityBlock = fn.split('agent_public_profile_integrity_failure')[0];
   const afterIntegrity = fn.split('agent_public_profile_integrity_failure')[1];
   assert.match(afterIntegrity, /throw err/, 'must throw after logging integrity failure');
 });

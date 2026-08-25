@@ -54,7 +54,7 @@ export default function ConsultationRequest() {
   return (
     <div className={`mx-auto max-w-2xl px-4 py-10 min-w-0 overflow-x-hidden ${ui.page}`}>
       <h1 className={ui.h1}>Request consultation</h1>
-      <p className={`mt-2 ${ui.muted}`}>Times are stored as UTC instants while preserving the Agent's IANA timezone.</p>
+      <p className={`mt-2 ${ui.muted}`}>Times are stored as UTC instants while preserving the provider IANA timezone.</p>
       {error ? <p className={`mt-4 ${ui.error}`} role="alert">{error}</p> : null}
       {data ? (
         <form onSubmit={submit} className={`mt-6 space-y-4 ${ui.card} p-6 min-w-0`}>
