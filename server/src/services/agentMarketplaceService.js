@@ -150,7 +150,7 @@ function normalizedInput(data) {
 
 async function audit(action, actor, metadata) { await logAudit({ action, actor, metadata }); }
 async function event(post, toStatus, action, actorId, actorRealm, reason = '') {
-  await AgentMarketplaceModerationEvent.create({ postId: post._id, organizationId: post.organizationId, fromStatus: post.moderationStatus, toStatus, action, reason, actorId, actorRealm });
+  return AgentMarketplaceModerationEvent.create({ postId: post._id, organizationId: post.organizationId, fromStatus: post.moderationStatus, toStatus, action, reason, actorId, actorRealm });
 }
 
 export async function createDraft(agentAccountId, data) {
@@ -368,6 +368,19 @@ export async function moderatePost(adminId, postId, action, reason='') { const p
     post.launchEligible = assignLaunchEligibleOnAuthorityPublish(post.toObject());
   }
   if(action==='request_changes') post.publicationStatus=PS.SUBMITTED; if(action==='reject') post.publicationStatus=PS.SUBMITTED; if(action==='suspend') post.publicationStatus=PS.SUSPENDED; if(action==='archive'){post.publicationStatus=PS.ARCHIVED;post.archivedAt=new Date();}
-  await event(post,transition.to,action,adminId,'admin',reason);post.moderationStatus=transition.to;post.moderationFeedback=reason;await post.save();await audit(`agent_marketplace_${action}`,{userId:adminId,role:'admin'},{postId:post._id,organizationId:post.organizationId,reason});return post.toObject(); }
+  const moderationEvent = await event(post,transition.to,action,adminId,'admin',reason);post.moderationStatus=transition.to;post.moderationFeedback=reason;await post.save();await audit(`agent_marketplace_${action}`,{userId:adminId,role:'admin'},{postId:post._id,organizationId:post.organizationId,reason});
+  const MODERATION_NOTIFY_ACTIONS = { approve: 'Marketplace post approved', reject: 'Marketplace post rejected', request_changes: 'Marketplace post needs changes' };
+  if (MODERATION_NOTIFY_ACTIONS[action]) {
+    notifyAgentOrganizationOwners({
+      organizationId: post.organizationId,
+      category: 'marketplace',
+      type: `marketplace_moderation_${action}`,
+      title: MODERATION_NOTIFY_ACTIONS[action],
+      body: reason?.trim() || undefined,
+      link: '/agent/education/marketplace',
+      dedupeKey: `marketplace:moderation:${moderationEvent._id}`,
+    }).catch(() => {});
+  }
+  return post.toObject(); }
 
 export const agentMarketplaceInternals = Object.freeze({ slugify, validateMarketplaceContent, normalizedInput });

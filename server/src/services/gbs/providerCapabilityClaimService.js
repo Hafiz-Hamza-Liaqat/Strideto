@@ -17,6 +17,7 @@ import { normalizeProviderScope } from '../../../../shared/gbs/providerCapabilit
 import { validateEvidenceMetadataRow } from '../../../../shared/gbs/providerEvidenceMetadata.js';
 import { GBS_AUDIT_EVENTS, redactAuditMetadata } from '../../../../shared/security/gbsAuditEvents.js';
 import { logAudit } from '../auditService.js';
+import { notifyAdminStaff } from '../notificationService.js';
 import { mutateProviderCapabilityRecord } from '../platform/optimisticConcurrency.js';
 import { resolveJurisdictionProductionReadiness } from '../../../../shared/gbs/providerCatalogProjection.js';
 
@@ -215,7 +216,16 @@ export async function submitCapabilityEvidenceMetadata({
     subjectId: String(subjectId),
   });
   if (!current) throw deny('provider_capability_not_found', 404);
-  const refs = [...(current.evidenceRefs || []), parsed.value].slice(0, GBS_PROVIDER_BOUNDS.EVIDENCE_ROWS_MAX);
+  const existingRefs = current.evidenceRefs || [];
+  // Deduplicate by (evidenceType, officialRegistryUrl) — prevents retry-appended duplicates.
+  // Note: without this guard, each retry would append a duplicate item to evidenceRefs.
+  const isDuplicate = existingRefs.some(
+    (r) => r.evidenceType === parsed.value.evidenceType &&
+           r.officialRegistryUrl === parsed.value.officialRegistryUrl
+  );
+  const refs = isDuplicate
+    ? existingRefs
+    : [...existingRefs, parsed.value].slice(0, GBS_PROVIDER_BOUNDS.EVIDENCE_ROWS_MAX);
   const updated = await mutateProviderCapabilityRecord({
     id,
     expectedVersion,
@@ -238,6 +248,20 @@ export async function submitCapabilityEvidenceMetadata({
       evidenceType: parsed.value.evidenceType,
     }),
   });
+  notifyAdminStaff({
+    category: 'trust',
+    type: 'gbs_capability_evidence_submitted',
+    title: 'Capability evidence submitted for review',
+    body: `${subjectType} provider submitted evidence for capability: ${current.capabilityId}`,
+    link: '/admin/gbs/provider-capabilities',
+    metadata: {
+      capabilityId: current.capabilityId,
+      subjectType,
+      subjectId: String(subjectId),
+      recordId: String(id),
+    },
+    dedupeKey: `gbs:evidence:${id}:${parsed.value.evidenceType}:${parsed.value.officialRegistryUrl || ''}`,
+  }).catch(() => {});
   return updated;
 }
 

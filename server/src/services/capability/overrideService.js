@@ -22,13 +22,21 @@ export function createMemoryOverrideStore() {
       return row ? { ...row } : null;
     },
     async save(doc) {
-      rows.set(String(doc.organizationId), { ...doc });
-      return { ...doc };
+      const key = String(doc.organizationId);
+      const existing = rows.get(key);
+      // Preserve grantedAt when retrying an already-active grant so the
+      // dedupeKey timestamp stays stable across retries.
+      const saved = { ...doc };
+      if (existing?.active && doc.active && existing.grantedAt) {
+        saved.grantedAt = existing.grantedAt;
+      }
+      rows.set(key, saved);
+      return { ...saved };
     },
   };
 }
 
-export function createOverrideService({ overrideStore, audit = async () => {} } = {}) {
+export function createOverrideService({ overrideStore, audit = async () => {}, notify = async () => {} } = {}) {
   if (!overrideStore) throw new Error('overrideStore is required');
 
   function isExpired(override) {
@@ -115,6 +123,15 @@ export function createOverrideService({ overrideStore, audit = async () => {} } 
         : null,
       after: { active: true, capabilities: doc.capabilities, expiresAt: doc.expiresAt },
     });
+    await notify({
+      action: 'granted',
+      organizationId,
+      overrideType,
+      capabilities: saved.capabilities,
+      expiresAt: saved.expiresAt,
+      // Use the persisted grantedAt so the dedupeKey is stable on retry.
+      grantedAt: saved.grantedAt,
+    });
     return saved;
   }
 
@@ -150,6 +167,13 @@ export function createOverrideService({ overrideStore, audit = async () => {} } 
       reason: reason.trim(),
       before: { active: true, capabilities: existing.capabilities },
       after: { active: false, revokedAt: now },
+    });
+    await notify({
+      action: 'revoked',
+      organizationId,
+      overrideType: existing.overrideType,
+      capabilities: existing.capabilities,
+      revokedAt: now,
     });
     return saved;
   }

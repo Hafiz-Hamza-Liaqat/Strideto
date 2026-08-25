@@ -1,7 +1,7 @@
 import { Notification } from '../models/Notification.js';
 import { UserNotification } from '../models/UserNotification.js';
 import { User } from '../models/User.js';
-import { STAFF_ROLES } from '../config/rbac.js';
+import { ROLES, STAFF_ROLES } from '../config/rbac.js';
 import { evaluateNotificationDelivery } from '../../../shared/platform/notificationPreferencePolicy.js';
 import { NOTIFICATION_CHANNELS } from '../../../shared/international/notificationPreferences.js';
 
@@ -123,6 +123,26 @@ export async function notifyStaff(payload) {
     metadata: payload.metadata,
   }));
   return UserNotification.insertMany(docs);
+}
+
+/** Notify Admin and SuperAdmin users only (narrower than notifyStaff). */
+export async function notifyAdminStaff(payload) {
+  const admins = await User.find({
+    role: { $in: [ROLES.ADMIN, ROLES.SUPER_ADMIN] },
+  }).select('_id').lean();
+  if (!admins.length) return [];
+  const docs = admins.map((u) => ({
+    recipientType: 'staff',
+    userId: u._id,
+    category: payload.category || 'system',
+    type: payload.type,
+    title: payload.title,
+    body: payload.body,
+    link: payload.link,
+    metadata: payload.metadata,
+    dedupeKey: payload.dedupeKey ? `${payload.dedupeKey}:staff:${u._id}` : undefined,
+  }));
+  return UserNotification.insertMany(docs, { ordered: false });
 }
 
 export async function getUnreadCount({ recipientType, userId, employerId, agentAccountId, institutionAccountId }) {
