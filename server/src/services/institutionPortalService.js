@@ -37,6 +37,7 @@ import {
   canSubmitOfficialChanges,
   canManageTeam as _canManageTeam,
   claimGrantsAuthority,
+  isValidClaimTransition,
   isInstitutionOrgType as _isInstitutionOrgType,
   computeInstitutionCompleteness,
   splitAuthorityEvidence,
@@ -273,6 +274,35 @@ export async function getDraftClaim(organizationId) {
   }).lean();
 }
 
+/** Provider-safe claim DTO — never exposes adminNotes or transition history internals. */
+export function projectInstitutionClaim(claim) {
+  if (!claim) return null;
+  const plain = typeof claim.toObject === 'function' ? claim.toObject() : { ...claim };
+  const {
+    adminNotes: _adminNotes,
+    history: _history,
+    __v: _v,
+    ...rest
+  } = plain;
+  return {
+    ...rest,
+    authorityEvidenceUrls: Array.isArray(plain.authorityEvidenceUrls) ? plain.authorityEvidenceUrls : [],
+    authorityEvidenceRefs: Array.isArray(plain.authorityEvidenceRefs) ? plain.authorityEvidenceRefs : [],
+    informationRequestReason: plain.informationRequestReason || '',
+    rejectedReason: plain.rejectedReason || '',
+  };
+}
+
+export async function findOrganizationClaim(organizationId) {
+  // Prefer the newest non-revoked claim for the org (one active workflow at a time).
+  return InstitutionClaim.findOne({
+    organizationId,
+    state: { $ne: CLAIM_STATES.REVOKED },
+  })
+    .sort({ updatedAt: -1 })
+    .lean();
+}
+
 export async function startClaim({
   organizationId,
   representativeAccountId,
@@ -281,13 +311,40 @@ export async function startClaim({
   authorityEvidenceRefs = [],
   actor,
 }) {
-  // Cannot have multiple active claims
-  const active = await InstitutionClaim.findOne({
+  // One claim workflow per organization: do not spawn duplicates for correction cycles.
+  const existing = await InstitutionClaim.findOne({
     organizationId,
-    state: { $in: [CLAIM_STATES.SUBMITTED, CLAIM_STATES.UNDER_REVIEW, CLAIM_STATES.NEEDS_INFORMATION] },
-  }).lean();
-  if (active) {
-    throw Object.assign(new Error('An active claim already exists for this organization'), { code: 'CONFLICT', status: 409 });
+    state: {
+      $in: [
+        CLAIM_STATES.DRAFT,
+        CLAIM_STATES.SUBMITTED,
+        CLAIM_STATES.UNDER_REVIEW,
+        CLAIM_STATES.NEEDS_INFORMATION,
+        CLAIM_STATES.APPROVED,
+        CLAIM_STATES.REJECTED,
+      ],
+    },
+  })
+    .sort({ updatedAt: -1 })
+    .lean();
+  if (existing) {
+    if (existing.state === CLAIM_STATES.REJECTED) {
+      throw Object.assign(
+        new Error('A rejected claim already exists. Reopen and correct that claim instead of creating a new one.'),
+        { code: 'CLAIM_REOPEN_REQUIRED', status: 409, claimId: existing._id }
+      );
+    }
+    if (existing.state === CLAIM_STATES.NEEDS_INFORMATION || existing.state === CLAIM_STATES.DRAFT) {
+      throw Object.assign(
+        new Error('An open claim already exists. Update and resubmit the existing claim.'),
+        { code: 'CLAIM_UPDATE_REQUIRED', status: 409, claimId: existing._id }
+      );
+    }
+    throw Object.assign(new Error('An active claim already exists for this organization'), {
+      code: 'CONFLICT',
+      status: 409,
+      claimId: existing._id,
+    });
   }
 
   // Duplicate detection: search existing canonical records
@@ -367,9 +424,12 @@ export async function submitClaim({ claimId, organizationId, actor }) {
     throw Object.assign(new Error('Claim is not in a submittable state'), { code: 'INVALID_STATE', status: 409 });
   }
 
-  claim.history.push({ fromState: claim.state, toState: CLAIM_STATES.SUBMITTED, changedBy: actor.userId, changedByRealm: 'institution', at: new Date() });
+  const fromState = claim.state;
+  claim.history.push({ fromState, toState: CLAIM_STATES.SUBMITTED, changedBy: actor.userId, changedByRealm: 'institution', at: new Date() });
   claim.state = CLAIM_STATES.SUBMITTED;
   claim.submittedAt = new Date();
+  // Correction cycle complete — clear provider-facing needs-information prompt
+  claim.informationRequestReason = '';
   await claim.save();
 
   await prepareNotification({ organizationId, eventType: INSTITUTION_NOTIFICATION_TYPES.CLAIM_REVIEW_RESULT, payload: { claimId: claim._id, state: CLAIM_STATES.SUBMITTED } });
@@ -398,6 +458,104 @@ export async function submitClaim({ claimId, organizationId, actor }) {
     // Notification failure must not roll back the committed claim.
   }
 
+  return claim;
+}
+
+/**
+ * Update authority evidence / proposal fields on the SAME claim while in
+ * draft or needs_information. Does not create a new claim.
+ */
+export async function updateClaimCorrection({
+  claimId,
+  organizationId,
+  actor,
+  authorityEvidenceRefs,
+  proposedCanonical,
+} = {}) {
+  const claim = await InstitutionClaim.findOne({ _id: claimId, organizationId });
+  if (!claim) throw Object.assign(new Error('Claim not found'), { code: 'NOT_FOUND', status: 404 });
+  if (![CLAIM_STATES.DRAFT, CLAIM_STATES.NEEDS_INFORMATION].includes(claim.state)) {
+    throw Object.assign(
+      new Error('Claim can only be corrected while draft or needs_information'),
+      { code: 'INVALID_STATE', status: 409 }
+    );
+  }
+
+  if (authorityEvidenceRefs !== undefined) {
+    const evidence = splitAuthorityEvidence(authorityEvidenceRefs);
+    claim.authorityEvidenceRefs = evidence.objectIds;
+    claim.authorityEvidenceUrls = evidence.urls;
+  }
+
+  if (proposedCanonical && !claim.canonicalInstitutionId) {
+    const next = {
+      officialName: String(proposedCanonical.officialName || claim.proposedCanonical?.officialName || '').trim(),
+      countryCode: String(proposedCanonical.countryCode || claim.proposedCanonical?.countryCode || '').trim().toUpperCase(),
+      city: String(proposedCanonical.city ?? claim.proposedCanonical?.city ?? '').trim(),
+      region: String(proposedCanonical.region ?? claim.proposedCanonical?.region ?? '').trim(),
+      officialWebsite: String(proposedCanonical.officialWebsite ?? claim.proposedCanonical?.officialWebsite ?? '').trim(),
+      officialDomain: String(proposedCanonical.officialDomain ?? claim.proposedCanonical?.officialDomain ?? '').trim().toLowerCase(),
+      institutionType: String(proposedCanonical.institutionType ?? claim.proposedCanonical?.institutionType ?? '').trim(),
+      isPublic: proposedCanonical.isPublic ?? claim.proposedCanonical?.isPublic ?? null,
+    };
+    if (!next.officialName || !next.countryCode) {
+      throw Object.assign(new Error('proposedCanonical.officialName and countryCode are required'), {
+        code: 'VALIDATION',
+        status: 422,
+      });
+    }
+    claim.proposedCanonical = next;
+    claim.normalizedName = next.officialName.toLowerCase();
+    claim.countryCode = next.countryCode;
+    claim.officialDomain = next.officialDomain;
+  }
+
+  await claim.save();
+  await logAudit({
+    action: 'institution_claim_corrected',
+    actor,
+    metadata: { organizationId, claimId, state: claim.state },
+  });
+  return claim;
+}
+
+/**
+ * Rejected → draft on the SAME claim so the institution can correct and resubmit.
+ * Does not create a duplicate claim.
+ */
+export async function reopenRejectedClaim({ claimId, organizationId, actor, authorityEvidenceRefs } = {}) {
+  const claim = await InstitutionClaim.findOne({ _id: claimId, organizationId });
+  if (!claim) throw Object.assign(new Error('Claim not found'), { code: 'NOT_FOUND', status: 404 });
+  if (claim.state !== CLAIM_STATES.REJECTED) {
+    throw Object.assign(new Error('Only rejected claims can be reopened'), { code: 'INVALID_STATE', status: 409 });
+  }
+  if (!isValidClaimTransition(claim.state, CLAIM_STATES.DRAFT)) {
+    throw Object.assign(new Error('Cannot reopen this claim'), { code: 'INVALID_STATE', status: 409 });
+  }
+
+  claim.history.push({
+    fromState: claim.state,
+    toState: CLAIM_STATES.DRAFT,
+    changedBy: actor.userId,
+    changedByRealm: 'institution',
+    reason: 'reopened_for_correction',
+    at: new Date(),
+  });
+  claim.state = CLAIM_STATES.DRAFT;
+  claim.informationRequestReason = '';
+  // Keep rejectedReason visible historically on the record until a later decision replaces it;
+  // provider UI distinguishes by state.
+  if (authorityEvidenceRefs !== undefined) {
+    const evidence = splitAuthorityEvidence(authorityEvidenceRefs);
+    claim.authorityEvidenceRefs = evidence.objectIds;
+    claim.authorityEvidenceUrls = evidence.urls;
+  }
+  await claim.save();
+  await logAudit({
+    action: 'institution_claim_reopened',
+    actor,
+    metadata: { organizationId, claimId },
+  });
   return claim;
 }
 

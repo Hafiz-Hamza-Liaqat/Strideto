@@ -178,6 +178,20 @@ export default function AdminCanonicalClaims() {
                 <div><dt className="text-gray-500">Official domain</dt><dd className="break-all">{selected.officialDomain || selected.proposedCanonical?.officialDomain || '—'}</dd></div>
                 <div><dt className="text-gray-500">Claim state</dt><dd>{selected.state}</dd></div>
                 <div><dt className="text-gray-500">Competing claims</dt><dd>{selected.competingClaims?.length || 0}</dd></div>
+                <div>
+                  <dt className="text-gray-500">Authority evidence</dt>
+                  <dd className="break-all text-gray-900 dark:text-white">
+                    {(selected.authorityEvidenceUrls || []).length
+                      ? selected.authorityEvidenceUrls.map((url) => <div key={url}>{url}</div>)
+                      : '—'}
+                  </dd>
+                </div>
+                {selected.informationRequestReason ? (
+                  <div><dt className="text-gray-500">Information request</dt><dd>{selected.informationRequestReason}</dd></div>
+                ) : null}
+                {selected.rejectedReason ? (
+                  <div><dt className="text-gray-500">Rejection reason</dt><dd>{selected.rejectedReason}</dd></div>
+                ) : null}
               </dl>
               <p className="text-xs text-amber-800 dark:text-amber-200">
                 Canonical claim approval cannot proceed unless organization verification is approved. No silent overwrite of canonical data.

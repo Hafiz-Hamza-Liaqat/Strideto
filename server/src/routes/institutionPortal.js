@@ -146,7 +146,9 @@ portal.patch('/:organizationId/profile', portalCtrl.updateProfile);
 // Canonical institution claim
 portal.get('/:organizationId/claim', portalCtrl.getClaim);
 portal.post('/:organizationId/claim', requireInstitutionEmailVerified(), portalCtrl.startClaim);
+portal.patch('/:organizationId/claim/:claimId', requireInstitutionEmailVerified(), portalCtrl.updateClaim);
 portal.post('/:organizationId/claim/:claimId/submit', requireInstitutionEmailVerified(), portalCtrl.submitClaim);
+portal.post('/:organizationId/claim/:claimId/reopen', requireInstitutionEmailVerified(), portalCtrl.reopenClaim);
 
 // Program management (ownership enforced — approved claim required)
 portal.get('/:organizationId/programs', portalCtrl.listPrograms);
@@ -393,8 +395,14 @@ adminInstitution.patch('/claims/:claimId', requirePermission(PERMISSIONS.VERIFIC
     }
   }
 
-  if (targetState === CLAIM_STATES.REJECTED || targetState === CLAIM_STATES.NEEDS_INFORMATION) {
-    claim.rejectedReason = reason || '';
+  if (targetState === CLAIM_STATES.NEEDS_INFORMATION) {
+    claim.informationRequestReason = String(reason || '').trim();
+    claim.rejectedReason = '';
+  } else if (targetState === CLAIM_STATES.REJECTED) {
+    claim.rejectedReason = String(reason || '').trim();
+    claim.informationRequestReason = '';
+  } else if (targetState === CLAIM_STATES.APPROVED || targetState === CLAIM_STATES.UNDER_REVIEW) {
+    claim.informationRequestReason = '';
   }
 
   await claim.save();

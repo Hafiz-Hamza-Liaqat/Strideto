@@ -176,7 +176,7 @@ export const startClaim = asyncHandler(async (req, res) => {
     actor: actor(req),
   });
 
-  return res.status(201).json({ claim });
+  return res.status(201).json({ claim: portalService.projectInstitutionClaim(claim) });
 });
 
 export const submitClaim = asyncHandler(async (req, res) => {
@@ -188,7 +188,44 @@ export const submitClaim = asyncHandler(async (req, res) => {
   }
 
   const claim = await portalService.submitClaim({ claimId, organizationId, actor: actor(req) });
-  return res.status(200).json({ claim });
+  return res.status(200).json({ claim: portalService.projectInstitutionClaim(claim) });
+});
+
+export const updateClaim = asyncHandler(async (req, res) => {
+  const { organizationId, claimId } = req.params;
+  const membership = await resolveMembershipOrFail(req, organizationId);
+  if (!membership) return res.status(403).json({ error: 'Active membership required' });
+  if (!canSubmitOfficialChanges(membership.role)) {
+    return res.status(403).json({ error: 'Insufficient role to update claim' });
+  }
+
+  const { authorityEvidenceRefs, proposedCanonical } = req.body || {};
+  const claim = await portalService.updateClaimCorrection({
+    claimId,
+    organizationId,
+    actor: actor(req),
+    authorityEvidenceRefs,
+    proposedCanonical,
+  });
+  return res.status(200).json({ claim: portalService.projectInstitutionClaim(claim) });
+});
+
+export const reopenClaim = asyncHandler(async (req, res) => {
+  const { organizationId, claimId } = req.params;
+  const membership = await resolveMembershipOrFail(req, organizationId);
+  if (!membership) return res.status(403).json({ error: 'Active membership required' });
+  if (!canSubmitOfficialChanges(membership.role)) {
+    return res.status(403).json({ error: 'Insufficient role to reopen claim' });
+  }
+
+  const { authorityEvidenceRefs } = req.body || {};
+  const claim = await portalService.reopenRejectedClaim({
+    claimId,
+    organizationId,
+    actor: actor(req),
+    authorityEvidenceRefs,
+  });
+  return res.status(200).json({ claim: portalService.projectInstitutionClaim(claim) });
 });
 
 export const getClaim = asyncHandler(async (req, res) => {
@@ -196,7 +233,7 @@ export const getClaim = asyncHandler(async (req, res) => {
   const membership = await resolveMembershipOrFail(req, organizationId);
   if (!membership) return res.status(403).json({ error: 'Active membership required' });
 
-  const claim = await InstitutionClaim.findOne({ organizationId }).lean();
+  const claim = await portalService.findOrganizationClaim(organizationId);
   let competingClaims = [];
   if (claim?.canonicalInstitutionId) {
     competingClaims = await InstitutionClaim.find({
@@ -206,7 +243,7 @@ export const getClaim = asyncHandler(async (req, res) => {
     }).select('_id organizationId state').lean();
   }
   return res.status(200).json({
-    claim: claim || null,
+    claim: portalService.projectInstitutionClaim(claim),
     competingClaims,
     independentFromVerification: true,
   });

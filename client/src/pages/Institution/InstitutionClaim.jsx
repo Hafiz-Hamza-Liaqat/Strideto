@@ -19,6 +19,7 @@ export default function InstitutionClaim() {
   const [searching, setSearching] = useState(false);
   const [selectedInstitution, setSelectedInstitution] = useState(null);
   const [form, setForm] = useState({ officialName: '', countryCode: '', officialDomain: '', authorityEvidence: '' });
+  const [correctionEvidence, setCorrectionEvidence] = useState('');
 
   const load = () => Promise.all([
     institutionPortalApi.claim(organizationId),
@@ -27,6 +28,8 @@ export default function InstitutionClaim() {
     setClaim(claimResponse.data.claim);
     setCompeting(claimResponse.data.competingClaims || []);
     setVerification(dash.data.verificationStatus || '');
+    const existingUrl = claimResponse.data.claim?.authorityEvidenceUrls?.[0] || '';
+    setCorrectionEvidence(existingUrl);
     setError('');
   }).catch((requestError) => setError(requestError.response?.data?.error || 'Claim status is unavailable.'))
     .finally(() => setLoading(false));
@@ -52,8 +55,24 @@ export default function InstitutionClaim() {
     return () => clearTimeout(handle);
   }, [mode, searchTerm, searchCountry]);
 
+  const switchToPropose = () => {
+    setMode('propose');
+    setSelectedInstitution(null);
+    if (searchTerm.trim()) {
+      setForm((current) => ({
+        ...current,
+        officialName: current.officialName || searchTerm.trim(),
+        countryCode: current.countryCode || searchCountry.trim().toUpperCase(),
+      }));
+    }
+  };
+
   const startClaim = async (event) => {
     event.preventDefault();
+    if (mode === 'search' && !selectedInstitution) {
+      setError('Select an existing canonical institution, or propose a new institution.');
+      return;
+    }
     if (mode === 'propose' && !form.countryCode) {
       setError('Select a country.');
       return;
@@ -75,14 +94,42 @@ export default function InstitutionClaim() {
           };
       const { data } = await institutionPortalApi.startClaim(organizationId, payload);
       setClaim(data.claim);
+      setCorrectionEvidence(data.claim?.authorityEvidenceUrls?.[0] || form.authorityEvidence || '');
     } catch (requestError) {
       setError(requestError.response?.data?.error || 'The canonical claim could not be started.');
     } finally { setBusy(false); }
   };
 
-  const submitClaim = async () => {
+  const saveCorrection = async () => {
+    if (!claim?._id) return;
     setBusy(true); setError('');
     try {
+      const body = {
+        authorityEvidenceRefs: correctionEvidence.trim() ? [correctionEvidence.trim()] : [],
+      };
+      if (!claim.canonicalInstitutionId && claim.proposedCanonical) {
+        body.proposedCanonical = {
+          officialName: claim.proposedCanonical.officialName || '',
+          countryCode: claim.proposedCanonical.countryCode || claim.countryCode || '',
+          officialDomain: claim.proposedCanonical.officialDomain || claim.officialDomain || '',
+        };
+      }
+      const { data } = await institutionPortalApi.updateClaim(organizationId, claim._id, body);
+      setClaim(data.claim);
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || 'The claim could not be updated.');
+    } finally { setBusy(false); }
+  };
+
+  const submitClaim = async () => {
+    if (!claim?._id) return;
+    setBusy(true); setError('');
+    try {
+      if (['draft', 'needs_information'].includes(claim.state) && correctionEvidence.trim()) {
+        await institutionPortalApi.updateClaim(organizationId, claim._id, {
+          authorityEvidenceRefs: [correctionEvidence.trim()],
+        });
+      }
       const response = await institutionPortalApi.submitClaim(organizationId, claim._id);
       setClaim(response.data.claim);
     } catch (requestError) {
@@ -90,30 +137,120 @@ export default function InstitutionClaim() {
     } finally { setBusy(false); }
   };
 
+  const reopenClaim = async () => {
+    if (!claim?._id) return;
+    setBusy(true); setError('');
+    try {
+      const response = await institutionPortalApi.reopenClaim(organizationId, claim._id, {
+        authorityEvidenceRefs: correctionEvidence.trim() ? [correctionEvidence.trim()] : undefined,
+      });
+      setClaim(response.data.claim);
+    } catch (requestError) {
+      setError(requestError.response?.data?.error || 'The claim could not be reopened.');
+    } finally { setBusy(false); }
+  };
+
   if (loading) return <PageState>Loading canonical claim…</PageState>;
+
+  const noSearchMatch = mode === 'search' && searchTerm.trim().length >= 2 && !searching && candidates.length === 0;
+  const claimLabel = claim?.state || 'not_started';
 
   return (
     <div className="space-y-6">
       <div>
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Canonical Institution claim</h1>
-        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">Search for an existing published institution record or propose a new one. You do not need to guess database IDs. A canonical claim does not establish legitimacy. Organization verification remains separate.</p>
+        <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">
+          Search for an existing published institution record or propose a new one. You do not need to guess database IDs.
+          A canonical claim does not establish legitimacy. Organization verification remains separate.
+          Verification Approved with Canonical Claim Not Started is a valid independent state — not an error.
+          A claim cannot self-approve.
+        </p>
       </div>
       {error ? <PageState tone="error" role="alert">{error}</PageState> : null}
       <div className="flex flex-wrap gap-2">
         <StatusBadge label="Organization verification" value={verification || 'draft'} />
-        <StatusBadge label="Canonical claim" value={claim?.state || 'not_started'} />
+        <StatusBadge label="Canonical claim" value={claimLabel} />
       </div>
+      {verification === 'approved' && !claim ? (
+        <PageState role="note">
+          Organization Verification is approved. Canonical Claim is not started. You still need to claim or propose the canonical institution record before admissions publishing authority is granted.
+        </PageState>
+      ) : null}
       {competing.length ? (
         <PageState tone="warning">Competing claim(s) exist. Manual review is required. No silent overwrite.</PageState>
       ) : null}
       <Panel title="Current claim">
         {claim ? (
           <div className="space-y-3">
-            <p className="text-sm text-gray-700 dark:text-gray-300">Candidate: {claim.proposedCanonical?.officialName || claim.normalizedName || 'Existing canonical record'}</p>
-            <p className="text-sm text-gray-700 dark:text-gray-300">Country: {claim.countryCode || '—'} · Domain: {claim.officialDomain || '—'}</p>
-            {claim.rejectedReason ? <p className="text-sm text-red-700 dark:text-red-300">{claim.rejectedReason}</p> : null}
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              Candidate: {claim.proposedCanonical?.officialName || claim.normalizedName || 'Existing canonical record'}
+            </p>
+            <p className="text-sm text-gray-700 dark:text-gray-300">
+              Country: {claim.countryCode || '—'} · Domain: {claim.officialDomain || '—'}
+            </p>
+            {claim.state === 'approved' ? (
+              <PageState role="status">
+                Claim approved for this canonical institution. Organization Verification remains a separate trust gate.
+              </PageState>
+            ) : null}
+            {claim.state === 'needs_information' && claim.informationRequestReason ? (
+              <PageState tone="warning" role="status">
+                More information required: {claim.informationRequestReason}
+              </PageState>
+            ) : null}
+            {claim.state === 'rejected' && claim.rejectedReason ? (
+              <PageState tone="error" role="status">
+                Claim rejected: {claim.rejectedReason}
+              </PageState>
+            ) : null}
+            {(claim.authorityEvidenceUrls || []).length ? (
+              <p className="text-sm text-gray-700 dark:text-gray-300 break-all">
+                Submitted evidence: {claim.authorityEvidenceUrls.join(', ')}
+              </p>
+            ) : null}
             {['draft', 'needs_information'].includes(claim.state) ? (
-              <button className={primaryButton} disabled={busy} onClick={submitClaim}>{busy ? 'Submitting…' : 'Submit claim for review'}</button>
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-800 dark:text-gray-200" htmlFor="institution-claim-correction-evidence">
+                  Representative authority evidence URL
+                  <input
+                    id="institution-claim-correction-evidence"
+                    type="url"
+                    className={`${fieldClass} mt-1`}
+                    value={correctionEvidence}
+                    onChange={(e) => setCorrectionEvidence(e.target.value)}
+                    placeholder="https://www.example.edu/about/governance"
+                  />
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <button type="button" className={primaryButton} disabled={busy} onClick={saveCorrection}>
+                    {busy ? 'Saving…' : 'Save evidence update'}
+                  </button>
+                  <button type="button" className={primaryButton} disabled={busy} onClick={submitClaim}>
+                    {busy ? 'Submitting…' : claim.state === 'needs_information' ? 'Resubmit claim for review' : 'Submit claim for review'}
+                  </button>
+                </div>
+              </div>
+            ) : null}
+            {claim.state === 'rejected' ? (
+              <div className="space-y-3">
+                <label className="block text-sm font-medium text-gray-800 dark:text-gray-200" htmlFor="institution-claim-reopen-evidence">
+                  Updated authority evidence URL (optional)
+                  <input
+                    id="institution-claim-reopen-evidence"
+                    type="url"
+                    className={`${fieldClass} mt-1`}
+                    value={correctionEvidence}
+                    onChange={(e) => setCorrectionEvidence(e.target.value)}
+                    placeholder="https://www.example.edu/about/governance"
+                  />
+                </label>
+                <button type="button" className={primaryButton} disabled={busy} onClick={reopenClaim}>
+                  {busy ? 'Reopening…' : 'Reopen claim for correction'}
+                </button>
+              </div>
+            ) : null}
+            {['submitted', 'under_review'].includes(claim.state) ? (
+              <PageState role="status">Claim is with Admin for review. You cannot self-approve.</PageState>
             ) : null}
           </div>
         ) : (
@@ -122,7 +259,7 @@ export default function InstitutionClaim() {
               <button type="button" className={`rounded-lg px-3 py-2 text-sm ${mode === 'search' ? 'bg-primary text-white' : 'border border-gray-300 dark:border-gray-600'}`} onClick={() => setMode('search')}>
                 Search existing record
               </button>
-              <button type="button" className={`rounded-lg px-3 py-2 text-sm ${mode === 'propose' ? 'bg-primary text-white' : 'border border-gray-300 dark:border-gray-600'}`} onClick={() => setMode('propose')}>
+              <button type="button" className={`rounded-lg px-3 py-2 text-sm ${mode === 'propose' ? 'bg-primary text-white' : 'border border-gray-300 dark:border-gray-600'}`} onClick={switchToPropose}>
                 Propose new institution
               </button>
             </div>
@@ -161,8 +298,19 @@ export default function InstitutionClaim() {
                       </li>
                     ))}
                   </ul>
-                ) : searchTerm.trim().length >= 2 && !searching ? (
-                  <PageState role="note">No published match found. Switch to “Propose new institution” if yours is not listed.</PageState>
+                ) : null}
+                {noSearchMatch ? (
+                  <div className="space-y-3 rounded-lg border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-4">
+                    <p className="text-sm text-amber-900 dark:text-amber-100" role="status">
+                      No published match found for this search. You can propose a new institution for Admin review.
+                    </p>
+                    <button type="button" className={primaryButton} onClick={switchToPropose}>
+                      Propose New Institution
+                    </button>
+                  </div>
+                ) : null}
+                {mode === 'search' && searchTerm.trim().length >= 2 && candidates.length > 0 && !selectedInstitution ? (
+                  <PageState role="note">Select the exact canonical institution above before starting a claim.</PageState>
                 ) : null}
               </>
             ) : (
@@ -187,6 +335,9 @@ export default function InstitutionClaim() {
                   Official domain
                   <input id="institution-claim-domain" className={`${fieldClass} mt-1`} value={form.officialDomain} onChange={(e) => setForm({ ...form, officialDomain: e.target.value })} placeholder="www.example.edu" />
                 </label>
+                <p className="sm:col-span-2 text-xs text-gray-500 dark:text-gray-400">
+                  Propose-new creates a review-controlled claim. It does not auto-publish a canonical institution.
+                </p>
               </div>
             )}
             <label className="text-sm font-medium text-gray-800 dark:text-gray-200" htmlFor="institution-claim-evidence">
@@ -194,14 +345,23 @@ export default function InstitutionClaim() {
               <input id="institution-claim-evidence" type="url" className={`${fieldClass} mt-1`} value={form.authorityEvidence} onChange={(e) => setForm({ ...form, authorityEvidence: e.target.value })} placeholder="https://www.example.edu/about/governance" />
             </label>
             <div>
-              <button className={primaryButton} disabled={busy || (mode === 'search' && !selectedInstitution)}>
-                {busy ? 'Starting…' : 'Start canonical claim'}
+              <button
+                className={primaryButton}
+                disabled={busy || (mode === 'search' && !selectedInstitution)}
+                type="submit"
+              >
+                {busy ? 'Starting…' : mode === 'propose' ? 'Start propose-new claim' : 'Start canonical claim'}
               </button>
+              {mode === 'search' && !selectedInstitution ? (
+                <p className="mt-2 text-xs text-gray-500">
+                  Start claim stays blocked until an exact search result is selected. If nothing matches, use Propose New Institution.
+                </p>
+              ) : null}
             </div>
           </form>
         )}
       </Panel>
-      <PageState role="note">A claim cannot be self-approved. Competing approved claims remain in conflict for manual review.</PageState>
+      <PageState role="note">A claim cannot be self-approved. Competing approved claims remain in conflict for manual review. qa_test does not approve canonical claims.</PageState>
     </div>
   );
 }
