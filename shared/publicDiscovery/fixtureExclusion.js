@@ -76,7 +76,6 @@ export function resolveLaunchVisibility(doc = {}) {
  */
 export function assignLaunchEligibleOnAuthorityPublish(existing = {}) {
   if (isFixtureRecord(existing)) return false;
-  if (existing.launchEligible === false) return false;
   return true;
 }
 

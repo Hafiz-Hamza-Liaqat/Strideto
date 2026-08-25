@@ -36,6 +36,8 @@ const { withFixtureExclusion } = fixture;
 // ── ADMISSION-PUB ───────────────────────────────────────────────────────────
 check(deriveCmsLaunchEligible({ status: CMS_STATUS.DRAFT }, CMS_STATUS.DRAFT) === false, 'ADMISSION-PUB-01 draft create ineligible');
 check(deriveCmsLaunchEligible({ status: CMS_STATUS.DRAFT }, CMS_STATUS.ACTIVE) === true, 'ADMISSION-PUB-02 active publish eligible');
+check(deriveCmsLaunchEligible({ status: CMS_STATUS.DRAFT, launchEligible: false }, CMS_STATUS.ACTIVE) === true, 'ADMISSION-PUB-02b explicit false draft publish reconciles');
+check(deriveCmsLaunchEligible({ status: CMS_STATUS.ACTIVE, launchEligible: false }, CMS_STATUS.ACTIVE) === true, 'ADMISSION-PUB-02c active re-save reconciles false');
 check(deriveCmsLaunchEligible({ status: CMS_STATUS.ACTIVE, launchEligible: true }, CMS_STATUS.CLOSED) === false, 'ADMISSION-PUB-03 active to closed false');
 check(deriveCmsLaunchEligible({ status: CMS_STATUS.ACTIVE, launchEligible: true }, CMS_STATUS.ACTIVE) === true, 'ADMISSION-PUB-03b active edit preserves eligible');
 check(deriveCmsLaunchEligible({ status: CMS_STATUS.ACTIVE, launchEligible: true }, CMS_STATUS.DRAFT) === false, 'ADMISSION-PUB-03c active to draft false');

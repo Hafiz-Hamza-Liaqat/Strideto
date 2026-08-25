@@ -45,6 +45,8 @@ const { withFixtureExclusion, isPubliclyLaunchVisible } = fixture;
 function cmsSuite(prefix) {
   check(deriveCmsLaunchEligible({ status: CMS_STATUS.DRAFT }, CMS_STATUS.DRAFT) === false, `${prefix}-01 draft ineligible`);
   check(deriveCmsLaunchEligible({ status: CMS_STATUS.DRAFT }, CMS_STATUS.ACTIVE) === true, `${prefix}-02 active eligible`);
+  check(deriveCmsLaunchEligible({ status: CMS_STATUS.DRAFT, launchEligible: false }, CMS_STATUS.ACTIVE) === true, `${prefix}-02b draft false reconciles on publish`);
+  check(deriveCmsLaunchEligible({ status: CMS_STATUS.ACTIVE, launchEligible: false }, CMS_STATUS.ACTIVE) === true, `${prefix}-02c active false reconciles on re-save`);
   check(deriveCmsLaunchEligible({ status: CMS_STATUS.ACTIVE, launchEligible: true }, CMS_STATUS.CLOSED) === false, `${prefix}-03 closed ineligible`);
   check(deriveCmsLaunchEligible({ status: CMS_STATUS.ACTIVE, launchEligible: true }, CMS_STATUS.DRAFT) === false, `${prefix}-03 draft from active`);
   check(deriveCmsLaunchEligible({ status: CMS_STATUS.ACTIVE, launchEligible: true }, CMS_STATUS.ACTIVE) === true, `${prefix}-04 active preserved`);
