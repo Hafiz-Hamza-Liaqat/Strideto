@@ -90,9 +90,9 @@ check(viewReady({ status: CMS_STATUS.ACTIVE, launchEligible: false, slug: 'x' })
 check(viewReady({ status: CMS_STATUS.ACTIVE, launchEligible: true, slug: 'x' }) === true, 'ADM-VIEW-02 enabled when active+true');
 check(viewReady({ status: CMS_STATUS.DRAFT, slug: 'x' }) === false, 'ADM-VIEW-03 draft disabled');
 
-check(adminAdmissions.includes('isAdminPublicPreviewReady'), 'ADM-VIEW-01b edit form wires publicPreviewReady');
-check(adminAdmissions.includes('publicPreviewReady={isAdminPublicPreviewReady'), 'ADM-VIEW-01c AdminSlugField uses shared readiness');
-check(slugField.includes('publicPreviewReady === false'), 'ADM-VIEW-04 slug field respects explicit publicPreviewReady false');
+check(adminAdmissions.includes('isAdminSlugPreviewReady'), 'ADM-VIEW-01b edit form wires publicPreviewReady');
+check(adminAdmissions.includes("publicPreviewReady={isAdminSlugPreviewReady('admission'"), 'ADM-VIEW-01c AdminSlugField uses shared readiness');
+check(slugField.includes('publicPreviewReady === true'), 'ADM-VIEW-04 slug field requires explicit publicPreviewReady true');
 check(viewPublic.includes('isAdmissionPublicReady'), 'ADM-VIEW shared readiness helper for admission');
 
 console.log(`admissionPublicationHotfix.test.js: ${count} assertions passed`);

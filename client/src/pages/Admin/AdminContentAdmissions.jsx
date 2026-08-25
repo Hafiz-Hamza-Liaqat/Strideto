@@ -15,7 +15,7 @@ import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
 import axiosInstance from '../../services/axiosBase';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
-import { AdminViewPublicLink, isAdminPublicPreviewReady } from '../../components/admin/AdminViewPublicLink';
+import { AdminViewPublicLink, isAdminSlugPreviewReady } from '../../components/admin/AdminViewPublicLink';
 import { formatCmsPublicationStatus } from '@shared/cms/publicReadiness.js';
 
 const EMPTY = {
@@ -211,7 +211,7 @@ export default function AdminContentAdmissions() {
                   sourceText={`${form.program} ${form.institution || ''}`.trim()}
                   status={form.status}
                   excludeId={editingId}
-                  publicPreviewReady={isAdminPublicPreviewReady('admission', form, form.status)}
+                  publicPreviewReady={isAdminSlugPreviewReady('admission', form, form.status)}
                 />
               </div>
               <div className="flex justify-end gap-2 mt-4">

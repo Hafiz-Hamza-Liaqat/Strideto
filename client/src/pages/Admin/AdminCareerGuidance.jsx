@@ -10,6 +10,7 @@ import { AdminConfirmDialog } from '../../components/admin/AdminConfirmDialog';
 import { AdminImageUrlField, adminFieldClass, linesToText, textToLines } from '../../components/admin/AdminImageUrlField';
 import { AdminSelectBare } from '../../components/admin/AdminFormFields';
 import { AdminSlugField } from '../../components/admin/AdminSlugField';
+import { AdminViewPublicLink, isAdminSlugPreviewReady } from '../../components/admin/AdminViewPublicLink';
 import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
@@ -108,7 +109,12 @@ export default function AdminCareerGuidance() {
         <div className="flex flex-wrap gap-1">
           {canEdit && <button type="button" onClick={() => openEdit(row._id)} className="text-xs text-primary underline">{t('common:edit')}</button>}
           {row.slug && (
-            <a href={`${ROUTES.CAREER_GUIDANCE}/${row.slug}`} target="_blank" rel="noopener noreferrer" className="text-xs underline">{t('admin:viewPublic')}</a>
+            <AdminViewPublicLink
+              type="published-slug"
+              record={row}
+              href={`${ROUTES.CAREER_GUIDANCE}/${row.slug}`}
+              label={t('admin:viewPublic')}
+            />
           )}
           {canEdit && (
             <>
@@ -184,6 +190,7 @@ export default function AdminCareerGuidance() {
                   sourceText={form.title}
                   status={form.status}
                   excludeId={editingId}
+                  publicPreviewReady={isAdminSlugPreviewReady('career-article', form, form.status)}
                 />
                 <input className={adminFieldClass} placeholder={t('admin:fieldSeoTitle')} value={form.seoTitle} onChange={(e) => setForm({ ...form, seoTitle: e.target.value })} />
                 <textarea rows={2} className={adminFieldClass} placeholder={t('admin:fieldMetaDescription')} value={form.metaDescription} onChange={(e) => setForm({ ...form, metaDescription: e.target.value })} />

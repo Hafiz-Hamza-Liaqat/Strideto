@@ -172,19 +172,19 @@ export function AdminSlugField({
             {copied ? t('admin:slugCopied') : t('admin:slugCopyUrl')}
           </button>
           {preview.startsWith('http') && (
-            publicPreviewReady === false ? (
+            publicPreviewReady === true ? (
+              <a
+                href={preview}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-white dark:hover:bg-gray-700 min-h-[32px] inline-flex items-center"
+              >
+                {t('admin:viewPublic')}
+              </a>
+            ) : (
               <span className="text-xs px-2 py-1 rounded border border-gray-200 dark:border-gray-600 text-gray-400 cursor-not-allowed min-h-[32px] inline-flex items-center" title={VIEW_PUBLIC_HINT}>
                 {t('admin:viewPublic')}
               </span>
-            ) : (
-            <a
-              href={preview}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-xs px-2 py-1 rounded border border-gray-300 dark:border-gray-600 hover:bg-white dark:hover:bg-gray-700 min-h-[32px] inline-flex items-center"
-            >
-              {t('admin:viewPublic')}
-            </a>
             )
           )}
         </div>

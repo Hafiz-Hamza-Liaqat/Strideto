@@ -10,6 +10,7 @@ import { AdminConfirmDialog } from '../../components/admin/AdminConfirmDialog';
 import { AdminImageUrlField, adminFieldClass } from '../../components/admin/AdminImageUrlField';
 import { AdminSelectBare } from '../../components/admin/AdminFormFields';
 import { AdminSlugField } from '../../components/admin/AdminSlugField';
+import { isAdminSlugPreviewReady } from '../../components/admin/AdminViewPublicLink';
 import { adminContentApi } from '../../services/adminContentApi';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
 
@@ -128,6 +129,7 @@ export default function AdminInstitutions() {
               sourceText={form.name}
               status={form.status}
               excludeId={editingId}
+              publicPreviewReady={isAdminSlugPreviewReady('institution', form, form.status)}
             />
             <div className="flex gap-2 pt-2">
               <button type="button" onClick={save} disabled={saving} className="px-4 py-2 rounded-lg bg-primary text-white">{t('admin:save')}</button>

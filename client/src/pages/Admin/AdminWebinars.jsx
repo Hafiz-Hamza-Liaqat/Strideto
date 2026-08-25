@@ -10,6 +10,7 @@ import { AdminConfirmDialog } from '../../components/admin/AdminConfirmDialog';
 import { AdminImageUrlField, adminFieldClass } from '../../components/admin/AdminImageUrlField';
 import { AdminSelectBare } from '../../components/admin/AdminFormFields';
 import { AdminSlugField } from '../../components/admin/AdminSlugField';
+import { isAdminSlugPreviewReady } from '../../components/admin/AdminViewPublicLink';
 import { adminContentApi } from '../../services/adminContentApi';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
 
@@ -113,6 +114,7 @@ export default function AdminWebinars() {
               sourceText={form.title}
               status={form.status}
               excludeId={editingId}
+              publicPreviewReady={isAdminSlugPreviewReady('webinar', form, form.status)}
             />
             <textarea className={adminFieldClass} rows={3} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} placeholder="Description" />
             <input type="datetime-local" className={adminFieldClass} value={form.scheduledAt} onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })} />

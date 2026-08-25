@@ -10,7 +10,7 @@ import { AdminConfirmDialog } from '../../components/admin/AdminConfirmDialog';
 import { AdminImageUrlField, adminFieldClass, linesToText, textToLines } from '../../components/admin/AdminImageUrlField';
 import { AdminSelectBare } from '../../components/admin/AdminFormFields';
 import { AdminSlugField } from '../../components/admin/AdminSlugField';
-import { AdminViewPublicLink } from '../../components/admin/AdminViewPublicLink';
+import { AdminViewPublicLink, isAdminSlugPreviewReady } from '../../components/admin/AdminViewPublicLink';
 import { TranslationToolbar } from '../../components/admin/TranslationToolbar';
 import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
@@ -196,7 +196,7 @@ export default function AdminContentBlogs() {
                   sourceText={form.title}
                   status={form.status}
                   excludeId={editingId}
-                  publicPreviewReady={form.status === 'published'}
+                  publicPreviewReady={isAdminSlugPreviewReady('blog', form, form.status)}
                 />
                 <input className={adminFieldClass} placeholder={t('admin:fieldSeoTitle')} value={form.seoTitle} onChange={(e) => setForm({ ...form, seoTitle: e.target.value })} />
                 <textarea rows={2} className={adminFieldClass} placeholder={t('admin:fieldMetaDescription')} value={form.metaDescription} onChange={(e) => setForm({ ...form, metaDescription: e.target.value })} />

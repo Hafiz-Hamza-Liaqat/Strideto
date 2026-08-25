@@ -16,7 +16,7 @@ import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
 import axiosInstance from '../../services/axiosBase';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
-import { AdminViewPublicLink } from '../../components/admin/AdminViewPublicLink';
+import { AdminViewPublicLink, isAdminSlugPreviewReady } from '../../components/admin/AdminViewPublicLink';
 import { formatJobPublicationStatus } from '@shared/cms/publicReadiness.js';
 
 const EMPTY_JOB = {
@@ -434,6 +434,7 @@ export default function AdminContentJobs() {
                   sourceText={`${form.title} ${form.province || form.location || ''}`.trim()}
                   status={form.status}
                   excludeId={editingId}
+                  publicPreviewReady={isAdminSlugPreviewReady('job', form, form.status)}
                 />
                 <label className="sm:col-span-2">
                   <span className="text-xs text-gray-500">{t('admin:fieldSeoTitle')}</span>

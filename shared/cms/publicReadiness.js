@@ -25,6 +25,22 @@ export function isJobPublicReady(record = {}) {
   return record.launchEligible === true;
 }
 
+/** Legacy CMS surfaces without launchEligible — public when active + slug. */
+export function isLegacyActiveSlugPublicReady(record = {}) {
+  return record.status === CMS_STATUS.ACTIVE && Boolean(record.slug);
+}
+
+/** Blog-like / CMS static pages — public when published + slug. */
+export function isPublishedSlugPublicReady(record = {}) {
+  return record.status === BLOG_PUBLISHED && Boolean(record.slug);
+}
+
+/** Webinar list/detail exposure — not draft/cancelled and slug present. */
+export function isWebinarPublicReady(record = {}) {
+  const publicStatuses = ['scheduled', 'live', 'recorded'];
+  return publicStatuses.includes(record.status) && Boolean(record.slug);
+}
+
 /** Admin table status label — avoids "Active" when not publicly eligible. */
 export function formatCmsPublicationStatus(record = {}) {
   const { status, launchEligible } = record;

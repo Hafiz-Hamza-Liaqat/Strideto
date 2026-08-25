@@ -10,6 +10,7 @@ import { AdminConfirmDialog } from '../../components/admin/AdminConfirmDialog';
 import { AdminImageUrlField, adminFieldClass } from '../../components/admin/AdminImageUrlField';
 import { AdminSelectBare } from '../../components/admin/AdminFormFields';
 import { AdminSlugField } from '../../components/admin/AdminSlugField';
+import { AdminViewPublicLink, isAdminSlugPreviewReady } from '../../components/admin/AdminViewPublicLink';
 import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
@@ -108,7 +109,12 @@ export default function AdminForeignStudies() {
         <div className="flex flex-wrap gap-1">
           {canEdit && <button type="button" onClick={() => openEdit(row._id)} className="text-xs text-primary underline">{t('common:edit')}</button>}
           {(row.slug || row._id) && (
-            <a href={`${ROUTES.FOREIGN_STUDIES}/${row.slug || row._id}`} target="_blank" rel="noopener noreferrer" className="text-xs underline">{t('admin:viewPublic')}</a>
+            <AdminViewPublicLink
+              type="legacy-active"
+              record={row}
+              href={row.slug ? `${ROUTES.FOREIGN_STUDIES}/${row.slug}` : `${ROUTES.FOREIGN_STUDIES}/${row._id}`}
+              label={t('admin:viewPublic')}
+            />
           )}
           {canEdit && (
             <>
@@ -193,6 +199,7 @@ export default function AdminForeignStudies() {
                   sourceText={`${form.country} ${form.program || ''}`.trim()}
                   status={form.status}
                   excludeId={editingId}
+                  publicPreviewReady={isAdminSlugPreviewReady('foreign-study', form, form.status)}
                 />
               </div>
               <div className="flex justify-end gap-2 mt-4">

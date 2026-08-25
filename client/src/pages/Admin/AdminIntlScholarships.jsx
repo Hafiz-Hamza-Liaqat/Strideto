@@ -10,6 +10,7 @@ import { AdminConfirmDialog } from '../../components/admin/AdminConfirmDialog';
 import { adminFieldClass, linesToText, textToLines } from '../../components/admin/AdminImageUrlField';
 import { AdminSelectBare } from '../../components/admin/AdminFormFields';
 import { AdminSlugField } from '../../components/admin/AdminSlugField';
+import { AdminViewPublicLink, isAdminSlugPreviewReady } from '../../components/admin/AdminViewPublicLink';
 import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
@@ -112,7 +113,11 @@ export default function AdminIntlScholarships() {
       render: (row) => (
         <div className="flex flex-wrap gap-1">
           {canEdit && <button type="button" onClick={() => openEdit(row._id)} className="text-xs text-primary underline">{t('common:edit')}</button>}
-          <a href={`${ROUTES.INTL_SCHOLARSHIPS}/${row.slug || row._id}`} target="_blank" rel="noopener noreferrer" className="text-xs underline">{t('admin:viewPublic')}</a>
+          <AdminViewPublicLink
+            ready={row.status === 'active'}
+            href={row._id ? `${ROUTES.INTL_SCHOLARSHIPS}/${row._id}` : ''}
+            label={t('admin:viewPublic')}
+          />
           {canEdit && (
             <>
               <button type="button" onClick={() => runAction('duplicate', row._id)} className="text-xs">{t('admin:duplicate')}</button>
@@ -190,6 +195,7 @@ export default function AdminIntlScholarships() {
                   sourceText={`${form.title} ${form.country || ''}`.trim()}
                   status={form.status}
                   excludeId={editingId}
+                  publicPreviewReady={isAdminSlugPreviewReady('intl-scholarship', form, form.status)}
                 />
                 <input className={adminFieldClass} placeholder={t('admin:fieldSeoTitle')} value={form.seoTitle} onChange={(e) => setForm({ ...form, seoTitle: e.target.value })} />
                 <textarea rows={2} className={adminFieldClass} placeholder={t('admin:fieldMetaDescription')} value={form.metaDescription} onChange={(e) => setForm({ ...form, metaDescription: e.target.value })} />

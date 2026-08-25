@@ -13,7 +13,7 @@ import { AdminSlugField } from '../../components/admin/AdminSlugField';
 import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
-import { AdminViewPublicLink } from '../../components/admin/AdminViewPublicLink';
+import { AdminViewPublicLink, isAdminSlugPreviewReady } from '../../components/admin/AdminViewPublicLink';
 import { formatCmsPublicationStatus } from '@shared/cms/publicReadiness.js';
 
 const EMPTY = {
@@ -200,6 +200,7 @@ export default function AdminContentInternships() {
                   sourceText={form.title}
                   status={form.status}
                   excludeId={editingId}
+                  publicPreviewReady={isAdminSlugPreviewReady('internship', form, form.status)}
                 />
                 <input className={adminFieldClass} placeholder={t('admin:fieldSeoTitle')} value={form.seoTitle} onChange={(e) => setForm({ ...form, seoTitle: e.target.value })} />
                 <textarea rows={2} className={adminFieldClass} placeholder={t('admin:fieldMetaDescription')} value={form.metaDescription} onChange={(e) => setForm({ ...form, metaDescription: e.target.value })} />

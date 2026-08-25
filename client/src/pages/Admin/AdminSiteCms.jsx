@@ -9,6 +9,7 @@ import { AdminConfirmDialog } from '../../components/admin/AdminConfirmDialog';
 import { AdminImageUrlField, adminFieldClass } from '../../components/admin/AdminImageUrlField';
 import { AdminSelectBare } from '../../components/admin/AdminFormFields';
 import { AdminSlugField } from '../../components/admin/AdminSlugField';
+import { isAdminSlugPreviewReady } from '../../components/admin/AdminViewPublicLink';
 import { AdminLocaleSelect, AdminSeoFields, AdminPublishFields } from '../../components/admin/AdminCmsFields';
 import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
@@ -629,6 +630,7 @@ export default function AdminSiteCms() {
                     status={pageForm.status}
                     locale={pageForm.locale}
                     excludeId={pageEditingId}
+                    publicPreviewReady={isAdminSlugPreviewReady('cms-page', pageForm, pageForm.status)}
                   />
                   <label className="block text-sm">Heading<input className={adminFieldClass} value={pageForm.heading} onChange={(e) => setPageForm({ ...pageForm, heading: e.target.value })} /></label>
                   <label className="block text-sm">Page type

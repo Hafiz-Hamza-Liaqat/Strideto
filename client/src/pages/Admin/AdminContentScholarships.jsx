@@ -15,7 +15,7 @@ import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
 import axiosInstance from '../../services/axiosBase';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
-import { AdminViewPublicLink } from '../../components/admin/AdminViewPublicLink';
+import { AdminViewPublicLink, isAdminSlugPreviewReady } from '../../components/admin/AdminViewPublicLink';
 import { formatCmsPublicationStatus } from '@shared/cms/publicReadiness.js';
 
 const EMPTY = {
@@ -209,6 +209,7 @@ export default function AdminContentScholarships() {
                   sourceText={`${form.title} ${form.country || ''}`.trim()}
                   status={form.status}
                   excludeId={editingId}
+                  publicPreviewReady={isAdminSlugPreviewReady('scholarship', form, form.status)}
                 />
                 <input className={fieldClass} placeholder={t('admin:fieldSeoTitle')} value={form.seoTitle} onChange={(e) => setForm({ ...form, seoTitle: e.target.value })} />
                 <textarea rows={2} className={fieldClass} placeholder={t('admin:fieldMetaDescription')} value={form.metaDescription} onChange={(e) => setForm({ ...form, metaDescription: e.target.value })} />
