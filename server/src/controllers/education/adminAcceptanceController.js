@@ -10,7 +10,7 @@
  *   - Important changes are audited
  *
  * Supersession: when a published claim changes, the old record is preserved
- * as superseded and a new record is created.
+ * as archived with supersededById pointing at the replacement (Mission 6).
  */
 import { Test } from '../../models/education/Test.js';
 import { CanonicalInstitution } from '../../models/education/CanonicalInstitution.js';
@@ -25,7 +25,7 @@ import {
   isValidAcceptanceScope,
   detectConflict,
 } from '../../../../shared/education/acceptanceExplorer.js';
-import { isValidPubStatus, isValidDegreeLevel, isValidStudyMode } from '../../../../shared/education/taxonomy.js';
+import { isValidPubStatus, isValidDegreeLevel, isValidStudyMode, PUB_STATUSES } from '../../../../shared/education/taxonomy.js';
 import { isValidVerificationStatus, VERIFICATION_STATUSES } from '../../../../shared/trust/sourceVerification.js';
 
 // ── Source parsing ────────────────────────────────────────────────────────────
@@ -231,8 +231,8 @@ export const adminUpdateAcceptance = asyncHandler(async (req, res) => {
   const doc = await TestAcceptance.findById(req.params.id);
   if (!doc) return res.status(404).json({ error: 'Acceptance claim not found' });
 
-  // Superseded records are terminal — cannot be mutated
-  if (doc.status === 'superseded') {
+  // Superseded predecessors are terminal — cannot be mutated
+  if (doc.supersededById) {
     return res.status(409).json({ error: 'Superseded claims cannot be modified' });
   }
 
@@ -349,8 +349,13 @@ export const adminUpdateAcceptance = asyncHandler(async (req, res) => {
 
 // ── Supersede ─────────────────────────────────────────────────────────────────
 //
-// Creates a new replacement claim and marks the old one as superseded.
+// Creates a new replacement claim and marks the old one archived with supersededById.
 // Used when changing a published acceptance claim (preserves history).
+//
+// Canonical representation (Mission 6 / institution portal parity):
+//   old.status = archived
+//   old.supersededById = replacementId
+//   replacement starts as draft until published through the existing workflow
 //
 // POST /api/admin/education/acceptance/:id/supersede
 
@@ -358,11 +363,11 @@ export const adminSupersedeAcceptance = asyncHandler(async (req, res) => {
   const old = await TestAcceptance.findById(req.params.id);
   if (!old) return res.status(404).json({ error: 'Acceptance claim not found' });
 
-  if (old.status !== 'published') {
-    return res.status(400).json({ error: 'Only published claims can be superseded; update draft claims directly' });
-  }
-  if (old.status === 'superseded') {
+  if (old.supersededById) {
     return res.status(409).json({ error: 'Claim is already superseded' });
+  }
+  if (old.status !== PUB_STATUSES.PUBLISHED) {
+    return res.status(400).json({ error: 'Only published claims can be superseded; update draft claims directly' });
   }
 
   const body = req.body || {};
@@ -408,11 +413,11 @@ export const adminSupersedeAcceptance = asyncHandler(async (req, res) => {
     sources,
     verificationStatus: VERIFICATION_STATUSES.UNVERIFIED,
     adminNotes: sanitizeString(body.adminNotes ?? ''),
-    status: 'draft',
+    status: PUB_STATUSES.DRAFT,
   });
 
-  // Mark the old claim superseded
-  old.status = 'superseded';
+  // Mark the old claim superseded using canonical archived + pointer semantics
+  old.status = PUB_STATUSES.ARCHIVED;
   old.supersededById = newClaim._id;
   await old.save();
 

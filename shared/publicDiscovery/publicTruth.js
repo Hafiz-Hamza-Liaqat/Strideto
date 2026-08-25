@@ -201,8 +201,14 @@ export function isCurrentAcceptanceClaim(doc, now = new Date()) {
 export function currentAcceptanceMongoFilter(now = new Date()) {
   return {
     status: 'published',
-    supersededById: { $exists: false },
     $and: [
+      // Schema defaults supersededById to null — match null OR missing (legacy docs).
+      {
+        $or: [
+          { supersededById: null },
+          { supersededById: { $exists: false } },
+        ],
+      },
       {
         $or: [
           { effectiveUntil: null },

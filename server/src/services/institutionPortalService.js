@@ -57,10 +57,18 @@ import {
   VERIFICATION_STATUSES,
 } from '../../../shared/international/verification.js';
 import { OVERRIDE_TYPES } from './capability/overrideService.js';
-import { ACCEPTANCE_SCOPES } from '../../../shared/education/acceptanceExplorer.js';
+import {
+  ACCEPTANCE_SCOPES,
+  detectConflict,
+  normalizeSectionMinimums,
+  validateEffectivePeriod,
+  validateResultValidityMonths,
+  isValidAcceptanceStatus,
+} from '../../../shared/education/acceptanceExplorer.js';
 import { PUB_STATUSES } from '../../../shared/education/taxonomy.js';
 import { withFixtureExclusion } from '../../../shared/publicDiscovery/fixtureExclusion.js';
 import { canonicalizeStoredPhone } from '../../../shared/international/phone.js';
+import { Test } from '../models/education/Test.js';
 
 // ---------------------------------------------------------------------------
 // Helper: resolve the active membership for an account in an organization
@@ -797,6 +805,68 @@ export async function submitProgramForReview({ programId, organizationId, canoni
 // TestAcceptance management (institution/program scope only)
 // ---------------------------------------------------------------------------
 
+const OBJECT_ID_RE = /^[a-f\d]{24}$/i;
+
+/**
+ * Resolve a catalog Test by ObjectId, stableId, or slug.
+ * Only published catalog entries are accepted for institution writes.
+ */
+export async function resolvePublishedCatalogTest(testRef) {
+  if (testRef == null || testRef === '') {
+    throw Object.assign(new Error('testId is required'), { code: 'VALIDATION', status: 400 });
+  }
+  const ref = String(testRef).trim();
+  let test = null;
+  if (OBJECT_ID_RE.test(ref) && mongoose.Types.ObjectId.isValid(ref)) {
+    test = await Test.findById(ref).populate('providerId', 'name slug').lean();
+  }
+  if (!test) {
+    const key = ref.toLowerCase();
+    test = await Test.findOne({
+      $or: [{ stableId: key }, { slug: key }],
+    }).populate('providerId', 'name slug').lean();
+  }
+  if (!test || test.status !== PUB_STATUSES.PUBLISHED) {
+    throw Object.assign(
+      new Error('Unknown or unpublished test catalog identity'),
+      { code: 'VALIDATION', status: 400 }
+    );
+  }
+  return test;
+}
+
+function parseOptionalOverallScore(raw) {
+  if (raw == null || raw === '') return null;
+  const n = typeof raw === 'number' ? raw : Number(raw);
+  if (!Number.isFinite(n)) {
+    throw Object.assign(new Error('minimumOverallScore must be a number'), { code: 'VALIDATION', status: 400 });
+  }
+  return n;
+}
+
+function assertIntakeBelongsToProgram(program, intake) {
+  const label = String(intake || '').trim();
+  if (!label) {
+    throw Object.assign(new Error('intake is required for program_intake scope'), { code: 'VALIDATION', status: 400 });
+  }
+  const intakes = Array.isArray(program?.intakes) ? program.intakes : [];
+  if (intakes.length === 0) {
+    // Program has no structured intakes yet — allow free-form intake label.
+    return label;
+  }
+  const match = intakes.find((entry) => {
+    const cycle = String(entry.cycleLabel || '').trim().toLowerCase();
+    return cycle && cycle === label.toLowerCase();
+  });
+  if (!match) {
+    throw Object.assign(
+      new Error('intake must reference an institution-owned program intake'),
+      { code: 'VALIDATION', status: 400 }
+    );
+  }
+  return label;
+}
+
 export async function createOrUpdateTestAcceptance({
   organizationId,
   canonicalInstitutionId,
@@ -804,8 +874,10 @@ export async function createOrUpdateTestAcceptance({
   testAcceptanceData,
   actor,
 }) {
+  const data = testAcceptanceData && typeof testAcceptanceData === 'object' ? testAcceptanceData : {};
+
   // Institution cannot modify country-level acceptance rules
-  if (testAcceptanceData.acceptanceScope === ACCEPTANCE_SCOPES.COUNTRY) {
+  if (data.acceptanceScope === ACCEPTANCE_SCOPES.COUNTRY) {
     throw Object.assign(
       new Error('Institution cannot modify country-level test acceptance rules'),
       { code: 'FORBIDDEN', status: 403 }
@@ -814,40 +886,89 @@ export async function createOrUpdateTestAcceptance({
 
   // Scope must be institution or program
   const validScopes = [ACCEPTANCE_SCOPES.INSTITUTION, ACCEPTANCE_SCOPES.PROGRAM, ACCEPTANCE_SCOPES.PROGRAM_INTAKE];
-  if (!validScopes.includes(testAcceptanceData.acceptanceScope)) {
+  if (!validScopes.includes(data.acceptanceScope)) {
     throw Object.assign(new Error('Invalid acceptance scope for institution'), { code: 'VALIDATION', status: 400 });
   }
 
-  // If program scope, verify ownership
-  if (programId) {
-    await assertProgramOwnership(programId, canonicalInstitutionId);
+  if (!isValidAcceptanceStatus(data.acceptanceStatus)) {
+    throw Object.assign(new Error('Invalid acceptanceStatus'), { code: 'VALIDATION', status: 400 });
   }
 
-  // Supersede any existing active claim for same scope
+  const catalogTest = await resolvePublishedCatalogTest(data.testId);
+
+  let resolvedProgramId = programId || data.programId || null;
+  let program = null;
+  if (data.acceptanceScope === ACCEPTANCE_SCOPES.INSTITUTION) {
+    resolvedProgramId = null;
+  } else {
+    if (!resolvedProgramId) {
+      throw Object.assign(
+        new Error('programId is required for program and program_intake scope'),
+        { code: 'VALIDATION', status: 400 }
+      );
+    }
+    program = await assertProgramOwnership(resolvedProgramId, canonicalInstitutionId);
+  }
+
+  let intake = String(data.intake || '').trim();
+  if (data.acceptanceScope === ACCEPTANCE_SCOPES.PROGRAM_INTAKE) {
+    intake = assertIntakeBelongsToProgram(program, intake);
+  } else if (data.acceptanceScope === ACCEPTANCE_SCOPES.PROGRAM) {
+    intake = '';
+  }
+
+  const sections = normalizeSectionMinimums(data.sectionMinimums);
+  if (!sections.ok) {
+    throw Object.assign(new Error(sections.error), { code: 'VALIDATION', status: 400 });
+  }
+
+  const period = validateEffectivePeriod(data.effectiveFrom, data.effectiveUntil);
+  if (!period.ok) {
+    throw Object.assign(new Error(period.error), { code: 'VALIDATION', status: 400 });
+  }
+
+  const validity = validateResultValidityMonths(data.resultValidityMonths);
+  if (!validity.ok) {
+    throw Object.assign(new Error(validity.error), { code: 'VALIDATION', status: 400 });
+  }
+
+  const minimumOverallScore = parseOptionalOverallScore(data.minimumOverallScore);
+
+  // Supersede any existing draft claim for same scope
   const existingQuery = {
     institutionId: canonicalInstitutionId,
-    programId: programId || null,
-    testId: testAcceptanceData.testId,
-    acceptanceScope: testAcceptanceData.acceptanceScope,
+    programId: resolvedProgramId || null,
+    testId: catalogTest._id,
+    acceptanceScope: data.acceptanceScope,
+    intake: intake || '',
     status: PUB_STATUSES.DRAFT,
   };
   const existing = await TestAcceptance.findOne(existingQuery);
   if (existing) {
-    // Supersede
-    existing.supersededById = null; // will be set after new one is created
     await recordChangeEvent({
-      organizationId, canonicalInstitutionId, programId,
+      organizationId, canonicalInstitutionId, programId: resolvedProgramId,
       changeCategory: CHANGE_CATEGORIES.TEST_REQUIREMENT, field: 'testAcceptance',
       previousValue: { acceptanceStatus: existing.acceptanceStatus, minimumOverallScore: existing.minimumOverallScore },
-      newValue: { acceptanceStatus: testAcceptanceData.acceptanceStatus, minimumOverallScore: testAcceptanceData.minimumOverallScore },
+      newValue: { acceptanceStatus: data.acceptanceStatus, minimumOverallScore },
       changedByAccountId: actor.userId, changedByRole: actor.role,
     });
   }
 
   const ta = await TestAcceptance.create({
-    ...testAcceptanceData,
+    testId: catalogTest._id,
+    acceptanceScope: data.acceptanceScope,
+    acceptanceStatus: data.acceptanceStatus,
+    minimumOverallScore,
+    sectionMinimums: sections.value,
+    scoreNotes: typeof data.scoreNotes === 'string' ? data.scoreNotes.trim() : '',
+    intake,
+    effectiveFrom: period.effectiveFrom,
+    effectiveUntil: period.effectiveUntil,
+    resultValidityMonths: validity.value,
+    conditions: typeof data.conditions === 'string' ? data.conditions.trim() : '',
+    waiverNotes: typeof data.waiverNotes === 'string' ? data.waiverNotes.trim() : '',
     institutionId: canonicalInstitutionId,
-    programId: programId || null,
+    programId: resolvedProgramId || null,
     status: PUB_STATUSES.DRAFT,
     sources: [{ sourceType: INSTITUTION_SOURCE_TYPE }],
   });
@@ -858,7 +979,122 @@ export async function createOrUpdateTestAcceptance({
     await existing.save();
   }
 
-  await logAudit({ action: 'institution_test_acceptance_created', actor, metadata: { organizationId, canonicalInstitutionId, programId, testAcceptanceId: ta._id } });
+  await logAudit({ action: 'institution_test_acceptance_created', actor, metadata: { organizationId, canonicalInstitutionId, programId: resolvedProgramId, testAcceptanceId: ta._id } });
+  return ta;
+}
+
+export async function publishTestAcceptance({
+  organizationId,
+  canonicalInstitutionId,
+  testAcceptanceId,
+  actor,
+}) {
+  const ta = await TestAcceptance.findById(testAcceptanceId);
+  if (!ta) {
+    throw Object.assign(new Error('Test Acceptance not found'), { code: 'NOT_FOUND', status: 404 });
+  }
+  if (String(ta.institutionId) !== String(canonicalInstitutionId)) {
+    throw Object.assign(new Error('Test Acceptance does not belong to this institution'), { code: 'FORBIDDEN', status: 403 });
+  }
+  if (ta.acceptanceScope === ACCEPTANCE_SCOPES.COUNTRY) {
+    throw Object.assign(new Error('Institution cannot modify country-level test acceptance rules'), { code: 'FORBIDDEN', status: 403 });
+  }
+  if (ta.status !== PUB_STATUSES.DRAFT) {
+    throw Object.assign(new Error('Only draft Test Acceptance records can be published'), { code: 'VALIDATION', status: 400 });
+  }
+
+  const existingPublished = await TestAcceptance.find({
+    institutionId: canonicalInstitutionId,
+    programId: ta.programId || null,
+    testId: ta.testId,
+    acceptanceScope: ta.acceptanceScope,
+    intake: ta.intake || '',
+    status: PUB_STATUSES.PUBLISHED,
+  }).lean();
+
+  const { conflict, reason } = detectConflict(existingPublished, {
+    testId: String(ta.testId),
+    acceptanceScope: ta.acceptanceScope,
+    institutionId: String(ta.institutionId || ''),
+    programId: ta.programId ? String(ta.programId) : '',
+    countryCode: (ta.countryCode || '').toUpperCase(),
+    intake: ta.intake || '',
+    acceptanceStatus: ta.acceptanceStatus,
+  });
+  if (conflict) {
+    throw Object.assign(new Error(`Conflict detected: ${reason}`), { code: 'CONFLICT', status: 409 });
+  }
+
+  for (const peer of existingPublished) {
+    if (String(peer._id) === String(ta._id)) continue;
+    await TestAcceptance.updateOne(
+      { _id: peer._id },
+      { $set: { status: PUB_STATUSES.ARCHIVED, supersededById: ta._id } }
+    );
+  }
+
+  ta.status = PUB_STATUSES.PUBLISHED;
+  await ta.save();
+
+  await recordChangeEvent({
+    organizationId,
+    canonicalInstitutionId,
+    programId: ta.programId || null,
+    changeCategory: CHANGE_CATEGORIES.TEST_REQUIREMENT,
+    field: 'testAcceptance.status',
+    previousValue: { status: PUB_STATUSES.DRAFT },
+    newValue: { status: PUB_STATUSES.PUBLISHED },
+    changedByAccountId: actor.userId,
+    changedByRole: actor.role,
+  });
+  await logAudit({
+    action: 'institution_test_acceptance_published',
+    actor,
+    metadata: { organizationId, canonicalInstitutionId, testAcceptanceId: ta._id },
+  });
+  return ta;
+}
+
+export async function archiveTestAcceptance({
+  organizationId,
+  canonicalInstitutionId,
+  testAcceptanceId,
+  actor,
+}) {
+  const ta = await TestAcceptance.findById(testAcceptanceId);
+  if (!ta) {
+    throw Object.assign(new Error('Test Acceptance not found'), { code: 'NOT_FOUND', status: 404 });
+  }
+  if (String(ta.institutionId) !== String(canonicalInstitutionId)) {
+    throw Object.assign(new Error('Test Acceptance does not belong to this institution'), { code: 'FORBIDDEN', status: 403 });
+  }
+  if (ta.acceptanceScope === ACCEPTANCE_SCOPES.COUNTRY) {
+    throw Object.assign(new Error('Institution cannot modify country-level test acceptance rules'), { code: 'FORBIDDEN', status: 403 });
+  }
+  if (ta.status !== PUB_STATUSES.PUBLISHED) {
+    throw Object.assign(new Error('Only published Test Acceptance records can be archived'), { code: 'VALIDATION', status: 400 });
+  }
+
+  const previous = ta.status;
+  ta.status = PUB_STATUSES.ARCHIVED;
+  await ta.save();
+
+  await recordChangeEvent({
+    organizationId,
+    canonicalInstitutionId,
+    programId: ta.programId || null,
+    changeCategory: CHANGE_CATEGORIES.TEST_REQUIREMENT,
+    field: 'testAcceptance.status',
+    previousValue: { status: previous },
+    newValue: { status: PUB_STATUSES.ARCHIVED },
+    changedByAccountId: actor.userId,
+    changedByRole: actor.role,
+  });
+  await logAudit({
+    action: 'institution_test_acceptance_archived',
+    actor,
+    metadata: { organizationId, canonicalInstitutionId, testAcceptanceId: ta._id },
+  });
   return ta;
 }
 
@@ -1020,7 +1256,18 @@ export async function listTestAcceptance({ canonicalInstitutionId, q, page = 1, 
   const query = boundedInstitutionQuery(q);
   if (query) filter.$or = [{ acceptanceStatus: { $regex: escapeRegex(query), $options: 'i' } }];
   const [records, total] = await Promise.all([
-    TestAcceptance.find(filter).sort({ createdAt: -1 }).skip((pageNum - 1) * safeLimit).limit(safeLimit).select('-adminNotes').lean(),
+    TestAcceptance.find(filter)
+      .populate({
+        path: 'testId',
+        select: 'name shortName slug stableId scoreScale providerId',
+        populate: { path: 'providerId', select: 'name slug' },
+      })
+      .populate('programId', 'name slug intakes')
+      .sort({ createdAt: -1 })
+      .skip((pageNum - 1) * safeLimit)
+      .limit(safeLimit)
+      .select('-adminNotes')
+      .lean(),
     TestAcceptance.countDocuments(filter),
   ]);
   return { records, pagination: { page: pageNum, limit: safeLimit, total, pages: Math.ceil(total / safeLimit) } };

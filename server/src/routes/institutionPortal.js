@@ -163,6 +163,8 @@ portal.post('/:organizationId/programs/:programId/requirements', requireInstitut
 // Test acceptance (institution/program scope — country-level protected)
 portal.get('/:organizationId/test-acceptance', portalCtrl.listTestAcceptance);
 portal.post('/:organizationId/test-acceptance', requireInstitutionEmailVerified(), portalCtrl.createTestAcceptance);
+portal.post('/:organizationId/test-acceptance/:testAcceptanceId/publish', requireInstitutionEmailVerified(), portalCtrl.publishTestAcceptance);
+portal.post('/:organizationId/test-acceptance/:testAcceptanceId/archive', requireInstitutionEmailVerified(), portalCtrl.archiveTestAcceptance);
 
 portal.get('/:organizationId/scholarships', portalCtrl.listScholarships);
 portal.post('/:organizationId/scholarships', requireInstitutionEmailVerified(), portalCtrl.createScholarship);

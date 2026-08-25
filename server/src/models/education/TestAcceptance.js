@@ -2,8 +2,8 @@
  * TestAcceptance — canonical test acceptance record (Mission 6).
  *
  * One record per acceptance claim at any point in time.
- * When a published claim changes, the old record is marked superseded and a
- * new record is created — history is preserved, never deleted.
+ * When a published claim changes, the old record is archived with supersededById
+ * pointing at the replacement — history is preserved, never deleted.
  *
  * Scope hierarchy enforced at the application layer:
  *   program_intake > program > institution > country
@@ -112,9 +112,13 @@ const testAcceptanceSchema = new mongoose.Schema(
     // Drives program_intake scope disambiguation.
     intake: { type: String, trim: true, default: '' },
 
-    // Effective date window for this requirement
+    // Effective date window for this requirement (institution policy period)
     effectiveFrom: { type: Date, default: null },
     effectiveUntil: { type: Date, default: null },
+
+    // How old a student test result may be (months). Distinct from effectiveFrom/Until.
+    // null = institution did not specify a result-age limit for this claim.
+    resultValidityMonths: { type: Number, default: null, min: 1 },
 
     // ── Conditions / exceptions ───────────────────────────────────────────────
     conditions: { type: String, trim: true, default: '' },

@@ -196,6 +196,110 @@ export function structuralScoreCheck(userScore = {}, requirement = {}) {
   return { satisfies: true, reason: 'all_structural_requirements_met' };
 }
 
+// ── Section minimum normalization / validation ────────────────────────────────
+
+/**
+ * Normalize optional section score requirements.
+ * Rejects duplicate section names (case-insensitive) and non-numeric minima.
+ *
+ * Accepts either `{ sectionName, minimum }` or `{ section, minimumScore }`.
+ *
+ * @returns {{ ok: true, value: Array<{sectionName: string, minimum: number, scale: string}> } | { ok: false, error: string }}
+ */
+export function normalizeSectionMinimums(raw) {
+  if (raw == null || raw === '') return { ok: true, value: [] };
+  if (!Array.isArray(raw)) return { ok: false, error: 'sectionMinimums must be an array' };
+
+  const seen = new Set();
+  const out = [];
+  for (const entry of raw) {
+    if (!entry || typeof entry !== 'object' || Array.isArray(entry)) {
+      return { ok: false, error: 'invalid section requirement entry' };
+    }
+    const sectionName = String(entry.sectionName || entry.section || '').trim();
+    if (!sectionName) return { ok: false, error: 'section name is required' };
+    const key = sectionName.toLowerCase();
+    if (seen.has(key)) {
+      return { ok: false, error: `duplicate section requirement: ${sectionName}` };
+    }
+    seen.add(key);
+    const minimumRaw = entry.minimum ?? entry.minimumScore;
+    const minimum = typeof minimumRaw === 'number' ? minimumRaw : Number(minimumRaw);
+    if (!Number.isFinite(minimum)) {
+      return { ok: false, error: `invalid minimum score for section: ${sectionName}` };
+    }
+    out.push({
+      sectionName,
+      minimum,
+      scale: String(entry.scale || '').trim(),
+    });
+  }
+  return { ok: true, value: out };
+}
+
+// ── Effective period / result validity ────────────────────────────────────────
+
+/**
+ * Validate institution policy effective window.
+ * Distinct from resultValidityMonths (test-result age).
+ */
+export function validateEffectivePeriod(from, until) {
+  const parse = (v, label) => {
+    if (v == null || v === '') return { ok: true, value: null };
+    const d = v instanceof Date ? v : new Date(v);
+    if (Number.isNaN(d.getTime())) return { ok: false, error: `invalid ${label}` };
+    return { ok: true, value: d };
+  };
+  const fromResult = parse(from, 'effectiveFrom');
+  if (!fromResult.ok) return fromResult;
+  const untilResult = parse(until, 'effectiveUntil');
+  if (!untilResult.ok) return untilResult;
+  if (fromResult.value && untilResult.value && untilResult.value < fromResult.value) {
+    return { ok: false, error: 'effectiveUntil must be on or after effectiveFrom' };
+  }
+  return { ok: true, effectiveFrom: fromResult.value, effectiveUntil: untilResult.value };
+}
+
+/**
+ * Validate optional test-result age limit in months (positive integer).
+ */
+export function validateResultValidityMonths(raw) {
+  if (raw == null || raw === '') return { ok: true, value: null };
+  const n = typeof raw === 'number' ? raw : Number(raw);
+  if (!Number.isFinite(n) || !Number.isInteger(n) || n <= 0) {
+    return { ok: false, error: 'resultValidityMonths must be a positive integer' };
+  }
+  return { ok: true, value: n };
+}
+
+/**
+ * Extract human-readable test identity from a raw or populated testId.
+ * Does not fabricate missing catalog fields.
+ */
+export function extractTestIdentity(testId) {
+  if (testId == null || testId === '') return null;
+  if (typeof testId === 'object') {
+    const provider = testId.providerId;
+    const providerName = provider && typeof provider === 'object'
+      ? (provider.name || null)
+      : null;
+    return {
+      id: String(testId._id || testId.id || ''),
+      name: testId.name || null,
+      shortName: testId.shortName || null,
+      slug: testId.slug || null,
+      providerName,
+    };
+  }
+  return {
+    id: String(testId),
+    name: null,
+    shortName: null,
+    slug: null,
+    providerName: null,
+  };
+}
+
 // ── Public-safe projection ────────────────────────────────────────────────────
 //
 // Strips adminNotes and other internal-only fields before sending to clients.
@@ -216,15 +320,19 @@ export function projectPublicAcceptance(claim) {
     acceptanceStatus, acceptanceScope,
     minimumOverallScore, sectionMinimums, scoreNotes,
     degreeLevels, studyModes, intake, effectiveFrom, effectiveUntil,
+    resultValidityMonths,
     conditions, waiverNotes,
     sources, verificationStatus, freshnessState, lastVerifiedAt,
     status, createdAt, updatedAt,
     // adminNotes intentionally NOT destructured — excluded from projection
   } = claim;
 
+  const testIdentity = extractTestIdentity(testId);
+
   return {
     _id,
     testId,
+    testIdentity,
     institutionId: institutionId ?? null,
     programId: programId ?? null,
     countryCode: countryCode ?? null,
@@ -238,6 +346,7 @@ export function projectPublicAcceptance(claim) {
     intake: intake ?? null,
     effectiveFrom: effectiveFrom ?? null,
     effectiveUntil: effectiveUntil ?? null,
+    resultValidityMonths: resultValidityMonths ?? null,
     conditions: conditions ?? null,
     waiverNotes: waiverNotes ?? null,
     sources: Array.isArray(sources)

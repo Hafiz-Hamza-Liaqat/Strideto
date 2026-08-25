@@ -379,6 +379,46 @@ export const createTestAcceptance = asyncHandler(async (req, res) => {
   return res.status(201).json({ testAcceptance: ta });
 });
 
+export const publishTestAcceptance = asyncHandler(async (req, res) => {
+  const { organizationId, testAcceptanceId } = req.params;
+  const membership = await resolveMembershipOrFail(req, organizationId);
+  if (!membership) return res.status(403).json({ error: 'Active membership required' });
+  if (!canSubmitOfficialChanges(membership.role)) {
+    return res.status(403).json({ error: 'Insufficient role' });
+  }
+
+  const { claim } = await portalService.assertOfficialInstitutionWrite(organizationId);
+
+  const ta = await portalService.publishTestAcceptance({
+    organizationId,
+    canonicalInstitutionId: claim.canonicalInstitutionId,
+    testAcceptanceId,
+    actor: actor(req),
+  });
+
+  return res.status(200).json({ testAcceptance: ta });
+});
+
+export const archiveTestAcceptance = asyncHandler(async (req, res) => {
+  const { organizationId, testAcceptanceId } = req.params;
+  const membership = await resolveMembershipOrFail(req, organizationId);
+  if (!membership) return res.status(403).json({ error: 'Active membership required' });
+  if (!canSubmitOfficialChanges(membership.role)) {
+    return res.status(403).json({ error: 'Insufficient role' });
+  }
+
+  const { claim } = await portalService.assertOfficialInstitutionWrite(organizationId);
+
+  const ta = await portalService.archiveTestAcceptance({
+    organizationId,
+    canonicalInstitutionId: claim.canonicalInstitutionId,
+    testAcceptanceId,
+    actor: actor(req),
+  });
+
+  return res.status(200).json({ testAcceptance: ta });
+});
+
 // ---------------------------------------------------------------------------
 // Requirements
 // ---------------------------------------------------------------------------

@@ -107,7 +107,11 @@ export const getInstitutionAcceptance = asyncHandler(async (req, res) => {
   if (q.degreeLevel) filter.degreeLevels = sanitizeString(q.degreeLevel);
 
   const raw = await TestAcceptance.find(filter)
-    .populate('testId', 'name shortName slug category scoreScale')
+    .populate({
+      path: 'testId',
+      select: 'name shortName slug category scoreScale providerId',
+      populate: { path: 'providerId', select: 'name slug' },
+    })
     .sort({ acceptanceStatus: 1, 'testId.name': 1 })
     .lean();
 
@@ -160,7 +164,11 @@ export const getProgramAcceptance = asyncHandler(async (req, res) => {
   if (q.acceptanceStatus) filter.acceptanceStatus = sanitizeString(q.acceptanceStatus);
 
   const raw = await TestAcceptance.find(filter)
-    .populate('testId', 'name shortName slug category scoreScale')
+    .populate({
+      path: 'testId',
+      select: 'name shortName slug category scoreScale providerId',
+      populate: { path: 'providerId', select: 'name slug' },
+    })
     .sort({ acceptanceStatus: 1 })
     .lean();
 
@@ -176,7 +184,11 @@ export const getProgramAcceptance = asyncHandler(async (req, res) => {
       ...currentAcceptanceMongoFilter(),
       ...(q.acceptanceStatus ? { acceptanceStatus: sanitizeString(q.acceptanceStatus) } : {}),
     })
-      .populate('testId', 'name shortName slug category scoreScale')
+      .populate({
+        path: 'testId',
+        select: 'name shortName slug category scoreScale providerId',
+        populate: { path: 'providerId', select: 'name slug' },
+      })
       .lean();
 
     if (institutionClaims.length > 0) {
