@@ -11,6 +11,7 @@ import { AdminSelectBare } from '../../components/admin/AdminFormFields';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
 import axiosInstance from '../../services/axiosBase';
 import { describeEvidencePolicy, classifyEvidenceSourceUrl, EVIDENCE_SOURCE_KINDS } from '@shared/international/evidencePolicy.js';
+import { listQaEligibleCapabilities, ORGANIZATION_CAPABILITY_REGISTRY } from '@shared/capability/organizationCapabilities.js';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'Actionable (default)' },
@@ -98,14 +99,15 @@ function SafeSourceLink({ label, value }) {
   );
 }
 
-const CAPABILITY_LABELS = {
-  employer: 'Employer (job posting)',
-  business_client: 'Business Client (GBS buyer)',
-  business_services_provider: 'Business Services Provider',
-  institution_portal: 'Institution Portal / Admissions',
-};
+// Derived from the canonical registry — single source of truth.
+// Adding a new QA-eligible capability to organizationCapabilities.js
+// automatically appears here without a second manual edit.
+const QA_ELIGIBLE_CAPABILITIES = listQaEligibleCapabilities(); // [{ id, label, ... }]
 
-const ALL_CAPABILITIES = Object.entries(CAPABILITY_LABELS);
+// Backward-compat label lookup for persisted capability IDs in existing overrides.
+function capabilityLabel(id) {
+  return ORGANIZATION_CAPABILITY_REGISTRY[id]?.label || id;
+}
 
 function SuperAdminCapabilityOverride({ orgId }) {
   const { toast } = useToast();
@@ -239,7 +241,7 @@ function SuperAdminCapabilityOverride({ orgId }) {
                 <div className="sm:col-span-2">
                   <dt className="text-gray-500 dark:text-gray-400">Override capabilities</dt>
                   <dd className="font-medium text-gray-900 dark:text-white">
-                    {(override.capabilities || []).map((c) => CAPABILITY_LABELS[c] || c).join(', ')}
+                    {(override.capabilities || []).map((c) => capabilityLabel(c)).join(', ')}
                   </dd>
                 </div>
               </>
@@ -306,7 +308,7 @@ function SuperAdminCapabilityOverride({ orgId }) {
                   Capabilities to override (select required only)
                 </p>
                 <div className="space-y-1">
-                  {ALL_CAPABILITIES.map(([id, label]) => (
+                  {QA_ELIGIBLE_CAPABILITIES.map(({ id, label }) => (
                     <label key={id} className="flex items-center gap-2 text-xs text-gray-800 dark:text-gray-200 cursor-pointer">
                       <input
                         type="checkbox"

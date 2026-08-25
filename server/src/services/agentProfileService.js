@@ -49,6 +49,7 @@ import {
   VERIFICATION_STATUSES,
 } from '../../../shared/international/verification.js';
 import { OVERRIDE_TYPES } from './capability/overrideService.js';
+import { ORGANIZATION_CAPABILITY_IDS } from '../../../shared/capability/organizationCapabilities.js';
 import { coerceCountryCode } from '../../../shared/international/country.js';
 import { canonicalizeStoredPhone } from '../../../shared/international/phone.js';
 import { validateAgentOnboardingStep } from '../../../shared/agent/onboardingPolicy.js';
@@ -468,13 +469,23 @@ export async function assertApprovedVerification(organizationId) {
 
   if (!canExercisePrivilegedCapability(status)) {
     // Active super-admin override may bypass the pre-approval gate.
-    // For qa_test overrides: REJECTED is not a hard blocker (cross-role QA testing).
+    // For qa_test overrides: must include EDUCATION_AGENT capability (scoped bypass).
+    //   REJECTED is not a hard blocker for qa_test — cross-role QA testing is allowed.
     // For manual_exception and other types: REJECTED is still a hard deny.
+    //   Non-rejected statuses may pass with any active manual_exception override.
     const { getOverrideService } = await import('./capability/overrideRuntime.js');
     const override = await getOverrideService().getActiveOverride(String(organizationId));
     const isRejected = status === VERIFICATION_STATUSES.REJECTED;
     const isQaTestOverride = override?.overrideType === OVERRIDE_TYPES.QA_TEST;
-    if (!override || (isRejected && !isQaTestOverride)) {
+    // qa_test requires EDUCATION_AGENT capability to scope the bypass to this domain.
+    const hasEducationAgentCap = isQaTestOverride &&
+      Array.isArray(override?.capabilities) &&
+      override.capabilities.includes(ORGANIZATION_CAPABILITY_IDS.EDUCATION_AGENT);
+    if (
+      !override ||
+      (isRejected && !isQaTestOverride) ||
+      (isQaTestOverride && !hasEducationAgentCap)
+    ) {
       const err = new Error(
         'This feature requires approved verification status. Current status: ' + status
       );
