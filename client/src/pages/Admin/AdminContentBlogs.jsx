@@ -10,14 +10,19 @@ import { AdminConfirmDialog } from '../../components/admin/AdminConfirmDialog';
 import { AdminImageUrlField, adminFieldClass, linesToText, textToLines } from '../../components/admin/AdminImageUrlField';
 import { AdminSelectBare } from '../../components/admin/AdminFormFields';
 import { AdminSlugField } from '../../components/admin/AdminSlugField';
+import { AdminViewPublicLink } from '../../components/admin/AdminViewPublicLink';
 import { TranslationToolbar } from '../../components/admin/TranslationToolbar';
 import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
+import { listBlogCategoryOptions } from '@shared/blog/taxonomy.js';
+import { formatBlogPublicationStatus } from '@shared/cms/publicReadiness.js';
+
+const BLOG_CATEGORIES = listBlogCategoryOptions();
 
 const EMPTY = {
-  title: '', excerpt: '', content: '', category: '', tags: '', author: '',
-  imageUrl: '', gallery: '', readingTime: '', status: 'draft', publishedAt: '', scheduledAt: '',
+  title: '', excerpt: '', content: '', category: '', authorName: '', tags: '',
+  imageUrl: '', gallery: '', readingTime: '', status: 'draft', publishedAt: '',
   isFeatured: false, slug: '', seoTitle: '', metaDescription: '', canonicalUrl: '', ogImageUrl: '',
 };
 
@@ -43,9 +48,9 @@ export default function AdminContentBlogs() {
       const b = res.data;
       setForm({
         ...EMPTY, ...b,
+        authorName: b.authorName || (typeof b.author === 'object' && b.author?.name) || '',
         tags: linesToText(b.tags), gallery: linesToText(b.gallery),
         publishedAt: b.publishedAt ? b.publishedAt.slice(0, 16) : '',
-        scheduledAt: b.scheduledAt ? b.scheduledAt.slice(0, 16) : '',
       });
       setEditingId(id);
       setFormOpen(true);
@@ -59,10 +64,16 @@ export default function AdminContentBlogs() {
     setSaving(true);
     const payload = {
       ...form,
+      authorName: form.authorName,
       tags: textToLines(form.tags),
       gallery: textToLines(form.gallery),
       readingTime: form.readingTime ? Number(form.readingTime) : undefined,
+      publishedAt: form.publishedAt || undefined,
+      imageUrl: form.imageUrl || undefined,
+      canonicalUrl: form.canonicalUrl || undefined,
+      ogImageUrl: form.ogImageUrl || undefined,
     };
+    delete payload.author;
     try {
       if (editingId) await adminContentApi.blogs.update(editingId, payload);
       else await adminContentApi.blogs.create(payload);
@@ -70,7 +81,11 @@ export default function AdminContentBlogs() {
       setFormOpen(false);
       refetch();
     } catch (err) {
-      toast.error(err.response?.data?.error || t('admin:saveFailed'));
+      const details = err.response?.data?.details;
+      const detailMsg = details && typeof details === 'object'
+        ? Object.entries(details).map(([k, v]) => `${k}: ${v}`).join('; ')
+        : '';
+      toast.error(detailMsg || err.response?.data?.error || t('admin:saveFailed'));
     } finally {
       setSaving(false);
     }
@@ -94,13 +109,13 @@ export default function AdminContentBlogs() {
   const columns = [
     { key: 'title', label: t('admin:colTitle'), sortable: true },
     { key: 'category', label: t('admin:fieldCategory') },
-    { key: 'status', label: t('status'), type: 'status' },
+    { key: 'status', label: t('status'), render: (row) => formatBlogPublicationStatus(row) },
     {
       key: 'actions', label: t('admin:colActions'),
       render: (row) => (
         <div className="flex flex-wrap gap-1">
           {canEdit && <button type="button" onClick={() => openEdit(row._id)} className="text-xs text-primary underline">{t('common:edit')}</button>}
-          {row.slug && <a href={`${ROUTES.BLOG}/${row.slug}`} target="_blank" rel="noopener noreferrer" className="text-xs underline">{t('admin:viewPublic')}</a>}
+          <AdminViewPublicLink type="blog" record={row} href={row.slug ? `${ROUTES.BLOG}/${row.slug}` : ''} label={t('admin:viewPublic')} />
           {canEdit && (
             <>
               <button type="button" onClick={() => runAction('duplicate', row._id)} className="text-xs">{t('admin:duplicate')}</button>
@@ -155,16 +170,20 @@ export default function AdminContentBlogs() {
               ) : null}
               <div className="grid gap-3 max-h-[70vh] overflow-y-auto mt-3">
                 <input className={adminFieldClass} placeholder={t('admin:fieldTitle')} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-                <input className={adminFieldClass} placeholder={t('admin:fieldCategory')} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
-                <input className={adminFieldClass} placeholder={t('admin:fieldAuthor')} value={form.author} onChange={(e) => setForm({ ...form, author: e.target.value })} />
+                <AdminSelectBare value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>
+                  <option value="">{t('admin:selectCategory', { defaultValue: 'Select category' })}</option>
+                  {BLOG_CATEGORIES.map((c) => (
+                    <option key={c.id} value={c.label}>{c.label}</option>
+                  ))}
+                </AdminSelectBare>
+                <input className={adminFieldClass} placeholder={t('admin:fieldAuthor')} value={form.authorName} onChange={(e) => setForm({ ...form, authorName: e.target.value })} />
                 <textarea rows={2} className={adminFieldClass} placeholder={t('admin:fieldSummary')} value={form.excerpt} onChange={(e) => setForm({ ...form, excerpt: e.target.value })} />
                 <textarea rows={6} className={adminFieldClass} placeholder={t('admin:fieldContent')} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
                 <AdminImageUrlField label={t('admin:fieldFeaturedImage')} value={form.imageUrl} onChange={(v) => setForm({ ...form, imageUrl: v })} />
                 <textarea rows={2} className={adminFieldClass} placeholder={t('admin:fieldGallery')} value={form.gallery} onChange={(e) => setForm({ ...form, gallery: e.target.value })} />
                 <input className={adminFieldClass} placeholder={t('admin:fieldReadingTime')} value={form.readingTime} onChange={(e) => setForm({ ...form, readingTime: e.target.value })} />
                 <input className={adminFieldClass} placeholder={t('admin:fieldTags')} value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
-                <input type="datetime-local" className={adminFieldClass} value={form.publishedAt} onChange={(e) => setForm({ ...form, publishedAt: e.target.value })} />
-                <input type="datetime-local" className={adminFieldClass} placeholder={t('admin:fieldScheduledAt')} value={form.scheduledAt} onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })} />
+                <input type="datetime-local" className={adminFieldClass} aria-label={t('admin:fieldPublishedAt', { defaultValue: 'Published at' })} value={form.publishedAt} onChange={(e) => setForm({ ...form, publishedAt: e.target.value })} />
                 <AdminSelectBare  value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
                   <option value="draft">Draft</option>
                   <option value="published">Published</option>
@@ -177,6 +196,7 @@ export default function AdminContentBlogs() {
                   sourceText={form.title}
                   status={form.status}
                   excludeId={editingId}
+                  publicPreviewReady={form.status === 'published'}
                 />
                 <input className={adminFieldClass} placeholder={t('admin:fieldSeoTitle')} value={form.seoTitle} onChange={(e) => setForm({ ...form, seoTitle: e.target.value })} />
                 <textarea rows={2} className={adminFieldClass} placeholder={t('admin:fieldMetaDescription')} value={form.metaDescription} onChange={(e) => setForm({ ...form, metaDescription: e.target.value })} />

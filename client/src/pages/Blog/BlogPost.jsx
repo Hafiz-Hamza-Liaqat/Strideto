@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
@@ -6,21 +6,14 @@ import { blogPostingSchema, breadcrumbSchema, combineSchemas } from '../../seo/s
 import { buildCanonicalUrl } from '../../seo/config';
 import { blogsApi } from '../../services/listingsService';
 import { ROUTES } from '../../constants';
-import { SAMPLE_BLOGS } from '../../constants/seedData';
 import { AdHost } from '../../components/ads';
 import { useContentView } from '../../hooks/usePageView';
+import { sanitizeHtmlForRender } from '../../utils/sanitizeHtml';
+import { normalizeBlogContent, shouldShowBlogToc } from '@shared/blog/blogContent.js';
 
 function readingTimeMinutes(content) {
   if (!content || typeof content !== 'string') return 5;
   return Math.max(1, Math.ceil(content.trim().split(/\s+/).length / 200));
-}
-
-function extractHeadings(content) {
-  if (!content || typeof content !== 'string') return [];
-  const lines = content.split('\n');
-  return lines
-    .filter((line) => /^#{2,3}\s/.test(line.trim()))
-    .map((line) => ({ level: line.match(/^#+/)?.[0]?.length || 2, text: line.replace(/^#+\s*/, '').trim() }));
 }
 
 function ShareButtons({ title, url, t }) {
@@ -82,9 +75,8 @@ export default function BlogPost() {
     blogsApi.get(slug)
       .then(({ data }) => setPost(data))
       .catch(() => {
-        const sample = SAMPLE_BLOGS.find((p) => p.slug === slug);
-        setPost(sample ? { title: sample.title, excerpt: sample.excerpt, content: sample.excerpt, slug: sample.slug } : null);
-        setError(sample ? null : 'Not found');
+        setPost(null);
+        setError('Not found');
       })
       .finally(() => setLoading(false));
   }, [slug]);
@@ -98,6 +90,14 @@ export default function BlogPost() {
       })
       .catch(() => setRelated([]));
   }, [post?.slug]);
+
+  const body = useMemo(() => {
+    if (!post?.content && !post?.excerpt) return { html: '', toc: [] };
+    return normalizeBlogContent(post.content || post.excerpt);
+  }, [post?.content, post?.excerpt]);
+
+  const renderedHtml = useMemo(() => sanitizeHtmlForRender(body.html), [body.html]);
+  const showToc = shouldShowBlogToc(body.toc);
 
   if (loading) {
     return (
@@ -118,25 +118,29 @@ export default function BlogPost() {
     );
   }
 
-  const canonicalPath = `${ROUTES.BLOG}/${post.slug}`;
-  const readingMin = readingTimeMinutes(post.content || post.excerpt);
-  const toc = extractHeadings(post.content);
+  const canonicalPath = post.canonicalUrl || `${ROUTES.BLOG}/${post.slug}`;
+  const seoTitle = post.seoTitle || post.title;
+  const seoDescription = post.metaDescription || post.excerpt || post.title;
+  const ogImage = post.ogImageUrl || post.imageUrl || undefined;
+  const readingMin = post.readingTime || readingTimeMinutes(post.content || post.excerpt);
+  const authorLabel = post.authorDisplay || post.authorName || t('blog:defaultAuthor');
+  const gallery = (post.gallery || []).filter((url) => typeof url === 'string' && /^https?:\/\//i.test(url.trim()));
 
   return (
     <>
       <SeoHead
-        title={`${post.title} ${t('blog:postSeoSuffix')}`}
-        description={post.excerpt || post.title}
-        canonical={canonicalPath}
+        title={`${seoTitle} ${t('blog:postSeoSuffix')}`}
+        description={seoDescription}
+        canonical={canonicalPath.startsWith('http') ? canonicalPath : canonicalPath}
         ogType="article"
-        ogImage={post.featuredImage || post.imageUrl || undefined}
+        ogImage={ogImage}
         ogImageAlt={post.title}
         jsonLd={combineSchemas(
-          blogPostingSchema(post, { readingMinutes: readingMin }),
+          blogPostingSchema({ ...post, author: authorLabel }, { readingMinutes: readingMin }),
           breadcrumbSchema([
             { name: t('blog:breadcrumbHome'), url: ROUTES.HOME },
             { name: t('blog:breadcrumbBlog'), url: ROUTES.BLOG },
-            { name: post.title, url: canonicalPath },
+            { name: post.title, url: `${ROUTES.BLOG}/${post.slug}` },
           ]),
         )}
       />
@@ -145,7 +149,8 @@ export default function BlogPost() {
 
         <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">{post.title}</h1>
         <div className="flex flex-wrap items-center gap-3 mt-3 text-sm text-gray-500 dark:text-gray-400">
-          <span>{post.author || t('blog:defaultAuthor')}</span>
+          <span>{authorLabel}</span>
+          {post.category ? <span className="text-edur-steel dark:text-edur-sky">{post.category}</span> : null}
           {post.publishedAt && <span>{new Date(post.publishedAt).toLocaleDateString()}</span>}
           <span>{t('blog:minRead', { count: readingMin })}</span>
         </div>
@@ -157,35 +162,44 @@ export default function BlogPost() {
           </div>
         )}
 
-        {post.featuredImage ? (
-          <img src={post.featuredImage || post.imageUrl} alt={post.title} className="w-full rounded-xl mt-6 object-cover max-h-64" loading="lazy" />
-        ) : (
-          <div className="w-full h-48 rounded-xl mt-6 bg-gradient-to-br from-edur-steel/20 to-edur-blue/20 dark:from-edur-steel/30 dark:to-edur-blue/30 flex items-center justify-center text-edur-steel/50 dark:text-edur-sky/50 text-sm">
-            {t('blog:featuredImage')}
-          </div>
-        )}
+        {post.imageUrl ? (
+          <img src={post.imageUrl} alt={post.title} className="w-full rounded-xl mt-6 object-cover max-h-64" loading="lazy" />
+        ) : null}
 
         <AdHost placementId="blog-inline" index={1} variant="inline" className="my-6" />
 
-        <div className="flex flex-col lg:flex-row gap-8 mt-8">
+        <div className={`mt-8 ${showToc ? 'flex flex-col lg:flex-row gap-8' : ''}`}>
           <div className="flex-1 min-w-0">
-            <div className="prose dark:prose-invert text-gray-700 dark:text-gray-300 whitespace-pre-wrap max-w-none">
-              {post.content || post.excerpt}
-            </div>
-            <ShareButtons title={post.title} url={buildCanonicalUrl(canonicalPath)} t={t} />
+            <div
+              className="prose dark:prose-invert text-gray-700 dark:text-gray-300 max-w-none blog-body"
+              dangerouslySetInnerHTML={{ __html: renderedHtml }}
+            />
+            {gallery.length > 0 ? (
+              <div className="mt-8 grid grid-cols-2 sm:grid-cols-3 gap-3">
+                {gallery.map((url) => (
+                  <img key={url} src={url} alt="" className="w-full h-32 object-cover rounded-lg border border-gray-200 dark:border-gray-700" loading="lazy" />
+                ))}
+              </div>
+            ) : null}
+            <ShareButtons title={post.title} url={buildCanonicalUrl(`${ROUTES.BLOG}/${post.slug}`)} t={t} />
           </div>
-          {toc.length > 0 && (
+          {showToc ? (
             <aside className="lg:w-56 shrink-0">
               <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">{t('blog:tableOfContents')}</h3>
               <nav className="space-y-1 text-sm">
-                {toc.map((h, i) => (
-                  <a key={i} href={`#h-${i}`} className="block text-edur-steel dark:text-edur-sky hover:underline pl-0">
+                {body.toc.map((h) => (
+                  <a
+                    key={h.id}
+                    href={`#${h.id}`}
+                    className="block text-edur-steel dark:text-edur-sky hover:underline"
+                    style={{ paddingLeft: h.level > 2 ? `${(h.level - 2) * 0.75}rem` : 0 }}
+                  >
                     {h.text}
                   </a>
                 ))}
               </nav>
             </aside>
-          )}
+          ) : null}
         </div>
 
         {related.length > 0 && (

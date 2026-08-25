@@ -23,6 +23,7 @@ import {
   jobWouldConsumeFreeActiveSlot,
 } from '../../services/employer/employerPublishingQuota.js';
 import { assignLaunchEligibleOnAuthorityPublish } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
+import { deriveJobLaunchEligible, CMS_STATUS } from '../../../../shared/cms/launchEligible.js';
 import { PUBLISHING_QUOTA_RESULT_CODES } from '../../config/freeBetaPublishingPolicy.js';
 
 const DEFAULT_LIMIT = 20;
@@ -113,6 +114,11 @@ function applyJobBody(doc, body, isCreate = false) {
   if (body.employerId !== undefined) doc.employerId = body.employerId || undefined;
 }
 
+function syncJobLaunchEligible(doc, before = null) {
+  const merged = { ...(before || {}), ...(doc.toObject ? doc.toObject() : doc) };
+  doc.launchEligible = deriveJobLaunchEligible(merged);
+}
+
 export const list = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
   const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(req.query.limit, 10) || DEFAULT_LIMIT));
@@ -183,12 +189,14 @@ export const create = asyncHandler(async (req, res) => {
   }
   const doc = new Job({
     postedBy: req.user?.userId,
-    status: body.status || 'draft',
+    status: body.status || CMS_STATUS.DRAFT,
     approvalStatus: body.approvalStatus || 'pending',
+    launchEligible: false,
     applyType: 'external',
   });
   const validationError = applyJobBody(doc, body, true);
   if (validationError) return res.status(validationError.status).json({ error: validationError.error, field: validationError.field });
+  syncJobLaunchEligible(doc);
   const slugErr = await applyResolvedSlug('job', doc, body, true);
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();
@@ -214,6 +222,7 @@ export const update = asyncHandler(async (req, res) => {
   const before = doc.toObject();
   const validationError = applyJobBody(doc, body);
   if (validationError) return res.status(validationError.status).json({ error: validationError.error, field: validationError.field });
+  syncJobLaunchEligible(doc, before);
   const slugErr = await applyResolvedSlug('job', doc, body, false);
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();
@@ -245,8 +254,9 @@ export const duplicate = asyncHandler(async (req, res) => {
   if (!source) return res.status(404).json({ error: 'Job not found' });
   const duplicateInput = buildJobDuplicateProjection(source);
   duplicateInput.title = `${source.title} (Copy)`;
-  duplicateInput.status = 'draft';
+  duplicateInput.status = CMS_STATUS.DRAFT;
   duplicateInput.approvalStatus = 'pending';
+  duplicateInput.launchEligible = false;
   const doc = new Job(duplicateInput);
   const slugErr = await applyResolvedSlug(
     'job',
@@ -298,7 +308,8 @@ export const bulkAction = asyncHandler(async (req, res) => {
     return res.json({ action, affected: result.deletedCount });
   }
   if (action === 'archive') {
-    updates.status = 'closed';
+    updates.status = CMS_STATUS.CLOSED;
+    updates.launchEligible = false;
     auditAction = 'job.bulk_archive';
   } else if (action === 'publish') {
     updates.status = 'active';
@@ -310,6 +321,7 @@ export const bulkAction = asyncHandler(async (req, res) => {
     auditAction = 'job.bulk_approve';
   } else if (action === 'reject') {
     updates.approvalStatus = 'rejected';
+    updates.launchEligible = false;
     auditAction = 'job.bulk_reject';
   } else if (action === 'feature') {
     updates.isFeatured = true;
@@ -449,7 +461,7 @@ export const approveJob = asyncHandler(async (req, res) => {
 export const rejectJob = asyncHandler(async (req, res) => {
   const { id } = req.params;
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
-  const doc = await Job.findByIdAndUpdate(id, { approvalStatus: 'rejected' }, { new: true });
+  const doc = await Job.findByIdAndUpdate(id, { approvalStatus: 'rejected', launchEligible: false }, { new: true });
   if (!doc) return res.status(404).json({ error: 'Job not found' });
   await logAudit({
     ...auditFromRequest(req),

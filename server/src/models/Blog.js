@@ -11,6 +11,7 @@ const blogSchema = new mongoose.Schema(
     tags: [{ type: String }],
     category: { type: String },
     author: { type: mongoose.Schema.Types.ObjectId, ref: 'User' },
+    authorName: { type: String, trim: true },
     views: { type: Number, default: 0 },
     status: { type: String, enum: ['draft', 'published', 'archived'], default: 'draft' },
     publishedAt: { type: Date },

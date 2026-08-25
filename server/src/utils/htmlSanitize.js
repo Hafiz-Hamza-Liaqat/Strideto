@@ -17,7 +17,7 @@ const ALLOWED_ATTRIBUTES = {
   img: ['src', 'alt', 'title', 'width', 'height', 'loading'],
   th: ['colspan', 'rowspan', 'scope'],
   td: ['colspan', 'rowspan'],
-  '*': ['class'],
+  '*': ['class', 'id'],
 };
 
 const ALLOWED_SCHEMES = ['http', 'https', 'mailto', 'tel'];

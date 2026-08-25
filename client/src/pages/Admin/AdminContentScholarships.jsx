@@ -15,6 +15,8 @@ import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
 import axiosInstance from '../../services/axiosBase';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
+import { AdminViewPublicLink } from '../../components/admin/AdminViewPublicLink';
+import { formatCmsPublicationStatus } from '@shared/cms/publicReadiness.js';
 
 const EMPTY = {
   title: '',
@@ -113,14 +115,14 @@ export default function AdminContentScholarships() {
     { key: 'title', label: t('admin:colTitle'), sortable: true },
     { key: 'provider', label: t('admin:colProvider') },
     { key: 'country', label: t('admin:colCountry') },
-    { key: 'status', label: t('status'), type: 'status' },
+    { key: 'status', label: t('status'), render: (row) => formatCmsPublicationStatus(row) },
     {
       key: 'actions',
       label: t('admin:colActions'),
       render: (row) => (
         <div className="flex flex-wrap gap-1">
           {canEdit && <button type="button" onClick={() => openEdit(row._id)} className="text-xs text-primary underline">{t('common:edit')}</button>}
-          {row.slug && <a href={`${ROUTES.SCHOLARSHIPS}/${row.slug}`} target="_blank" rel="noopener noreferrer" className="text-xs underline">{t('admin:viewPublic')}</a>}
+          <AdminViewPublicLink type="scholarship" record={row} href={row.slug ? `${ROUTES.SCHOLARSHIPS}/${row.slug}` : ''} label={t('admin:viewPublic')} />
           {canEdit && (
             <>
               <button type="button" onClick={() => runAction('duplicate', row._id)} className="text-xs">{t('admin:duplicate')}</button>

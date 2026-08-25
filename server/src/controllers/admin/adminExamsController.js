@@ -133,6 +133,8 @@ export const updateMcq = asyncHandler(async (req, res) => {
   if (body.correctIndex !== undefined) update.correctIndex = parseInt(body.correctIndex, 10);
   if (body.subject !== undefined) update.subject = sanitizeString(body.subject);
   if (body.status !== undefined) update.status = body.status;
+  if (body.quizId !== undefined) update.quizId = body.quizId || undefined;
+  if (body.examId !== undefined) update.examId = body.examId || undefined;
   const doc = await Mcq.findByIdAndUpdate(req.params.id, update, { new: true });
   if (!doc) return res.status(404).json({ error: 'MCQ not found' });
   res.json(doc);

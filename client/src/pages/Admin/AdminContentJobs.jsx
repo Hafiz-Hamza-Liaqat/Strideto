@@ -16,6 +16,8 @@ import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
 import axiosInstance from '../../services/axiosBase';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
+import { AdminViewPublicLink } from '../../components/admin/AdminViewPublicLink';
+import { formatJobPublicationStatus } from '@shared/cms/publicReadiness.js';
 
 const EMPTY_JOB = {
   title: '',
@@ -181,7 +183,7 @@ export default function AdminContentJobs() {
     { key: 'title', label: t('admin:colTitle'), sortable: true },
     { key: 'company', label: t('admin:colCompany'), sortable: true },
     { key: 'province', label: t('admin:colProvince') },
-    { key: 'status', label: t('status'), type: 'status' },
+    { key: 'status', label: t('status'), render: (row) => formatJobPublicationStatus(row) },
     {
       key: 'approvalStatus',
       label: t('admin:colApproval'),
@@ -223,9 +225,7 @@ export default function AdminContentJobs() {
             </button>
           )}
           {row.slug && (
-            <a href={`${ROUTES.JOBS}/${row.slug}`} target="_blank" rel="noopener noreferrer" className="text-xs underline">
-              {t('admin:viewPublic')}
-            </a>
+            <AdminViewPublicLink type="job" record={row} href={`${ROUTES.JOBS}/${row.slug}`} label={t('admin:viewPublic')} />
           )}
           {canModerate && row.approvalStatus === 'pending' && (
             <>

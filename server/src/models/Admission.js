@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { admissionSlug } from '../utils/slugify.js';
 import { translationFieldDefinition, applySlugLocaleIndex, ensureTranslationGroupHook } from './mixins/translationFields.js';
+import { FIXTURE_FIELD_DEFINITION } from '../../../shared/publicDiscovery/fixtureExclusion.js';
 
 const admissionSchema = new mongoose.Schema(
   {
@@ -32,6 +33,8 @@ const admissionSchema = new mongoose.Schema(
     source: { type: String, enum: ['manual', 'scraper'], default: 'manual' },
     scrapedAt: { type: Date },
     sourceUrl: { type: String },
+    ...FIXTURE_FIELD_DEFINITION,
+    launchEligible: { type: Boolean, default: false, index: true },
     ...translationFieldDefinition,
   },
   { timestamps: true }

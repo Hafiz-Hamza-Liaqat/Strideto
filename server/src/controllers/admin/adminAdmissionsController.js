@@ -7,6 +7,7 @@ import { parseStringArray } from '../../utils/adminContentHelpers.js';
 import { logAudit, auditFromRequest } from '../../services/auditService.js';
 import { applyResolvedSlug, slugErrorResponse } from '../../utils/adminSlugHelpers.js';
 import { onContentSaved, onContentDeleted, onContentBulkDeleted, onContentBulkUpdated } from '../../utils/contentIntegration.js';
+import { deriveCmsLaunchEligible, CMS_STATUS } from '../../../../shared/cms/launchEligible.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -28,6 +29,11 @@ function buildQuery(q) {
     filter.$or = [{ program: re }, { institution: re }, { department: re }];
   }
   return filter;
+}
+
+function syncAdmissionLaunchEligible(doc, before = null) {
+  const existing = before || (doc.toObject ? doc.toObject() : doc);
+  doc.launchEligible = deriveCmsLaunchEligible(existing, doc.status);
 }
 
 function applyBody(doc, body, isCreate = false) {
@@ -61,6 +67,7 @@ function applyBody(doc, body, isCreate = false) {
   if (body.seoTitle !== undefined) doc.seoTitle = sanitizeString(body.seoTitle);
   if (body.metaDescription !== undefined) doc.metaDescription = sanitizeString(body.metaDescription);
   if (body.slug !== undefined) doc.slug = sanitizeString(body.slug);
+  syncAdmissionLaunchEligible(doc);
 }
 
 export const list = asyncHandler(async (req, res) => {
@@ -95,7 +102,7 @@ export const create = asyncHandler(async (req, res) => {
   if (!institution) {
     return res.status(400).json({ error: 'Validation failed', details: { institution: 'Institution or university is required' } });
   }
-  const doc = new Admission({ status: body.status || 'draft' });
+  const doc = new Admission({ status: body.status || CMS_STATUS.DRAFT, launchEligible: false });
   applyBody(doc, body, true);
   const slugErr = await applyResolvedSlug('admission', doc, body, true);
   if (slugErr) return slugErrorResponse(res, slugErr);
@@ -120,6 +127,7 @@ export const update = asyncHandler(async (req, res) => {
   if (!doc) return res.status(404).json({ error: 'Admission not found' });
   const before = doc.toObject();
   applyBody(doc, body);
+  syncAdmissionLaunchEligible(doc, before);
   const slugErr = await applyResolvedSlug('admission', doc, body, false);
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();
@@ -146,7 +154,8 @@ export const duplicate = asyncHandler(async (req, res) => {
   delete source.createdAt;
   delete source.updatedAt;
   source.program = `${source.program} (Copy)`;
-  source.status = 'draft';
+  source.status = CMS_STATUS.DRAFT;
+  source.launchEligible = false;
   source.views = 0;
   delete source.slug;
   const doc = new Admission(source);
@@ -185,11 +194,25 @@ export const bulkAction = asyncHandler(async (req, res) => {
   const updates = {};
   let auditAction = 'admission.bulk';
   if (action === 'archive') {
-    updates.status = 'closed';
+    updates.status = CMS_STATUS.CLOSED;
+    updates.launchEligible = false;
     auditAction = 'admission.bulk_archive';
   } else if (action === 'publish') {
-    updates.status = 'active';
-    auditAction = 'admission.bulk_publish';
+    const docs = await Admission.find({ _id: { $in: validIds } }).lean();
+    let modified = 0;
+    for (const row of docs) {
+      const launchEligible = deriveCmsLaunchEligible(row, CMS_STATUS.ACTIVE);
+      await Admission.updateOne({ _id: row._id }, { $set: { status: CMS_STATUS.ACTIVE, launchEligible } });
+      modified += 1;
+    }
+    onContentBulkUpdated('admissions', validIds);
+    await logAudit({
+      ...auditFromRequest(req),
+      action: 'admission.bulk_publish',
+      targetType: 'admission',
+      metadata: { ids: validIds, modified },
+    });
+    return res.json({ action, affected: modified });
   } else if (action === 'feature') {
     updates.isFeatured = true;
     auditAction = 'admission.bulk_feature';

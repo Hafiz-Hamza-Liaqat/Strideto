@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AdminInput } from './AdminFormFields.jsx';
 import { adminContentApi } from '../../services/adminContentApi';
+import { VIEW_PUBLIC_HINT } from '@shared/cms/publicReadiness.js';
 
 const APP_BASE = (import.meta.env.VITE_APP_URL || window.location.origin).replace(/\/$/, '');
 
@@ -58,6 +59,7 @@ export function AdminSlugField({
   id: idProp,
   className = '',
   disabled = false,
+  publicPreviewReady,
 }) {
   const { t } = useTranslation(['admin', 'common']);
   const [check, setCheck] = useState(null);
@@ -170,6 +172,11 @@ export function AdminSlugField({
             {copied ? t('admin:slugCopied') : t('admin:slugCopyUrl')}
           </button>
           {preview.startsWith('http') && (
+            publicPreviewReady === false ? (
+              <span className="text-xs px-2 py-1 rounded border border-gray-200 dark:border-gray-600 text-gray-400 cursor-not-allowed min-h-[32px] inline-flex items-center" title={VIEW_PUBLIC_HINT}>
+                {t('admin:viewPublic')}
+              </span>
+            ) : (
             <a
               href={preview}
               target="_blank"
@@ -178,6 +185,7 @@ export function AdminSlugField({
             >
               {t('admin:viewPublic')}
             </a>
+            )
           )}
         </div>
       )}

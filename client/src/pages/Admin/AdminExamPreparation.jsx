@@ -14,7 +14,7 @@ import { EscapeWhen } from '../../a11y/EscapeWhen';
 const TABS = ['exams', 'mcqs', 'quizzes', 'pastPapers'];
 
 const EMPTY_EXAM = { name: '', code: '', description: '', status: 'active' };
-const EMPTY_MCQ = { question: '', examId: '', subject: '', options: '', correctIndex: '0', status: 'active' };
+const EMPTY_MCQ = { question: '', examId: '', quizId: '', subject: '', options: '', correctIndex: '0', status: 'active' };
 const EMPTY_QUIZ = { title: '', examId: '', timeLimit: '30', status: 'active' };
 const EMPTY_PAST_PAPER = { title: '', examId: '', year: '', subject: '', fileUrl: '', status: 'active' };
 
@@ -24,6 +24,7 @@ export default function AdminExamPreparation() {
 
   const [tab, setTab] = useState('exams');
   const [exams, setExams] = useState([]);
+  const [quizzes, setQuizzes] = useState([]);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -39,6 +40,15 @@ export default function AdminExamPreparation() {
       setExams(res.data?.data || []);
     } catch {
       setExams([]);
+    }
+  }, []);
+
+  const loadQuizzes = useCallback(async () => {
+    try {
+      const res = await adminContentApi.listQuizzes();
+      setQuizzes(res.data?.data || []);
+    } catch {
+      setQuizzes([]);
     }
   }, []);
 
@@ -60,7 +70,7 @@ export default function AdminExamPreparation() {
     }
   }, [tab, t]);
 
-  useEffect(() => { loadExams(); }, [loadExams]);
+  useEffect(() => { loadExams(); loadQuizzes(); }, [loadExams, loadQuizzes]);
   useEffect(() => { loadTabData(); }, [loadTabData]);
 
   const emptyForm = () => {
@@ -83,7 +93,8 @@ export default function AdminExamPreparation() {
       setForm({
         ...EMPTY_MCQ,
         question: row.question || '',
-        examId: row.examId || '',
+        examId: row.examId?._id || row.examId || '',
+        quizId: row.quizId?._id || row.quizId || '',
         subject: row.subject || '',
         options: Array.isArray(row.options) ? row.options.join('\n') : '',
         correctIndex: String(row.correctIndex ?? 0),
@@ -128,6 +139,7 @@ export default function AdminExamPreparation() {
         const payload = {
           question: form.question,
           examId: form.examId || undefined,
+          quizId: form.quizId || undefined,
           subject: form.subject || undefined,
           options,
           correctIndex: Number(form.correctIndex) || 0,
@@ -189,6 +201,17 @@ export default function AdminExamPreparation() {
     setConfirm(null);
   };
 
+  const quizLabel = (quizId) => {
+    const id = quizId?._id || quizId;
+    const match = quizzes.find((q) => q._id === id);
+    return match?.title || id || '—';
+  };
+
+  const quizzesForExam = (examId) => {
+    if (!examId) return quizzes;
+    return quizzes.filter((q) => (q.examId?._id || q.examId) === examId);
+  };
+
   const examLabel = (examId) => {
     const id = examId?._id || examId;
     const match = exams.find((e) => e._id === id);
@@ -214,6 +237,7 @@ export default function AdminExamPreparation() {
     mcqs: [
       { key: 'question', label: 'Question', render: (row) => <span className="line-clamp-2">{row.question}</span> },
       { key: 'examId', label: 'Exam', render: (row) => examLabel(row.examId) },
+      { key: 'quizId', label: 'Quiz', render: (row) => quizLabel(row.quizId) },
       { key: 'subject', label: 'Subject' },
       {
         key: 'actions',
@@ -284,9 +308,13 @@ export default function AdminExamPreparation() {
       return (
         <>
           <textarea rows={3} className={adminFieldClass} placeholder="Question" value={form.question} onChange={(e) => setForm({ ...form, question: e.target.value })} />
-          <AdminSelectBare  value={form.examId} onChange={(e) => setForm({ ...form, examId: e.target.value })}>
+          <AdminSelectBare value={form.examId} onChange={(e) => setForm({ ...form, examId: e.target.value, quizId: '' })}>
             <option value="">Select exam</option>
             {exams.map((e) => <option key={e._id} value={e._id}>{e.name}</option>)}
+          </AdminSelectBare>
+          <AdminSelectBare value={form.quizId} onChange={(e) => setForm({ ...form, quizId: e.target.value })}>
+            <option value="">Select quiz (optional)</option>
+            {quizzesForExam(form.examId).map((q) => <option key={q._id} value={q._id}>{q.title}</option>)}
           </AdminSelectBare>
           <input className={adminFieldClass} placeholder="Subject" value={form.subject} onChange={(e) => setForm({ ...form, subject: e.target.value })} />
           <textarea rows={4} className={adminFieldClass} placeholder="Options (one per line)" value={form.options} onChange={(e) => setForm({ ...form, options: e.target.value })} />

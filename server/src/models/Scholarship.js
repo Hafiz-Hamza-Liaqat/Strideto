@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import { scholarshipSlug } from '../utils/slugify.js';
 import { translationFieldDefinition, applySlugLocaleIndex, ensureTranslationGroupHook } from './mixins/translationFields.js';
+import { FIXTURE_FIELD_DEFINITION } from '../../../shared/publicDiscovery/fixtureExclusion.js';
 
 const scholarshipSchema = new mongoose.Schema(
   {
@@ -26,6 +27,8 @@ const scholarshipSchema = new mongoose.Schema(
     tags: [{ type: String }],
     seoTitle: { type: String },
     metaDescription: { type: String },
+    ...FIXTURE_FIELD_DEFINITION,
+    launchEligible: { type: Boolean, default: false, index: true },
     ...translationFieldDefinition,
   },
   { timestamps: true }
