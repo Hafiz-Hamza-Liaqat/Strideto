@@ -268,7 +268,11 @@ export async function marketplaceCounts(agentAccountId) {
 
 async function publicProjection(post) {
   const [profile, org, evidence, service, sources, refs] = await Promise.all([
-    AgentProfile.findOne({ organizationId: post.organizationId }).select('slug professionalName agentType countryCode languages website').lean(),
+    // Resolve ONLY the exact author profile — never pick an arbitrary member of the same org.
+    // If the exact author profile is unavailable, omit it; the org-owned post remains valid.
+    post.authorAgentAccountId
+      ? AgentProfile.findOne({ agentAccountId: post.authorAgentAccountId, organizationId: post.organizationId }).select('slug professionalName agentType countryCode languages website').lean()
+      : Promise.resolve(null),
     Organization.findById(post.organizationId).select('displayName organizationType countryCode slug').lean(),
     VerificationEvidence.find({ organizationId: post.organizationId, status: 'accepted' }).select('evidenceType status').lean(),
     post.relatedAgentServiceId ? AgentService.findOne({ _id: post.relatedAgentServiceId, organizationId: post.organizationId, status: 'active' }).select('title category countriesServed destinationCountries deliveryMode pricingMode durationEstimate').lean() : null,
@@ -333,8 +337,20 @@ export async function moderatePost(adminId, postId, action, reason='') { const p
     const promotionKind = post.promotionKind || 'free_education';
     post.promotionKind = promotionKind;
     if (promotionKind === 'free_education') {
-      const authorProfile = await AgentProfile.findOne({ agentAccountId: post.authorAgentAccountId }).lean()
-        || await AgentProfile.findOne({ organizationId: post.organizationId }).lean();
+      // Resolve exact author profile first. If the original author has left the org,
+      // fall back to an active owner/admin of the same org for entitlement purposes only —
+      // never pick an arbitrary member via a bare organizationId query.
+      const authorProfile = await AgentProfile.findOne({ agentAccountId: post.authorAgentAccountId, organizationId: post.organizationId }).lean()
+        || await (async () => {
+          const fallbackMembership = await AgentMembership.findOne({
+            organizationId: post.organizationId,
+            active: true,
+            role: { $in: ['owner', 'admin'] },
+          }).lean();
+          return fallbackMembership
+            ? AgentProfile.findOne({ agentAccountId: fallbackMembership.agentAccountId, organizationId: post.organizationId }).lean()
+            : null;
+        })();
       if (!authorProfile) throw error('Provider profile required for free promotion entitlement', 422);
       const { expiresAt } = await consumeEducationFreeEntitlementOnPublish({
         profile: authorProfile,

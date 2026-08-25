@@ -1008,6 +1008,26 @@ export async function getPublicProfileBySlug(slug) {
     qaTestAccess = true;
   }
 
+  // Integrity gate: AgentProfile ↔ Organization membership must be active.
+  // A profile whose agentAccountId no longer has an active membership for
+  // profile.organizationId must not expose that organization's data publicly.
+  // Fail safe and emit a narrow audit event — do not repair or substitute.
+  const membershipIntact = await AgentMembership.exists({
+    agentAccountId: profile.agentAccountId,
+    organizationId: profile.organizationId,
+    active: true,
+  });
+  if (!membershipIntact) {
+    await logAudit({
+      action: 'agent_public_profile_integrity_failure',
+      actor: { userId: null, role: 'system' },
+      metadata: { slug: profile.slug, profileId: String(profile._id) },
+    });
+    const err = new Error('Profile not found');
+    err.status = 404;
+    throw err;
+  }
+
   // Mission 2 is the only authority for public visibility. Profile
   // completeness/status never promotes an organization to verified.
   const verStatus = await getVerificationStatus(profile.organizationId);
@@ -1107,6 +1127,25 @@ export async function getPublicDirectory({
       },
     },
     { $match: { 'educationVerification.0': { $exists: true } } },
+    // Integrity gate: exclude profiles whose agentAccountId no longer has an
+    // active membership for the profile's declared organizationId.
+    {
+      $lookup: {
+        from: AgentMembership.collection.name,
+        let: { agentAccountId: '$agentAccountId', organizationId: '$organizationId' },
+        pipeline: [
+          { $match: { $expr: { $and: [
+            { $eq: ['$agentAccountId', '$$agentAccountId'] },
+            { $eq: ['$organizationId', '$$organizationId'] },
+            { $eq: ['$active', true] },
+          ] } } },
+          { $limit: 1 },
+          { $project: { _id: 1 } },
+        ],
+        as: 'activeMembership',
+      },
+    },
+    { $match: { 'activeMembership.0': { $exists: true } } },
   ];
   if (serviceCategory) {
     pipeline.push(
