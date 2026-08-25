@@ -19,6 +19,23 @@ const feeLineSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const appealSchema = new mongoose.Schema(
+  {
+    status: {
+      type: String,
+      enum: ['submitted', 'under_review', 'approved', 'rejected'],
+      default: null,
+    },
+    reason: { type: String, default: '' },
+    explanation: { type: String, default: '' },
+    evidenceRef: { type: String, default: null },
+    submittedAt: { type: Date, default: null },
+    decidedAt: { type: Date, default: null },
+    decisionReason: { type: String, default: '' },
+  },
+  { _id: false }
+);
+
 const schema = new mongoose.Schema(
   {
     subjectType: {
@@ -87,6 +104,7 @@ const schema = new mongoose.Schema(
     schemaVersion: { type: String, default: GBS_SCHEMA_VERSION },
     recordVersion: { type: Number, default: 0, min: 0 },
     creationCommandId: { type: String, default: null },
+    appeal: { type: appealSchema, default: null },
   },
   { timestamps: true }
 );

@@ -23,6 +23,11 @@ import {
   suspendServiceListing,
 } from '../../services/gbs/serviceListingReviewService.js';
 import {
+  approveAppeal,
+  listPendingAppeals,
+  rejectAppeal,
+} from '../../services/gbs/coverageAppealService.js';
+import {
   parseAdminGbsReviewBody,
   parseCapabilityQueueQuery,
   parseEvidenceIndex,
@@ -440,6 +445,49 @@ export async function reviewListing(req, res) {
       }),
       replay: Boolean(result.replay),
     });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function listAppealQueue(req, res) {
+  try {
+    const { parseBoundedPage } = await import('../../services/gbs/gbsAdminModerationValidation.js');
+    const parsed = parseBoundedPage(req.query);
+    const { items, total } = await listPendingAppeals({ page: parsed.page, limit: parsed.limit });
+    const labels = await attachSubjectLabels(items);
+    const data = items.map((row, i) => ({
+      ...listingProjection(row, labels[i]),
+      appeal: row.appeal || null,
+    }));
+    return res.json({ items: data, total, page: parsed.page, limit: parsed.limit });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function reviewAppeal(req, res) {
+  try {
+    if (!isObjectId(req.params.id)) return res.status(400).json({ error: 'invalid_id' });
+    const action = req.params.action;
+    const body = parseAdminGbsReviewBody(req.body, { action: 'reject' });
+    const actor = staffActor(req);
+    const args = {
+      id: req.params.id,
+      subjectType: body.subjectType,
+      subjectId: body.subjectId,
+      expectedVersion: body.expectedVersion,
+      actor,
+      reason: body.reason,
+    };
+    let updated;
+    if (action === 'approve') updated = await approveAppeal(args);
+    else if (action === 'reject') updated = await rejectAppeal(args);
+    else return res.status(400).json({ error: 'unknown_appeal_action' });
+
+    const plain = updated.toObject ? updated.toObject() : updated;
+    const [label] = await attachSubjectLabels([plain]);
+    return res.json({ listing: listingProjection(plain, label, { appeal: plain.appeal || null }) });
   } catch (err) {
     return sendError(res, err);
   }

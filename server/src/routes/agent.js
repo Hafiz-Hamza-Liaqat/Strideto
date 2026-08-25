@@ -353,6 +353,7 @@ agentRouter.get('/agent/business-services/listings/:listingId', ...gbsEnabled, g
 agentRouter.patch('/agent/business-services/listings/:listingId', ...gbsEnabled, gbsListingWriteLimiter, gbsProvider.patchListing);
 agentRouter.post('/agent/business-services/listings/:listingId/submit', ...gbsEnabled, gbsListingWriteLimiter, gbsProvider.submitListing);
 agentRouter.post('/agent/business-services/listings/:listingId/archive', ...gbsEnabled, gbsListingWriteLimiter, gbsProvider.archiveListing);
+agentRouter.post('/agent/business-services/listings/:listingId/appeal', ...gbsEnabled, gbsListingWriteLimiter, gbsProvider.submitListingAppeal);
 agentRouter.get('/agent/business-services/requests', ...gbsEnabled, gbsProviderReadLimiter, gbsProviderRequests.listRequests);
 agentRouter.get('/agent/business-services/requests/:requestRef', ...gbsEnabled, gbsProviderReadLimiter, gbsProviderRequests.getRequest);
 agentRouter.get('/agent/business-services/messages', ...gbsEnabled, gbsProviderReadLimiter, gbsMessages.providerThreads);

@@ -9,6 +9,7 @@ import { requirePermission } from '../middleware/rbac.js';
 import { PERMISSIONS } from '../config/rbac.js';
 import * as ctrl from '../controllers/admin/adminGbsModerationController.js';
 
+
 export const adminGbsRouter = Router();
 
 adminGbsRouter.get(
@@ -134,5 +135,27 @@ adminGbsRouter.post(
   (req, res, next) => {
     req.params.action = 'suspend';
     return ctrl.reviewListing(req, res, next);
+  }
+);
+
+adminGbsRouter.get(
+  '/listings/appeals/queue',
+  requirePermission(PERMISSIONS.VERIFICATION_READ),
+  ctrl.listAppealQueue
+);
+adminGbsRouter.post(
+  '/listings/:id/appeal/approve',
+  requirePermission(PERMISSIONS.VERIFICATION_APPROVE),
+  (req, res, next) => {
+    req.params.action = 'approve';
+    return ctrl.reviewAppeal(req, res, next);
+  }
+);
+adminGbsRouter.post(
+  '/listings/:id/appeal/reject',
+  requirePermission(PERMISSIONS.VERIFICATION_APPROVE),
+  (req, res, next) => {
+    req.params.action = 'reject';
+    return ctrl.reviewAppeal(req, res, next);
   }
 );

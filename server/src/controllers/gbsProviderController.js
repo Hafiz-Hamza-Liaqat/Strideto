@@ -32,6 +32,7 @@ import {
   getBusinessProfessionalProfile,
   updateBusinessProfessionalProfile,
 } from '../services/gbs/gbsProviderProfessionalProfileService.js';
+import { submitCoverageAppeal } from '../services/gbs/coverageAppealService.js';
 
 async function resolveOrganizationId(agentAccountId) {
   if (!agentAccountId) return null;
@@ -275,6 +276,25 @@ export async function archiveListing(req, res) {
       actor: actorFrom(req),
     });
     return res.json({ item: publicListingProjection(record) });
+  } catch (err) {
+    return sendError(res, err);
+  }
+}
+
+export async function submitListingAppeal(req, res) {
+  try {
+    const subject = await requireSubject(req, PROVIDER_DOMAIN_PERMISSIONS.BUSINESS_LISTINGS_MANAGE);
+    const { reason, explanation, evidenceRef, expectedVersion } = req.body || {};
+    const updated = await submitCoverageAppeal({
+      id: req.params.listingId,
+      ...subject,
+      expectedVersion,
+      actor: actorFrom(req),
+      reason,
+      explanation,
+      evidenceRef,
+    });
+    return res.json({ item: publicListingProjection(updated) });
   } catch (err) {
     return sendError(res, err);
   }

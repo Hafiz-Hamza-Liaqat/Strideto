@@ -30,9 +30,20 @@ import { IDEMPOTENCY_CODES } from '../../../../shared/platform/idempotency.js';
 import { AGENT_SERVICE_CATEGORIES } from '../../../../shared/agent/constants.js';
 import { ORGANIZATION_CAPABILITY_IDS } from '../../../../shared/capability/organizationCapabilities.js';
 import { OVERRIDE_TYPES } from '../capability/overrideService.js';
+import { isActiveAppeal } from './coverageAppealService.js';
 
 function deny(code, status = 403) {
   return Object.assign(new Error(code), { status, code });
+}
+
+/**
+ * Appeal and normal resubmission are mutually exclusive review paths.
+ * An active coverage appeal blocks provider resubmit until the appeal is decided.
+ */
+export function assertResubmitAllowed(listing) {
+  if (isActiveAppeal(listing?.appeal)) {
+    throw deny('appeal_in_progress', 409);
+  }
 }
 
 function listingToRequested(value) {
@@ -124,6 +135,21 @@ export function publicListingProjection(record) {
     moderationStatus: record.moderationStatus,
     publicationStatus: record.publicationStatus,
     adminReviewStatus: record.adminReviewStatus || GBS_LISTING_ADMIN_REVIEW_STATUSES.PENDING,
+    // reviewReason is the staff-authored, provider-facing review feedback
+    // (reject / needs-information). Marketplace public projection excludes it;
+    // provider workspace must receive it as actionable feedback.
+    reviewFeedback: record.reviewReason || '',
+    appeal: record.appeal
+      ? {
+          status: record.appeal.status || null,
+          reason: record.appeal.reason || '',
+          explanation: record.appeal.explanation || '',
+          evidenceRef: record.appeal.evidenceRef || null,
+          submittedAt: record.appeal.submittedAt || null,
+          decidedAt: record.appeal.decidedAt || null,
+          decisionReason: record.appeal.decisionReason || '',
+        }
+      : null,
     riskFlags: record.riskFlags || [],
     contentRevision: record.contentRevision,
     recordVersion: record.recordVersion,
@@ -354,6 +380,7 @@ export async function submitServiceListingForReview({
     subjectId: String(subjectId),
   }).lean();
   if (!current) throw deny('listing_not_found', 404);
+  assertResubmitAllowed(current);
   const parsed = validateServiceListingRecord(current);
   if (!parsed.ok) {
     throw Object.assign(new Error('listing_incomplete'), {
