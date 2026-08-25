@@ -13,17 +13,62 @@ import {
   ADMISSION_STATES,
   APPLICATION_MODES,
   APPLICATION_SNAPSHOT_FIELDS,
+  CLAIM_STATES,
   CONSENT_SCOPES,
+  INSTITUTION_ROLES,
   STUDENT_WITHDRAWABLE,
   boundedInstitutionQuery,
   escapeRegex,
   isValidInstitutionAdmissionTransition,
 } from '../../../shared/institution/institutionPortal.js';
-import { INSTITUTION_ROLES } from '../../../shared/institution/institutionPortal.js';
 import { ORGANIZATION_CAPABILITY_IDS } from '../../../shared/capability/organizationCapabilities.js';
 
 function domainError(status, code, message) {
   return Object.assign(new Error(message), { status, code });
+}
+
+// ---------------------------------------------------------------------------
+// Organic admission trust — strict: approved verification + approved claim
+// + not suspended/revoked. No override bypass permitted for organic decisions.
+// ---------------------------------------------------------------------------
+async function assertOrganicAdmissionTrust(organizationId) {
+  const { OrganizationVerification } = await import('../models/OrganizationVerification.js');
+  const { isSuspendedOrRevoked } = await import('../../../shared/international/verification.js');
+  const ver = await OrganizationVerification.findOne({ organizationId }, { status: 1 }).lean();
+  if (!ver || isSuspendedOrRevoked(ver.status)) {
+    throw domainError(403, 'BLOCKED', 'Organization is suspended or revoked');
+  }
+  if (ver.status !== 'approved') {
+    throw domainError(403, 'VERIFICATION_REQUIRED', 'Organization verification must be approved for institution admissions decisions');
+  }
+  const { InstitutionClaim } = await import('../models/institution/InstitutionClaim.js');
+  const claim = await InstitutionClaim.findOne({ organizationId, state: CLAIM_STATES.APPROVED }).lean();
+  if (!claim) {
+    throw domainError(403, 'CLAIM_REQUIRED', 'Approved canonical institution claim required for institution admissions decisions');
+  }
+}
+
+// ---------------------------------------------------------------------------
+// QA admission trust — active qa_test override + INSTITUTION_PORTAL capability
+// + not suspended/revoked. Claim approval is NOT required for the QA path.
+// ---------------------------------------------------------------------------
+async function assertQaAdmissionTrust(organizationId) {
+  const { OrganizationVerification } = await import('../models/OrganizationVerification.js');
+  const { isSuspendedOrRevoked } = await import('../../../shared/international/verification.js');
+  const ver = await OrganizationVerification.findOne({ organizationId }, { status: 1 }).lean();
+  if (isSuspendedOrRevoked(ver?.status)) {
+    throw domainError(403, 'BLOCKED', 'Organization is suspended or revoked');
+  }
+  const { getOverrideService } = await import('./capability/overrideRuntime.js');
+  const override = await getOverrideService().getActiveOverride(String(organizationId));
+  if (
+    !override ||
+    override.overrideType !== 'qa_test' ||
+    !Array.isArray(override.capabilities) ||
+    !override.capabilities.includes(ORGANIZATION_CAPABILITY_IDS.INSTITUTION_PORTAL)
+  ) {
+    throw domainError(403, 'QA_OVERRIDE_REQUIRED', 'Active qa_test INSTITUTION_PORTAL override required for QA application transitions');
+  }
 }
 
 function safeSnapshot(input = {}) {
@@ -109,6 +154,7 @@ export async function submitStudentApplication({
 
   const { InstitutionClaim } = await import('../models/institution/InstitutionClaim.js');
   const { CLAIM_STATES } = await import('../../../shared/institution/institutionPortal.js');
+  let qaBypass = false;
   let claim = await InstitutionClaim.findOne({
     canonicalInstitutionId: program.institutionId,
     state: CLAIM_STATES.APPROVED,
@@ -136,6 +182,7 @@ export async function submitStudentApplication({
         ).lean();
         if (!isSuspendedOrRevoked(ver?.status)) {
           claim = anyClaim; // use for org routing only; claim.state remains unchanged
+          qaBypass = true;
         }
       }
     }
@@ -152,6 +199,7 @@ export async function submitStudentApplication({
     consentScope: CONSENT_SCOPES.ADMISSION_APPLICATION,
     consentedAt: new Date(),
     snapshot: body,
+    source: qaBypass ? 'qa_test' : 'organic',
     history: [{ fromState: '', toState: ADMISSION_STATES.RECEIVED, changedBy: studentUserId, changedByRealm: 'user', at: new Date() }],
   });
 
@@ -312,6 +360,17 @@ export async function transitionApplication({
   if (expectedVersion !== undefined && Number(expectedVersion) !== doc.version) {
     throw domainError(409, 'VERSION_CONFLICT', 'Application was updated by another reviewer');
   }
+
+  // Authority gate — must run before any mutation.
+  // Organic: approved verification + approved canonical claim + not suspended/revoked.
+  // QA:      active qa_test override + INSTITUTION_PORTAL capability + not suspended/revoked.
+  const appSource = doc.source || 'organic';
+  if (appSource === 'qa_test') {
+    await assertQaAdmissionTrust(organizationId);
+  } else {
+    await assertOrganicAdmissionTrust(organizationId);
+  }
+
   if (!isValidInstitutionAdmissionTransition(doc.status, toState)) {
     throw domainError(409, 'INVALID_STATE', `Cannot transition from ${doc.status} to ${toState}`);
   }

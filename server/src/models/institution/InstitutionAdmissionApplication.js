@@ -81,6 +81,12 @@ const institutionAdmissionApplicationSchema = new mongoose.Schema(
     submittedAt: { type: Date, default: Date.now, index: true },
     history: { type: [historySchema], default: [] },
     version: { type: Number, default: 0 },
+    source: {
+      type: String,
+      enum: ['organic', 'qa_test'],
+      default: 'organic',
+      index: true,
+    },
   },
   { timestamps: true }
 );
