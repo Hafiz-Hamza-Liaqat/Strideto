@@ -23,7 +23,16 @@ export default function AgentConsultationDetail() {
   };
   if (!data) return <div className={muted}>{error || 'Loading consultation…'}</div>;
   const c = data.consultation;
-  const actions = { requested: ['confirmed', 'declined', 'reschedule_requested'], confirmed: ['reschedule_requested', 'cancelled', 'completed', 'no_show'], reschedule_requested: ['confirmed', 'declined', 'cancelled'] }[c.status] || [];
+  const isUnscheduledInquiry = !c.requestedWindow?.start;
+  const actions = {
+    requested: isUnscheduledInquiry ? ['reschedule_requested', 'declined'] : ['confirmed', 'declined', 'reschedule_requested'],
+    confirmed: ['reschedule_requested', 'cancelled', 'completed', 'no_show'],
+    reschedule_requested: ['confirmed', 'declined', 'cancelled'],
+  }[c.status] || [];
+  const slotStart = c.confirmedStart || c.requestedWindow?.start;
+  const slotLabel = slotStart
+    ? new Date(slotStart).toLocaleString([], { timeZone: c.timezone || undefined })
+    : 'Unscheduled — awaiting time proposal';
   return (
     <div className="space-y-5">
       <header className={cardClass}>
@@ -31,7 +40,7 @@ export default function AgentConsultationDetail() {
           <h1 className="text-2xl font-semibold text-gray-900 dark:text-white break-words-safe">{c.purpose}</h1>
           <span className="rounded-full bg-slate-100 dark:bg-gray-900 px-3 py-1 text-xs text-gray-800 dark:text-gray-200 h-fit">{c.status.replaceAll('_', ' ')}</span>
         </div>
-        <p className="mt-3 text-sm text-gray-800 dark:text-gray-200">{new Date(c.confirmedStart || c.requestedWindow.start).toLocaleString([], { timeZone: c.timezone })} · {c.timezone}</p>
+        <p className="mt-3 text-sm text-gray-800 dark:text-gray-200">{slotLabel}{c.timezone ? ` · ${c.timezone}` : ''}</p>
         <p className={`mt-1 ${muted}`}>{c.durationMinutes} minutes · {c.meetingMode.replaceAll('_', ' ')} · payment {c.paymentState.replaceAll('_', ' ')}</p>
         {c.service ? <p className={`mt-1 ${muted}`}>Service: {c.service.title} · {c.service.category.replaceAll('_', ' ')}</p> : null}
         <p className="mt-3 rounded bg-slate-50 dark:bg-gray-900 p-3 text-sm text-gray-800 dark:text-gray-200">Student note: {c.studentNote || 'None provided'}</p>

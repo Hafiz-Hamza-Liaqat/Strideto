@@ -15,7 +15,7 @@ import { DocumentAccessGrant } from '../models/vault/DocumentAccessGrant.js';
 import { canAccessDocument } from './vault/vaultAccessPolicy.js';
 import { assertApprovedVerification, getVerificationStatus } from './agentProfileService.js';
 import { logAudit } from './auditService.js';
-import { AGENT_LEAD_STATUSES, AGENT_SERVICE_PRICING_MODES, AGENT_SERVICE_STATUSES } from '../../../shared/agent/constants.js';
+import { AGENT_LEAD_STATUSES, AGENT_MEMBER_ROLES, AGENT_SERVICE_PRICING_MODES, AGENT_SERVICE_STATUSES } from '../../../shared/agent/constants.js';
 import { MARKETPLACE_MODERATION_STATUSES, MARKETPLACE_PUBLICATION_STATUSES } from '../../../shared/agent/marketplace.js';
 import { normalizeTimeZone } from '../../../shared/international/timezone.js';
 import {
@@ -209,22 +209,52 @@ export async function getBookableAvailability(userId, serviceId) {
 
 export async function requestConsultation(userId, input = {}) {
   if (!userId) fail('Authentication required', 401);
-  id(input.agentServiceId, 'service id'); id(input.membershipId, 'membership id');
+  id(input.agentServiceId, 'service id');
   const service = await AgentService.findOne({ _id: input.agentServiceId, status: AGENT_SERVICE_STATUSES.ACTIVE }).lean();
   if (!service) fail('Active Agent service not found', 404);
   await assertApprovedVerification(service.organizationId);
-  const availability = await AgentAvailability.findOne({ organizationId: service.organizationId, membershipId: input.membershipId, active: true }).lean();
-  if (!availability) fail('Active availability not found', 404);
-  const memberActive = await AgentMembership.exists({ _id: availability.membershipId, organizationId: service.organizationId, active: true });
-  if (!memberActive) fail('Selected Agent member is not active', 403);
-  const current = new Date();
-  if ((availability.effectiveFrom && availability.effectiveFrom > current) || (availability.effectiveTo && availability.effectiveTo < current)) fail('Selected availability is not currently effective', 409);
-  const zone = normalizeTimeZone(input.timezone);
-  if (!zone || zone !== availability.timezone) fail('Booking timezone must match the selected availability timezone', 422, 'TIMEZONE_MISMATCH');
-  const durationMinutes = Math.min(480, Math.max(15, Number(input.durationMinutes) || 30));
-  if (!Object.values(MEETING_MODES).includes(input.meetingMode)) fail('A valid meetingMode is required', 422, 'INVALID_MEETING_MODE');
   if (!clean(input.purpose, 300)) fail('Purpose is required', 422, 'PURPOSE_REQUIRED');
-  const requestedWindow = await assertSlotAvailable({ availability, start: input.requestedStart, durationMinutes });
+
+  const isInquiry = !input.membershipId;
+  let assignedMembershipId, zone, requestedWindow, durationMinutes, meetingMode;
+
+  if (isInquiry) {
+    // Inquiry mode: route to the service owner's membership for deterministic assignment.
+    // Rule: service.agentProfileId identifies the canonical owner; find that profile's active
+    // membership in the organization. Fallback: org owner → admin → earliest active member.
+    const serviceProfile = await AgentProfile.findOne({ _id: service.agentProfileId }).lean();
+    let chosenMembership = null;
+    if (serviceProfile) {
+      chosenMembership = await AgentMembership.findOne({ agentAccountId: serviceProfile.agentAccountId, organizationId: service.organizationId, active: true }).lean();
+    }
+    if (!chosenMembership) {
+      chosenMembership = await AgentMembership.findOne({ organizationId: service.organizationId, active: true, role: AGENT_MEMBER_ROLES.OWNER }).sort({ createdAt: 1 }).lean()
+        || await AgentMembership.findOne({ organizationId: service.organizationId, active: true, role: AGENT_MEMBER_ROLES.ADMIN }).sort({ createdAt: 1 }).lean();
+    }
+    if (!chosenMembership) fail('No authorized consultation recipient found for this service', 503, 'PROVIDER_UNAVAILABLE');
+    assignedMembershipId = chosenMembership._id;
+    zone = '';
+    requestedWindow = { start: null, end: null };
+    durationMinutes = null;
+    meetingMode = MEETING_MODES.VIDEO;
+  } else {
+    // Booking mode: slot validation required.
+    id(input.membershipId, 'membership id');
+    const availability = await AgentAvailability.findOne({ organizationId: service.organizationId, membershipId: input.membershipId, active: true }).lean();
+    if (!availability) fail('Active availability not found', 404);
+    const memberActive = await AgentMembership.exists({ _id: availability.membershipId, organizationId: service.organizationId, active: true });
+    if (!memberActive) fail('Selected Agent member is not active', 403);
+    const current = new Date();
+    if ((availability.effectiveFrom && availability.effectiveFrom > current) || (availability.effectiveTo && availability.effectiveTo < current)) fail('Selected availability is not currently effective', 409);
+    zone = normalizeTimeZone(input.timezone);
+    if (!zone || zone !== availability.timezone) fail('Booking timezone must match the selected availability timezone', 422, 'TIMEZONE_MISMATCH');
+    durationMinutes = Math.min(480, Math.max(15, Number(input.durationMinutes) || 30));
+    if (!Object.values(MEETING_MODES).includes(input.meetingMode)) fail('A valid meetingMode is required', 422, 'INVALID_MEETING_MODE');
+    meetingMode = input.meetingMode;
+    assignedMembershipId = availability.membershipId;
+    requestedWindow = await assertSlotAvailable({ availability, start: input.requestedStart, durationMinutes });
+  }
+
   let marketplacePostId = null;
   if (input.marketplacePostId) {
     id(input.marketplacePostId, 'marketplace post id');
@@ -238,16 +268,16 @@ export async function requestConsultation(userId, input = {}) {
     { upsert: true, new: true }
   ).lean();
   const record = await Consultation.create({
-    studentUserId: userId, organizationId: service.organizationId, assignedMembershipId: availability.membershipId,
+    studentUserId: userId, organizationId: service.organizationId, assignedMembershipId,
     agentServiceId: service._id, marketplacePostId, leadId: lead._id, consultationType: input.consultationType,
     serviceSnapshot: snapshotService(service),
-    requestedWindow, durationMinutes, timezone: zone, meetingMode: input.meetingMode,
+    requestedWindow, durationMinutes, timezone: zone, meetingMode,
     purpose: clean(input.purpose, 300), studentNote: clean(input.studentNote, 2000), paymentState: paymentStateFor(service), verificationState: 'approved',
   });
   if (!record.purpose) fail('Purpose is required', 422);
-  const thread = await ConsultationThread.create({ consultationId: record._id, organizationId: record.organizationId, studentUserId: userId, authorizedMembershipIds: [availability.membershipId] });
+  const thread = await ConsultationThread.create({ consultationId: record._id, organizationId: record.organizationId, studentUserId: userId, authorizedMembershipIds: [assignedMembershipId] });
   await appendEvent(record, 'student', userId, '', record.status, '', { threadId: String(thread._id), marketplaceOrigin: Boolean(marketplacePostId) });
-  await prepareNotification(record, 'agent', availability.membershipId, 'consultation_requested');
+  await prepareNotification(record, 'agent', assignedMembershipId, 'consultation_requested');
   await prepareNotification(record, 'student', userId, 'consultation_requested');
   const { recordHandoffConsent, CONSENT_PURPOSES } = await import('./consentGrantService.js');
   await recordHandoffConsent({
@@ -261,7 +291,7 @@ export async function requestConsultation(userId, input = {}) {
     auditIdentity: `consultation:${record._id}`,
   });
   await logAudit({ actor: { userId, role: 'User' }, action: 'consultation.requested', targetType: 'Consultation', targetId: record._id, metadata: { organizationId: String(record.organizationId), serviceId: String(service._id), paymentState: record.paymentState } });
-  await logAudit({ actor: { userId, role: 'User' }, action: 'consultation.participant_assigned', targetType: 'Consultation', targetId: record._id, metadata: { organizationId: String(record.organizationId), membershipId: String(availability.membershipId) } });
+  await logAudit({ actor: { userId, role: 'User' }, action: 'consultation.participant_assigned', targetType: 'Consultation', targetId: record._id, metadata: { organizationId: String(record.organizationId), membershipId: String(assignedMembershipId) } });
   await logAudit({ actor: { userId, role: 'User' }, action: 'consultation.thread_created', targetType: 'ConsultationThread', targetId: thread._id, metadata: { consultationId: String(record._id), organizationId: String(record.organizationId) } });
   return studentProjection(record, 'approved');
 }
