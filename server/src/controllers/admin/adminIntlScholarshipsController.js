@@ -11,14 +11,23 @@ import { applyResolvedSlug, slugErrorResponse } from '../../utils/adminSlugHelpe
 import { onContentSaved, onContentDeleted, onContentBulkDeleted, onContentBulkUpdated } from '../../utils/contentIntegration.js';
 import { syncWorkflowAfterSave } from '../../services/workflow/workflowIntegration.js';
 import { validIds } from '../../utils/adminBulkHelper.js';
+import { freeTextCountryRegex } from '../../../../shared/international/location.js';
+import { coerceCountryCode, countryDisplayName } from '../../../../shared/international/country.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 
+function normalizeFreeTextCountry(raw) {
+  const sanitized = sanitizeString(raw);
+  const code = coerceCountryCode(sanitized);
+  return code ? (countryDisplayName(code) || sanitized) : sanitized;
+}
+
 function buildScholarshipQuery(q) {
   const filter = {};
   if (q.status) filter.status = q.status;
-  if (q.country) filter.country = new RegExp(sanitizeString(q.country), 'i');
+  const countryRe = freeTextCountryRegex(q.country || q.countryCode);
+  if (countryRe) filter.country = countryRe;
   if (q.funding) filter.fundingType = new RegExp(sanitizeString(q.funding), 'i');
   if (q.featured === 'true') filter.isFeatured = true;
   if (q.search && sanitizeString(q.search)) {
@@ -31,7 +40,8 @@ function buildScholarshipQuery(q) {
 function buildUniversityQuery(q) {
   const filter = {};
   if (q.status) filter.status = q.status;
-  if (q.country) filter.country = new RegExp(sanitizeString(q.country), 'i');
+  const countryRe = freeTextCountryRegex(q.country || q.countryCode);
+  if (countryRe) filter.country = countryRe;
   if (q.featured === 'true') filter.isFeatured = true;
   if (q.search && sanitizeString(q.search)) {
     const re = new RegExp(sanitizeString(q.search), 'i');
@@ -42,7 +52,9 @@ function buildUniversityQuery(q) {
 
 function applyScholarshipBody(doc, body) {
   if (body.title !== undefined) doc.title = sanitizeString(body.title);
-  if (body.country !== undefined) doc.country = sanitizeString(body.country);
+  if (body.country !== undefined || body.countryCode !== undefined) {
+    doc.country = normalizeFreeTextCountry(body.country !== undefined ? body.country : body.countryCode);
+  }
   if (body.university !== undefined) doc.university = body.university ? sanitizeString(body.university) : undefined;
   if (body.universityId !== undefined) doc.universityId = body.universityId && mongoose.Types.ObjectId.isValid(body.universityId) ? body.universityId : undefined;
   if (body.deadline !== undefined) doc.deadline = body.deadline ? new Date(body.deadline) : undefined;
@@ -64,9 +76,13 @@ function applyScholarshipBody(doc, body) {
 
 function applyUniversityBody(doc, body) {
   if (body.name !== undefined) doc.name = sanitizeString(body.name);
-  if (body.country !== undefined) doc.country = sanitizeString(body.country);
+  if (body.country !== undefined || body.countryCode !== undefined) {
+    doc.country = normalizeFreeTextCountry(body.country !== undefined ? body.country : body.countryCode);
+  }
   if (body.city !== undefined) doc.city = sanitizeString(body.city);
-  if (body.province !== undefined) doc.province = sanitizeString(body.province);
+  if (body.province !== undefined || body.region !== undefined) {
+    doc.province = sanitizeString(body.province ?? body.region);
+  }
   if (body.website !== undefined) doc.website = body.website ? sanitizeString(body.website) : undefined;
   if (body.description !== undefined) doc.description = body.description ? sanitizeString(body.description) : undefined;
   if (body.logoUrl !== undefined) doc.logoUrl = sanitizeString(body.logoUrl);

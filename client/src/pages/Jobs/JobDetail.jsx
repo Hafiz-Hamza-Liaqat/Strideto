@@ -30,6 +30,7 @@ import {
   formatPublicOpenings,
   deriveJobWorkMode,
 } from '@shared/publicDiscovery/publicTruth.js';
+import { formatLocationDisplay } from '@shared/international/location.js';
 
 const JOB_TYPE_BADGE = {
   Government: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
@@ -42,7 +43,7 @@ const ACTION_SECONDARY = 'inline-flex items-center justify-center min-h-[44px] p
 
 function JobDiscoveryCard({ job, ctaLabel }) {
   const workMode = job.workMode || (job.remote ? 'remote' : job.hybrid ? 'hybrid' : '');
-  const locationLine = [job.city, job.region || job.province || job.location].filter(Boolean).join(', ');
+  const locationLine = formatLocationDisplay(job) || job.location || '';
   return (
     <Link
       to={`${ROUTES.JOBS}/${job.slug || job._id}`}
@@ -259,7 +260,7 @@ export default function JobDetail() {
   const workMode = deriveJobWorkMode(job) || 'unspecified';
   const availability = job.availability || JOB_AVAILABILITY.OPEN;
   const accepting = job.acceptingApplications !== false && availability === JOB_AVAILABILITY.OPEN;
-  const locationLine = [job.province || job.location, job.city].filter(Boolean).join(', ') || NOT_SPECIFIED;
+  const locationLine = formatLocationDisplay(job) || job.location || NOT_SPECIFIED;
   const compensation = job.salaryRange
     ? [job.salaryRange, job.salaryCurrency].filter(Boolean).join(' ')
     : NOT_SPECIFIED;

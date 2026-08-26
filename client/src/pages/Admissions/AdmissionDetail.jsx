@@ -19,6 +19,7 @@ import { PublicTrustBadge } from '../../components/public/PublicTrustBadge';
 import { ProvenanceStrip } from '../../components/public/ProvenanceStrip';
 import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
 import { APPLICATION_MODE_LABELS, EXTERNAL_APPLY_DISCLOSURE, NO_GUARANTEE_DISCLAIMER, NOT_SPECIFIED } from '@shared/publicDiscovery/publicTruth.js';
+import { formatLocationDisplay } from '@shared/international/location.js';
 
 export default function AdmissionDetail() {
   const { t } = useTranslation(['admissions', 'common', 'navbar', 'applications']);
@@ -117,6 +118,9 @@ export default function AdmissionDetail() {
             <div>
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white break-words-safe">{item.program}</h1>
               <p className="text-lg text-gray-600 dark:text-gray-400 mt-1 break-words-safe">{item.institution}</p>
+              {formatLocationDisplay(item) ? (
+                <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{formatLocationDisplay(item)}</p>
+              ) : null}
               <div className="mt-2"><PublicTrustBadge kind={item.authorityKind} label={item.authorityLabel} /></div>
               <p className="text-sm text-gray-500 mt-1">{APPLICATION_MODE_LABELS[item.applicationMode] || NOT_SPECIFIED}</p>
               {item.department && <p className="text-sm text-gray-500">{item.department}</p>}

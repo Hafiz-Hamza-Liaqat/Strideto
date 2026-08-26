@@ -201,6 +201,12 @@ const canonicalScholarshipSchema = new mongoose.Schema(
     cycleLabel: { type: String, trim: true, default: '' },
     deadlineDate: { type: String, trim: true, default: '' },
 
+    /**
+     * Provider-facing review message (needs_changes / discontinued decisions).
+     * Safe for Institution Portal. Distinct from internal adminNotes.
+     */
+    reviewFeedback: { type: String, trim: true, default: '' },
+
     // Internal — MUST NOT be projected to public endpoints
     adminNotes: { type: String, trim: true, default: '' },
   },

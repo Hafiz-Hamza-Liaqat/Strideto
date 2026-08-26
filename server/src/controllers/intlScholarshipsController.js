@@ -4,22 +4,15 @@ import mongoose from 'mongoose';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { listResponse, paginate } from '../utils/apiResponse.js';
 import { sanitizeString } from '../utils/sanitize.js';
-import { coerceCountryCode, countryDisplayName } from '../../../shared/international/country.js';
+import { freeTextCountryRegex } from '../../../shared/international/location.js';
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
 
 function buildQuery(q) {
   const filter = { status: 'active' };
-  if (q.country) {
-    const raw = sanitizeString(q.country);
-    const code = coerceCountryCode(raw);
-    const name = code ? countryDisplayName(code) : '';
-    const parts = [...new Set([raw, code, name].filter(Boolean))].map((part) =>
-      part.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
-    );
-    filter.country = new RegExp(parts.join('|'), 'i');
-  }
+  const countryRe = freeTextCountryRegex(q.country || q.countryCode);
+  if (countryRe) filter.country = countryRe;
   if (q.university) filter.$or = [{ university: new RegExp(sanitizeString(q.university), 'i') }, { universityId: q.university }];
   if (q.universityId && mongoose.Types.ObjectId.isValid(q.universityId)) filter.universityId = q.universityId;
   if (q.deadline === 'upcoming') filter.$and = [{ $or: [{ deadline: { $gte: new Date() } }, { applicationDeadline: { $gte: new Date() } }] }];

@@ -1290,7 +1290,28 @@ export async function listOwnedScholarships({ organizationId, canonicalInstituti
       .lean(),
     CanonicalScholarship.countDocuments(filter),
   ]);
-  return { scholarships, pagination: { page: pageNum, limit: safeLimit, total, pages: Math.ceil(total / safeLimit) } };
+  return {
+    scholarships: scholarships.map(projectOwnedScholarship),
+    pagination: { page: pageNum, limit: safeLimit, total, pages: Math.ceil(total / safeLimit) },
+  };
+}
+
+/** Provider-safe scholarship DTO — never exposes adminNotes. */
+export function projectOwnedScholarship(doc) {
+  if (!doc) return null;
+  const plain = typeof doc.toObject === 'function' ? doc.toObject() : { ...doc };
+  const { adminNotes: _adminNotes, __v: _v, ...rest } = plain;
+  return {
+    ...rest,
+    reviewFeedback: plain.reviewFeedback || '',
+  };
+}
+
+export async function getOwnedScholarship({ scholarshipId, organizationId, canonicalInstitutionId }) {
+  await assertScholarshipOwnership(scholarshipId, organizationId, canonicalInstitutionId);
+  const scholarship = await CanonicalScholarship.findById(scholarshipId).select('-adminNotes').lean();
+  if (!scholarship) throw Object.assign(new Error('Scholarship not found'), { code: 'NOT_FOUND', status: 404 });
+  return projectOwnedScholarship(scholarship);
 }
 
 export async function createOwnedScholarship({
@@ -1320,6 +1341,10 @@ export async function createOwnedScholarship({
   }
   if (data.funding?.amountMinor != null && !Number.isInteger(data.funding.amountMinor)) {
     throw Object.assign(new Error('funding.amountMinor must be an integer'), { code: 'VALIDATION', status: 400 });
+  }
+  const sourceUrl = String(data.sourceUrl || '').trim();
+  if (!sourceUrl) {
+    throw Object.assign(new Error('sourceUrl is required for institution-owned scholarships'), { code: 'VALIDATION', status: 400 });
   }
   const criteria = Array.isArray(data.criteria) && data.criteria.length
     ? data.criteria
@@ -1352,7 +1377,7 @@ export async function createOwnedScholarship({
     applicationMethod: data.applicationMethod,
     applicationUrl: data.applicationUrl || '',
     summary: data.summary || '',
-    sources: [{ sourceType: INSTITUTION_SOURCE_TYPE, sourceUrl: data.sourceUrl || '' }],
+    sources: [{ sourceType: INSTITUTION_SOURCE_TYPE, sourceUrl }],
     institutionId: canonicalInstitutionId,
     organizationId,
     applicableProgramIds: data.applicableProgramIds || [],
@@ -1369,7 +1394,7 @@ export async function createOwnedScholarship({
     actor,
     metadata: { organizationId, scholarshipId: scholarship._id },
   });
-  return scholarship;
+  return projectOwnedScholarship(scholarship);
 }
 
 export async function updateOwnedScholarship({
@@ -1385,6 +1410,13 @@ export async function updateOwnedScholarship({
   if (!scholarship) throw Object.assign(new Error('Scholarship not found'), { code: 'NOT_FOUND', status: 404 });
   await assertScholarshipOwnership(scholarshipId, organizationId, canonicalInstitutionId);
 
+  if (scholarship.status !== PUB_STATUSES.DRAFT && scholarship.status !== PUB_STATUSES.NEEDS_CHANGES) {
+    throw Object.assign(
+      new Error('Only draft or needs_changes scholarships can be edited by the Institution'),
+      { code: 'INVALID_STATE', status: 409 }
+    );
+  }
+
   if (containsForbiddenGuarantee(updates.title) || containsForbiddenGuarantee(updates.summary)) {
     throw Object.assign(new Error('Guarantee wording is not allowed'), { code: 'FORBIDDEN_GUARANTEE', status: 422 });
   }
@@ -1395,10 +1427,18 @@ export async function updateOwnedScholarship({
   const allowed = [
     'title', 'summary', 'funding', 'criteria', 'applicationUrl', 'applicationMethod',
     'destinationCountries', 'degreeLevels', 'fields', 'studyModes', 'applicableProgramIds',
-    'nationalityScope', 'cycleLabel', 'deadlineDate', 'status',
+    'nationalityScope', 'cycleLabel', 'deadlineDate',
   ];
   for (const key of allowed) {
     if (updates[key] !== undefined) scholarship[key] = updates[key];
+  }
+  // Institutions cannot self-publish. Status changes go through submitOwnedScholarshipForReview
+  // (→ submitted) and Admin publish authority.
+  if (updates.status !== undefined) {
+    throw Object.assign(
+      new Error('Institution cannot set publication status directly. Submit for review instead.'),
+      { code: 'STATUS_FORBIDDEN', status: 403 }
+    );
   }
   if (updates.sourceUrl) {
     scholarship.sources = [{ sourceType: INSTITUTION_SOURCE_TYPE, sourceUrl: updates.sourceUrl }];
@@ -1409,7 +1449,70 @@ export async function updateOwnedScholarship({
     actor,
     metadata: { organizationId, scholarshipId },
   });
-  return scholarship;
+  return projectOwnedScholarship(scholarship);
+}
+
+/**
+ * Institution submits an owned scholarship for Admin review.
+ * draft | needs_changes → submitted. Admin publishes via education admin API.
+ */
+export async function submitOwnedScholarshipForReview({
+  scholarshipId,
+  organizationId,
+  canonicalInstitutionId,
+  actor,
+}) {
+  const scholarship = await CanonicalScholarship.findById(scholarshipId);
+  if (!scholarship) throw Object.assign(new Error('Scholarship not found'), { code: 'NOT_FOUND', status: 404 });
+  await assertScholarshipOwnership(scholarshipId, organizationId, canonicalInstitutionId);
+
+  if (scholarship.status !== PUB_STATUSES.DRAFT && scholarship.status !== PUB_STATUSES.NEEDS_CHANGES) {
+    throw Object.assign(
+      new Error('Scholarship must be in draft or needs_changes state to submit'),
+      { code: 'INVALID_STATE', status: 409 }
+    );
+  }
+
+  const hasSource = Array.isArray(scholarship.sources)
+    && scholarship.sources.some((s) => typeof s?.sourceUrl === 'string' && s.sourceUrl.trim());
+  if (!hasSource) {
+    throw Object.assign(
+      new Error('A source URL is required before submitting a scholarship for review'),
+      { code: 'VALIDATION', status: 400 }
+    );
+  }
+
+  scholarship.status = PUB_STATUSES.SUBMITTED;
+  // Clear prior provider-facing feedback on successful resubmit of the same record
+  scholarship.reviewFeedback = '';
+  await scholarship.save();
+  await logAudit({
+    action: 'institution_scholarship_submitted',
+    actor,
+    metadata: { organizationId, scholarshipId },
+  });
+
+  try {
+    await prepareNotification({
+      organizationId,
+      eventType: INSTITUTION_NOTIFICATION_TYPES.CONTENT_NEEDS_CHANGES,
+      payload: { scholarshipId, status: PUB_STATUSES.SUBMITTED, phase: 'submitted' },
+    });
+    const { notifyAdminStaff } = await import('./notificationService.js');
+    await notifyAdminStaff({
+      category: 'system',
+      type: 'institution_scholarship.submitted',
+      title: 'Institution scholarship submitted',
+      body: `"${scholarship.title}" was submitted for review.`,
+      link: '/admin/education/scholarships',
+      dedupeKey: `institution-scholarship-submitted:${scholarshipId}:${scholarship.updatedAt?.getTime?.() || Date.now()}`,
+      metadata: { scholarshipId: String(scholarshipId), organizationId: String(organizationId) },
+    });
+  } catch {
+    // Non-fatal — durable submit still succeeded
+  }
+
+  return projectOwnedScholarship(scholarship);
 }
 
 export function normalizeIntake(raw = {}) {

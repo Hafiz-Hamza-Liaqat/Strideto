@@ -18,6 +18,8 @@ import axiosInstance from '../../services/axiosBase';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
 import { AdminViewPublicLink, isAdminSlugPreviewReady } from '../../components/admin/AdminViewPublicLink';
 import { formatJobPublicationStatus } from '@shared/cms/publicReadiness.js';
+import { AdminLocationFields } from '../../components/admin/AdminLocationFields';
+import { formatLocationDisplay } from '@shared/international/location.js';
 
 const EMPTY_JOB = {
   title: '',
@@ -25,9 +27,12 @@ const EMPTY_JOB = {
   category: '',
   type: 'full-time',
   jobType: 'Private',
+  countryCode: '',
   province: '',
+  region: '',
   city: '',
   location: '',
+  workMode: 'unspecified',
   salaryRange: '',
   salaryCurrency: '',
   experience: '',
@@ -114,6 +119,10 @@ export default function AdminContentJobs() {
       toast.error(t('admin:jobValidationRequired'));
       return;
     }
+    if (form.workMode !== 'remote' && !form.countryCode?.trim()) {
+      toast.error(t('admin:countryRequired'));
+      return;
+    }
     setSaving(true);
     const payload = {
       ...form,
@@ -182,7 +191,7 @@ export default function AdminContentJobs() {
   const columns = [
     { key: 'title', label: t('admin:colTitle'), sortable: true },
     { key: 'company', label: t('admin:colCompany'), sortable: true },
-    { key: 'province', label: t('admin:colProvince') },
+    { key: 'province', label: t('admin:colProvince'), render: (row) => formatLocationDisplay(row) || row.province || '—' },
     { key: 'status', label: t('status'), render: (row) => formatJobPublicationStatus(row) },
     {
       key: 'approvalStatus',
@@ -280,7 +289,7 @@ export default function AdminContentJobs() {
           onSort={setSort}
           filters={filters}
           onFiltersChange={(f) => { setFilters(f); setPage(1); }}
-          filterFields={['search', 'status', 'approvalStatus', 'province', 'city', 'category', 'employer', 'featured', 'from', 'to']}
+          filterFields={['search', 'status', 'approvalStatus', 'country', 'province', 'city', 'category', 'employer', 'featured', 'from', 'to']}
           selectable={canEdit || canModerate}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
@@ -367,14 +376,24 @@ export default function AdminContentJobs() {
                     <option value="Internship">Internship</option>
                   </AdminSelectBare>
                 </label>
-                <label>
-                  <span className="text-xs text-gray-500">{t('admin:fieldProvince')}</span>
-                  <input className={fieldClass} value={form.province} onChange={(e) => setForm({ ...form, province: e.target.value })} />
-                </label>
-                <label>
-                  <span className="text-xs text-gray-500">{t('admin:fieldCity')}</span>
-                  <input className={fieldClass} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-                </label>
+                <div className="sm:col-span-2">
+                  <AdminLocationFields
+                    mode="code"
+                    countryRequired={form.workMode !== 'remote'}
+                    showWorkMode
+                    value={form}
+                    onChange={(loc) => {
+                      const workMode = loc.workMode || form.workMode || 'unspecified';
+                      setForm({
+                        ...form,
+                        ...loc,
+                        workMode,
+                        remote: workMode === 'remote',
+                        hybrid: workMode === 'hybrid',
+                      });
+                    }}
+                  />
+                </div>
                 <label>
                   <span className="text-xs text-gray-500">{t('admin:fieldSalary')}</span>
                   <input className={fieldClass} value={form.salaryRange} onChange={(e) => setForm({ ...form, salaryRange: e.target.value })} />
@@ -445,8 +464,6 @@ export default function AdminContentJobs() {
                   <textarea rows={2} className={fieldClass} value={form.metaDescription} onChange={(e) => setForm({ ...form, metaDescription: e.target.value })} />
                 </label>
                 <div className="sm:col-span-2 flex flex-wrap gap-4">
-                  <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={form.remote} onChange={(e) => setForm({ ...form, remote: e.target.checked })} /> Remote</label>
-                  <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={form.hybrid} onChange={(e) => setForm({ ...form, hybrid: e.target.checked })} /> Hybrid</label>
                   <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={form.urgent} onChange={(e) => setForm({ ...form, urgent: e.target.checked })} /> {t('admin:fieldUrgent')}</label>
                   <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isFeatured} onChange={(e) => setForm({ ...form, isFeatured: e.target.checked })} /> {t('admin:fieldFeatured')}</label>
                 </div>

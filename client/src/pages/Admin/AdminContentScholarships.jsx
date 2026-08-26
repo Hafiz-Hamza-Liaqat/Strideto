@@ -17,11 +17,14 @@ import axiosInstance from '../../services/axiosBase';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
 import { AdminViewPublicLink, isAdminSlugPreviewReady } from '../../components/admin/AdminViewPublicLink';
 import { formatCmsPublicationStatus } from '@shared/cms/publicReadiness.js';
+import { AdminLocationFields } from '../../components/admin/AdminLocationFields';
 
 const EMPTY = {
   title: '',
   provider: '',
   country: '',
+  province: '',
+  city: '',
   university: '',
   level: 'Other',
   amount: '',
@@ -78,6 +81,10 @@ export default function AdminContentScholarships() {
   const save = async () => {
     if (!form.title?.trim() || !form.provider?.trim()) {
       toast.error(t('admin:providerRequired'));
+      return;
+    }
+    if (!form.country?.trim()) {
+      toast.error(t('admin:countryRequired'));
       return;
     }
     setSaving(true);
@@ -158,7 +165,7 @@ export default function AdminContentScholarships() {
           onSort={setSort}
           filters={filters}
           onFiltersChange={(f) => { setFilters(f); setPage(1); }}
-          filterFields={['search', 'status', 'from', 'to', 'featured']}
+          filterFields={['search', 'status', 'country', 'from', 'to', 'featured']}
           selectable={canEdit}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
@@ -189,7 +196,12 @@ export default function AdminContentScholarships() {
               <div className="grid gap-3 max-h-[70vh] overflow-y-auto mt-3">
                 <input className={fieldClass} placeholder={t('admin:fieldTitle')} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
                 <input className={fieldClass} placeholder={t('admin:organizationPlaceholder')} value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })} />
-                <input className={fieldClass} placeholder={t('admin:countryPlaceholder')} value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} />
+                <AdminLocationFields
+                  mode="name"
+                  countryRequired
+                  value={form}
+                  onChange={(loc) => setForm({ ...form, ...loc })}
+                />
                 <input className={fieldClass} placeholder={t('admin:fieldUniversity')} value={form.university} onChange={(e) => setForm({ ...form, university: e.target.value })} />
                 <input className={fieldClass} placeholder={t('admin:fieldFunding')} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
                 <input type="date" className={fieldClass} value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />

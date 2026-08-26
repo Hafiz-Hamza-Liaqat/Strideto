@@ -17,6 +17,7 @@ import {
   ACCEPTANCE_SCOPES,
 } from '../../../../shared/education/acceptanceExplorer.js';
 import { currentAcceptanceMongoFilter } from '../../../../shared/publicDiscovery/publicTruth.js';
+import { withFixtureExclusion } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 
 const PAGE_SIZE = 20;
 
@@ -95,7 +96,9 @@ export const getTestAcceptance = asyncHandler(async (req, res) => {
 
 export const getInstitutionAcceptance = asyncHandler(async (req, res) => {
   const slug = sanitizeString(req.params.slug);
-  const institution = await CanonicalInstitution.findOne({ slug, status: 'published' }).lean();
+  const institution = await CanonicalInstitution.findOne(
+    withFixtureExclusion({ slug, status: 'published' })
+  ).lean();
   if (!institution) return res.status(404).json({ error: 'Institution not found' });
 
   const q = req.query || {};

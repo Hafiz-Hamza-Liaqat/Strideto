@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { hasAdConsent, getAdSenseClientId } from '../consent/CookieConsent';
+import { hasAdConsent, getAdSenseClientId } from '../../consent/cookieConsentStorage';
 
 /**
  * Responsive ad slot — loads Google AdSense when client ID + consent are set.

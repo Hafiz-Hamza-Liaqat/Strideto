@@ -11,7 +11,11 @@ const scholarshipSchema = new mongoose.Schema(
     level: { type: String, enum: ['Undergraduate', 'Graduate', 'PhD', 'Other'], default: 'Other' },
     degreeLevel: { type: String }, // alias / display (e.g. Bachelor, Master, PhD)
     university: { type: String },
+    /** Free-text country (legacy names or ISO codes accepted on read). */
     country: { type: String },
+    /** State / province / region — additive global location. */
+    province: { type: String },
+    city: { type: String },
     amount: { type: String },
     fundingType: { type: String, enum: ['Fully Funded', 'Partial', 'Other'], default: 'Other' },
     description: { type: String },

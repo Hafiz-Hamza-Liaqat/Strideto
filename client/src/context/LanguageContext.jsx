@@ -5,6 +5,7 @@ import { isLanguageEnabled, getLanguageConfig, DEFAULT_LANGUAGE } from '../i18n/
 import { useAuth } from './AuthContext.jsx';
 import { authApi } from '../services/authService.js';
 import axiosInstance from '../services/axiosBase.js';
+import { allowsFunctional } from '../consent/cookieConsentStorage.js';
 
 const LanguageContext = createContext(null);
 
@@ -35,7 +36,7 @@ export function LanguageProvider({ children }) {
     if (!isLanguageEnabled(next)) return;
     await loadLanguage(next);
     await i18n.changeLanguage(next);
-    localStorage.setItem('edurozgaar-lang', next);
+    if (allowsFunctional()) localStorage.setItem('edurozgaar-lang', next);
     if (persistProfile && isAuthenticated) {
       authApi.updateProfile({ preferredLanguage: next }).then(({ data }) => {
         updateUser(data.user);

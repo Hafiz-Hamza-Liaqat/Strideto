@@ -585,7 +585,7 @@ export const PAGE_REGISTRY = [
     ['faq', 'FAQ', '/faq'],
     ['privacy-policy', 'Privacy Policy', '/privacy-policy'],
     ['terms', 'Terms', '/terms'],
-    ['cookies', 'Cookies', '/cookies'],
+    ['cookies', 'Cookies', '/cookie-policy'],
     ['disclaimer', 'Disclaimer', '/disclaimer'],
     ['refund-policy', 'Refund Policy', '/refund-policy'],
     ['careers', 'Careers', '/careers'],

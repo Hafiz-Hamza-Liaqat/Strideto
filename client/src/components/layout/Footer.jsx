@@ -11,21 +11,32 @@ import { BRAND_TAGLINE } from '../../design-system/brand.js';
 import { resolvePublicSocialLinks } from '@shared/social/officialSocialLinks.js';
 import { SocialLinksRow } from '../social/SocialLinksRow';
 import { sanitizePublicCopyright, isForbiddenPublicHref } from '@shared/seo/publicCopyright.js';
+import { openCookieSettings } from '../../consent/cookieConsentStorage';
 
 function FooterLinkColumn({ title, links }) {
-  const visible = links.filter((l) => l.path && !isForbiddenPublicHref(l.path));
+  const visible = links.filter((l) => (l.path && !isForbiddenPublicHref(l.path)) || l.action);
   return (
     <div>
       <h3 className="font-semibold text-[#CBD5F5] mb-4 text-sm uppercase tracking-wider">{title}</h3>
       <ul className="space-y-3">
-        {visible.map(({ label, path }) => (
-          <li key={path || label}>
-            <Link
-              to={path}
-              className="text-sm text-[#94A3B8] hover:text-primary focus-visible:text-primary transition-colors duration-200 break-words-safe"
-            >
-              {label}
-            </Link>
+        {visible.map(({ label, path, action }) => (
+          <li key={path || action || label}>
+            {action === 'cookie-settings' ? (
+              <button
+                type="button"
+                onClick={() => openCookieSettings()}
+                className="text-sm text-[#94A3B8] hover:text-primary focus-visible:text-primary transition-colors duration-200 break-words-safe text-left"
+              >
+                {label}
+              </button>
+            ) : (
+              <Link
+                to={path}
+                className="text-sm text-[#94A3B8] hover:text-primary focus-visible:text-primary transition-colors duration-200 break-words-safe"
+              >
+                {label}
+              </Link>
+            )}
           </li>
         ))}
       </ul>
@@ -82,6 +93,7 @@ export function Footer() {
     { label: t('footer:termsConditions'), path: ROUTES.TERMS },
     { label: t('footer:refundPolicy'), path: ROUTES.REFUND_POLICY },
     { label: t('footer:cookiePolicy'), path: ROUTES.COOKIES },
+    { label: t('footer:cookieSettings'), path: null, action: 'cookie-settings' },
     { label: t('footer:disclaimer'), path: ROUTES.DISCLAIMER },
   ];
 

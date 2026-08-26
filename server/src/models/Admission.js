@@ -10,6 +10,9 @@ const admissionSchema = new mongoose.Schema(
     institution: { type: String, required: true },
     university: { type: String }, // alias for institution / display
     department: { type: String },
+    /** ISO 3166-1 alpha-2; additive — legacy admissions may omit. */
+    countryCode: { type: String, trim: true, uppercase: true, maxlength: 2 },
+    /** State / province / region (legacy field name preserved). */
     province: { type: String },
     city: { type: String },
     session: { type: String },
@@ -42,6 +45,7 @@ const admissionSchema = new mongoose.Schema(
 
 admissionSchema.index({ deadline: 1, status: 1 });
 admissionSchema.index({ institution: 1, status: 1 });
+admissionSchema.index({ countryCode: 1, status: 1 });
 admissionSchema.index({ program: 'text', institution: 'text', department: 'text' });
 applySlugLocaleIndex(admissionSchema);
 ensureTranslationGroupHook(admissionSchema);

@@ -16,6 +16,7 @@ import { ScholarshipCycle } from '../../models/education/ScholarshipCycle.js';
 import { ScholarshipApplicability } from '../../models/education/ScholarshipApplicability.js';
 import { ProgramRequirement } from '../../models/education/ProgramRequirement.js';
 import { Program } from '../../models/education/Program.js';
+import { CanonicalInstitution } from '../../models/education/CanonicalInstitution.js';
 import { AuditLog } from '../../models/AuditLog.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { sanitizeString } from '../../utils/sanitize.js';
@@ -32,6 +33,7 @@ import {
   isValidProgramRequirementType,
   isValidRequirementSemantics,
   containsForbiddenGuarantee,
+  SCHOLARSHIP_TYPES,
 } from '../../../../shared/education/scholarshipIntelligence.js';
 import {
   isValidPubStatus,
@@ -39,8 +41,13 @@ import {
   isValidAcademicField,
   isValidStudyMode,
   educationSlug,
+  PUB_STATUSES,
 } from '../../../../shared/education/taxonomy.js';
 import { isStaffRole } from '../../config/rbac.js';
+import { assignLaunchEligibleOnAuthorityPublish } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
+import { INSTITUTION_NOTIFICATION_TYPES } from '../../../../shared/institution/institutionPortal.js';
+
+const INSTITUTION_POPULATE = 'officialName slug countryCode city region status institutionType isFixture demoOnly';
 
 // ── Authorization guard ────────────────────────────────────────────────────────
 
@@ -81,19 +88,67 @@ function extractSources(rawSources, res, opts = {}) {
 
 // ── Audit helper ───────────────────────────────────────────────────────────────
 
-async function audit(req, action, target, targetId) {
+async function audit(req, action, target, targetId, metadata = {}) {
   try {
     await AuditLog.create({
       actorId: req.user._id,
       actorEmail: req.user.email,
       action,
-      target,
+      targetType: target,
       targetId: String(targetId),
       ip: req.ip,
+      metadata: metadata && Object.keys(metadata).length ? metadata : undefined,
     });
   } catch {
     // Non-fatal — audit failures must not block the primary operation
   }
+}
+
+async function notifyOwningInstitutionDecision(doc, { eventType, title, body, type }) {
+  if (!doc?.organizationId) return;
+  try {
+    const { prepareNotification } = await import('../../services/institutionPortalService.js');
+    const { notifyInstitutionOrganizationOwners } = await import('../../services/institutionInboxNotificationBridge.js');
+    const scholarshipId = String(doc._id);
+    await prepareNotification({
+      organizationId: doc.organizationId,
+      eventType,
+      payload: {
+        scholarshipId,
+        status: doc.status,
+        // Provider-safe only — never adminNotes
+        reviewFeedback: doc.reviewFeedback || '',
+      },
+    });
+    await notifyInstitutionOrganizationOwners({
+      organizationId: doc.organizationId,
+      category: 'system',
+      type,
+      title,
+      body,
+      link: '/institution/scholarships',
+      dedupeKey: `institution-scholarship-decision:${scholarshipId}:${doc.status}:${doc.updatedAt?.getTime?.() || Date.now()}`,
+      metadata: { scholarshipId, status: doc.status },
+    });
+  } catch {
+    // Non-fatal
+  }
+}
+
+async function assertPublishableInstitutional(doc, res) {
+  if (doc.scholarshipType !== SCHOLARSHIP_TYPES.INSTITUTIONAL) return true;
+  if (!doc.institutionId) {
+    res.status(400).json({ error: 'Institutional scholarships require a canonical institutionId' });
+    return false;
+  }
+  const institution = await CanonicalInstitution.findById(doc.institutionId).lean();
+  if (!institution || institution.status !== 'published' || institution.isFixture === true || institution.demoOnly === true) {
+    res.status(400).json({
+      error: 'Institutional scholarships may only publish when linked to a public, non-fixture CanonicalInstitution',
+    });
+    return false;
+  }
+  return true;
 }
 
 // ────────────────────────────────────────────────────────────────────────────
@@ -106,14 +161,39 @@ export const adminListScholarships = asyncHandler(async (req, res) => {
   const filter = {};
   if (q.status) filter.status = sanitizeString(q.status);
   if (q.scholarshipType) filter.scholarshipType = sanitizeString(q.scholarshipType);
-  if (q.country) filter.destinationCountries = sanitizeString(q.country).toUpperCase();
+  if (q.institutionId) filter.institutionId = sanitizeString(q.institutionId);
+  if (q.degreeLevel && isValidDegreeLevel(q.degreeLevel)) filter.degreeLevels = q.degreeLevel;
+  if (q.field && isValidAcademicField(q.field)) filter.fields = q.field;
+
+  if (q.country) {
+    const code = sanitizeString(q.country).toUpperCase();
+    const institutions = await CanonicalInstitution.find({ countryCode: code }).select('_id').lean();
+    const instIds = institutions.map((i) => i._id);
+    filter.$or = [
+      { destinationCountries: code },
+      ...(instIds.length ? [{ institutionId: { $in: instIds } }] : []),
+    ];
+  }
+
+  if (q.search) {
+    const term = sanitizeString(q.search).slice(0, 80);
+    const re = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    filter.$and = (filter.$and || []).concat([{
+      $or: [{ title: re }, { slug: re }, { 'provider.name': re }, { summary: re }],
+    }]);
+  }
 
   const page = Math.max(1, parseInt(q.page, 10) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(q.limit, 10) || 20));
   const skip = (page - 1) * limit;
 
   const [data, total] = await Promise.all([
-    CanonicalScholarship.find(filter).sort({ updatedAt: -1 }).skip(skip).limit(limit).lean(),
+    CanonicalScholarship.find(filter)
+      .populate('institutionId', INSTITUTION_POPULATE)
+      .sort({ updatedAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean(),
     CanonicalScholarship.countDocuments(filter),
   ]);
 
@@ -122,9 +202,20 @@ export const adminListScholarships = asyncHandler(async (req, res) => {
 
 export const adminGetScholarship = asyncHandler(async (req, res) => {
   if (!requireAdmin(req, res)) return;
-  const doc = await CanonicalScholarship.findById(req.params.id).lean();
+  const doc = await CanonicalScholarship.findById(req.params.id)
+    .populate('institutionId', INSTITUTION_POPULATE)
+    .lean();
   if (!doc) return res.status(404).json({ error: 'Scholarship not found' });
-  res.json({ data: doc });
+
+  const [cycles, applicability] = await Promise.all([
+    ScholarshipCycle.find({ scholarshipId: doc._id }).sort({ deadlineAt: -1 }).lean(),
+    ScholarshipApplicability.find({ scholarshipId: doc._id })
+      .populate('programId', 'name slug degreeLevel field')
+      .populate('institutionId', 'officialName slug')
+      .lean(),
+  ]);
+
+  res.json({ data: doc, cycles, applicability });
 });
 
 export const adminCreateScholarship = asyncHandler(async (req, res) => {
@@ -134,7 +225,6 @@ export const adminCreateScholarship = asyncHandler(async (req, res) => {
   const title = sanitizeString(body.title);
   if (!title) return res.status(400).json({ error: 'title is required' });
 
-  // Truthfulness: reject forbidden guarantee language
   if (containsForbiddenGuarantee(title) || containsForbiddenGuarantee(body.summary)) {
     return res.status(400).json({ error: 'Summary or title contains forbidden guarantee language' });
   }
@@ -148,13 +238,16 @@ export const adminCreateScholarship = asyncHandler(async (req, res) => {
   }
 
   const slug = body.slug ? sanitizeString(body.slug) : educationSlug(title);
+  const institutionId = body.institutionId || null;
 
   const doc = await CanonicalScholarship.create({
     slug,
     title,
     provider: {
-      name: sanitizeString(body.providerName),
-      providerType: isValidProviderType(body.providerType) ? body.providerType : undefined,
+      name: sanitizeString(body.providerName || body.provider?.name),
+      providerType: isValidProviderType(body.providerType || body.provider?.providerType)
+        ? (body.providerType || body.provider?.providerType)
+        : undefined,
     },
     scholarshipType: isValidScholarshipType(body.scholarshipType) ? body.scholarshipType : undefined,
     destinationCountries: Array.isArray(body.destinationCountries)
@@ -174,10 +267,23 @@ export const adminCreateScholarship = asyncHandler(async (req, res) => {
     summary: sanitizeString(body.summary),
     status: isValidPubStatus(body.status) ? body.status : 'draft',
     sources,
+    institutionId,
+    organizationId: body.organizationId || null,
+    applicableProgramIds: Array.isArray(body.applicableProgramIds) ? body.applicableProgramIds : [],
+    nationalityScope: Array.isArray(body.nationalityScope) ? body.nationalityScope.map(sanitizeString) : [],
+    cycleLabel: sanitizeString(body.cycleLabel),
+    deadlineDate: sanitizeString(body.deadlineDate),
+    reviewFeedback: sanitizeString(body.reviewFeedback),
     adminNotes: sanitizeString(body.adminNotes),
   });
 
-  if (isPublish) await audit(req, 'scholarship.publish', 'CanonicalScholarship', doc._id);
+  if (isPublish) {
+    if (!(await assertPublishableInstitutional(doc, res))) {
+      await CanonicalScholarship.findByIdAndDelete(doc._id);
+      return;
+    }
+    await audit(req, 'scholarship.publish', 'CanonicalScholarship', doc._id, { status: 'published' });
+  }
 
   res.status(201).json({ data: doc });
 });
@@ -188,7 +294,8 @@ export const adminUpdateScholarship = asyncHandler(async (req, res) => {
   if (!doc) return res.status(404).json({ error: 'Scholarship not found' });
 
   const body = req.body || {};
-  const wasPublished = doc.status === 'published';
+  const previousStatus = doc.status;
+  const wasPublished = previousStatus === 'published';
   const willPublish = body.status === 'published';
 
   if (containsForbiddenGuarantee(body.title) || containsForbiddenGuarantee(body.summary)) {
@@ -207,6 +314,7 @@ export const adminUpdateScholarship = asyncHandler(async (req, res) => {
   if (body.title !== undefined) doc.title = sanitizeString(body.title);
   if (body.slug !== undefined) doc.slug = sanitizeString(body.slug);
   if (body.providerName !== undefined) doc.provider.name = sanitizeString(body.providerName);
+  if (body.provider?.name !== undefined) doc.provider.name = sanitizeString(body.provider.name);
   if (body.providerType !== undefined && isValidProviderType(body.providerType)) {
     doc.provider.providerType = body.providerType;
   }
@@ -228,19 +336,79 @@ export const adminUpdateScholarship = asyncHandler(async (req, res) => {
   }
   if (body.applicationUrl !== undefined) doc.applicationUrl = sanitizeString(body.applicationUrl);
   if (body.summary !== undefined) doc.summary = sanitizeString(body.summary);
+  if (body.institutionId !== undefined) doc.institutionId = body.institutionId || null;
+  if (body.organizationId !== undefined) doc.organizationId = body.organizationId || null;
+  if (Array.isArray(body.applicableProgramIds)) doc.applicableProgramIds = body.applicableProgramIds;
+  if (Array.isArray(body.nationalityScope)) {
+    doc.nationalityScope = body.nationalityScope.map(sanitizeString).filter(Boolean);
+  }
+  if (body.cycleLabel !== undefined) doc.cycleLabel = sanitizeString(body.cycleLabel);
+  if (body.deadlineDate !== undefined) doc.deadlineDate = sanitizeString(body.deadlineDate);
+  if (
+    previousStatus !== (body.status || previousStatus)
+    && (body.status === PUB_STATUSES.NEEDS_CHANGES || body.status === PUB_STATUSES.DISCONTINUED)
+    && !String(body.reviewFeedback ?? doc.reviewFeedback ?? '').trim()
+  ) {
+    return res.status(400).json({ error: 'Provider-facing reviewFeedback is required for needs_changes / discontinued decisions' });
+  }
+
+  if (body.reviewFeedback !== undefined) doc.reviewFeedback = sanitizeString(body.reviewFeedback);
   if (body.status !== undefined && isValidPubStatus(body.status)) doc.status = body.status;
   if (body.sources !== undefined) doc.sources = sources;
   if (body.adminNotes !== undefined) doc.adminNotes = sanitizeString(body.adminNotes);
 
-  await doc.save();
-
-  if (!wasPublished && willPublish) {
-    await audit(req, 'scholarship.publish', 'CanonicalScholarship', doc._id);
-  } else if (wasPublished && body.status === 'archived') {
-    await audit(req, 'scholarship.archive', 'CanonicalScholarship', doc._id);
+  // Auto-advance submitted → under_review when Admin starts reviewing (optional explicit)
+  if (body.startReview === true && previousStatus === PUB_STATUSES.SUBMITTED) {
+    doc.status = PUB_STATUSES.UNDER_REVIEW;
   }
 
-  res.json({ data: doc });
+  if (willPublish || doc.status === PUB_STATUSES.PUBLISHED) {
+    if (!(await assertPublishableInstitutional(doc, res))) return;
+  }
+
+  await doc.save();
+
+  const nextStatus = doc.status;
+  if (!wasPublished && nextStatus === PUB_STATUSES.PUBLISHED) {
+    await audit(req, 'scholarship.publish', 'CanonicalScholarship', doc._id, { from: previousStatus, to: nextStatus });
+    await notifyOwningInstitutionDecision(doc, {
+      eventType: INSTITUTION_NOTIFICATION_TYPES.CONTENT_NEEDS_CHANGES,
+      type: 'institution_scholarship.published',
+      title: 'Scholarship published',
+      body: `"${doc.title}" is now published and may appear on public scholarship discovery.`,
+    });
+  } else if (previousStatus !== nextStatus && nextStatus === PUB_STATUSES.ARCHIVED) {
+    await audit(req, 'scholarship.archive', 'CanonicalScholarship', doc._id, { from: previousStatus, to: nextStatus });
+  } else if (previousStatus !== nextStatus && nextStatus === PUB_STATUSES.NEEDS_CHANGES) {
+    await audit(req, 'scholarship.needs_changes', 'CanonicalScholarship', doc._id, { from: previousStatus, to: nextStatus });
+    await notifyOwningInstitutionDecision(doc, {
+      eventType: INSTITUTION_NOTIFICATION_TYPES.CONTENT_NEEDS_CHANGES,
+      type: 'institution_scholarship.needs_changes',
+      title: 'Scholarship needs changes',
+      body: doc.reviewFeedback
+        ? `Admin requested changes: ${doc.reviewFeedback}`
+        : `"${doc.title}" was returned for changes. Open Scholarships to correct and resubmit.`,
+    });
+  } else if (previousStatus !== nextStatus && nextStatus === PUB_STATUSES.DISCONTINUED) {
+    await audit(req, 'scholarship.discontinued', 'CanonicalScholarship', doc._id, { from: previousStatus, to: nextStatus });
+    await notifyOwningInstitutionDecision(doc, {
+      eventType: INSTITUTION_NOTIFICATION_TYPES.CONTENT_NEEDS_CHANGES,
+      type: 'institution_scholarship.discontinued',
+      title: 'Scholarship discontinued',
+      body: doc.reviewFeedback
+        ? `Scholarship discontinued: ${doc.reviewFeedback}`
+        : `"${doc.title}" was discontinued and is not public.`,
+    });
+  } else if (previousStatus !== nextStatus && nextStatus === PUB_STATUSES.UNDER_REVIEW) {
+    await audit(req, 'scholarship.under_review', 'CanonicalScholarship', doc._id, { from: previousStatus, to: nextStatus });
+  } else if (previousStatus !== nextStatus) {
+    await audit(req, 'scholarship.status_change', 'CanonicalScholarship', doc._id, { from: previousStatus, to: nextStatus });
+  }
+
+  const populated = await CanonicalScholarship.findById(doc._id)
+    .populate('institutionId', INSTITUTION_POPULATE)
+    .lean();
+  res.json({ data: populated });
 });
 
 // ── Funding / criteria builders ────────────────────────────────────────────────
@@ -535,6 +703,7 @@ export const adminUpdateProgramIntelligence = asyncHandler(async (req, res) => {
 
   const body = req.body || {};
   const willPublish = body.status === 'published';
+  const previouslyPublished = doc.status === 'published';
 
   const sources = body.sources !== undefined
     ? extractSources(body.sources, res, { strict: willPublish })
@@ -564,12 +733,19 @@ export const adminUpdateProgramIntelligence = asyncHandler(async (req, res) => {
       notes: sanitizeString(intake.notes || ''),
     }));
   }
-  if (body.status !== undefined && isValidPubStatus(body.status)) doc.status = body.status;
+  if (body.status !== undefined && isValidPubStatus(body.status)) {
+    doc.status = body.status;
+    if (willPublish) {
+      doc.launchEligible = assignLaunchEligibleOnAuthorityPublish(doc.toObject ? doc.toObject() : doc);
+    }
+    if (body.status === 'archived' || body.status === 'discontinued') {
+      doc.launchEligible = false;
+    }
+  }
   if (body.sources !== undefined) doc.sources = sources;
 
-  const wasPublished = doc.status === 'published';
   await doc.save();
-  if (!wasPublished && willPublish) {
+  if (!previouslyPublished && willPublish) {
     await audit(req, 'program.publish', 'Program', doc._id);
   }
 

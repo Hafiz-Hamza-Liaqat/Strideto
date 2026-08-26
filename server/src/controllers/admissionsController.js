@@ -10,6 +10,8 @@ import {
 } from '../utils/localeQuery.js';
 import { projectPublicCmsAdmission } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 import { withFixtureExclusion } from '../../../shared/publicDiscovery/fixtureExclusion.js';
+import { sanitizeString } from '../utils/sanitize.js';
+import { normalizeCountryCode, coerceCountryCode } from '../../../shared/international/country.js';
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
@@ -18,6 +20,12 @@ function buildAdmissionQuery(q) {
   const filter = withFixtureExclusion({ status: 'active' });
   if (q.university) filter.institution = new RegExp(q.university.trim(), 'i');
   if (q.program) filter.$or = [{ program: new RegExp(q.program.trim(), 'i') }, { department: new RegExp(q.program.trim(), 'i') }];
+  const countryCode = normalizeCountryCode(q.countryCode) || coerceCountryCode(q.country);
+  if (countryCode) filter.countryCode = countryCode;
+  if (q.province || q.region) {
+    filter.province = new RegExp(sanitizeString(q.province || q.region), 'i');
+  }
+  if (q.city) filter.city = new RegExp(sanitizeString(q.city), 'i');
   if (q.deadline) {
     const d = new Date(q.deadline);
     if (!isNaN(d.getTime())) filter.deadline = { $gte: d };

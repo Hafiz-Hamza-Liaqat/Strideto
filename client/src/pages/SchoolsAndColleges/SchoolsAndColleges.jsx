@@ -8,6 +8,7 @@ import { ROUTES } from '../../constants';
 import { SearchBar } from '../../components/ui/SearchBar';
 import { Pagination } from '../../components/ui/Pagination';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
+import { formatLocationDisplay } from '@shared/international/location.js';
 
 const PER_PAGE = 12;
 const TYPES = [
@@ -66,7 +67,7 @@ export default function SchoolsAndColleges() {
                 {item.logoUrl && <img src={item.logoUrl} alt="" className="h-12 w-12 object-contain mb-2" loading="lazy" />}
                 <p className="text-xs uppercase text-gray-500">{item.type?.replace(/_/g, ' ')}</p>
                 <h2 className="font-semibold text-gray-900 dark:text-white">{item.name}</h2>
-                {(item.city || item.province) && <p className="text-sm text-gray-500 mt-1">{[item.city, item.province].filter(Boolean).join(', ')}</p>}
+                {(item.city || item.province || item.country) && <p className="text-sm text-gray-500 mt-1">{formatLocationDisplay(item)}</p>}
               </Link>
             ))}
           </div>

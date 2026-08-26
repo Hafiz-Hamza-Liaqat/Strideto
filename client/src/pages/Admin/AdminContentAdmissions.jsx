@@ -17,12 +17,15 @@ import axiosInstance from '../../services/axiosBase';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
 import { AdminViewPublicLink, isAdminSlugPreviewReady } from '../../components/admin/AdminViewPublicLink';
 import { formatCmsPublicationStatus } from '@shared/cms/publicReadiness.js';
+import { AdminLocationFields } from '../../components/admin/AdminLocationFields';
+import { formatLocationDisplay } from '@shared/international/location.js';
 
 const EMPTY = {
   program: '',
   institution: '',
   department: '',
   degree: '',
+  countryCode: '',
   province: '',
   city: '',
   fee: '',
@@ -83,6 +86,10 @@ export default function AdminContentAdmissions() {
       toast.error(t('admin:admissionFieldsRequired'));
       return;
     }
+    if (!form.countryCode?.trim()) {
+      toast.error(t('admin:countryRequired'));
+      return;
+    }
     setSaving(true);
     const payload = { ...form, university: form.institution, eligibility: textToLines(form.eligibility), link: form.applyLink };
     try {
@@ -115,7 +122,11 @@ export default function AdminContentAdmissions() {
   const columns = [
     { key: 'program', label: t('admin:colProgram'), sortable: true },
     { key: 'institution', label: t('admin:colUniversity') },
-    { key: 'province', label: t('admin:colProvince') },
+    {
+      key: 'location',
+      label: t('admin:fieldRegion'),
+      render: (row) => formatLocationDisplay(row) || '—',
+    },
     { key: 'status', label: t('status'), render: (row) => formatCmsPublicationStatus(row) },
     {
       key: 'actions',
@@ -158,7 +169,7 @@ export default function AdminContentAdmissions() {
           onSort={setSort}
           filters={filters}
           onFiltersChange={(f) => { setFilters(f); setPage(1); }}
-          filterFields={['search', 'status', 'province', 'city', 'from', 'to', 'featured']}
+          filterFields={['search', 'status', 'country', 'province', 'city', 'from', 'to', 'featured']}
           selectable={canEdit}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
@@ -190,8 +201,12 @@ export default function AdminContentAdmissions() {
                 <input className={fieldClass} placeholder={t('admin:institutionPlaceholder')} value={form.institution} onChange={(e) => setForm({ ...form, institution: e.target.value })} />
                 <input className={fieldClass} placeholder={t('admin:fieldDegree')} value={form.degree} onChange={(e) => setForm({ ...form, degree: e.target.value })} />
                 <input className={fieldClass} placeholder={t('admin:fieldDepartment')} value={form.department} onChange={(e) => setForm({ ...form, department: e.target.value })} />
-                <input className={fieldClass} placeholder={t('admin:provincePlaceholder')} value={form.province} onChange={(e) => setForm({ ...form, province: e.target.value })} />
-                <input className={fieldClass} placeholder={t('admin:fieldCity')} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+                <AdminLocationFields
+                  mode="code"
+                  countryRequired
+                  value={form}
+                  onChange={(loc) => setForm({ ...form, ...loc })}
+                />
                 <input className={fieldClass} placeholder={t('admin:fieldFee')} value={form.fee} onChange={(e) => setForm({ ...form, fee: e.target.value })} />
                 <input className={fieldClass} placeholder={t('admin:fieldDuration')} value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })} />
                 <input type="date" className={fieldClass} value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />

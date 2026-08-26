@@ -8,6 +8,8 @@ import { logAudit, auditFromRequest } from '../../services/auditService.js';
 import { applyResolvedSlug, slugErrorResponse } from '../../utils/adminSlugHelpers.js';
 import { runBulkAction, duplicateDoc } from '../../utils/adminBulkHelper.js';
 import { syncWorkflowAfterSave } from '../../services/workflow/workflowIntegration.js';
+import { freeTextCountryRegex } from '../../../../shared/international/location.js';
+import { coerceCountryCode, countryDisplayName } from '../../../../shared/international/country.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -17,10 +19,14 @@ function buildQuery(q) {
   const filter = {};
   if (q.status) filter.status = q.status;
   if (q.type && TYPES.includes(q.type)) filter.type = q.type;
-  if (q.province) filter.province = new RegExp(sanitizeString(q.province), 'i');
+  if (q.country || q.countryCode) {
+    const re = freeTextCountryRegex(q.country || q.countryCode);
+    if (re) filter.country = re;
+  }
+  if (q.province || q.region) filter.province = new RegExp(sanitizeString(q.province || q.region), 'i');
   if (q.search && sanitizeString(q.search)) {
     const re = new RegExp(sanitizeString(q.search), 'i');
-    filter.$or = [{ name: re }, { city: re }, { description: re }];
+    filter.$or = [{ name: re }, { city: re }, { description: re }, { country: re }];
   }
   return filter;
 }
@@ -30,7 +36,16 @@ function applyBody(doc, body) {
   if (body.type !== undefined && TYPES.includes(body.type)) doc.type = body.type;
   if (body.description !== undefined) doc.description = body.description ? sanitizeString(body.description) : undefined;
   if (body.city !== undefined) doc.city = body.city ? sanitizeString(body.city) : undefined;
-  if (body.province !== undefined) doc.province = body.province ? sanitizeString(body.province) : undefined;
+  if (body.province !== undefined || body.region !== undefined) {
+    doc.province = (body.province ?? body.region) ? sanitizeString(body.province ?? body.region) : undefined;
+  }
+  if (body.country !== undefined || body.countryCode !== undefined) {
+    const raw = body.country !== undefined ? body.country : body.countryCode;
+    const code = coerceCountryCode(raw);
+    doc.country = raw
+      ? (code ? (countryDisplayName(code) || sanitizeString(raw)) : sanitizeString(raw))
+      : undefined;
+  }
   if (body.address !== undefined) doc.address = body.address ? sanitizeString(body.address) : undefined;
   if (body.phone !== undefined) {
     const result = canonicalizeStoredPhone(body.phone);

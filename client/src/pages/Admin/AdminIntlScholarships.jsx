@@ -14,6 +14,8 @@ import { AdminViewPublicLink, isAdminSlugPreviewReady } from '../../components/a
 import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
+import { CountrySelect } from '../../components/forms/CountrySelect';
+import { coerceCountryCode, countryDisplayName } from '@shared/international/country.js';
 
 const EMPTY = {
   title: '',
@@ -174,7 +176,15 @@ export default function AdminIntlScholarships() {
               <h3 className="text-lg font-bold mb-4">{editingId ? t('admin:editIntlScholarship') : t('admin:addIntlScholarship')}</h3>
               <div className="grid gap-3 max-h-[70vh] overflow-y-auto">
                 <input className={adminFieldClass} placeholder={t('admin:fieldTitle')} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
-                <input className={adminFieldClass} placeholder={t('admin:countryPlaceholder')} value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} />
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">{t('admin:colCountry')} *</label>
+                  <CountrySelect
+                    value={coerceCountryCode(form.country) || ''}
+                    onChange={(code) => setForm({ ...form, country: code ? (countryDisplayName(code) || code) : '' })}
+                    inputClassName={adminFieldClass}
+                    placeholder={t('admin:countryPlaceholder')}
+                  />
+                </div>
                 <input className={adminFieldClass} placeholder={t('admin:fieldUniversity')} value={form.university} onChange={(e) => setForm({ ...form, university: e.target.value })} />
                 <input className={adminFieldClass} placeholder={t('admin:colProvider')} value={form.provider} onChange={(e) => setForm({ ...form, provider: e.target.value })} />
                 <input className={adminFieldClass} placeholder={t('admin:fieldFundingType')} value={form.fundingType} onChange={(e) => setForm({ ...form, fundingType: e.target.value })} />

@@ -699,6 +699,24 @@ export const listScholarships = asyncHandler(async (req, res) => {
   return res.status(200).json(result);
 });
 
+export const getScholarship = asyncHandler(async (req, res) => {
+  const { organizationId, scholarshipId } = req.params;
+  const membership = await resolveMembershipOrFail(req, organizationId);
+  if (!membership) return res.status(403).json({ error: 'Active membership required' });
+  const claim = await portalService.resolveApprovedClaim(organizationId);
+  if (!claim?.canonicalInstitutionId) return res.status(403).json({ error: 'No approved claim' });
+  try {
+    const scholarship = await portalService.getOwnedScholarship({
+      scholarshipId,
+      organizationId,
+      canonicalInstitutionId: claim.canonicalInstitutionId,
+    });
+    return res.status(200).json({ scholarship });
+  } catch (err) {
+    return res.status(err.status || 500).json({ error: err.message, code: err.code });
+  }
+});
+
 export const createScholarship = asyncHandler(async (req, res) => {
   const { organizationId } = req.params;
   const membership = await resolveMembershipOrFail(req, organizationId);
@@ -720,14 +738,37 @@ export const updateScholarship = asyncHandler(async (req, res) => {
   if (!membership) return res.status(403).json({ error: 'Active membership required' });
   if (!canSubmitOfficialChanges(membership.role)) return res.status(403).json({ error: 'Insufficient role' });
   const { claim } = await portalService.assertOfficialInstitutionWrite(organizationId);
-  const scholarship = await portalService.updateOwnedScholarship({
-    scholarshipId,
-    organizationId,
-    canonicalInstitutionId: claim.canonicalInstitutionId,
-    updates: req.body,
-    actor: actor(req),
-  });
-  return res.status(200).json({ scholarship });
+  try {
+    const scholarship = await portalService.updateOwnedScholarship({
+      scholarshipId,
+      organizationId,
+      canonicalInstitutionId: claim.canonicalInstitutionId,
+      updates: req.body,
+      actor: actor(req),
+    });
+    return res.status(200).json({ scholarship });
+  } catch (err) {
+    return res.status(err.status || 500).json({ error: err.message, code: err.code });
+  }
+});
+
+export const submitScholarship = asyncHandler(async (req, res) => {
+  const { organizationId, scholarshipId } = req.params;
+  const membership = await resolveMembershipOrFail(req, organizationId);
+  if (!membership) return res.status(403).json({ error: 'Active membership required' });
+  if (!canSubmitOfficialChanges(membership.role)) return res.status(403).json({ error: 'Insufficient role' });
+  const { claim } = await portalService.assertOfficialInstitutionWrite(organizationId);
+  try {
+    const scholarship = await portalService.submitOwnedScholarshipForReview({
+      scholarshipId,
+      organizationId,
+      canonicalInstitutionId: claim.canonicalInstitutionId,
+      actor: actor(req),
+    });
+    return res.status(200).json({ scholarship });
+  } catch (err) {
+    return res.status(err.status || 500).json({ error: err.message, code: err.code });
+  }
 });
 
 export const getUsageBilling = asyncHandler(async (req, res) => {

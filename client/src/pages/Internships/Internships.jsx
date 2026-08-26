@@ -16,7 +16,7 @@ import { EmptyState } from '../../components/common/EmptyState';
 import { Alert } from '../../components/ui/Alerts';
 import { NO_GUARANTEE_DISCLAIMER } from '@shared/publicDiscovery/publicTruth.js';
 import { LocationCascadeFilter } from '../../components/forms/LocationCascadeFilter';
-import { countryDisplayName } from '@shared/international/country.js';
+import { formatLocationDisplay } from '@shared/international/location.js';
 
 const PER_PAGE = 10;
 const DURATIONS = ['2 months', '3 months', '4 months', '6 months'];
@@ -157,7 +157,7 @@ export default function Internships() {
                       <div className="flex flex-wrap gap-2 mt-2 text-sm text-gray-500 dark:text-gray-400">
                         {(item.countryCode || item.location || item.region || item.province) && (
                           <span>
-                            {[item.city, item.region || item.province, item.countryCode ? countryDisplayName(item.countryCode) : null].filter(Boolean).join(', ') || item.location}
+                            {formatLocationDisplay(item) || item.location}
                           </span>
                         )}
                         {item.duration && <span> · {item.duration}</span>}

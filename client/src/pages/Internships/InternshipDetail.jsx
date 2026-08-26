@@ -16,6 +16,7 @@ import { formatDate } from '../../utils/formatDate';
 import { loginLocationState } from '../../utils/loginReturn.js';
 import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
 import { EXTERNAL_APPLY_DISCLOSURE, NO_GUARANTEE_DISCLAIMER } from '@shared/publicDiscovery/publicTruth.js';
+import { formatLocationDisplay } from '@shared/international/location.js';
 import { PublicTrustBadge } from '../../components/public/PublicTrustBadge';
 import { Alert } from '../../components/ui/Alerts';
 
@@ -161,8 +162,10 @@ export default function InternshipDetail() {
             {internship.internshipType ? <p className="text-sm text-gray-500 mt-1">{internship.internshipType}</p> : null}
             {internship.isPaid === true ? <p className="text-sm text-gray-500">Paid</p> : internship.isPaid === false ? <p className="text-sm text-gray-500">Compensation: Not specified as paid</p> : null}
             <div className="flex flex-wrap gap-2 mt-2 text-sm text-gray-500 dark:text-gray-400">
-              {internship.location && <span>{internship.location}</span>}
-              {internship.province && <span> · {internship.province}</span>}
+              {(formatLocationDisplay(internship) || internship.location) && (
+                <span>{formatLocationDisplay(internship) || internship.location}</span>
+              )}
+              {internship.workMode && internship.workMode !== 'unspecified' && <span> · {internship.workMode}</span>}
               {internship.duration && <span> · {internship.duration}</span>}
               {internship.deadline && <span> · {t('deadlinePrefix', { ns: 'internships' })} {formatDate(internship.deadline)}</span>}
             </div>

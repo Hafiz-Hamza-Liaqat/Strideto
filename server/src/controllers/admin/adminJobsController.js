@@ -25,20 +25,28 @@ import {
 import { assignLaunchEligibleOnAuthorityPublish } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 import { deriveJobLaunchEligible, CMS_STATUS } from '../../../../shared/cms/launchEligible.js';
 import { PUBLISHING_QUOTA_RESULT_CODES } from '../../config/freeBetaPublishingPolicy.js';
+import { normalizeCountryCode } from '../../../../shared/international/country.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
+const WORK_MODES = new Set(['remote', 'hybrid', 'on_site']);
 
 function buildQuery(q) {
   const filter = {};
+  const extraAnd = [];
   if (q.status) filter.status = q.status;
   if (q.approvalStatus) filter.approvalStatus = q.approvalStatus;
-  if (q.province) filter.province = new RegExp(sanitizeString(q.province), 'i');
+  const countryCode = normalizeCountryCode(q.countryCode || q.country);
+  if (countryCode) filter.countryCode = countryCode;
+  if (q.province || q.region) {
+    const re = new RegExp(sanitizeString(q.province || q.region), 'i');
+    extraAnd.push({ $or: [{ province: re }, { region: re }] });
+  }
   if (q.category) filter.category = new RegExp(sanitizeString(q.category), 'i');
   if (q.city) filter.city = new RegExp(sanitizeString(q.city), 'i');
   if (q.employer) {
     const re = new RegExp(sanitizeString(q.employer), 'i');
-    filter.$or = [{ company: re }, { organization: re }];
+    extraAnd.push({ $or: [{ company: re }, { organization: re }] });
   }
   if (q.featured === 'true') filter.isFeatured = true;
   if (q.from || q.to) {
@@ -48,8 +56,9 @@ function buildQuery(q) {
   }
   if (q.search && sanitizeString(q.search)) {
     const re = new RegExp(sanitizeString(q.search), 'i');
-    filter.$or = [{ title: re }, { company: re }, { organization: re }];
+    extraAnd.push({ $or: [{ title: re }, { company: re }, { organization: re }] });
   }
+  if (extraAnd.length) filter.$and = extraAnd;
   return filter;
 }
 
@@ -66,7 +75,15 @@ function applyJobBody(doc, body, isCreate = false) {
   }
   if (body.organization !== undefined) doc.organization = sanitizeString(body.organization);
   if (body.location !== undefined) doc.location = sanitizeString(body.location);
-  if (body.province !== undefined) doc.province = sanitizeString(body.province);
+  if (body.countryCode !== undefined || body.country !== undefined) {
+    const raw = body.countryCode !== undefined ? body.countryCode : body.country;
+    doc.countryCode = normalizeCountryCode(raw) || '';
+  }
+  if (body.region !== undefined || body.province !== undefined) {
+    const region = sanitizeString(body.region ?? body.province);
+    doc.region = region;
+    doc.province = region;
+  }
   if (body.city !== undefined) doc.city = sanitizeString(body.city);
   if (body.category !== undefined) doc.category = sanitizeString(body.category);
   if (body.type !== undefined) doc.type = body.type;
@@ -108,6 +125,23 @@ function applyJobBody(doc, body, isCreate = false) {
   if (body.approvalStatus !== undefined) doc.approvalStatus = body.approvalStatus;
   if (body.remote !== undefined) doc.remote = pickBool(body.remote);
   if (body.hybrid !== undefined) doc.hybrid = pickBool(body.hybrid);
+  if (body.workMode !== undefined && WORK_MODES.has(body.workMode)) {
+    doc.workMode = body.workMode;
+    if (body.workMode === 'remote') {
+      doc.remote = true;
+      doc.hybrid = false;
+    } else if (body.workMode === 'hybrid') {
+      doc.hybrid = true;
+      doc.remote = false;
+    } else if (body.workMode === 'on_site') {
+      doc.remote = false;
+      doc.hybrid = false;
+    }
+  } else if (body.remote !== undefined || body.hybrid !== undefined) {
+    if (doc.remote) doc.workMode = 'remote';
+    else if (doc.hybrid) doc.workMode = 'hybrid';
+    else doc.workMode = 'on_site';
+  }
   if (body.seoTitle !== undefined) doc.seoTitle = sanitizeString(body.seoTitle);
   if (body.metaDescription !== undefined) doc.metaDescription = sanitizeString(body.metaDescription);
   if (body.slug !== undefined) doc.slug = sanitizeString(body.slug);

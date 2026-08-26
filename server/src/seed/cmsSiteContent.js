@@ -108,7 +108,7 @@ function defaultFooterColumns() {
         { label: 'Privacy Policy', path: '/privacy-policy' },
         { label: 'Terms & Conditions', path: '/terms' },
         { label: 'Refund Policy', path: '/refund-policy' },
-        { label: 'Cookie Policy', path: '/cookies' },
+        { label: 'Cookie Policy', path: '/cookie-policy' },
         { label: 'Disclaimer', path: '/disclaimer' },
       ],
     },

@@ -45,11 +45,13 @@ adminEducationRouter.patch('/education/countries/:id', edu.adminUpdateCountryEdu
 // ── Canonical Institutions ────────────────────────────────────────────────────
 adminEducationRouter.get('/education/institutions', edu.adminListInstitutions);
 adminEducationRouter.post('/education/institutions', edu.adminCreateInstitution);
+adminEducationRouter.get('/education/institutions/:id', edu.adminGetInstitution);
 adminEducationRouter.patch('/education/institutions/:id', edu.adminUpdateInstitution);
 
 // ── Programs ──────────────────────────────────────────────────────────────────
 adminEducationRouter.get('/education/programs', edu.adminListPrograms);
 adminEducationRouter.post('/education/programs', edu.adminCreateProgram);
+adminEducationRouter.get('/education/programs/:id', edu.adminGetProgram);
 adminEducationRouter.patch('/education/programs/:id', edu.adminUpdateProgram);
 
 // ── Test Acceptance Explorer (Mission 6) ──────────────────────────────────────

@@ -35,6 +35,29 @@ export function isPublishedSlugPublicReady(record = {}) {
   return record.status === BLOG_PUBLISHED && Boolean(record.slug);
 }
 
+/**
+ * Education Program Explorer public predicate (non-launch env).
+ * Matches `/api/education/programs` list/detail gate: status published + slug.
+ * Launch/fixture exclusion remains server-side via withFixtureExclusion.
+ */
+export function isEducationProgramPublicReady(record = {}) {
+  return record.status === 'published' && Boolean(record.slug);
+}
+
+/**
+ * Institutional CanonicalScholarship public discovery predicate (main /scholarships).
+ * Requires published institutional record + slug. Institution authority and
+ * fixture exclusion are enforced server-side when joining CanonicalInstitution.
+ */
+export function isInstitutionCanonicalScholarshipPublicReady(record = {}) {
+  return (
+    record.status === 'published'
+    && record.scholarshipType === 'institutional'
+    && Boolean(record.slug)
+    && Boolean(record.institutionId)
+  );
+}
+
 /** Webinar list/detail exposure — not draft/cancelled and slug present. */
 export function isWebinarPublicReady(record = {}) {
   const publicStatuses = ['scheduled', 'live', 'recorded'];

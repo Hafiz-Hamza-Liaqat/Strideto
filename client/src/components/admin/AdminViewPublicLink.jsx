@@ -6,6 +6,8 @@ import {
   isJobPublicReady,
   isLegacyActiveSlugPublicReady,
   isPublishedSlugPublicReady,
+  isEducationProgramPublicReady,
+  isInstitutionCanonicalScholarshipPublicReady,
   isWebinarPublicReady,
   VIEW_PUBLIC_HINT,
 } from '@shared/cms/publicReadiness.js';
@@ -18,6 +20,8 @@ const READINESS = {
   job: isJobPublicReady,
   'legacy-active': isLegacyActiveSlugPublicReady,
   'published-slug': isPublishedSlugPublicReady,
+  program: isEducationProgramPublicReady,
+  'canonical-scholarship': isInstitutionCanonicalScholarshipPublicReady,
   webinar: isWebinarPublicReady,
 };
 
@@ -34,6 +38,8 @@ const SLUG_RESOURCE_READINESS = {
   'career-article': isPublishedSlugPublicReady,
   'cms-page': isPublishedSlugPublicReady,
   webinar: isWebinarPublicReady,
+  program: isEducationProgramPublicReady,
+  'canonical-scholarship': isInstitutionCanonicalScholarshipPublicReady,
   // Intl detail route is Mongo id-based; slug preview URLs are not public-ready.
   'intl-scholarship': () => false,
 };

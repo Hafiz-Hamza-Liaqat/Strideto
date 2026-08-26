@@ -14,6 +14,8 @@ import { AdminViewPublicLink, isAdminSlugPreviewReady } from '../../components/a
 import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
+import { AdminLocationFields } from '../../components/admin/AdminLocationFields';
+import { formatLocationDisplay } from '@shared/international/location.js';
 
 const EMPTY = {
   name: '',
@@ -97,7 +99,7 @@ export default function AdminCompanies() {
   const columns = [
     { key: 'name', label: t('admin:colName'), sortable: true },
     { key: 'industry', label: t('admin:fieldIndustry') },
-    { key: 'city', label: t('admin:fieldCity') },
+    { key: 'city', label: t('admin:fieldCity'), render: (row) => formatLocationDisplay(row) || row.city || '—' },
     { key: 'status', label: t('status'), type: 'status' },
     {
       key: 'actions',
@@ -174,9 +176,11 @@ export default function AdminCompanies() {
                 <textarea rows={4} className={adminFieldClass} placeholder={t('admin:fieldDescription')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
                 <AdminImageUrlField label={t('admin:fieldLogoUrl')} value={form.logoUrl} onChange={(v) => setForm({ ...form, logoUrl: v })} />
                 <AdminImageUrlField label={t('admin:fieldBannerUrl')} value={form.bannerUrl} onChange={(v) => setForm({ ...form, bannerUrl: v })} />
-                <input className={adminFieldClass} placeholder={t('admin:fieldCity')} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-                <input className={adminFieldClass} placeholder={t('admin:provincePlaceholder')} value={form.province} onChange={(e) => setForm({ ...form, province: e.target.value })} />
-                <input className={adminFieldClass} placeholder={t('admin:countryPlaceholder')} value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} />
+                <AdminLocationFields
+                  mode="name"
+                  value={form}
+                  onChange={(loc) => setForm({ ...form, ...loc })}
+                />
                 <AdminSelectBare  value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
                   <option value="draft">Draft</option>
                   <option value="active">Active</option>

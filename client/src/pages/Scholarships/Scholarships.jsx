@@ -7,7 +7,10 @@ import { scholarshipsApi, savedApi, recommendationsApi } from '../../services/li
 import { trackSearchQuery } from '../../utils/platformAnalytics';
 import { useListings } from '../../hooks/useListings';
 import { ROUTES } from '../../constants';
-import { SCHOLARSHIP_LEVELS, SCHOLARSHIP_COUNTRIES, SORT_OPTIONS } from '../../constants/listings';
+import { SCHOLARSHIP_LEVELS, SORT_OPTIONS } from '../../constants/listings';
+import { CountrySelect } from '../../components/forms/CountrySelect';
+import { coerceCountryCode } from '@shared/international/country.js';
+import { formatLocationDisplay } from '@shared/international/location.js';
 import { DateInput } from '../../components/forms/NativeTemporalInput';
 import { SearchBar } from '../../components/ui/SearchBar';
 import { Pagination } from '../../components/ui/Pagination';
@@ -137,10 +140,12 @@ export default function Scholarships() {
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('countryLabel', { ns: 'scholarships' })}</label>
-              <select value={params.country || ''} onChange={(e) => setFilters({ country: e.target.value || undefined })} className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm">
-                <option value="">{t('all', { ns: 'common' })}</option>
-                {SCHOLARSHIP_COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
-              </select>
+              <CountrySelect
+                allowAll
+                value={coerceCountryCode(params.country) || ''}
+                onChange={(code) => setFilters({ country: code || undefined })}
+                allLabel={t('all', { ns: 'common' })}
+              />
             </div>
             <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('deadlineAfter', { ns: 'scholarships' })}</label>
@@ -167,21 +172,42 @@ export default function Scholarships() {
               <>
                 <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">{t('scholarshipsFound', { count: total, ns: 'scholarships' })}</p>
                 <div className="grid sm:grid-cols-2 gap-4">
-                  {data.map((s) => (
-                    <article key={s._id} className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md transition-shadow flex flex-col">
-                      <Link to={`${ROUTES.SCHOLARSHIPS}/${s.slug || s._id}`} className="flex-1 block">
+                  {data.map((s) => {
+                    const detailTo = s.detailUrl || `${ROUTES.SCHOLARSHIPS}/${s.slug || s._id}`;
+                    const institutionHref = s.institutionSlug
+                      ? `${ROUTES.EDUCATION_INSTITUTION_DETAIL.replace(':slug', s.institutionSlug)}`
+                      : null;
+                    return (
+                    <article key={`${s.sourceType || 'cms'}-${s._id}`} className="p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md transition-shadow flex flex-col">
+                      <Link to={detailTo} className="flex-1 block">
                         <h2 className="text-lg font-semibold text-gray-900 dark:text-white break-words-safe">{s.title}</h2>
                         <p className="text-gray-600 dark:text-gray-400 break-words-safe">{s.provider}</p>
+                        {s.institution ? (
+                          <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 break-words-safe">
+                            {s.institution}
+                          </p>
+                        ) : null}
                         <div className="mt-1"><PublicTrustBadge kind={s.authorityKind} label={s.authorityLabel} /></div>
-                        <p className="text-sm text-gray-500">{[s.level, s.country].filter(Boolean).join(' · ')}</p>
+                        <p className="text-sm text-gray-500">{[s.level || s.studyLevel, formatLocationDisplay(s) || s.country].filter(Boolean).join(' · ')}</p>
+                        {s.applicabilityScope?.label ? (
+                          <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{s.applicabilityScope.label}</p>
+                        ) : null}
                         {s.amount && <p className="text-sm text-primary dark:text-mint mt-1">{s.amount}</p>}
                         {s.deadline && <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{t('deadline', { ns: 'common' })}: {formatDate(s.deadline)}</p>}
                       </Link>
-                      <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
-                        <SaveButton type="scholarship" id={s._id} saved={savedIds.has(s._id)} onToggle={handleSaveToggle} />
-                      </div>
+                      {institutionHref ? (
+                        <Link to={institutionHref} className="mt-2 text-xs text-primary dark:text-mint hover:underline">
+                          View institution
+                        </Link>
+                      ) : null}
+                      {s.savable !== false ? (
+                        <div className="mt-3 pt-3 border-t border-gray-100 dark:border-gray-700">
+                          <SaveButton type="scholarship" id={s._id} saved={savedIds.has(s._id)} onToggle={handleSaveToggle} />
+                        </div>
+                      ) : null}
                     </article>
-                  ))}
+                    );
+                  })}
                 </div>
                 {totalPages > 1 && <Pagination currentPage={params.page} totalPages={totalPages} onPageChange={setPage} />}
               </>

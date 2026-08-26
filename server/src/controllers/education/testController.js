@@ -10,9 +10,14 @@ import { ExternalTestResource } from '../../models/education/ExternalTestResourc
 import { TestAlert } from '../../models/education/TestAlert.js';
 import { CountryEducation } from '../../models/education/CountryEducation.js';
 import { CanonicalInstitution } from '../../models/education/CanonicalInstitution.js';
+import { Program } from '../../models/education/Program.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { sanitizeString } from '../../utils/sanitize.js';
-import { projectPublicCanonicalInstitution } from '../../../../shared/publicDiscovery/projectPublicDiscovery.js';
+import {
+  projectPublicCanonicalInstitution,
+  projectPublicProgram,
+} from '../../../../shared/publicDiscovery/projectPublicDiscovery.js';
+import { withFixtureExclusion } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 
 const PAGE_SIZE = 20;
 
@@ -154,22 +159,56 @@ export const getCountryEducation = asyncHandler(async (req, res) => {
 
 export const listInstitutions = asyncHandler(async (req, res) => {
   const q = req.query || {};
-  const filter = { status: 'published' };
+  const filter = withFixtureExclusion({ status: 'published' });
 
   if (q.country) filter.countryCode = sanitizeString(q.country).toUpperCase();
   if (q.institutionType) filter.institutionType = sanitizeString(q.institutionType);
+
+  const region = sanitizeString(q.region || q.state || q.province);
+  const city = sanitizeString(q.city);
+  if (region) {
+    filter.region = new RegExp(region.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  }
+  if (city) {
+    filter.city = new RegExp(city.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  }
+  if (q.search) {
+    const term = sanitizeString(q.search).slice(0, 80);
+    if (term) {
+      const re = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$or = [
+        { officialName: re },
+        { slug: re },
+        { officialDomain: re },
+        { city: re },
+        { region: re },
+      ];
+    }
+  }
 
   const page = parsePage(q);
   const limit = parseLimit(q);
   const skip = (page - 1) * limit;
 
-  const [data, total] = await Promise.all([
+  const [raw, total] = await Promise.all([
     CanonicalInstitution.find(filter).sort({ officialName: 1 }).skip(skip).limit(limit).lean(),
     CanonicalInstitution.countDocuments(filter),
   ]);
 
+  const ids = raw.map((d) => d._id);
+  const programCounts = ids.length
+    ? await Program.aggregate([
+      { $match: withFixtureExclusion({ status: 'published', institutionId: { $in: ids } }) },
+      { $group: { _id: '$institutionId', count: { $sum: 1 } } },
+    ])
+    : [];
+  const countById = new Map(programCounts.map((r) => [String(r._id), r.count]));
+
   res.json({
-    data: data.map(projectPublicCanonicalInstitution),
+    data: raw.map((doc) => ({
+      ...projectPublicCanonicalInstitution(doc),
+      programCount: countById.get(String(doc._id)) || 0,
+    })),
     total,
     page,
     limit,
@@ -179,7 +218,21 @@ export const listInstitutions = asyncHandler(async (req, res) => {
 
 export const getInstitution = asyncHandler(async (req, res) => {
   const slug = sanitizeString(req.params.slug);
-  const doc = await CanonicalInstitution.findOne({ slug, status: 'published' }).lean();
+  const doc = await CanonicalInstitution.findOne(
+    withFixtureExclusion({ slug, status: 'published' })
+  ).lean();
   if (!doc) return res.status(404).json({ error: 'Institution not found' });
-  res.json(projectPublicCanonicalInstitution(doc));
+
+  const programs = await Program.find(
+    withFixtureExclusion({ institutionId: doc._id, status: 'published' })
+  )
+    .select('-__v')
+    .sort({ name: 1 })
+    .lean();
+
+  res.json({
+    data: projectPublicCanonicalInstitution(doc),
+    programs: programs.map(projectPublicProgram),
+    programCount: programs.length,
+  });
 });

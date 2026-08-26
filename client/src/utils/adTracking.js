@@ -1,7 +1,9 @@
 /**
  * Client-side ad impression/click tracking — fire-and-forget, never blocks UI.
+ * First-party house-ad measurement; requires analytics consent.
  */
 import { API_BASE_URL } from '../constants';
+import { allowsAnalytics } from '../consent/cookieConsentStorage';
 
 const impressionKeys = new Set();
 
@@ -56,6 +58,7 @@ function postBeacon(path, payload) {
  */
 export function trackAdImpression(payload, options = {}) {
   if (options.preview || !payload?.slotId) return;
+  if (!allowsAnalytics()) return;
   if (hasRecordedImpression(payload.slotId, payload.placementId)) return;
   markImpressionRecorded(payload.slotId, payload.placementId);
   postBeacon('/monetization/impression', {
@@ -71,6 +74,7 @@ export function trackAdImpression(payload, options = {}) {
  */
 export function trackAdClick(payload, options = {}) {
   if (options.preview || !payload?.slotId) return;
+  if (!allowsAnalytics()) return;
   postBeacon('/monetization/click', {
     slotId: payload.slotId,
     placementId: payload.placementId,

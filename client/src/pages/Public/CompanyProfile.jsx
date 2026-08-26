@@ -8,6 +8,7 @@ import { ROUTES } from '../../constants';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { Alert } from '../../components/ui/Alerts';
 import { VerificationBadge } from '../../components/common/VerificationBadge';
+import { formatLocationDisplay } from '@shared/international/location.js';
 
 export default function CompanyProfile() {
   const { slug } = useParams();
@@ -64,7 +65,7 @@ export default function CompanyProfile() {
             <VerificationBadge level={company.verificationLevel || employer?.verificationLevel} verified={company.verified || employer?.verified} size="lg" />
           </h1>
           <p className="text-gray-500 dark:text-gray-400 mt-1">
-            {[company.industry, company.location].filter(Boolean).join(' · ')}
+            {[company.industry, formatLocationDisplay(company) || company.location].filter(Boolean).join(' · ')}
           </p>
           {company.website && (
             <a href={company.website} target="_blank" rel="noopener noreferrer" className="text-sm text-primary dark:text-mint hover:underline mt-2 inline-block">
@@ -109,7 +110,7 @@ export default function CompanyProfile() {
             <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">{t('profiles:officeLocations')}</h2>
             <ul className="space-y-2 text-sm text-gray-600 dark:text-gray-300">
               {company.officeLocations.map((loc, i) => (
-                <li key={i}>{[loc.city, loc.province, loc.address].filter(Boolean).join(', ')}</li>
+                <li key={i}>{formatLocationDisplay({ ...loc, country: company.country }) || [loc.city, loc.province, loc.address].filter(Boolean).join(', ')}</li>
               ))}
             </ul>
           </section>

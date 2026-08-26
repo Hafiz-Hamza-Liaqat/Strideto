@@ -11,6 +11,8 @@ const institutionSchema = new mongoose.Schema(
       required: true,
     },
     description: { type: String },
+    /** Free-text country (legacy schools may omit). */
+    country: { type: String },
     city: { type: String },
     province: { type: String },
     address: { type: String },

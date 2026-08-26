@@ -8,6 +8,7 @@ import { logAudit, auditFromRequest } from '../../services/auditService.js';
 import { applyResolvedSlug, slugErrorResponse } from '../../utils/adminSlugHelpers.js';
 import { onContentSaved, onContentDeleted, onContentBulkDeleted, onContentBulkUpdated } from '../../utils/contentIntegration.js';
 import { deriveCmsLaunchEligible, CMS_STATUS } from '../../../../shared/cms/launchEligible.js';
+import { normalizeCountryCode, coerceCountryCode } from '../../../../shared/international/country.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -16,6 +17,8 @@ function buildQuery(q) {
   const filter = {};
   if (q.status) filter.status = q.status;
   if (q.university) filter.institution = new RegExp(sanitizeString(q.university), 'i');
+  const countryCode = normalizeCountryCode(q.countryCode) || coerceCountryCode(q.country);
+  if (countryCode) filter.countryCode = countryCode;
   if (q.province) filter.province = new RegExp(sanitizeString(q.province), 'i');
   if (q.city) filter.city = new RegExp(sanitizeString(q.city), 'i');
   if (q.featured === 'true') filter.isFeatured = true;
@@ -44,7 +47,13 @@ function applyBody(doc, body, isCreate = false) {
   }
   if (body.department !== undefined) doc.department = sanitizeString(body.department);
   if (body.degree !== undefined) doc.degree = sanitizeString(body.degree);
-  if (body.province !== undefined) doc.province = sanitizeString(body.province);
+  if (body.countryCode !== undefined || body.country !== undefined) {
+    const raw = body.countryCode !== undefined ? body.countryCode : body.country;
+    doc.countryCode = normalizeCountryCode(raw) || '';
+  }
+  if (body.province !== undefined || body.region !== undefined) {
+    doc.province = sanitizeString(body.province ?? body.region);
+  }
   if (body.city !== undefined) doc.city = sanitizeString(body.city);
   if (body.session !== undefined) doc.session = sanitizeString(body.session);
   if (body.fee !== undefined) doc.fee = sanitizeString(body.fee);
@@ -102,8 +111,12 @@ export const create = asyncHandler(async (req, res) => {
   if (!institution) {
     return res.status(400).json({ error: 'Validation failed', details: { institution: 'Institution or university is required' } });
   }
+  const countryCode = normalizeCountryCode(body.countryCode || body.country);
+  if (!countryCode) {
+    return res.status(400).json({ error: 'Validation failed', details: { countryCode: 'Country is required' } });
+  }
   const doc = new Admission({ status: body.status || CMS_STATUS.DRAFT, launchEligible: false });
-  applyBody(doc, body, true);
+  applyBody(doc, { ...body, countryCode }, true);
   const slugErr = await applyResolvedSlug('admission', doc, body, true);
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();

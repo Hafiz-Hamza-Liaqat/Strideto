@@ -7,6 +7,8 @@ import { parseStringArray } from '../../utils/adminContentHelpers.js';
 import { logAudit, auditFromRequest } from '../../services/auditService.js';
 import { applyResolvedSlug, slugErrorResponse } from '../../utils/adminSlugHelpers.js';
 import { runBulkAction, duplicateDoc } from '../../utils/adminBulkHelper.js';
+import { coerceCountryCode, countryDisplayName } from '../../../../shared/international/country.js';
+import { freeTextCountryRegex } from '../../../../shared/international/location.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -15,11 +17,15 @@ function buildQuery(q) {
   const filter = {};
   if (q.status) filter.status = q.status;
   if (q.industry) filter.industry = new RegExp(sanitizeString(q.industry), 'i');
+  const countryRe = freeTextCountryRegex(q.country || q.countryCode);
+  if (countryRe) filter.country = countryRe;
+  if (q.province || q.region) filter.province = new RegExp(sanitizeString(q.province || q.region), 'i');
+  if (q.city) filter.city = new RegExp(sanitizeString(q.city), 'i');
   if (q.verified === 'true') filter.verified = true;
   if (q.featured === 'true') filter.isFeatured = true;
   if (q.search && sanitizeString(q.search)) {
     const re = new RegExp(sanitizeString(q.search), 'i');
-    filter.$or = [{ name: re }, { industry: re }];
+    filter.$or = [{ name: re }, { industry: re }, { country: re }, { city: re }];
   }
   return filter;
 }
@@ -32,8 +38,16 @@ function applyBody(doc, body) {
   if (body.companySize !== undefined) doc.companySize = sanitizeString(body.companySize);
   if (body.location !== undefined) doc.location = sanitizeString(body.location);
   if (body.city !== undefined) doc.city = sanitizeString(body.city);
-  if (body.province !== undefined) doc.province = sanitizeString(body.province);
-  if (body.country !== undefined) doc.country = sanitizeString(body.country);
+  if (body.province !== undefined || body.region !== undefined) {
+    doc.province = sanitizeString(body.province ?? body.region);
+  }
+  if (body.country !== undefined || body.countryCode !== undefined) {
+    const raw = body.country !== undefined ? body.country : body.countryCode;
+    const code = coerceCountryCode(raw);
+    doc.country = raw
+      ? (code ? (countryDisplayName(code) || sanitizeString(raw)) : sanitizeString(raw))
+      : '';
+  }
   if (body.logoUrl !== undefined) doc.logoUrl = sanitizeString(body.logoUrl);
   if (body.bannerUrl !== undefined) doc.bannerUrl = sanitizeString(body.bannerUrl);
   if (body.status !== undefined) doc.status = body.status;

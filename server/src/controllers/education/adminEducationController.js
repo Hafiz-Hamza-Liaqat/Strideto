@@ -13,6 +13,9 @@ import { TestAlert } from '../../models/education/TestAlert.js';
 import { CountryEducation } from '../../models/education/CountryEducation.js';
 import { CanonicalInstitution } from '../../models/education/CanonicalInstitution.js';
 import { Program } from '../../models/education/Program.js';
+import { TestAcceptance } from '../../models/education/TestAcceptance.js';
+import { InstitutionClaim } from '../../models/institution/InstitutionClaim.js';
+import { OrganizationVerification } from '../../models/OrganizationVerification.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { sanitizeString } from '../../utils/sanitize.js';
 import { validateSource } from '../../../../shared/international/evidence.js';
@@ -33,6 +36,102 @@ import {
 } from '../../../../shared/education/taxonomy.js';
 import { normalizeCountryCode } from '../../../../shared/international/country.js';
 import { assignLaunchEligibleOnAuthorityPublish } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
+import { currentAcceptanceMongoFilter } from '../../../../shared/publicDiscovery/publicTruth.js';
+
+const INSTITUTION_POPULATE = 'officialName slug countryCode city region status institutionType';
+
+function normalizeTuition(raw) {
+  if (!raw || typeof raw !== 'object') return null;
+  return {
+    amountMinor: typeof raw.amountMinor === 'number' ? raw.amountMinor : null,
+    currency: sanitizeString(raw.currency || '').toUpperCase(),
+    per: sanitizeString(raw.per || ''),
+    notes: sanitizeString(raw.notes || ''),
+  };
+}
+
+function normalizeIntakes(raw) {
+  if (!Array.isArray(raw)) return [];
+  return raw.map((intake) => ({
+    cycleLabel: sanitizeString(intake?.cycleLabel || ''),
+    applicationOpenAt: intake?.applicationOpenAt ? new Date(intake.applicationOpenAt) : null,
+    deadlineAt: intake?.deadlineAt ? new Date(intake.deadlineAt) : null,
+    notes: sanitizeString(intake?.notes || ''),
+    applicationOpenDate: sanitizeString(intake?.applicationOpenDate || ''),
+    deadlineDate: sanitizeString(intake?.deadlineDate || ''),
+    startDate: sanitizeString(intake?.startDate || ''),
+    applicationMode: sanitizeString(intake?.applicationMode || 'not_configured'),
+    applicationUrl: sanitizeString(intake?.applicationUrl || ''),
+    capacity: typeof intake?.capacity === 'number' ? intake.capacity : null,
+    requirements: sanitizeString(intake?.requirements || ''),
+    fee: {
+      amountMinor: typeof intake?.fee?.amountMinor === 'number' ? intake.fee.amountMinor : null,
+      currency: sanitizeString(intake?.fee?.currency || '').toUpperCase(),
+    },
+    status: sanitizeString(intake?.status || 'draft'),
+    sourceUrl: sanitizeString(intake?.sourceUrl || ''),
+  }));
+}
+
+async function attachAcceptanceSummaries(programs) {
+  if (!programs.length) return programs;
+  const ids = programs.map((p) => p._id);
+  const counts = await TestAcceptance.aggregate([
+    { $match: { programId: { $in: ids }, ...currentAcceptanceMongoFilter() } },
+    { $group: { _id: '$programId', count: { $sum: 1 } } },
+  ]);
+  const byId = new Map(counts.map((row) => [String(row._id), row.count]));
+  return programs.map((p) => ({
+    ...p,
+    acceptedTestsCount: byId.get(String(p._id)) || 0,
+    hasAcceptedTests: (byId.get(String(p._id)) || 0) > 0,
+  }));
+}
+
+/**
+ * Read-only trust overlays for catalog list/detail.
+ * Catalog create/update must NEVER write InstitutionClaim or OrganizationVerification.
+ */
+async function attachInstitutionTrustSummaries(institutions) {
+  if (!institutions.length) return institutions;
+  const ids = institutions.map((i) => i._id);
+  const orgIds = institutions.map((i) => i.organizationId).filter(Boolean);
+
+  const [claims, verifications] = await Promise.all([
+    InstitutionClaim.find({ canonicalInstitutionId: { $in: ids } })
+      .select('canonicalInstitutionId state organizationId')
+      .sort({ updatedAt: -1 })
+      .lean(),
+    orgIds.length
+      ? OrganizationVerification.find({ organizationId: { $in: orgIds } })
+        .select('organizationId status')
+        .lean()
+      : Promise.resolve([]),
+  ]);
+
+  const claimsByCanonical = new Map();
+  for (const claim of claims) {
+    const key = String(claim.canonicalInstitutionId);
+    if (!claimsByCanonical.has(key)) claimsByCanonical.set(key, []);
+    claimsByCanonical.get(key).push(claim);
+  }
+  const verificationByOrg = new Map(
+    verifications.map((v) => [String(v.organizationId), v.status || null])
+  );
+
+  return institutions.map((inst) => {
+    const relatedClaims = claimsByCanonical.get(String(inst._id)) || [];
+    const approved = relatedClaims.find((c) => c.state === 'approved');
+    const primary = approved || relatedClaims[0] || null;
+    const orgId = inst.organizationId ? String(inst.organizationId) : null;
+    return {
+      ...inst,
+      claimState: primary?.state || null,
+      claimCount: relatedClaims.length,
+      verificationStatus: orgId ? (verificationByOrg.get(orgId) || null) : null,
+    };
+  });
+}
 
 // ── Source/evidence helper ────────────────────────────────────────────────────
 
@@ -503,18 +602,62 @@ export const adminListInstitutions = asyncHandler(async (req, res) => {
   const q = req.query || {};
   const filter = {};
   if (q.status) filter.status = sanitizeString(q.status);
-  if (q.country) filter.countryCode = sanitizeString(q.country).toUpperCase();
+  if (q.country || q.countryCode) {
+    filter.countryCode = sanitizeString(q.country || q.countryCode).toUpperCase();
+  }
   if (q.institutionType) filter.institutionType = sanitizeString(q.institutionType);
+
+  const region = sanitizeString(q.region || q.state || q.province);
+  const city = sanitizeString(q.city);
+  if (region) {
+    filter.region = new RegExp(region.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  }
+  if (city) {
+    filter.city = new RegExp(city.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+  }
+
+  if (q.search) {
+    const term = sanitizeString(q.search).slice(0, 80);
+    if (term) {
+      const re = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$or = [
+        { officialName: re },
+        { slug: re },
+        { officialDomain: re },
+        { city: re },
+        { region: re },
+      ];
+    }
+  }
 
   const page = Math.max(1, parseInt(q.page, 10) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(q.limit, 10) || 20));
+  const sortKey = sanitizeString(q.sort) || 'officialName';
+  const sortOrder = String(q.order || 'asc').toLowerCase() === 'desc' ? -1 : 1;
+  const allowedSort = new Set(['officialName', 'updatedAt', 'createdAt', 'status', 'countryCode', 'city', 'region', 'institutionType']);
+  const sort = { [allowedSort.has(sortKey) ? sortKey : 'officialName']: sortOrder };
 
-  const [data, total] = await Promise.all([
-    CanonicalInstitution.find(filter).sort({ officialName: 1 }).skip((page - 1) * limit).limit(limit).lean(),
+  const [raw, total] = await Promise.all([
+    CanonicalInstitution.find(filter).sort(sort).skip((page - 1) * limit).limit(limit).lean(),
     CanonicalInstitution.countDocuments(filter),
   ]);
 
-  res.json({ data, total, page, limit });
+  const data = await attachInstitutionTrustSummaries(raw);
+  res.json({
+    data,
+    total,
+    page,
+    limit,
+    pages: Math.ceil(total / limit) || 0,
+    pagination: { page, limit, total, pages: Math.ceil(total / limit) || 0 },
+  });
+});
+
+export const adminGetInstitution = asyncHandler(async (req, res) => {
+  const doc = await CanonicalInstitution.findById(req.params.id).lean();
+  if (!doc) return res.status(404).json({ error: 'Institution not found' });
+  const [enriched] = await attachInstitutionTrustSummaries([doc]);
+  res.json({ data: enriched });
 });
 
 export const adminCreateInstitution = asyncHandler(async (req, res) => {
@@ -525,9 +668,22 @@ export const adminCreateInstitution = asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'institutionType is invalid' });
   }
 
-  const slug = body.slug ? sanitizeString(body.slug) : educationSlug(officialName);
-  const countryCode = normalizeCountryCode(body.countryCode) || '';
+  const countryCode = normalizeCountryCode(body.countryCode);
+  if (!countryCode) {
+    return res.status(400).json({ error: 'countryCode must be a valid ISO 3166-1 alpha-2 code' });
+  }
 
+  const status = isValidPubStatus(body.status) ? body.status : 'draft';
+  const willPublish = status === 'published';
+  const sourcesResult = parseSources(body.sources, { strict: willPublish });
+  if (!sourcesResult.ok) return res.status(400).json({ error: sourcesResult.errors.join('; ') });
+  if (willPublish && sourcesResult.sources.length === 0) {
+    return res.status(400).json({ error: 'Published institutions require at least one valid source' });
+  }
+
+  const slug = body.slug ? sanitizeString(body.slug) : educationSlug(officialName);
+
+  // Catalog-only create — does NOT approve InstitutionClaim or OrganizationVerification.
   const doc = await CanonicalInstitution.create({
     officialName,
     slug,
@@ -539,8 +695,11 @@ export const adminCreateInstitution = asyncHandler(async (req, res) => {
     institutionType: body.institutionType,
     isPublic: body.isPublic != null ? Boolean(body.isPublic) : null,
     organizationId: body.organizationId || undefined,
-    sources: parseSources(body.sources).sources,
-    status: isValidPubStatus(body.status) ? body.status : 'draft',
+    sources: sourcesResult.sources,
+    status,
+    launchEligible: willPublish
+      ? assignLaunchEligibleOnAuthorityPublish({ isFixture: false })
+      : undefined,
   });
 
   res.status(201).json(doc);
@@ -553,21 +712,39 @@ export const adminUpdateInstitution = asyncHandler(async (req, res) => {
   const update = {};
 
   if (body.officialName !== undefined) update.officialName = sanitizeString(body.officialName);
-  if (body.countryCode !== undefined) update.countryCode = normalizeCountryCode(body.countryCode) || '';
+  if (body.countryCode !== undefined) {
+    const code = normalizeCountryCode(body.countryCode);
+    if (!code) return res.status(400).json({ error: 'countryCode must be a valid ISO 3166-1 alpha-2 code' });
+    update.countryCode = code;
+  }
   if (body.city !== undefined) update.city = sanitizeString(body.city);
   if (body.region !== undefined) update.region = sanitizeString(body.region);
   if (body.officialWebsite !== undefined) update.officialWebsite = sanitizeString(body.officialWebsite);
   if (body.officialDomain !== undefined) update.officialDomain = sanitizeString(body.officialDomain).toLowerCase();
   if (body.institutionType !== undefined && isValidInstitutionType(body.institutionType)) update.institutionType = body.institutionType;
   if (body.isPublic !== undefined) update.isPublic = body.isPublic != null ? Boolean(body.isPublic) : null;
-  if (body.sources !== undefined) update.sources = parseSources(body.sources).sources;
+
+  const willPublish = body.status === 'published';
+  if (body.sources !== undefined) {
+    const sourcesResult = parseSources(body.sources, { strict: willPublish });
+    if (!sourcesResult.ok) return res.status(400).json({ error: sourcesResult.errors.join('; ') });
+    update.sources = sourcesResult.sources;
+  }
   if (body.status !== undefined && isValidPubStatus(body.status)) {
-    update.status = body.status;
-    if (body.status === 'published') {
+    if (willPublish) {
+      const nextSources = update.sources !== undefined ? update.sources : (existing.sources || []);
+      if (!nextSources.length) {
+        return res.status(400).json({ error: 'Published institutions require at least one valid source' });
+      }
       update.launchEligible = assignLaunchEligibleOnAuthorityPublish(existing);
     }
+    if (body.status === 'archived' || body.status === 'discontinued') {
+      update.launchEligible = false;
+    }
+    update.status = body.status;
   }
 
+  // Catalog-only update — does NOT approve InstitutionClaim or OrganizationVerification.
   const doc = await CanonicalInstitution.findByIdAndUpdate(req.params.id, update, { new: true });
   if (!doc) return res.status(404).json({ error: 'Institution not found' });
   res.json(doc);
@@ -582,16 +759,68 @@ export const adminListPrograms = asyncHandler(async (req, res) => {
   if (q.status) filter.status = sanitizeString(q.status);
   if (q.degreeLevel) filter.degreeLevel = sanitizeString(q.degreeLevel);
   if (q.field) filter.field = sanitizeString(q.field);
+  if (q.studyMode) filter.studyMode = sanitizeString(q.studyMode);
+  if (q.country) filter.country = sanitizeString(q.country).toUpperCase();
+
+  const region = sanitizeString(q.region || q.state || q.province);
+  const city = sanitizeString(q.city);
+  if (region || city) {
+    const instFilter = {};
+    if (region) instFilter.region = new RegExp(region.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    if (city) instFilter.city = new RegExp(city.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+    const institutions = await CanonicalInstitution.find(instFilter).select('_id').lean();
+    const ids = institutions.map((i) => String(i._id));
+    if (filter.institutionId) {
+      const wanted = String(filter.institutionId);
+      filter.institutionId = ids.includes(wanted) ? wanted : { $in: [] };
+    } else {
+      filter.institutionId = { $in: institutions.map((i) => i._id) };
+    }
+  }
+
+  if (q.search) {
+    const term = sanitizeString(q.search).slice(0, 80);
+    if (term) {
+      const re = new RegExp(term.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'i');
+      filter.$or = [{ name: re }, { slug: re }, { campus: re }];
+    }
+  }
 
   const page = Math.max(1, parseInt(q.page, 10) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(q.limit, 10) || 20));
+  const sortKey = sanitizeString(q.sort) || 'updatedAt';
+  const sortOrder = String(q.order || 'desc').toLowerCase() === 'asc' ? 1 : -1;
+  const allowedSort = new Set(['name', 'updatedAt', 'createdAt', 'status', 'country', 'degreeLevel', 'field']);
+  const sort = { [allowedSort.has(sortKey) ? sortKey : 'updatedAt']: sortOrder };
 
-  const [data, total] = await Promise.all([
-    Program.find(filter).populate('institutionId', 'officialName slug').sort({ name: 1 }).skip((page - 1) * limit).limit(limit).lean(),
+  const [raw, total] = await Promise.all([
+    Program.find(filter)
+      .populate('institutionId', INSTITUTION_POPULATE)
+      .sort(sort)
+      .skip((page - 1) * limit)
+      .limit(limit)
+      .lean(),
     Program.countDocuments(filter),
   ]);
 
-  res.json({ data, total, page, limit });
+  const data = await attachAcceptanceSummaries(raw);
+  res.json({
+    data,
+    total,
+    page,
+    limit,
+    pages: Math.ceil(total / limit) || 0,
+    pagination: { page, limit, total, pages: Math.ceil(total / limit) || 0 },
+  });
+});
+
+export const adminGetProgram = asyncHandler(async (req, res) => {
+  const doc = await Program.findById(req.params.id)
+    .populate('institutionId', INSTITUTION_POPULATE)
+    .lean();
+  if (!doc) return res.status(404).json({ error: 'Program not found' });
+  const [enriched] = await attachAcceptanceSummaries([doc]);
+  res.json({ data: enriched });
 });
 
 export const adminCreateProgram = asyncHandler(async (req, res) => {
@@ -608,9 +837,20 @@ export const adminCreateProgram = asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'studyMode is invalid' });
   }
 
-  const instExists = await CanonicalInstitution.exists({ _id: body.institutionId });
-  if (!instExists) return res.status(400).json({ error: 'Institution not found' });
+  const institution = await CanonicalInstitution.findById(body.institutionId).lean();
+  if (!institution) return res.status(400).json({ error: 'Institution not found' });
 
+  const status = isValidPubStatus(body.status) ? body.status : 'draft';
+  const willPublish = status === 'published';
+  const sourcesResult = parseSources(body.sources, { strict: willPublish });
+  if (!sourcesResult.ok) return res.status(400).json({ error: sourcesResult.errors.join('; ') });
+  if (willPublish && sourcesResult.sources.length === 0) {
+    return res.status(400).json({ error: 'Published programs require at least one valid source' });
+  }
+
+  const country = normalizeCountryCode(body.country)
+    || normalizeCountryCode(institution.countryCode)
+    || '';
   const slug = body.slug ? sanitizeString(body.slug) : educationSlug(`${body.name} ${body.institutionId}`);
 
   const doc = await Program.create({
@@ -620,14 +860,21 @@ export const adminCreateProgram = asyncHandler(async (req, res) => {
     degreeLevel: body.degreeLevel || undefined,
     field: body.field || undefined,
     campus: sanitizeString(body.campus),
+    instructionLanguage: sanitizeString(body.instructionLanguage),
     studyMode: body.studyMode || undefined,
-    durationMonths: body.durationMonths ? Number(body.durationMonths) : undefined,
+    durationMonths: body.durationMonths != null && body.durationMonths !== ''
+      ? Number(body.durationMonths)
+      : undefined,
     officialProgramUrl: sanitizeString(body.officialProgramUrl),
-    status: isValidPubStatus(body.status) ? body.status : 'draft',
-    launchEligible: isValidPubStatus(body.status) && body.status === 'published'
+    country,
+    admissionRequirementsUrl: sanitizeString(body.admissionRequirementsUrl),
+    tuition: body.tuition !== undefined ? normalizeTuition(body.tuition) : null,
+    intakes: Array.isArray(body.intakes) ? normalizeIntakes(body.intakes) : [],
+    status,
+    launchEligible: willPublish
       ? assignLaunchEligibleOnAuthorityPublish({ isFixture: false })
       : undefined,
-    sources: parseSources(body.sources).sources,
+    sources: sourcesResult.sources,
   });
 
   res.status(201).json(doc);
@@ -643,18 +890,45 @@ export const adminUpdateProgram = asyncHandler(async (req, res) => {
   if (body.degreeLevel !== undefined && isValidDegreeLevel(body.degreeLevel)) update.degreeLevel = body.degreeLevel;
   if (body.field !== undefined && isValidAcademicField(body.field)) update.field = body.field;
   if (body.campus !== undefined) update.campus = sanitizeString(body.campus);
+  if (body.instructionLanguage !== undefined) update.instructionLanguage = sanitizeString(body.instructionLanguage);
   if (body.studyMode !== undefined && isValidStudyMode(body.studyMode)) update.studyMode = body.studyMode;
-  if (body.durationMonths !== undefined) update.durationMonths = Number(body.durationMonths);
+  if (body.durationMonths !== undefined) {
+    update.durationMonths = body.durationMonths === '' || body.durationMonths == null
+      ? undefined
+      : Number(body.durationMonths);
+  }
   if (body.officialProgramUrl !== undefined) update.officialProgramUrl = sanitizeString(body.officialProgramUrl);
+  if (body.country !== undefined) {
+    update.country = normalizeCountryCode(body.country) || sanitizeString(body.country).toUpperCase();
+  }
+  if (body.admissionRequirementsUrl !== undefined) {
+    update.admissionRequirementsUrl = sanitizeString(body.admissionRequirementsUrl);
+  }
+  if (body.tuition !== undefined) update.tuition = normalizeTuition(body.tuition);
+  if (Array.isArray(body.intakes)) update.intakes = normalizeIntakes(body.intakes);
+
+  const willPublish = body.status === 'published';
+  if (body.sources !== undefined) {
+    const sourcesResult = parseSources(body.sources, { strict: willPublish });
+    if (!sourcesResult.ok) return res.status(400).json({ error: sourcesResult.errors.join('; ') });
+    update.sources = sourcesResult.sources;
+  }
   if (body.status !== undefined && isValidPubStatus(body.status)) {
-    update.status = body.status;
-    if (body.status === 'published') {
+    if (willPublish) {
+      const nextSources = update.sources !== undefined ? update.sources : (existing.sources || []);
+      if (!nextSources.length) {
+        return res.status(400).json({ error: 'Published programs require at least one valid source' });
+      }
       update.launchEligible = assignLaunchEligibleOnAuthorityPublish(existing);
     }
+    if (body.status === 'archived' || body.status === 'discontinued') {
+      update.launchEligible = false;
+    }
+    update.status = body.status;
   }
-  if (body.sources !== undefined) update.sources = parseSources(body.sources).sources;
 
-  const doc = await Program.findByIdAndUpdate(req.params.id, update, { new: true });
+  const doc = await Program.findByIdAndUpdate(req.params.id, update, { new: true })
+    .populate('institutionId', INSTITUTION_POPULATE);
   if (!doc) return res.status(404).json({ error: 'Program not found' });
   res.json(doc);
 });

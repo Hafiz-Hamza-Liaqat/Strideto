@@ -11,6 +11,8 @@ import { logAudit, auditFromRequest } from '../../services/auditService.js';
 import { applyResolvedSlug, slugErrorResponse } from '../../utils/adminSlugHelpers.js';
 import { onContentSaved, onContentDeleted, onContentBulkDeleted, onContentBulkUpdated } from '../../utils/contentIntegration.js';
 import { deriveCmsLaunchEligible, CMS_STATUS } from '../../../../shared/cms/launchEligible.js';
+import { freeTextCountryRegex } from '../../../../shared/international/location.js';
+import { countryDisplayName, coerceCountryCode } from '../../../../shared/international/country.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -19,7 +21,10 @@ function buildQuery(q) {
   const filter = {};
   if (q.status) filter.status = q.status;
   if (q.level) filter.level = q.level;
-  if (q.country) filter.country = new RegExp(sanitizeString(q.country), 'i');
+  const countryRe = freeTextCountryRegex(q.country);
+  if (countryRe) filter.country = countryRe;
+  if (q.province || q.region) filter.province = new RegExp(sanitizeString(q.province || q.region), 'i');
+  if (q.city) filter.city = new RegExp(sanitizeString(q.city), 'i');
   if (q.featured === 'true') filter.isFeatured = true;
   if (q.from || q.to) {
     filter.createdAt = {};
@@ -47,7 +52,15 @@ function applyBody(doc, body, isCreate = false) {
   if (body.level !== undefined) doc.level = body.level;
   if (body.degreeLevel !== undefined) doc.degreeLevel = sanitizeString(body.degreeLevel);
   if (body.university !== undefined) doc.university = sanitizeString(body.university);
-  if (body.country !== undefined) doc.country = sanitizeString(body.country);
+  if (body.country !== undefined || body.countryCode !== undefined) {
+    const raw = body.country !== undefined ? body.country : body.countryCode;
+    const code = coerceCountryCode(raw);
+    doc.country = code ? (countryDisplayName(code) || sanitizeString(raw)) : sanitizeString(raw);
+  }
+  if (body.province !== undefined || body.region !== undefined) {
+    doc.province = sanitizeString(body.province ?? body.region);
+  }
+  if (body.city !== undefined) doc.city = sanitizeString(body.city);
   if (body.amount !== undefined || body.funding !== undefined) {
     doc.amount = sanitizeString(body.amount || body.funding);
   }

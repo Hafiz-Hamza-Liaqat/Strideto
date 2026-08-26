@@ -39,6 +39,13 @@ export default function PrivacyPolicy() {
             {t('static:googleAdPolicies')}
           </a>.
         </p>
+        <p className="mt-2">
+          {t('static:privacyCookieRef')}{' '}
+          <Link to={ROUTES.COOKIES} className="text-primary dark:text-mint hover:underline">
+            {t('common:cookiePolicy')}
+          </Link>
+          .
+        </p>
       </PublicInfoSection>
       <PublicInfoSection title={t('static:privacyRightsTitle')}>
         <p>{t('static:privacyRightsBody')}</p>

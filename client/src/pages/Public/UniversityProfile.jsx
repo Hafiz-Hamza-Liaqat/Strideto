@@ -7,6 +7,7 @@ import { publicProfilesApi } from '../../services/publicProfilesService';
 import { ROUTES } from '../../constants';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { Alert } from '../../components/ui/Alerts';
+import { formatLocationDisplay } from '@shared/international/location.js';
 
 export default function UniversityProfile() {
   const { slug } = useParams();
@@ -57,7 +58,7 @@ export default function UniversityProfile() {
       <div className="max-w-5xl mx-auto px-4 py-8">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">{university.name}</h1>
         <p className="text-gray-500 dark:text-gray-400 mb-1">
-          {[university.city, university.province, university.country].filter(Boolean).join(', ')}
+          {formatLocationDisplay(university) || [university.city, university.province, university.country].filter(Boolean).join(', ')}
         </p>
         {university.ranking && (
           <p className="text-sm text-primary dark:text-mint mb-4">{t('profiles:ranking', { rank: university.ranking })}</p>

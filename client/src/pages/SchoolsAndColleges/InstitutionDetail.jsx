@@ -7,6 +7,7 @@ import { institutionsApi } from '../../services/listingsService';
 import { ROUTES } from '../../constants';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { Alert } from '../../components/ui/Alerts';
+import { formatLocationDisplay } from '@shared/international/location.js';
 
 export default function InstitutionDetail() {
   const { slug } = useParams();
@@ -52,7 +53,11 @@ export default function InstitutionDetail() {
           <div>
             <p className="text-sm uppercase text-gray-500">{item.type?.replace(/_/g, ' ')}</p>
             <h1 className="text-3xl font-bold text-gray-900 dark:text-white">{item.name}</h1>
-            {(item.city || item.province) && <p className="text-gray-600 dark:text-gray-400 mt-1">{[item.address, item.city, item.province].filter(Boolean).join(', ')}</p>}
+            {(item.city || item.province || item.country || item.address) && (
+              <p className="text-gray-600 dark:text-gray-400 mt-1">
+                {[item.address, formatLocationDisplay(item)].filter(Boolean).join(' · ')}
+              </p>
+            )}
           </div>
         </div>
 

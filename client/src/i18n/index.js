@@ -9,6 +9,7 @@ import {
   getLanguageConfig,
   isLanguageEnabled,
 } from './config.js';
+import { allowsFunctional } from '../consent/cookieConsentStorage.js';
 
 const loadedBundles = new Set();
 let initPromise = null;
@@ -94,7 +95,7 @@ export function initI18n() {
 
     i18n.on('languageChanged', (lng) => {
       applyDocumentLanguage(lng);
-      localStorage.setItem(LANG_STORAGE_KEY, lng);
+      if (allowsFunctional()) localStorage.setItem(LANG_STORAGE_KEY, lng);
     });
 
     return i18n;

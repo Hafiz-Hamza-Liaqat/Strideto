@@ -13,9 +13,11 @@ import { AdminSlugField } from '../../components/admin/AdminSlugField';
 import { isAdminSlugPreviewReady } from '../../components/admin/AdminViewPublicLink';
 import { adminContentApi } from '../../services/adminContentApi';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
+import { AdminLocationFields } from '../../components/admin/AdminLocationFields';
+import { formatLocationDisplay } from '@shared/international/location.js';
 
 const EMPTY = {
-  name: '', type: 'school', description: '', city: '', province: '', address: '', phone: '', email: '', website: '',
+  name: '', type: 'school', description: '', country: '', city: '', province: '', address: '', phone: '', email: '', website: '',
   imageUrl: '', logoUrl: '', programs: '', facilities: '', accreditation: '', establishedYear: '', status: 'active',
   seoTitle: '', metaDescription: '', slug: '',
 };
@@ -78,7 +80,7 @@ export default function AdminInstitutions() {
   const columns = [
     { key: 'name', label: t('admin:colName'), sortable: true },
     { key: 'type', label: t('admin:colType') },
-    { key: 'city', label: t('admin:colCity') },
+    { key: 'city', label: t('admin:colCity'), render: (row) => formatLocationDisplay(row) || row.city || '—' },
     { key: 'status', label: t('status'), type: 'status' },
     {
       key: 'actions', label: t('admin:actions'), render: (row) => (
@@ -111,8 +113,13 @@ export default function AdminInstitutions() {
             </AdminSelectBare>
             <textarea className={adminFieldClass} rows={3} placeholder="Description" value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
             <div className="grid sm:grid-cols-2 gap-3">
-              <input className={adminFieldClass} placeholder="City" value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-              <input className={adminFieldClass} placeholder="Province" value={form.province} onChange={(e) => setForm({ ...form, province: e.target.value })} />
+              <AdminLocationFields
+                mode="name"
+                value={form}
+                onChange={(loc) => setForm({ ...form, ...loc })}
+                className="sm:col-span-2"
+              />
+              <input className={`${adminFieldClass} sm:col-span-2`} placeholder="Address" value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
             </div>
             <AdminImageUrlField label="Logo URL" value={form.logoUrl} onChange={(v) => setForm({ ...form, logoUrl: v })} />
             <AdminImageUrlField label="Image URL" value={form.imageUrl} onChange={(v) => setForm({ ...form, imageUrl: v })} />

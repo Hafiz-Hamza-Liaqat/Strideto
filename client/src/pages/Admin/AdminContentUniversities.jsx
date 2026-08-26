@@ -15,6 +15,7 @@ import { TranslationToolbar } from '../../components/admin/TranslationToolbar';
 import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
+import { AdminLocationFields } from '../../components/admin/AdminLocationFields';
 
 const EMPTY = {
   name: '',
@@ -191,9 +192,12 @@ export default function AdminContentUniversities() {
               ) : null}
               <div className="grid gap-3 max-h-[70vh] overflow-y-auto mt-3">
                 <input className={adminFieldClass} placeholder={t('admin:colName')} value={form.name} onChange={(e) => setForm({ ...form, name: e.target.value })} />
-                <input className={adminFieldClass} placeholder={t('admin:colCountry')} value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} />
-                <input className={adminFieldClass} placeholder={t('admin:fieldCity')} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
-                <input className={adminFieldClass} placeholder={t('admin:colProvince')} value={form.province} onChange={(e) => setForm({ ...form, province: e.target.value })} />
+                <AdminLocationFields
+                  mode="name"
+                  countryRequired
+                  value={form}
+                  onChange={(loc) => setForm({ ...form, ...loc })}
+                />
                 <input className={adminFieldClass} placeholder="Website" value={form.website} onChange={(e) => setForm({ ...form, website: e.target.value })} />
                 <textarea rows={4} className={adminFieldClass} placeholder={t('admin:fieldDescription')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
                 <AdminImageUrlField label={t('admin:fieldLogoUrl')} value={form.logoUrl} onChange={(v) => setForm({ ...form, logoUrl: v })} />

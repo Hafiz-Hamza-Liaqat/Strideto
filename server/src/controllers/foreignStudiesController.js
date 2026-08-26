@@ -2,13 +2,15 @@ import { ForeignStudy } from '../models/ForeignStudy.js';
 import mongoose from 'mongoose';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { listResponse, paginate } from '../utils/apiResponse.js';
+import { freeTextCountryRegex } from '../../../shared/international/location.js';
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
 
 function buildQuery(q) {
   const filter = { status: 'active' };
-  if (q.country) filter.country = new RegExp(String(q.country).trim(), 'i');
+  const countryRe = freeTextCountryRegex(q.country || q.countryCode);
+  if (countryRe) filter.country = countryRe;
   if (q.level) filter.level = q.level;
   if (q.deadline) {
     const d = new Date(q.deadline);

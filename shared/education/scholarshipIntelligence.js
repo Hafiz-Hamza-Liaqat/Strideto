@@ -217,6 +217,7 @@ export function projectPublicScholarship(doc) {
   if (!doc) return null;
   const {
     adminNotes: _adminNotes, // never expose
+    reviewFeedback: _reviewFeedback, // provider/admin workflow only
     __v: _v,
     ...rest
   } = typeof doc.toObject === 'function' ? doc.toObject() : doc;

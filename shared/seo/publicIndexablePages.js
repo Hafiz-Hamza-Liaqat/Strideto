@@ -32,6 +32,7 @@ export const INDEXABLE_STATIC_PATHS = Object.freeze([
   '/submit-opportunity',
   '/privacy-policy',
   '/terms',
+  '/cookie-policy',
   '/cookies',
   '/disclaimer',
   '/refund-policy',

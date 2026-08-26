@@ -12,6 +12,9 @@ import { SeoHead } from '../../components/seo';
 import { canonicalScholarshipsApi } from '../../services/listingsService';
 import { ROUTES } from '../../constants';
 import { formatMoney } from '@shared/international/dateDisplay.js';
+import { formatLocationDisplay } from '@shared/international/location.js';
+import { PublicTrustBadge } from '../../components/public/PublicTrustBadge';
+import { AUTHORITY_KINDS } from '@shared/publicDiscovery/publicTruth.js';
 
 const FUNDING_LABELS = {
   full: 'Fully Funded',
@@ -128,6 +131,16 @@ export default function ScholarshipIntelligenceDetail() {
 
   const countries = (data.destinationCountries || []).filter((c) => c !== '*');
   const funding = data.funding || {};
+  const institution = data.institutionId && typeof data.institutionId === 'object'
+    ? data.institutionId
+    : null;
+  const institutionHref = institution?.slug
+    ? `/institutions/${institution.slug}`
+    : null;
+  const scopeLabel = data.applicabilityScope?.label;
+  const locationLine = institution
+    ? formatLocationDisplay(institution)
+    : '';
 
   return (
     <>
@@ -139,10 +152,16 @@ export default function ScholarshipIntelligenceDetail() {
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="max-w-4xl mx-auto px-4 py-10">
           <Link
+            to={ROUTES.SCHOLARSHIPS}
+            className="text-sm text-blue-600 dark:text-blue-400 hover:underline mb-2 inline-block mr-4"
+          >
+            ← Scholarships
+          </Link>
+          <Link
             to={ROUTES.CANONICAL_SCHOLARSHIPS}
             className="text-sm text-blue-600 dark:text-blue-400 hover:underline mb-6 inline-block"
           >
-            ← Scholarship Intelligence
+            Scholarship Intelligence
           </Link>
 
           <FreshnessWarning warning={freshnessWarning} />
@@ -152,17 +171,38 @@ export default function ScholarshipIntelligenceDetail() {
             <div className="flex items-start justify-between gap-4 flex-wrap">
               <div>
                 <h1 className="text-xl font-bold text-gray-900 dark:text-white">{data.title}</h1>
+                {institution ? (
+                  <p className="mt-1 text-sm text-gray-700 dark:text-gray-300">
+                    {institutionHref ? (
+                      <Link to={institutionHref} className="text-blue-600 dark:text-blue-400 hover:underline font-medium">
+                        {institution.officialName}
+                      </Link>
+                    ) : (
+                      <span className="font-medium">{institution.officialName}</span>
+                    )}
+                    {locationLine ? <span className="text-gray-500"> · {locationLine}</span> : null}
+                  </p>
+                ) : null}
                 {data.provider?.name && (
                   <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
                     {data.provider.name}
                     {data.provider.providerType && ` · ${data.provider.providerType.replace(/_/g, ' ')}`}
                   </p>
                 )}
+                <div className="mt-2">
+                  <PublicTrustBadge
+                    kind={institution ? AUTHORITY_KINDS.INSTITUTION_SCHOLARSHIP : AUTHORITY_KINDS.SOURCE_BACKED}
+                  />
+                </div>
               </div>
               <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${funding.type === 'full' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}>
                 {FUNDING_LABELS[funding.type] || 'Funding Not Specified'}
               </span>
             </div>
+
+            {scopeLabel ? (
+              <p className="mt-3 text-sm font-medium text-gray-800 dark:text-gray-200">{scopeLabel}</p>
+            ) : null}
 
             {data.summary && (
               <p className="mt-4 text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
@@ -296,8 +336,12 @@ export default function ScholarshipIntelligenceDetail() {
           )}
 
           {/* Applicability */}
-          {applicability.length > 0 && (
+          {(applicability.length > 0 || scopeLabel) && (
             <Section title="Applicability">
+              {scopeLabel ? (
+                <p className="text-sm text-gray-800 dark:text-gray-200 mb-3 font-medium">{scopeLabel}</p>
+              ) : null}
+              {applicability.length > 0 ? (
               <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
                 {applicability.map((a) => (
                   <div key={a._id} className="px-4 py-3 text-sm">
@@ -306,7 +350,7 @@ export default function ScholarshipIntelligenceDetail() {
                       <span className="text-gray-800 dark:text-gray-200">{a.institutionId.officialName}</span>
                     )}
                     {a.programId?.name && (
-                      <span className="text-gray-800 dark:text-gray-200">{a.programId.name}</span>
+                      <span className="text-gray-800 dark:text-gray-200">Available for: {a.programId.name}</span>
                     )}
                     {a.countryCode && !a.institutionId && (
                       <span className="text-gray-800 dark:text-gray-200">{a.countryCode}</span>
@@ -321,6 +365,7 @@ export default function ScholarshipIntelligenceDetail() {
                   </div>
                 ))}
               </div>
+              ) : null}
             </Section>
           )}
 

@@ -11,8 +11,8 @@ import {
   JOB_FAMILIES,
   SPECIALIZATIONS_BY_FAMILY,
   SORT_OPTIONS,
-  countryDisplayName,
 } from '../../constants/listings';
+import { formatLocationDisplay } from '@shared/international/location.js';
 import { SearchBar } from '../../components/ui/SearchBar';
 import { Pagination } from '../../components/ui/Pagination';
 import { SaveButton } from '../../components/listings/SaveButton';
@@ -348,8 +348,7 @@ export default function Jobs() {
                         <p className="text-gray-600 dark:text-gray-400 break-words-safe">{job.organization || job.company}</p>
                         <p className="text-sm text-gray-500 dark:text-gray-500 break-words-safe">
                           {[
-                            [job.city, job.region || job.province].filter(Boolean).join(', ') || job.location,
-                            job.countryCode ? countryDisplayName(job.countryCode) : null,
+                            formatLocationDisplay(job) || job.location,
                             job.jobFamily || job.category,
                             job.specialization,
                             job.type,

@@ -1,4 +1,5 @@
 import { createContext, useContext, useEffect, useLayoutEffect, useMemo, useState } from 'react';
+import { allowsFunctional } from '../consent/cookieConsentStorage';
 
 export const THEME_STORAGE_KEY = 'edurozgaar-theme';
 export const THEME_PREFERENCES = Object.freeze(['system', 'light', 'dark']);
@@ -36,7 +37,9 @@ export function ThemeProvider({ children }) {
     const root = document.documentElement;
     root.classList.remove('light', 'dark');
     root.classList.add(resolvedTheme);
-    localStorage.setItem(THEME_STORAGE_KEY, preference);
+    if (allowsFunctional()) {
+      localStorage.setItem(THEME_STORAGE_KEY, preference);
+    }
   }, [preference, resolvedTheme]);
 
   const value = useMemo(

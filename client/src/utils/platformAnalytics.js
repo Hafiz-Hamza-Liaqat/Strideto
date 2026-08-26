@@ -1,8 +1,10 @@
 /**
  * Canonical client analytics emitter (C.7.0.7.1).
  * All public interactions should use this helper.
+ * First-party only — gated on analytics consent (no third-party tags).
  */
 import { analyticsEventApi } from '../services/contentInsightsApi';
+import { allowsAnalytics } from '../consent/cookieConsentStorage';
 
 const SESSION_KEY = 'er_analytics_session';
 
@@ -25,6 +27,7 @@ function getSessionId() {
  */
 export function trackPlatformEvent(payload = {}) {
   if (typeof window === 'undefined') return;
+  if (!allowsAnalytics()) return;
   let locale = payload.locale;
   try {
     locale = locale || localStorage.getItem('edurozgaar-lang') || 'en';

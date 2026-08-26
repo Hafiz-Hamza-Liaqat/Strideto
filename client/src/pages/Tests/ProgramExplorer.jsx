@@ -492,8 +492,15 @@ export function ProgramExplorerDetail() {
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">{data.name}</h1>
             {inst?.officialName && (
               <p className="mt-1 text-sm text-gray-500 dark:text-gray-400">
-                {inst.officialName}
+                {inst.slug ? (
+                  <Link to={`${ROUTES.EDUCATION_INSTITUTIONS}/${inst.slug}`} className="text-primary hover:underline">
+                    {inst.officialName}
+                  </Link>
+                ) : (
+                  inst.officialName
+                )}
                 {inst.countryCode && ` · ${countryDisplayName(inst.countryCode) || inst.countryCode}`}
+                {inst.city || inst.region ? ` · ${[inst.city, inst.region].filter(Boolean).join(', ')}` : ''}
                 {data.campus ? ` · ${data.campus}` : ''}
               </p>
             )}
@@ -704,7 +711,19 @@ export function ProgramExplorerDetail() {
                       </span>
                     </div>
                     {at.minimumOverallScore != null && (
-                      <p className="text-gray-500 dark:text-gray-400 mt-0.5">Min. {at.minimumOverallScore}</p>
+                      <p className="text-gray-500 dark:text-gray-400 mt-0.5">Overall: {at.minimumOverallScore}</p>
+                    )}
+                    {Array.isArray(at.sectionMinimums) && at.sectionMinimums.length > 0 && (
+                      <ul className="mt-1 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
+                        {at.sectionMinimums.map((sec) => (
+                          <li key={`${sec.sectionName}-${sec.minimum}`}>
+                            {sec.sectionName}: {sec.minimum}{sec.scale ? ` (${sec.scale})` : ''}
+                          </li>
+                        ))}
+                      </ul>
+                    )}
+                    {at.resultValidityMonths != null && (
+                      <p className="text-xs text-gray-500 mt-0.5">Validity: {at.resultValidityMonths} months</p>
                     )}
                     {at.conditions && (
                       <p className="text-xs text-gray-400 mt-0.5">{at.conditions}</p>

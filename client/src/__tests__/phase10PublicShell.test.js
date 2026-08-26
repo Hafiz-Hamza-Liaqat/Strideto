@@ -113,7 +113,8 @@ check(/ROUTES\.HOME/.test(notFound), '404 Home recovery');
 check(/noindex/.test(notFound), '404 is noindex');
 check(!/stack|NODE_ENV|MONGO/.test(notFound), '404 does not leak internals');
 
-check(/getAdSenseClientId\(\)/.test(cookieConsent), 'Cookie banner gated on configured ads');
+check(/hasStoredConsent|!hasStoredConsent/.test(cookieConsent) || /hasStoredConsent\(\)/.test(cookieConsent), 'Cookie banner gated on missing consent');
+check(/cookieRejectNonEssential|Reject non-essential/.test(cookieConsent) || /rejectNonEssentialConsent/.test(cookieConsent), 'Cookie banner offers reject non-essential');
 check(!/We don't use cookies/.test(staticEn), 'Copy does not claim zero cookies');
 
 check(/GDPR compliant|CCPA compliant|SOC 2|PCI certified/.test(staticEn) === false, 'No unsupported compliance claims');

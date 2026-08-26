@@ -15,6 +15,8 @@ import { ROUTES } from '../../constants';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
 import { AdminViewPublicLink, isAdminSlugPreviewReady } from '../../components/admin/AdminViewPublicLink';
 import { formatCmsPublicationStatus } from '@shared/cms/publicReadiness.js';
+import { AdminLocationFields } from '../../components/admin/AdminLocationFields';
+import { formatLocationDisplay } from '@shared/international/location.js';
 
 const EMPTY = {
   title: '',
@@ -22,8 +24,11 @@ const EMPTY = {
   internshipType: '',
   isPaid: false,
   duration: '',
+  countryCode: '',
   province: '',
+  region: '',
   city: '',
+  workMode: 'unspecified',
   description: '',
   eligibility: '',
   skillset: '',
@@ -75,6 +80,10 @@ export default function AdminContentInternships() {
       toast.error(t('admin:providerRequired'));
       return;
     }
+    if (form.workMode !== 'remote' && !form.countryCode?.trim()) {
+      toast.error(t('admin:countryRequired'));
+      return;
+    }
     setSaving(true);
     const payload = {
       ...form,
@@ -112,7 +121,11 @@ export default function AdminContentInternships() {
   const columns = [
     { key: 'title', label: t('admin:colTitle'), sortable: true },
     { key: 'organization', label: t('admin:organizationPlaceholder') },
-    { key: 'province', label: t('admin:colProvince') },
+    {
+      key: 'location',
+      label: t('admin:fieldRegion'),
+      render: (row) => formatLocationDisplay(row) || '—',
+    },
     { key: 'status', label: t('status'), render: (row) => formatCmsPublicationStatus(row) },
     {
       key: 'actions',
@@ -155,7 +168,7 @@ export default function AdminContentInternships() {
           onSort={setSort}
           filters={filters}
           onFiltersChange={(f) => { setFilters(f); setPage(1); }}
-          filterFields={['search', 'status', 'province', 'from', 'to', 'featured']}
+          filterFields={['search', 'status', 'country', 'province', 'from', 'to', 'featured']}
           selectable={canEdit}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}
@@ -181,8 +194,13 @@ export default function AdminContentInternships() {
                 <input className={adminFieldClass} placeholder={t('admin:fieldInternshipType')} value={form.internshipType} onChange={(e) => setForm({ ...form, internshipType: e.target.value })} />
                 <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isPaid} onChange={(e) => setForm({ ...form, isPaid: e.target.checked })} /> {t('admin:fieldIsPaid')}</label>
                 <input className={adminFieldClass} placeholder={t('admin:fieldDuration')} value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })} />
-                <input className={adminFieldClass} placeholder={t('admin:provincePlaceholder')} value={form.province} onChange={(e) => setForm({ ...form, province: e.target.value })} />
-                <input className={adminFieldClass} placeholder={t('admin:fieldCity')} value={form.city} onChange={(e) => setForm({ ...form, city: e.target.value })} />
+                <AdminLocationFields
+                  mode="code"
+                  countryRequired={form.workMode !== 'remote'}
+                  showWorkMode
+                  value={form}
+                  onChange={(loc) => setForm({ ...form, ...loc })}
+                />
                 <textarea rows={4} className={adminFieldClass} placeholder={t('admin:fieldDescription')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
                 <textarea rows={3} className={adminFieldClass} placeholder={t('admin:fieldEligibility')} value={form.eligibility} onChange={(e) => setForm({ ...form, eligibility: e.target.value })} />
                 <textarea rows={3} className={adminFieldClass} placeholder={t('admin:fieldSkillset')} value={form.skillset} onChange={(e) => setForm({ ...form, skillset: e.target.value })} />

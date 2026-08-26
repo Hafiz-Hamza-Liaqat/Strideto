@@ -6,6 +6,8 @@ import { sanitizeString } from '../../utils/sanitize.js';
 import { logAudit, auditFromRequest } from '../../services/auditService.js';
 import { applyResolvedSlug, slugErrorResponse } from '../../utils/adminSlugHelpers.js';
 import { runBulkAction, duplicateDoc } from '../../utils/adminBulkHelper.js';
+import { freeTextCountryRegex } from '../../../../shared/international/location.js';
+import { coerceCountryCode, countryDisplayName } from '../../../../shared/international/country.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -13,7 +15,8 @@ const MAX_LIMIT = 100;
 function buildQuery(q) {
   const filter = {};
   if (q.status) filter.status = q.status;
-  if (q.country) filter.country = new RegExp(sanitizeString(q.country), 'i');
+  const countryRe = freeTextCountryRegex(q.country || q.countryCode);
+  if (countryRe) filter.country = countryRe;
   if (q.level) filter.level = q.level;
   if (q.search && sanitizeString(q.search)) {
     const re = new RegExp(sanitizeString(q.search), 'i');
@@ -23,7 +26,11 @@ function buildQuery(q) {
 }
 
 function applyBody(doc, body) {
-  if (body.country !== undefined) doc.country = sanitizeString(body.country);
+  if (body.country !== undefined || body.countryCode !== undefined) {
+    const raw = body.country !== undefined ? body.country : body.countryCode;
+    const code = coerceCountryCode(raw);
+    doc.country = code ? (countryDisplayName(code) || sanitizeString(raw)) : sanitizeString(raw);
+  }
   if (body.program !== undefined) doc.program = body.program ? sanitizeString(body.program) : undefined;
   if (body.level !== undefined) doc.level = body.level;
   if (body.institution !== undefined) doc.institution = body.institution ? sanitizeString(body.institution) : undefined;

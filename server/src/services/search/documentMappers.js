@@ -110,6 +110,7 @@ export function mapAdmissionToSearchDocument(doc) {
     keywords: [doc.institution, doc.university, doc.degree].filter(Boolean),
     category: doc.degree,
     province: doc.province,
+    country: doc.countryCode || null,
     publishedAt: doc.createdAt,
     updatedAt: doc.updatedAt,
     featured: Boolean(doc.isFeatured),

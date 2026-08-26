@@ -8,20 +8,30 @@ import { logAudit, auditFromRequest } from '../../services/auditService.js';
 import { applyResolvedSlug, slugErrorResponse } from '../../utils/adminSlugHelpers.js';
 import { duplicateDoc } from '../../utils/adminBulkHelper.js';
 import { deriveCmsLaunchEligible, CMS_STATUS } from '../../../../shared/cms/launchEligible.js';
+import { normalizeCountryCode } from '../../../../shared/international/country.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
+const WORK_MODES = new Set(['remote', 'hybrid', 'on_site', 'unspecified']);
 
 function buildQuery(q) {
   const filter = {};
+  const extraAnd = [];
   if (q.status) filter.status = q.status;
-  if (q.province) filter.province = new RegExp(sanitizeString(q.province), 'i');
+  const countryCode = normalizeCountryCode(q.countryCode || q.country);
+  if (countryCode) filter.countryCode = countryCode;
+  if (q.province || q.region) {
+    const re = new RegExp(sanitizeString(q.province || q.region), 'i');
+    extraAnd.push({ $or: [{ province: re }, { region: re }] });
+  }
+  if (q.city) filter.city = new RegExp(sanitizeString(q.city), 'i');
   if (q.featured === 'true') filter.isFeatured = true;
   if (q.organization) filter.organization = new RegExp(sanitizeString(q.organization), 'i');
   if (q.search && sanitizeString(q.search)) {
     const re = new RegExp(sanitizeString(q.search), 'i');
-    filter.$or = [{ title: re }, { organization: re }, { city: re }];
+    extraAnd.push({ $or: [{ title: re }, { organization: re }, { city: re }] });
   }
+  if (extraAnd.length) filter.$and = extraAnd;
   return filter;
 }
 
@@ -34,8 +44,21 @@ function applyBody(doc, body) {
   if (body.title !== undefined) doc.title = sanitizeString(body.title);
   if (body.organization !== undefined) doc.organization = sanitizeString(body.organization);
   if (body.location !== undefined) doc.location = body.location ? sanitizeString(body.location) : undefined;
-  if (body.province !== undefined) doc.province = body.province ? sanitizeString(body.province) : undefined;
+  if (body.countryCode !== undefined || body.country !== undefined) {
+    const raw = body.countryCode !== undefined ? body.countryCode : body.country;
+    doc.countryCode = normalizeCountryCode(raw) || '';
+  }
+  if (body.region !== undefined || body.province !== undefined) {
+    const region = body.region !== undefined
+      ? (body.region ? sanitizeString(body.region) : '')
+      : (body.province ? sanitizeString(body.province) : '');
+    doc.region = region || undefined;
+    doc.province = region || undefined;
+  }
   if (body.city !== undefined) doc.city = body.city ? sanitizeString(body.city) : undefined;
+  if (body.workMode !== undefined && WORK_MODES.has(body.workMode)) {
+    doc.workMode = body.workMode;
+  }
   if (body.duration !== undefined) doc.duration = body.duration ? sanitizeString(body.duration) : undefined;
   if (body.internshipType !== undefined) doc.internshipType = sanitizeString(body.internshipType);
   const skillset = parseStringArray(body.skillset ?? body.skills);
@@ -79,6 +102,11 @@ export const create = asyncHandler(async (req, res) => {
   const body = req.body || {};
   if (!body.title?.trim()) return res.status(400).json({ error: 'Validation failed', details: { title: 'Title is required' } });
   if (!body.organization?.trim()) return res.status(400).json({ error: 'Validation failed', details: { organization: 'Organization is required' } });
+  const workMode = WORK_MODES.has(body.workMode) ? body.workMode : 'unspecified';
+  const countryCode = normalizeCountryCode(body.countryCode || body.country);
+  if (workMode !== 'remote' && !countryCode) {
+    return res.status(400).json({ error: 'Validation failed', details: { countryCode: 'Country is required unless work mode is remote' } });
+  }
   const doc = new Internship({
     title: sanitizeString(body.title),
     organization: sanitizeString(body.organization),

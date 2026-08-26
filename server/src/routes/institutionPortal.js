@@ -168,7 +168,9 @@ portal.post('/:organizationId/test-acceptance/:testAcceptanceId/archive', requir
 
 portal.get('/:organizationId/scholarships', portalCtrl.listScholarships);
 portal.post('/:organizationId/scholarships', requireInstitutionEmailVerified(), portalCtrl.createScholarship);
+portal.get('/:organizationId/scholarships/:scholarshipId', portalCtrl.getScholarship);
 portal.patch('/:organizationId/scholarships/:scholarshipId', requireInstitutionEmailVerified(), portalCtrl.updateScholarship);
+portal.post('/:organizationId/scholarships/:scholarshipId/submit', requireInstitutionEmailVerified(), portalCtrl.submitScholarship);
 
 portal.get('/:organizationId/applications', portalCtrl.listApplications);
 portal.get('/:organizationId/applications/:applicationId', portalCtrl.getApplication);

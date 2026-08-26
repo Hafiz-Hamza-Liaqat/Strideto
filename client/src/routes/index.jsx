@@ -70,6 +70,8 @@ const ScholarshipIntelligence = lazyLoad(() => import('../pages/Scholarships/Sch
 const ScholarshipIntelligenceDetail = lazyLoad(() => import('../pages/Scholarships/ScholarshipIntelligenceDetail'));
 const ProgramExplorerList = lazyLoad(() => import('../pages/Tests/ProgramExplorerList'));
 const ProgramExplorerDetail = lazyLoad(() => import('../pages/Tests/ProgramExplorerDetail'));
+const InstitutionExplorerList = lazyLoad(() => import('../pages/Education/InstitutionExplorerList'));
+const InstitutionExplorerDetail = lazyLoad(() => import('../pages/Education/InstitutionExplorerDetail'));
 const Internships = lazyLoad(() => import('../pages/Internships/Internships'));
 const InternshipDetail = lazyLoad(() => import('../pages/Internships/InternshipDetail'));
 const Webinars = lazyLoad(() => import('../pages/Webinars/Webinars'));
@@ -138,6 +140,9 @@ const AdminContentAdmissions = lazyLoad(() => import('../pages/Admin/AdminConten
 const AdminContentBlogs = lazyLoad(() => import('../pages/Admin/AdminContentBlogs'));
 const AdminContentInternships = lazyLoad(() => import('../pages/Admin/AdminContentInternships'));
 const AdminContentUniversities = lazyLoad(() => import('../pages/Admin/AdminContentUniversities'));
+const AdminEducationInstitutions = lazyLoad(() => import('../pages/Admin/AdminEducationInstitutions'));
+const AdminPrograms = lazyLoad(() => import('../pages/Admin/AdminPrograms'));
+const AdminEducationScholarships = lazyLoad(() => import('../pages/Admin/AdminEducationScholarships'));
 const AdminIntlScholarships = lazyLoad(() => import('../pages/Admin/AdminIntlScholarships'));
 const AdminForeignStudies = lazyLoad(() => import('../pages/Admin/AdminForeignStudies'));
 const AdminCareerGuidance = lazyLoad(() => import('../pages/Admin/AdminCareerGuidance'));
@@ -246,6 +251,7 @@ const InstitutionIntakes = lazyLoad(() => import('../pages/Institution/Instituti
 const InstitutionApplications = lazyLoad(() => import('../pages/Institution/InstitutionApplications'));
 const InstitutionTestAcceptance = lazyLoad(() => import('../pages/Institution/InstitutionTestAcceptance'));
 const InstitutionScholarships = lazyLoad(() => import('../pages/Institution/InstitutionScholarships'));
+const InstitutionScholarshipEditor = lazyLoad(() => import('../pages/Institution/InstitutionScholarshipEditor'));
 const InstitutionNotifications = lazyLoad(() => import('../pages/Institution/InstitutionNotifications'));
 const InstitutionUsage = lazyLoad(() => import('../pages/Institution/InstitutionUsage'));
 const InstitutionBilling = lazyLoad(() => import('../pages/Institution/InstitutionBilling'));
@@ -348,6 +354,8 @@ export const routes = [
       { path: 'applications/:applicationId', element: <InstitutionApplications /> },
       { path: 'test-acceptance', element: <InstitutionTestAcceptance /> },
       { path: 'scholarships', element: <InstitutionScholarships /> },
+      { path: 'scholarships/new', element: <InstitutionScholarshipEditor /> },
+      { path: 'scholarships/:scholarshipId/edit', element: <InstitutionScholarshipEditor /> },
       { path: 'data-quality', element: <InstitutionDataQuality /> },
       { path: 'team', element: <InstitutionTeam /> },
       { path: 'notifications', element: <InstitutionNotifications /> },
@@ -515,6 +523,7 @@ export const routes = [
       { path: ROUTES.PRIVACY_POLICY, element: <PrivacyPolicy /> },
       { path: ROUTES.TERMS, element: <Terms /> },
       { path: ROUTES.COOKIES, element: <Cookies /> },
+      { path: ROUTES.COOKIES_LEGACY, element: <Cookies /> },
       { path: ROUTES.LICENSE, element: <NotFound /> },
       { path: ROUTES.SITEMAP, element: <HumanSitemap /> },
       { path: ROUTES.DISCLAIMER, element: <Disclaimer /> },
@@ -749,6 +758,9 @@ export const routes = [
           { path: 'blogs', element: <AdminContentBlogs /> },
           { path: 'internships', element: <AdminContentInternships /> },
           { path: 'universities', element: <AdminContentUniversities /> },
+          { path: 'education/institutions', element: <AdminEducationInstitutions /> },
+          { path: 'programs', element: <AdminPrograms /> },
+          { path: 'education/scholarships', element: <AdminEducationScholarships /> },
           { path: 'international-scholarships', element: <AdminIntlScholarships /> },
           { path: 'foreign-studies', element: <AdminForeignStudies /> },
           { path: 'career-guidance', element: <AdminCareerGuidance /> },
@@ -815,6 +827,8 @@ export const routes = [
       { path: `${ROUTES.CANONICAL_SCHOLARSHIPS}/:slug`, element: <ScholarshipIntelligenceDetail /> },
       { path: ROUTES.PROGRAM_EXPLORER, element: <ProgramExplorerList /> },
       { path: `${ROUTES.PROGRAM_EXPLORER}/:slug`, element: <ProgramExplorerDetail /> },
+      { path: ROUTES.EDUCATION_INSTITUTIONS, element: <InstitutionExplorerList /> },
+      { path: `${ROUTES.EDUCATION_INSTITUTIONS}/:slug`, element: <InstitutionExplorerDetail /> },
       {
         path: ROUTES.PERSONALIZATION_HUB,
         element: (

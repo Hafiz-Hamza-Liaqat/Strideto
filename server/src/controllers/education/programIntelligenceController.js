@@ -88,7 +88,7 @@ export const listPrograms = asyncHandler(async (req, res) => {
 
   const [raw, total] = await Promise.all([
     Program.find(filter)
-      .populate('institutionId', 'officialName slug countryCode institutionType')
+      .populate('institutionId', 'officialName slug countryCode city region institutionType')
       .select('-__v')
       .sort({ createdAt: -1 })
       .skip(skip)
@@ -108,7 +108,7 @@ export const listPrograms = asyncHandler(async (req, res) => {
 export const getProgramDetail = asyncHandler(async (req, res) => {
   const slug = sanitizeString(req.params.slug);
   const doc = await Program.findOne(withFixtureExclusion({ slug, status: 'published' }))
-    .populate('institutionId', 'officialName slug countryCode institutionType')
+    .populate('institutionId', 'officialName slug countryCode city region institutionType')
     .select('-__v')
     .lean();
 

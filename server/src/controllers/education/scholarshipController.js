@@ -9,6 +9,7 @@
 import { CanonicalScholarship } from '../../models/education/CanonicalScholarship.js';
 import { ScholarshipCycle } from '../../models/education/ScholarshipCycle.js';
 import { ScholarshipApplicability } from '../../models/education/ScholarshipApplicability.js';
+import { Program } from '../../models/education/Program.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { sanitizeString } from '../../utils/sanitize.js';
 import {
@@ -16,6 +17,7 @@ import {
   scholarshipComparisonFacts,
 } from '../../../../shared/education/scholarshipIntelligence.js';
 import { FRESHNESS_STATES } from '../../../../shared/trust/sourceVerification.js';
+import { buildApplicabilityScopeSummary } from '../../../../shared/publicDiscovery/unifiedScholarshipDiscovery.js';
 
 const PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;
@@ -86,6 +88,7 @@ export const listScholarships = asyncHandler(async (req, res) => {
 export const getScholarship = asyncHandler(async (req, res) => {
   const slug = sanitizeString(req.params.slug);
   const doc = await CanonicalScholarship.findOne({ slug, status: 'published' })
+    .populate('institutionId', 'officialName slug countryCode region city status isFixture demoOnly')
     .select('-adminNotes -__v')
     .lean();
   if (!doc) return res.status(404).json({ error: 'Scholarship not found' });
@@ -110,10 +113,52 @@ export const getScholarship = asyncHandler(async (req, res) => {
     .select('-__v')
     .lean();
 
+  const applicablePrograms = Array.isArray(doc.applicableProgramIds) && doc.applicableProgramIds.length
+    ? await Program.find({ _id: { $in: doc.applicableProgramIds }, status: 'published' })
+      .select('name slug degreeLevel field')
+      .lean()
+    : [];
+
   const warning = freshnessWarning(doc.freshnessState);
 
+  const institution = doc.institutionId && typeof doc.institutionId === 'object'
+    ? {
+        _id: doc.institutionId._id,
+        officialName: doc.institutionId.officialName,
+        slug: doc.institutionId.slug,
+        countryCode: doc.institutionId.countryCode || '',
+        region: doc.institutionId.region || '',
+        city: doc.institutionId.city || '',
+      }
+    : null;
+
+  // Institutional scholarships require a publicly discoverable institution.
+  if (doc.scholarshipType === 'institutional') {
+    const instDoc = doc.institutionId && typeof doc.institutionId === 'object' ? doc.institutionId : null;
+    if (
+      !instDoc
+      || instDoc.status !== 'published'
+      || instDoc.isFixture === true
+      || instDoc.demoOnly === true
+    ) {
+      return res.status(404).json({ error: 'Scholarship not found' });
+    }
+  }
+
+  const applicabilityScope = buildApplicabilityScopeSummary({
+    applicability,
+    applicablePrograms,
+    cycleLabel: doc.cycleLabel || '',
+    cycles,
+  });
+
   res.json({
-    data: projectPublicScholarship(doc),
+    data: {
+      ...projectPublicScholarship(doc),
+      institutionId: institution || doc.institutionId || null,
+      applicablePrograms,
+      applicabilityScope,
+    },
     cycles,
     applicability,
     ...(warning ? { freshnessWarning: warning } : {}),

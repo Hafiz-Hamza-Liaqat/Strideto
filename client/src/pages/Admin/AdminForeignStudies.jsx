@@ -14,6 +14,8 @@ import { AdminViewPublicLink, isAdminSlugPreviewReady } from '../../components/a
 import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
+import { CountrySelect } from '../../components/forms/CountrySelect';
+import { coerceCountryCode, countryDisplayName } from '@shared/international/country.js';
 
 const EMPTY = {
   country: '',
@@ -170,7 +172,15 @@ export default function AdminForeignStudies() {
             <div className="max-w-2xl mx-auto my-4 rounded-xl bg-white dark:bg-gray-900 p-6 border border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-bold mb-4">{editingId ? t('admin:editForeignStudy') : t('admin:addForeignStudy')}</h3>
               <div className="grid gap-3 max-h-[70vh] overflow-y-auto">
-                <input className={adminFieldClass} placeholder={t('admin:countryPlaceholder')} value={form.country} onChange={(e) => setForm({ ...form, country: e.target.value })} />
+                <div>
+                  <label className="block text-xs text-gray-500 mb-1">{t('admin:colCountry')} *</label>
+                  <CountrySelect
+                    value={coerceCountryCode(form.country) || ''}
+                    onChange={(code) => setForm({ ...form, country: code ? (countryDisplayName(code) || code) : '' })}
+                    inputClassName={adminFieldClass}
+                    placeholder={t('admin:countryPlaceholder')}
+                  />
+                </div>
                 <input className={adminFieldClass} placeholder={t('admin:colProgram')} value={form.program} onChange={(e) => setForm({ ...form, program: e.target.value })} />
                 <AdminSelectBare  value={form.level} onChange={(e) => setForm({ ...form, level: e.target.value })}>
                   <option value="Undergraduate">Undergraduate</option>

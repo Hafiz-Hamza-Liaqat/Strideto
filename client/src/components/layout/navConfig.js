@@ -10,6 +10,7 @@ export const PRIMARY_NAV_ITEMS = [
     labelKey: 'navbar:studyAndInstitutions',
     path: '/program-explorer',
     mega: [
+      { labelKey: 'navbar:universitiesAndInstitutions', path: '/institutions' },
       { labelKey: 'navbar:programExplorer', path: '/program-explorer' },
       { labelKey: 'navbar:schoolsAndColleges', path: '/schools-and-colleges' },
       { labelKey: 'navbar:foreignStudies', path: '/foreign-studies' },

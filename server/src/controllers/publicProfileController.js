@@ -11,6 +11,7 @@ import {
   findLocalizedBySlug,
   withListLocaleFilter,
 } from '../utils/localeQuery.js';
+import { freeTextCountryRegex } from '../../../shared/international/location.js';
 
 function employerPublicFields(e) {
   return {
@@ -169,7 +170,9 @@ export const listCompanies = asyncHandler(async (req, res) => {
 export const listUniversities = asyncHandler(async (req, res) => {
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
   const limit = Math.min(50, parseInt(req.query.limit, 10) || 20);
-  const filter = { status: 'active', country: 'Pakistan' };
+  const filter = { status: 'active' };
+  const countryRe = freeTextCountryRegex(req.query.country || req.query.countryCode);
+  if (countryRe) filter.country = countryRe;
 
   const [data, total] = await Promise.all([
     University.find(filter).sort({ ranking: 1, name: 1 }).skip((page - 1) * limit).limit(limit).lean(),

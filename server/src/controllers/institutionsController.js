@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { Institution } from '../models/Institution.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { listResponse, paginate } from '../utils/apiResponse.js';
+import { freeTextCountryRegex } from '../../../shared/international/location.js';
 
 const DEFAULT_LIMIT = 12;
 const MAX_LIMIT = 50;
@@ -10,11 +11,13 @@ const TYPES = ['school', 'college', 'technical_institute', 'training_center'];
 function buildQuery(q) {
   const filter = { status: 'active' };
   if (q.type && TYPES.includes(q.type)) filter.type = q.type;
-  if (q.province) filter.province = new RegExp(String(q.province).trim(), 'i');
+  const countryRe = freeTextCountryRegex(q.country || q.countryCode);
+  if (countryRe) filter.country = countryRe;
+  if (q.province || q.region) filter.province = new RegExp(String(q.province || q.region).trim(), 'i');
   if (q.city) filter.city = new RegExp(String(q.city).trim(), 'i');
   if (q.search && String(q.search).trim()) {
     const re = new RegExp(String(q.search).trim(), 'i');
-    filter.$or = [{ name: re }, { description: re }, { city: re }, { programs: re }];
+    filter.$or = [{ name: re }, { description: re }, { city: re }, { programs: re }, { country: re }];
   }
   return filter;
 }
@@ -48,9 +51,10 @@ export const getInstitutionBySlug = asyncHandler(async (req, res) => {
 });
 
 export const getInstitutionFilters = asyncHandler(async (_req, res) => {
-  const [provinces, cities] = await Promise.all([
+  const [provinces, cities, countries] = await Promise.all([
     Institution.distinct('province', { status: 'active', province: { $nin: [null, ''] } }),
     Institution.distinct('city', { status: 'active', city: { $nin: [null, ''] } }),
+    Institution.distinct('country', { status: 'active', country: { $nin: [null, ''] } }),
   ]);
-  res.json({ types: TYPES, provinces: provinces.sort(), cities: cities.sort() });
+  res.json({ types: TYPES, provinces: provinces.sort(), cities: cities.sort(), countries: countries.sort() });
 });

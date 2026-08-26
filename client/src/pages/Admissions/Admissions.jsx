@@ -17,6 +17,8 @@ import { formatDate, daysUntil } from '../../utils/formatDate';
 import { useAuth } from '../../context/AuthContext';
 import { AdHost } from '../../components/ads';
 import { EmptyState } from '../../components/common/EmptyState';
+import { CountrySelect } from '../../components/forms/CountrySelect';
+import { formatLocationDisplay } from '@shared/international/location.js';
 import { OfficialIntakesRail } from '../../components/public/OfficialDiscoveryRail';
 import { PublicTrustBadge } from '../../components/public/PublicTrustBadge';
 import { NO_GUARANTEE_DISCLAIMER } from '@shared/publicDiscovery/publicTruth.js';
@@ -90,6 +92,19 @@ export default function Admissions() {
         <div className="flex flex-col md:flex-row gap-6">
           <aside className="w-full md:w-56 flex-shrink-0 space-y-4">
             <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('countryLabel', { ns: 'admissions', defaultValue: 'Country' })}</label>
+              <CountrySelect
+                allowAll
+                value={params.countryCode || params.country || ''}
+                onChange={(code) => setFilters({ countryCode: code || undefined, country: undefined })}
+                allLabel={t('allCountries', { ns: 'common', defaultValue: 'All countries' })}
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('regionLabel', { ns: 'admissions', defaultValue: 'State / Province / Region' })}</label>
+              <input type="text" value={params.province || ''} onChange={(e) => setFilters({ province: e.target.value || undefined })} placeholder={t('filterByName', { ns: 'admissions' })} className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm placeholder-gray-500" />
+            </div>
+            <div>
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('universityCollegeLabel', { ns: 'admissions' })}</label>
               <input type="text" value={params.university || ''} onChange={(e) => setFilters({ university: e.target.value || undefined })} placeholder={t('filterByName', { ns: 'admissions' })} className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm placeholder-gray-500" />
             </div>
@@ -116,7 +131,7 @@ export default function Admissions() {
                 title="No public admissions yet"
                 description="Admissions appear here when they are published and launch-eligible. Change or reset filters if you applied any. This is not sample inventory."
                 actionLabel="Reset filters"
-                onAction={() => setFilters({ search: undefined, deadline: undefined, province: undefined })}
+                onAction={() => setFilters({ search: undefined, deadline: undefined, province: undefined, countryCode: undefined, country: undefined })}
               />
             ) : (
               <>
@@ -124,6 +139,7 @@ export default function Admissions() {
                 <div className="grid sm:grid-cols-2 gap-4">
                   {data.map((a) => {
                     const days = daysUntil(a.deadline);
+                    const locationLine = formatLocationDisplay(a);
                     return (
                       <article key={a._id} className={`p-4 rounded-xl border flex flex-col transition-shadow ${a.source === 'scraper' && a.scrapedAt ? 'border-primary/50 dark:border-mint/50 bg-mint/20 dark:bg-mint/10' : 'border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800'} hover:shadow-md`}>
                         <Link to={`${ROUTES.ADMISSIONS}/${a.slug || a._id}`} className="flex-1 block">
@@ -132,6 +148,7 @@ export default function Admissions() {
                           )}
                           <h2 className="text-lg font-semibold text-gray-900 dark:text-white break-words-safe">{a.program}</h2>
                           <p className="text-gray-600 dark:text-gray-400 break-words-safe">{a.institution}</p>
+                          {locationLine ? <p className="text-sm text-gray-500 mt-0.5">{locationLine}</p> : null}
                           <div className="mt-1"><PublicTrustBadge kind={a.authorityKind} label={a.authorityLabel} /></div>
                           {a.department && <p className="text-sm text-gray-500">{a.department}</p>}
                           {a.session && <p className="text-sm text-gray-500">{a.session}</p>}
