@@ -15,7 +15,7 @@ import {
   JOB_DUPLICATE_PRESERVE_FIELDS,
   JOB_DUPLICATE_RESET_FIELDS,
 } from '../../services/jobWriteBoundary.js';
-import { validateApplicationLink } from '../../utils/jobApplicationDestination.js';
+import { validateApplicationLink, validateApplyEmail } from '../../utils/jobApplicationDestination.js';
 import {
   loadEmployerPublishingUsage,
   projectAdminEntitlementSnapshot,
@@ -116,6 +116,19 @@ function applyJobBody(doc, body, isCreate = false) {
     doc.applicationLink = result.value || '';
     if (result.value) doc.applyType = 'external';
   }
+  if (body.applyEmail !== undefined) {
+    const emailResult = validateApplyEmail(body.applyEmail);
+    if (!emailResult.ok) return { status: 400, error: emailResult.message, field: emailResult.field };
+    doc.applyEmail = emailResult.value || '';
+    if (emailResult.value) doc.applyType = 'external';
+  }
+  if (body.sourceUrl !== undefined) {
+    const sourceResult = validateApplicationLink(body.sourceUrl);
+    if (!sourceResult.ok) return { status: 400, error: sourceResult.message, field: 'sourceUrl' };
+    doc.sourceUrl = sourceResult.value || '';
+  }
+  if (body.sourceWebsite !== undefined) doc.sourceWebsite = sanitizeString(body.sourceWebsite);
+  if (body.externalId !== undefined) doc.externalId = body.externalId ? sanitizeString(body.externalId) : undefined;
   if (body.status !== undefined) doc.status = body.status;
   if (body.deadline !== undefined) doc.deadline = body.deadline ? new Date(body.deadline) : undefined;
   if (body.logoUrl !== undefined) doc.logoUrl = sanitizeString(body.logoUrl);

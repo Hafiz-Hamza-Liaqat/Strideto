@@ -44,6 +44,10 @@ const EMPTY_JOB = {
   benefits: '',
   skillsRequired: '',
   applicationLink: '',
+  applyEmail: '',
+  sourceUrl: '',
+  sourceWebsite: '',
+  externalId: '',
   deadline: '',
   status: 'draft',
   approvalStatus: 'pending',
@@ -416,7 +420,23 @@ export default function AdminContentJobs() {
                 </label>
                 <label className="sm:col-span-2">
                   <span className="text-xs text-gray-500">{t('admin:applyLinkLabel')}</span>
-                  <input className={fieldClass} value={form.applicationLink} onChange={(e) => setForm({ ...form, applicationLink: e.target.value })} />
+                  <input className={fieldClass} value={form.applicationLink} onChange={(e) => setForm({ ...form, applicationLink: e.target.value })} placeholder="https://…" />
+                </label>
+                <label className="sm:col-span-2">
+                  <span className="text-xs text-gray-500">Application email</span>
+                  <input type="email" className={fieldClass} value={form.applyEmail} onChange={(e) => setForm({ ...form, applyEmail: e.target.value })} placeholder="jobs@employer.example" />
+                </label>
+                <label className="sm:col-span-2">
+                  <span className="text-xs text-gray-500">Official source URL</span>
+                  <input className={fieldClass} value={form.sourceUrl} onChange={(e) => setForm({ ...form, sourceUrl: e.target.value })} placeholder="https://…" />
+                </label>
+                <label>
+                  <span className="text-xs text-gray-500">Source / employer website name</span>
+                  <input className={fieldClass} value={form.sourceWebsite} onChange={(e) => setForm({ ...form, sourceWebsite: e.target.value })} placeholder="e.g. PPSC, FPSC" />
+                </label>
+                <label>
+                  <span className="text-xs text-gray-500">External job ID / reference ID</span>
+                  <input className={fieldClass} value={form.externalId} onChange={(e) => setForm({ ...form, externalId: e.target.value })} />
                 </label>
                 <label className="sm:col-span-2">
                   <span className="text-xs text-gray-500">{t('admin:fieldDescription')}</span>
@@ -425,6 +445,10 @@ export default function AdminContentJobs() {
                 <label className="sm:col-span-2">
                   <span className="text-xs text-gray-500">{t('admin:fieldRequirements')}</span>
                   <textarea rows={3} className={fieldClass} value={form.requirements} onChange={(e) => setForm({ ...form, requirements: e.target.value })} placeholder={t('admin:onePerLine')} />
+                </label>
+                <label className="sm:col-span-2">
+                  <span className="text-xs text-gray-500">Skills required</span>
+                  <textarea rows={3} className={fieldClass} value={form.skillsRequired} onChange={(e) => setForm({ ...form, skillsRequired: e.target.value })} placeholder={t('admin:onePerLine')} />
                 </label>
                 <label>
                   <span className="text-xs text-gray-500">{t('admin:fieldStatus')}</span>

@@ -2,6 +2,7 @@ import { ForeignStudy } from '../../models/ForeignStudy.js';
 import mongoose from 'mongoose';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { listResponse, paginate } from '../../utils/apiResponse.js';
+import { parseStringArray } from '../../utils/adminContentHelpers.js';
 import { sanitizeString } from '../../utils/sanitize.js';
 import { logAudit, auditFromRequest } from '../../services/auditService.js';
 import { applyResolvedSlug, slugErrorResponse } from '../../utils/adminSlugHelpers.js';
@@ -34,7 +35,10 @@ function applyBody(doc, body) {
   if (body.program !== undefined) doc.program = body.program ? sanitizeString(body.program) : undefined;
   if (body.level !== undefined) doc.level = body.level;
   if (body.institution !== undefined) doc.institution = body.institution ? sanitizeString(body.institution) : undefined;
-  if (body.requirements !== undefined) doc.requirements = Array.isArray(body.requirements) ? body.requirements.map(sanitizeString).filter(Boolean) : doc.requirements;
+  if (body.requirements !== undefined) {
+    const parsed = parseStringArray(body.requirements);
+    if (parsed !== undefined) doc.requirements = parsed;
+  }
   if (body.deadline !== undefined) doc.deadline = body.deadline ? new Date(body.deadline) : undefined;
   if (body.description !== undefined) doc.description = body.description ? sanitizeString(body.description) : undefined;
   if (body.link !== undefined) doc.link = body.link ? sanitizeString(body.link) : undefined;
@@ -43,9 +47,15 @@ function applyBody(doc, body) {
   if (body.visaInfo !== undefined) doc.visaInfo = body.visaInfo ? sanitizeString(body.visaInfo) : undefined;
   if (body.costOfLiving !== undefined) doc.costOfLiving = body.costOfLiving ? sanitizeString(body.costOfLiving) : undefined;
   if (body.studentLife !== undefined) doc.studentLife = body.studentLife ? sanitizeString(body.studentLife) : undefined;
-  if (body.languageTests !== undefined) doc.languageTests = Array.isArray(body.languageTests) ? body.languageTests.map(sanitizeString).filter(Boolean) : doc.languageTests;
+  if (body.languageTests !== undefined) {
+    const parsed = parseStringArray(body.languageTests);
+    if (parsed !== undefined) doc.languageTests = parsed;
+  }
   if (body.scholarshipsInfo !== undefined) doc.scholarshipsInfo = body.scholarshipsInfo ? sanitizeString(body.scholarshipsInfo) : undefined;
-  if (body.intakes !== undefined) doc.intakes = Array.isArray(body.intakes) ? body.intakes.map(sanitizeString).filter(Boolean) : doc.intakes;
+  if (body.intakes !== undefined) {
+    const parsed = parseStringArray(body.intakes);
+    if (parsed !== undefined) doc.intakes = parsed;
+  }
   if (body.seoTitle !== undefined) doc.seoTitle = body.seoTitle ? sanitizeString(body.seoTitle) : undefined;
   if (body.metaDescription !== undefined) doc.metaDescription = body.metaDescription ? sanitizeString(body.metaDescription) : undefined;
   if (body.slug !== undefined) doc.slug = sanitizeString(body.slug);

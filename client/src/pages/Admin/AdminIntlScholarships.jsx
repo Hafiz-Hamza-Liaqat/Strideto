@@ -26,6 +26,7 @@ const EMPTY = {
   degreeLevel: '',
   amount: '',
   deadline: '',
+  description: '',
   eligibility: '',
   link: '',
   status: 'draft',
@@ -191,6 +192,7 @@ export default function AdminIntlScholarships() {
                 <input className={adminFieldClass} placeholder={t('admin:fieldDegreeLevel')} value={form.degreeLevel} onChange={(e) => setForm({ ...form, degreeLevel: e.target.value })} />
                 <input className={adminFieldClass} placeholder={t('admin:fieldFunding')} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
                 <input type="date" className={adminFieldClass} value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />
+                <textarea rows={4} className={adminFieldClass} placeholder={t('admin:fieldDescription')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
                 <textarea rows={3} className={adminFieldClass} placeholder={t('admin:fieldEligibility')} value={form.eligibility} onChange={(e) => setForm({ ...form, eligibility: e.target.value })} />
                 <input className={adminFieldClass} placeholder={t('admin:applyLinkPlaceholder')} value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} />
                 <AdminSelectBare  value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>

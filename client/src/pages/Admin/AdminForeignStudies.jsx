@@ -7,7 +7,7 @@ import { useAdminList } from '../../hooks/useAdminList';
 import { AdminRouteGuard } from '../../components/admin/AdminRouteGuard';
 import { AdminDataTable } from '../../components/admin/AdminDataTable';
 import { AdminConfirmDialog } from '../../components/admin/AdminConfirmDialog';
-import { AdminImageUrlField, adminFieldClass } from '../../components/admin/AdminImageUrlField';
+import { AdminImageUrlField, adminFieldClass, linesToText, textToLines } from '../../components/admin/AdminImageUrlField';
 import { AdminSelectBare } from '../../components/admin/AdminFormFields';
 import { AdminSlugField } from '../../components/admin/AdminSlugField';
 import { AdminViewPublicLink, isAdminSlugPreviewReady } from '../../components/admin/AdminViewPublicLink';
@@ -28,6 +28,12 @@ const EMPTY = {
   studentLife: '',
   deadline: '',
   link: '',
+  requirements: '',
+  languageTests: '',
+  scholarshipsInfo: '',
+  intakes: '',
+  seoTitle: '',
+  metaDescription: '',
   imageUrl: '',
   status: 'draft',
   slug: '',
@@ -56,6 +62,9 @@ export default function AdminForeignStudies() {
       setForm({
         ...EMPTY,
         ...item,
+        requirements: linesToText(item.requirements),
+        languageTests: linesToText(item.languageTests),
+        intakes: linesToText(item.intakes),
         deadline: item.deadline ? item.deadline.slice(0, 10) : '',
       });
       setEditingId(id);
@@ -71,9 +80,15 @@ export default function AdminForeignStudies() {
       return;
     }
     setSaving(true);
+    const payload = {
+      ...form,
+      requirements: textToLines(form.requirements),
+      languageTests: textToLines(form.languageTests),
+      intakes: textToLines(form.intakes),
+    };
     try {
-      if (editingId) await adminContentApi.foreignStudies.update(editingId, form);
-      else await adminContentApi.foreignStudies.create(form);
+      if (editingId) await adminContentApi.foreignStudies.update(editingId, payload);
+      else await adminContentApi.foreignStudies.create(payload);
       toast.success(t('admin:saved'));
       setFormOpen(false);
       refetch();
@@ -194,6 +209,10 @@ export default function AdminForeignStudies() {
                 <textarea rows={3} className={adminFieldClass} placeholder={t('admin:fieldVisaInfo')} value={form.visaInfo} onChange={(e) => setForm({ ...form, visaInfo: e.target.value })} />
                 <input className={adminFieldClass} placeholder={t('admin:fieldCostOfLiving')} value={form.costOfLiving} onChange={(e) => setForm({ ...form, costOfLiving: e.target.value })} />
                 <textarea rows={3} className={adminFieldClass} placeholder={t('admin:fieldStudentLife')} value={form.studentLife} onChange={(e) => setForm({ ...form, studentLife: e.target.value })} />
+                <textarea rows={3} className={adminFieldClass} placeholder="Requirements (one per line)" value={form.requirements} onChange={(e) => setForm({ ...form, requirements: e.target.value })} />
+                <textarea rows={2} className={adminFieldClass} placeholder="Language tests (one per line)" value={form.languageTests} onChange={(e) => setForm({ ...form, languageTests: e.target.value })} />
+                <textarea rows={3} className={adminFieldClass} placeholder="Scholarships info" value={form.scholarshipsInfo} onChange={(e) => setForm({ ...form, scholarshipsInfo: e.target.value })} />
+                <textarea rows={2} className={adminFieldClass} placeholder="Intakes (one per line)" value={form.intakes} onChange={(e) => setForm({ ...form, intakes: e.target.value })} />
                 <input type="date" className={adminFieldClass} value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />
                 <input className={adminFieldClass} placeholder={t('admin:applyLinkPlaceholder')} value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} />
                 <AdminImageUrlField label={t('admin:fieldFeaturedImage')} value={form.imageUrl} onChange={(v) => setForm({ ...form, imageUrl: v })} />
@@ -211,6 +230,8 @@ export default function AdminForeignStudies() {
                   excludeId={editingId}
                   publicPreviewReady={isAdminSlugPreviewReady('foreign-study', form, form.status)}
                 />
+                <input className={adminFieldClass} placeholder={t('admin:fieldSeoTitle')} value={form.seoTitle} onChange={(e) => setForm({ ...form, seoTitle: e.target.value })} />
+                <textarea rows={2} className={adminFieldClass} placeholder={t('admin:fieldMetaDescription')} value={form.metaDescription} onChange={(e) => setForm({ ...form, metaDescription: e.target.value })} />
               </div>
               <div className="flex justify-end gap-2 mt-4">
                 <button type="button" onClick={() => setFormOpen(false)} className="px-4 py-2 border rounded-lg text-sm">{t('common:cancel')}</button>

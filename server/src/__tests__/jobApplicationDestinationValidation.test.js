@@ -111,8 +111,8 @@ const adminJobsController = read('controllers/admin/adminJobsController.js');
     '14. employerController.js imports the canonical validators'
   );
   check(
-    /import \{ validateApplicationLink \} from '\.\.\/\.\.\/utils\/jobApplicationDestination\.js';/.test(adminJobsController),
-    '17/18. adminJobsController.js imports the same canonical link validator'
+    /import \{ validateApplicationLink, validateApplyEmail \} from '\.\.\/\.\.\/utils\/jobApplicationDestination\.js';/.test(adminJobsController),
+    '17/18. adminJobsController.js imports the canonical link and email validators'
   );
 }
 

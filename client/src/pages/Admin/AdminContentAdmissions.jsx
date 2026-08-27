@@ -33,6 +33,7 @@ const EMPTY = {
   session: '',
   description: '',
   eligibility: '',
+  applicationInstructions: '',
   applyLink: '',
   deadline: '',
   status: 'draft',
@@ -209,7 +210,10 @@ export default function AdminContentAdmissions() {
                 />
                 <input className={fieldClass} placeholder={t('admin:fieldFee')} value={form.fee} onChange={(e) => setForm({ ...form, fee: e.target.value })} />
                 <input className={fieldClass} placeholder={t('admin:fieldDuration')} value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })} />
+                <input className={fieldClass} placeholder="Session (e.g. Fall 2026)" value={form.session} onChange={(e) => setForm({ ...form, session: e.target.value })} />
                 <input type="date" className={fieldClass} value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />
+                <textarea rows={3} className={fieldClass} placeholder={t('admin:fieldEligibility')} value={form.eligibility} onChange={(e) => setForm({ ...form, eligibility: e.target.value })} />
+                <textarea rows={3} className={fieldClass} placeholder="Application instructions" value={form.applicationInstructions} onChange={(e) => setForm({ ...form, applicationInstructions: e.target.value })} />
                 <input className={fieldClass} placeholder={t('admin:applyLinkPlaceholder')} value={form.applyLink} onChange={(e) => setForm({ ...form, applyLink: e.target.value })} />
                 <textarea rows={3} className={fieldClass} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
                 <AdminImageUrlField label={t('admin:fieldLogoUrl')} value={form.logoUrl} onChange={(v) => setForm({ ...form, logoUrl: v })} />
