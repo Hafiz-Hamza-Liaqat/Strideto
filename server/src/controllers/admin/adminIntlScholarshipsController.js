@@ -149,11 +149,20 @@ export const updateScholarship = asyncHandler(async (req, res) => {
 });
 
 export const duplicateScholarship = asyncHandler(async (req, res) => {
-  const doc = await duplicateDoc(IntlScholarship, req.params.id, (s) => {
-    s.title = `${s.title} (Copy)`;
-    s.status = 'draft';
-  });
-  if (!doc) return res.status(404).json({ error: 'Scholarship not found' });
+  const source = await IntlScholarship.findById(req.params.id).lean();
+  if (!source) return res.status(404).json({ error: 'Scholarship not found' });
+  delete source._id;
+  delete source.createdAt;
+  delete source.updatedAt;
+  source.title = `${source.title} (Copy)`;
+  source.status = 'draft';
+  delete source.slug;
+
+  const doc = new IntlScholarship(source);
+  const slugErr = await applyResolvedSlug('intl-scholarship', doc, { title: doc.title, country: doc.country }, true);
+  if (slugErr) return slugErrorResponse(res, slugErr);
+  await doc.save();
+  await logAudit({ ...auditFromRequest(req), action: 'intl_scholarship.duplicate', targetType: 'intl_scholarship', targetId: doc._id, targetLabel: doc.title, metadata: { sourceId: req.params.id } });
   res.status(201).json(doc);
 });
 

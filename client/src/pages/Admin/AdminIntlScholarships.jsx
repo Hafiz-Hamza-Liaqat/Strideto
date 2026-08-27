@@ -116,8 +116,8 @@ export default function AdminIntlScholarships() {
         <div className="flex flex-wrap gap-1">
           {canEdit && <button type="button" onClick={() => openEdit(row._id)} className="text-xs text-primary underline">{t('common:edit')}</button>}
           <AdminViewPublicLink
-            ready={row.status === 'active'}
-            href={row._id ? `${ROUTES.INTL_SCHOLARSHIPS}/${row._id}` : ''}
+            ready={row.status === 'active' && Boolean(row.slug)}
+            href={row.slug ? `${ROUTES.INTL_SCHOLARSHIPS}/${row.slug}` : ''}
             label={t('admin:viewPublic')}
           />
           {canEdit && (

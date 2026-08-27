@@ -5,12 +5,14 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { listResponse, paginate } from '../utils/apiResponse.js';
 import { sanitizeString } from '../utils/sanitize.js';
 import { freeTextCountryRegex } from '../../../shared/international/location.js';
+import { isObjectIdParam } from '../utils/localeQuery.js';
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
+const PUBLIC_STATUS = 'active';
 
 function buildQuery(q) {
-  const filter = { status: 'active' };
+  const filter = { status: PUBLIC_STATUS };
   const countryRe = freeTextCountryRegex(q.country || q.countryCode);
   if (countryRe) filter.country = countryRe;
   if (q.university) filter.$or = [{ university: new RegExp(sanitizeString(q.university), 'i') }, { universityId: q.university }];
@@ -21,6 +23,15 @@ function buildQuery(q) {
     (filter.$and = filter.$and || []).push({ $or: [{ title: re }, { country: re }, { university: re }, { description: re }] });
   }
   return filter;
+}
+
+async function findPublicIntlScholarship(idOrSlug) {
+  const baseFilter = { status: PUBLIC_STATUS };
+  const populate = { path: 'universityId', select: 'name country website description' };
+  if (isObjectIdParam(idOrSlug)) {
+    return IntlScholarship.findOne({ ...baseFilter, _id: idOrSlug }).populate(populate).lean();
+  }
+  return IntlScholarship.findOne({ ...baseFilter, slug: idOrSlug }).populate(populate).lean();
 }
 
 export const listIntlScholarships = asyncHandler(async (req, res) => {
@@ -36,13 +47,23 @@ export const listIntlScholarships = asyncHandler(async (req, res) => {
   res.json(listResponse(data, pagination, req.query));
 });
 
-export const getIntlScholarshipById = asyncHandler(async (req, res) => {
-  const { id } = req.params;
-  if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
-  const doc = await IntlScholarship.findById(id).populate('universityId', 'name country website description').lean();
+export const getIntlScholarshipByIdOrSlug = asyncHandler(async (req, res) => {
+  const { idOrSlug } = req.params;
+  const key = String(idOrSlug || '').trim();
+  if (!key) return res.status(404).json({ error: 'Scholarship not found' });
+
+  const doc = await findPublicIntlScholarship(key);
   if (!doc) return res.status(404).json({ error: 'Scholarship not found' });
-  res.json(doc);
+
+  const payload = { ...doc };
+  if (isObjectIdParam(key) && doc.slug) {
+    payload.canonicalSlug = doc.slug;
+  }
+  res.json(payload);
 });
+
+/** @deprecated alias — use getIntlScholarshipByIdOrSlug */
+export const getIntlScholarshipById = getIntlScholarshipByIdOrSlug;
 
 export const listUniversities = asyncHandler(async (req, res) => {
   const data = await University.find({ status: 'active' }).sort({ name: 1 }).lean();

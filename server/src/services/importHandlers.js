@@ -14,6 +14,12 @@ import { ensureSlugUnique } from '../utils/bulkUpsert.js';
 import { createImportReport, recordError, pickField } from './importParserService.js';
 import { sanitizeHtml, stripAllHtml } from '../utils/htmlSanitize.js';
 import { validateApplicationLink } from '../utils/jobApplicationDestination.js';
+import { onContentSaved } from '../utils/contentIntegration.js';
+import {
+  deriveImportLaunchEligible,
+  resolveImportCmsStatus,
+  resolveImportCountryCode,
+} from './cmsImportPublication.js';
 
 /** Redact destination-URL fields before echoing a rejected row back in an import report. */
 function redactDestinationFields(row) {
@@ -119,8 +125,9 @@ async function importScholarships(rows) {
 
       const baseSlug = scholarshipSlug(title, row.country || '');
       const slug = await ensureSlugUnique(Scholarship, baseSlug);
+      const status = resolveImportCmsStatus(row);
 
-      await Scholarship.create({
+      const doc = await Scholarship.create({
         title,
         slug,
         provider,
@@ -130,8 +137,15 @@ async function importScholarships(rows) {
         eligibility: parseArray(row.eligibility),
         deadline: row.deadline ? new Date(row.deadline) : undefined,
         link: row.link || '',
-        status: row.status || 'active',
+        status,
+        launchEligible: false,
       });
+      doc.launchEligible = deriveImportLaunchEligible(
+        { ...doc.toObject(), launchEligible: row.launchEligible === true },
+        status,
+      );
+      await doc.save();
+      onContentSaved('scholarships', doc);
       report.imported++;
     } catch (err) {
       recordError(report, i, err.message, row);
@@ -158,21 +172,33 @@ async function importAdmissions(rows) {
 
       const baseSlug = admissionSlug(program, institution);
       const slug = await ensureSlugUnique(Admission, baseSlug);
+      const status = resolveImportCmsStatus(row);
+      const countryCode = resolveImportCountryCode(row);
+      const linkVal = row.link || row.applyLink || '';
 
-      await Admission.create({
+      const doc = await Admission.create({
         program,
         slug,
         institution,
         university: row.university || institution,
-        province: row.province || '',
+        province: row.province || row.region || '',
         city: row.city || '',
         session: row.session || '',
         description: stripAllHtml(row.description),
         deadline: row.deadline ? new Date(row.deadline) : undefined,
-        link: row.link || row.applyLink || '',
-        status: row.status || 'active',
+        link: linkVal,
+        applyLink: linkVal,
+        status,
         source: 'manual',
+        ...(countryCode ? { countryCode } : {}),
+        launchEligible: false,
       });
+      doc.launchEligible = deriveImportLaunchEligible(
+        { ...doc.toObject(), launchEligible: row.launchEligible === true },
+        status,
+      );
+      await doc.save();
+      onContentSaved('admissions', doc);
       report.imported++;
     } catch (err) {
       recordError(report, i, err.message, row);

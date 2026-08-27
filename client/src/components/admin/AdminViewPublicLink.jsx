@@ -12,6 +12,8 @@ import {
   VIEW_PUBLIC_HINT,
 } from '@shared/cms/publicReadiness.js';
 
+const intlScholarshipPublicReady = (record) => record.status === 'active' && Boolean(record.slug);
+
 const READINESS = {
   blog: isBlogPublicReady,
   admission: isAdmissionPublicReady,
@@ -22,6 +24,7 @@ const READINESS = {
   'published-slug': isPublishedSlugPublicReady,
   program: isEducationProgramPublicReady,
   'canonical-scholarship': isInstitutionCanonicalScholarshipPublicReady,
+  'intl-scholarship': intlScholarshipPublicReady,
   webinar: isWebinarPublicReady,
 };
 
@@ -40,8 +43,7 @@ const SLUG_RESOURCE_READINESS = {
   webinar: isWebinarPublicReady,
   program: isEducationProgramPublicReady,
   'canonical-scholarship': isInstitutionCanonicalScholarshipPublicReady,
-  // Intl detail route is Mongo id-based; slug preview URLs are not public-ready.
-  'intl-scholarship': () => false,
+  'intl-scholarship': intlScholarshipPublicReady,
 };
 
 /**

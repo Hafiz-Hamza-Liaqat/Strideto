@@ -27,6 +27,7 @@ const intlScholarshipSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
+intlScholarshipSchema.index({ slug: 1, status: 1 });
 intlScholarshipSchema.index({ country: 1, status: 1 });
 intlScholarshipSchema.index({ universityId: 1 });
 intlScholarshipSchema.index({ deadline: 1 });

@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
 import { scholarshipSchema, breadcrumbSchema, combineSchemas } from '../../seo/schemas';
@@ -11,9 +11,19 @@ import { useAuth } from '../../context/AuthContext';
 import { formatDate } from '../../utils/formatDate';
 import { useContentView } from '../../hooks/usePageView';
 
+function isObjectIdParam(value) {
+  return /^[a-f\d]{24}$/i.test(String(value || ''));
+}
+
+function intlDetailPath(item) {
+  if (!item) return '';
+  return item.slug ? `${ROUTES.INTL_SCHOLARSHIPS}/${item.slug}` : `${ROUTES.INTL_SCHOLARSHIPS}/${item._id}`;
+}
+
 export default function IntlScholarshipDetail() {
   const { t } = useTranslation(['scholarships', 'common', 'navbar']);
-  const { id } = useParams();
+  const { id: slugOrId } = useParams();
+  const navigate = useNavigate();
   const { isAuthenticated } = useAuth();
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -23,11 +33,18 @@ export default function IntlScholarshipDetail() {
   useContentView('university', item?._id, 'university_view');
 
   useEffect(() => {
-    intlScholarshipsApi.get(id)
+    intlScholarshipsApi.get(slugOrId)
       .then(({ data }) => setItem(data))
       .catch((e) => setError(e.response?.data?.error || t('scholarships:scholarshipNotFound')))
       .finally(() => setLoading(false));
-  }, [id, t]);
+  }, [slugOrId, t]);
+
+  useEffect(() => {
+    if (!item?.slug || !isObjectIdParam(slugOrId)) return;
+    if (item.slug !== slugOrId) {
+      navigate(`${ROUTES.INTL_SCHOLARSHIPS}/${item.slug}`, { replace: true });
+    }
+  }, [item, slugOrId, navigate]);
 
   useEffect(() => {
     if (!isAuthenticated || !item) return;
@@ -65,7 +82,7 @@ export default function IntlScholarshipDetail() {
     );
   }
 
-  const canonicalPath = `${ROUTES.INTL_SCHOLARSHIPS}/${item.slug || item._id || id}`;
+  const canonicalPath = intlDetailPath(item);
   const description = item.deadline
     ? t('scholarships:intlDetailDescription', { title: item.title, country: item.country, deadline: formatDate(item.deadline) })
     : t('scholarships:intlDetailDescriptionTba', { title: item.title, country: item.country });

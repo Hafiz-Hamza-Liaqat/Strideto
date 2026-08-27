@@ -18,6 +18,10 @@ import { coerceCountryCode } from '@shared/international/country.js';
 
 const PER_PAGE = 10;
 
+function intlScholarshipPath(item) {
+  return `${ROUTES.INTL_SCHOLARSHIPS}/${item.slug || item._id}`;
+}
+
 export default function IntlScholarships() {
   const { t } = useTranslation(['scholarships', 'seo', 'common']);
   const { isAuthenticated } = useAuth();
@@ -130,7 +134,7 @@ export default function IntlScholarships() {
                   <div className="p-4 md:p-5 flex-1 flex flex-col">
                     <div className="flex items-start justify-between gap-2">
                       <div className="min-w-0 flex-1">
-                        <Link to={`${ROUTES.INTL_SCHOLARSHIPS}/${item._id}`} className="font-semibold text-base text-gray-900 dark:text-white hover:text-primary dark:hover:text-mint break-words-safe line-clamp-2">
+                        <Link to={intlScholarshipPath(item)} className="font-semibold text-base text-gray-900 dark:text-white hover:text-primary dark:hover:text-mint break-words-safe line-clamp-2">
                           {item.title}
                         </Link>
                         <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 break-words-safe">
@@ -154,7 +158,7 @@ export default function IntlScholarships() {
                         {t('scholarships:deadlinePrefix')} {formatDate(item.deadline)}
                       </p>
                     ) : null}
-                    <Link to={`${ROUTES.INTL_SCHOLARSHIPS}/${item._id}`} className="inline-block mt-auto pt-3 text-sm text-primary dark:text-mint hover:underline">
+                    <Link to={intlScholarshipPath(item)} className="inline-block mt-auto pt-3 text-sm text-primary dark:text-mint hover:underline">
                       {t('scholarships:viewDetails')}
                     </Link>
                   </div>
