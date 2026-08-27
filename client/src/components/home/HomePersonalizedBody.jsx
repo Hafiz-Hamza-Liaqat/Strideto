@@ -8,6 +8,7 @@ import { NewsletterSubscribe } from '../newsletter/NewsletterSubscribe';
 import { formatDate } from '../../utils/formatDate';
 import { Button } from '../common/Button';
 import { orderedHomeSections } from '../../personalization/layoutPersonalization';
+import { displayableBlogCategoryLabel } from '@shared/blog/taxonomy.js';
 
 const SKELETON_COUNT = 3;
 
@@ -296,38 +297,49 @@ export function HomePersonalizedBody({
         if (sectionKey === 'blog') {
           return (
             <ScrollReveal key="blog" as="section" className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 border-t border-gray-200 dark:border-gray-700 w-full">
-              <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-6">{t('home:careerBlogArticles')}</h2>
+              <div className="flex items-end justify-between mb-6 gap-4">
+                <div>
+                  <h2 className="text-2xl font-bold text-gray-900 dark:text-white">{t('home:careerBlogArticles')}</h2>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">Insights, guides, and career resources</p>
+                </div>
+                <Link to={ROUTES.BLOG} className="text-sm text-edur-steel dark:text-edur-sky hover:underline shrink-0">{t('home:readMoreArticles')} →</Link>
+              </div>
               {loadingBlogs ? (
-                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {Array.from({ length: 4 }).map((_, i) => <ListingCardSkeleton key={i} />)}
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {Array.from({ length: 3 }).map((_, i) => <ListingCardSkeleton key={i} />)}
                 </div>
               ) : blogs.length > 0 ? (
-                <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-4">
-                  {blogs.slice(0, 4).map((post) => (
-                    <Link
-                      key={post._id}
-                      to={`${ROUTES.BLOG}/${post.slug}`}
-                      className="block p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-lg hover:border-edur-blue/50 card-hover"
-                    >
-                      <span className="text-xs font-medium text-edur-steel dark:text-edur-sky">{post.category || t('home:defaultBlogCategory')}</span>
-                      <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2 mt-1">{post.title}</h3>
-                      <p className="text-sm text-gray-600 dark:text-gray-400 mt-2 line-clamp-2">{post.excerpt}</p>
-                      <p className="text-xs text-gray-500 dark:text-gray-500 mt-2">
-                        {t('home:minRead', { minutes: readingTimeMinutes(post.content || post.excerpt) })}
-                        {' · '}
-                        {post.publishedAt ? formatDate(post.publishedAt) : (post.createdAt ? formatDate(post.createdAt) : '')}
-                      </p>
-                    </Link>
-                  ))}
+                <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+                  {blogs.slice(0, 3).map((post) => {
+                    const catLabel = displayableBlogCategoryLabel(post.category) || null;
+                    const dateStr = post.publishedAt ? formatDate(post.publishedAt) : (post.createdAt ? formatDate(post.createdAt) : '');
+                    const mins = readingTimeMinutes(post.content || post.excerpt);
+                    return (
+                      <Link
+                        key={post._id}
+                        to={`${ROUTES.BLOG}/${post.slug}`}
+                        className="group flex flex-col rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-lg hover:border-edur-blue/40 dark:hover:border-edur-sky/40 transition-all duration-200 overflow-hidden"
+                      >
+                        {post.imageUrl ? (
+                          <img src={post.imageUrl} alt="" className="w-full h-40 object-cover" loading="lazy" />
+                        ) : (
+                          <div className="w-full h-28 bg-gradient-to-br from-primary/8 to-transparent dark:from-mint/8 flex items-center justify-center">
+                            <span className="text-3xl opacity-25 select-none">✦</span>
+                          </div>
+                        )}
+                        <div className="flex flex-col flex-1 p-4">
+                          {catLabel && <span className="text-xs font-semibold uppercase tracking-wide text-edur-steel dark:text-edur-sky mb-1.5">{catLabel}</span>}
+                          <h3 className="font-bold text-gray-900 dark:text-white group-hover:text-primary dark:group-hover:text-mint transition-colors line-clamp-2 leading-snug">{post.title}</h3>
+                          {post.excerpt && <p className="text-sm text-gray-500 dark:text-gray-400 mt-1.5 line-clamp-2 flex-1">{post.excerpt}</p>}
+                          <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">{mins} min read{dateStr ? ` · ${dateStr}` : ''}</p>
+                        </div>
+                      </Link>
+                    );
+                  })}
                 </div>
               ) : (
                 <p className="text-gray-500 dark:text-gray-400">{t('home:noBlogPosts')}</p>
               )}
-              <div className="mt-6 text-center">
-                <Link to={ROUTES.BLOG} className="inline-flex items-center px-5 py-2.5 rounded-xl bg-edur-steel/10 dark:bg-edur-sky/10 text-edur-steel dark:text-edur-sky font-medium hover:bg-edur-steel/20 btn-theme">
-                  {t('home:readMoreArticles')}
-                </Link>
-              </div>
             </ScrollReveal>
           );
         }

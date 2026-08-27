@@ -637,5 +637,48 @@
   "gbsLoadFailed": "Unable to load this review record.",
   "gbsStaleConflict": "Another reviewer updated this record. Reload and retry.",
   "gbsConfirmReviewTitle": "Confirm review action",
-  "gbsConfirmReviewBody": "This {{action}} action cannot be performed by the Provider. Continue?"
+  "gbsConfirmReviewBody": "This {{action}} action cannot be performed by the Provider. Continue?",
+
+  "fieldWebsite": "Website",
+  "fieldVerified": "Verified",
+
+  "navTestsProviders": "Tests & Providers",
+  "navTestAcceptance": "Test Acceptance",
+
+  "testProviderLabel": "Test Provider",
+  "testProviderWebsite": "Provider Website",
+  "testProviderAddNew": "Add Provider",
+  "testProviderEditTitle": "Edit Provider",
+  "testProviderDeleteConfirm": "Delete this provider?",
+
+  "testLabel": "Test / Exam",
+  "testNameLabel": "Test Name",
+  "testCategoryLabel": "Category",
+  "testValidityMonths": "Score Validity (months)",
+  "testMaxScore": "Max Score",
+  "testPublicationStatus": "Publication Status",
+  "testAddNew": "Add Test",
+  "testEditTitle": "Edit Test",
+  "testDeleteConfirm": "Delete this test?",
+
+  "acceptanceLabel": "Test Acceptance Record",
+  "acceptanceTestLabel": "Test",
+  "acceptanceInstitutionLabel": "Institution",
+  "acceptanceProgramLabel": "Program",
+  "acceptanceMinScore": "Minimum Score",
+  "acceptanceResultValidityMonths": "Result Validity (months)",
+  "acceptanceScope": "Scope",
+  "acceptanceStatus": "Acceptance Status",
+  "acceptanceNotes": "Admin Notes",
+  "acceptanceAddNew": "Add Acceptance Record",
+  "acceptanceEditTitle": "Edit Acceptance Record",
+  "acceptanceDeleteConfirm": "Delete this acceptance record?",
+  "acceptanceSupersede": "Supersede",
+  "acceptanceSupersedeConfirm": "Mark this record as superseded by another?",
+  "acceptanceSectionMinimums": "Section Minimums",
+  "acceptanceSectionName": "Section",
+  "acceptanceSectionMin": "Minimum",
+  "acceptanceSectionScale": "Scale",
+  "acceptanceAddSection": "Add Section"
+
 }

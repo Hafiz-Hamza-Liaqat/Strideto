@@ -10,7 +10,7 @@ import { SAMPLE_BLOGS } from '../../constants/seedData';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { ScrollReveal } from '../../components/ui/ScrollReveal';
 import { AdHost } from '../../components/ads';
-import { listBlogCategoryOptions, blogCategoryFilterValues, canonicalBlogCategoryLabel } from '@shared/blog/taxonomy.js';
+import { listBlogCategoryOptions, blogCategoryFilterValues, canonicalBlogCategoryLabel, displayableBlogCategoryLabel } from '@shared/blog/taxonomy.js';
 
 function readingTime(content) {
   if (!content || typeof content !== 'string') return 5;
@@ -117,21 +117,37 @@ export default function Blog() {
           <p className="text-gray-600 dark:text-gray-400">{t('blog:noPosts', { defaultValue: 'No published articles yet.' })}</p>
         ) : (
           <ScrollReveal>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
-              {filtered.map((post) => (
-                <Link
-                  key={post._id || post.slug}
-                  to={`${ROUTES.BLOG}/${post.slug}`}
-                  className="block p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-lg hover:border-edur-blue/50 dark:hover:border-edur-sky/50 transition-all duration-200 card-hover"
-                >
-                  <span className="text-xs font-medium text-edur-steel dark:text-edur-sky">{canonicalBlogCategoryLabel(post.category || post.tags?.[0]) || 'Career Advice'}</span>
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-white mt-1">{post.title}</h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mt-1 line-clamp-2">{post.excerpt}</p>
-                  <p className="text-xs text-gray-500 mt-2">
-                    {t('blog:minRead', { count: readingTime(post.content || post.excerpt) })} · {post.publishedAt ? new Date(post.publishedAt).toLocaleDateString() : post.createdAt ? new Date(post.createdAt).toLocaleDateString() : ''}
-                  </p>
-                </Link>
-              ))}
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+              {filtered.map((post) => {
+                const catLabel = displayableBlogCategoryLabel(post.category);
+                const dateStr = post.publishedAt ? new Date(post.publishedAt).toLocaleDateString() : post.createdAt ? new Date(post.createdAt).toLocaleDateString() : '';
+                const mins = readingTime(post.content || post.excerpt);
+                return (
+                  <Link
+                    key={post._id || post.slug}
+                    to={`${ROUTES.BLOG}/${post.slug}`}
+                    className="group flex flex-col rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-lg hover:border-edur-blue/40 dark:hover:border-edur-sky/40 transition-all duration-200 overflow-hidden"
+                  >
+                    {post.imageUrl ? (
+                      <img src={post.imageUrl} alt="" className="w-full h-40 object-cover" loading="lazy" />
+                    ) : (
+                      <div className="w-full h-32 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent dark:from-mint/10 dark:via-mint/5 dark:to-transparent flex items-center justify-center">
+                        <span className="text-4xl opacity-30 select-none">✦</span>
+                      </div>
+                    )}
+                    <div className="flex flex-col flex-1 p-4">
+                      {catLabel && (
+                        <span className="text-xs font-semibold uppercase tracking-wide text-edur-steel dark:text-edur-sky mb-1">{catLabel}</span>
+                      )}
+                      <h2 className="text-base font-bold text-gray-900 dark:text-white group-hover:text-primary dark:group-hover:text-mint transition-colors line-clamp-2 leading-snug">{post.title}</h2>
+                      {post.excerpt && <p className="text-sm text-gray-600 dark:text-gray-400 mt-1.5 line-clamp-2 flex-1">{post.excerpt}</p>}
+                      <p className="text-xs text-gray-400 dark:text-gray-500 mt-3">
+                        {mins} min read{dateStr ? ` · ${dateStr}` : ''}
+                      </p>
+                    </div>
+                  </Link>
+                );
+              })}
             </div>
           </ScrollReveal>
         )}

@@ -23,6 +23,40 @@ export function canonicalBlogCategoryLabel(value) {
   return legacy ? legacy.label : raw;
 }
 
+/** Longest plausible category label, in characters. */
+const CATEGORY_MAX_LENGTH = 40;
+/** Longest plausible category label, in words. */
+const CATEGORY_MAX_WORDS = 4;
+
+/**
+ * Display guard for public cards.
+ *
+ * Returns the canonical registry label when the stored value is a known canonical or
+ * legacy category; otherwise returns the trimmed raw value only when it is still
+ * *shaped* like a category label, and '' when it cannot be one.
+ *
+ * Registry membership alone is deliberately NOT the test. Published content uses many
+ * legitimate categories that predate the registry ("Study Abroad", "Interview Tips",
+ * "Government Jobs"); rejecting everything unregistered would blank the category on a
+ * large share of published posts. What actually distinguishes corrupted CMS data is
+ * shape — malformed values are prose: long, multi-sentence, punctuated. So we reject on
+ * shape (length, word count, sentence punctuation, line breaks) rather than on
+ * membership, which suppresses genuine corruption without erasing valid taxonomy.
+ */
+export function displayableBlogCategoryLabel(value) {
+  const raw = String(value || '').trim();
+  if (!raw) return '';
+  const exact = BLOG_CATEGORY_REGISTRY.find((c) => c.label === raw);
+  if (exact) return exact.label;
+  const legacy = BLOG_CATEGORY_REGISTRY.find((c) => c.legacyValues.includes(raw));
+  if (legacy) return legacy.label;
+  if (raw.length > CATEGORY_MAX_LENGTH) return '';
+  if (/[.!?]/.test(raw)) return '';
+  if (/[\r\n]/.test(raw)) return '';
+  if (raw.split(/\s+/).length > CATEGORY_MAX_WORDS) return '';
+  return raw;
+}
+
 export function blogCategoryFilterValues(canonicalLabel) {
   if (!canonicalLabel) return [];
   const entry = BLOG_CATEGORY_REGISTRY.find((c) => c.label === canonicalLabel);

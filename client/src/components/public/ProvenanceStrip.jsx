@@ -33,25 +33,25 @@ export function ProvenanceStrip({
       role="group"
       aria-label="Source and freshness"
     >
-      {authorityLabel ? <p><span className="font-medium text-gray-700 dark:text-gray-300">Authority:</span> {authorityLabel}</p> : null}
+      {authorityLabel ? <p><span className="font-medium text-gray-700 dark:text-gray-300">Provided by:</span> {authorityLabel}</p> : null}
       {sourceLabel ? <p><span className="font-medium text-gray-700 dark:text-gray-300">Source:</span> {sourceLabel}</p> : null}
       {lastReviewedAt ? (
         <p><span className="font-medium text-gray-700 dark:text-gray-300">Last reviewed:</span> {formatDate(lastReviewedAt) || NOT_SPECIFIED}</p>
       ) : null}
-      {freshness ? (
+      {freshness && freshnessState !== FRESHNESS_STATES.UNKNOWN ? (
         <p className={FRESHNESS_CLASS[freshnessState] || FRESHNESS_CLASS.unknown}>
-          <span className="font-medium">Freshness:</span> {freshness}
+          <span className="font-medium">Data status:</span> {freshness}
         </p>
       ) : null}
       {url ? (
         <p>
           <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary dark:text-mint hover:underline break-words-safe">
-            Official source
+            View official source ↗
           </a>
         </p>
       ) : null}
       {caution ? (
-        <p className="text-amber-800 dark:text-amber-200">Confirm this information with the official source before acting.</p>
+        <p className="text-amber-800 dark:text-amber-200">Verify this information with the official source before acting.</p>
       ) : null}
     </div>
   );

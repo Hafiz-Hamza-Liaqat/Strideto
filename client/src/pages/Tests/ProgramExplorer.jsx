@@ -579,14 +579,17 @@ export function ProgramExplorerDetail() {
 
             {/* Tuition */}
             {data.tuition?.amountMinor != null && (
-              <div className="mt-4 px-4 py-3 rounded-lg bg-gray-50 dark:bg-gray-700/50 text-sm">
-                <span className="text-gray-500 dark:text-gray-400">Tuition: </span>
-                <span className="font-medium text-gray-900 dark:text-white">
+              <div className="mt-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-700/30 px-4 py-4">
+                <h2 className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-2">Tuition</h2>
+                <p className="text-xl font-bold text-gray-900 dark:text-white">
                   {formatMoney(data.tuition)}
-                  {data.tuition.per ? ` / ${data.tuition.per}` : ''}
-                </span>
+                  {data.tuition.per ? <span className="text-sm font-normal text-gray-500 ml-1">/ {data.tuition.per}</span> : ''}
+                </p>
+                {data.tuition.currency && data.tuition.currency !== 'USD' && (
+                  <p className="text-xs text-gray-400 mt-0.5">{data.tuition.currency}</p>
+                )}
                 {data.tuition.notes && (
-                  <span className="ml-2 text-gray-400 dark:text-gray-500 text-xs">({data.tuition.notes})</span>
+                  <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{data.tuition.notes}</p>
                 )}
               </div>
             )}
@@ -689,7 +692,10 @@ export function ProgramExplorerDetail() {
                 {acceptanceFallback.data.map((at) => (
                   <div key={at._id} className="px-4 py-3 text-sm">
                     <span className="font-medium">{at.testId?.name || 'Test'}</span>
-                    <span className="ml-2 text-xs">{at.acceptanceStatus}</span>
+                    {(() => {
+                      const STATUS_LABEL = { accepted: 'Accepted', conditional: 'Conditional', not_accepted: 'Not Accepted', case_by_case: 'Case by Case', unknown: 'Unknown' };
+                      return <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">{STATUS_LABEL[at.acceptanceStatus] || at.acceptanceStatus}</span>;
+                    })()}
                   </div>
                 ))}
               </div>
@@ -706,9 +712,17 @@ export function ProgramExplorerDetail() {
                       <span className="font-medium text-gray-800 dark:text-gray-200">
                         {at.testId?.name || 'Test'}
                       </span>
-                      <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300">
-                        {at.acceptanceStatus}
-                      </span>
+                      {(() => {
+                        const STATUS_UI = {
+                          accepted: { label: 'Accepted', cls: 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300' },
+                          conditional: { label: 'Conditional', cls: 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300' },
+                          not_accepted: { label: 'Not Accepted', cls: 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300' },
+                          case_by_case: { label: 'Case by Case', cls: 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300' },
+                          unknown: { label: 'Status Unknown', cls: 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300' },
+                        };
+                        const ui = STATUS_UI[at.acceptanceStatus] || { label: at.acceptanceStatus, cls: 'bg-gray-100 dark:bg-gray-700 text-gray-500' };
+                        return <span className={`text-xs px-2 py-0.5 rounded-full ${ui.cls}`}>{ui.label}</span>;
+                      })()}
                     </div>
                     {at.minimumOverallScore != null && (
                       <p className="text-gray-500 dark:text-gray-400 mt-0.5">Overall: {at.minimumOverallScore}</p>

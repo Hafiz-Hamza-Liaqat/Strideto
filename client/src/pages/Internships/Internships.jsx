@@ -142,44 +142,73 @@ export default function Internships() {
             <ListingCardSkeleton />
           </div>
         ) : (
-          <ul className="space-y-4">
+          <ul className="grid gap-4 sm:grid-cols-2">
             {data.map((item) => (
               <li key={item._id}>
-                <article className="p-4 md:p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md transition">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <Link to={`${ROUTES.INTERNSHIPS}/${item.slug || item._id}`} className="font-semibold text-lg text-gray-900 dark:text-white hover:text-primary dark:hover:text-mint break-words-safe">
-                        {item.title}
-                      </Link>
-                      <p className="text-gray-600 dark:text-gray-400 mt-1 break-words-safe">{item.organization}</p>
-                      {item.internshipType ? <p className="text-xs text-gray-500 mt-1">{item.internshipType}</p> : null}
-                      <p className="text-xs text-gray-500 mt-1">{item.applyInPlatform || item.applyMethod === 'internal' ? 'Apply on Strideto' : 'Apply on official website'}</p>
-                      <div className="flex flex-wrap gap-2 mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        {(item.countryCode || item.location || item.region || item.province) && (
-                          <span>
-                            {formatLocationDisplay(item) || item.location}
-                          </span>
-                        )}
-                        {item.duration && <span> · {item.duration}</span>}
-                        {item.deadline && <span> · {t('deadlinePrefix', { ns: 'internships' })} {formatDate(item.deadline)}</span>}
+                <article className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md transition flex flex-col h-full">
+                  <div className="p-4 flex-1 flex flex-col">
+                    {/* Title + save */}
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <Link to={`${ROUTES.INTERNSHIPS}/${item.slug || item._id}`} className="font-semibold text-base text-gray-900 dark:text-white hover:text-primary dark:hover:text-mint break-words-safe line-clamp-2">
+                          {item.title}
+                        </Link>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 break-words-safe">{item.organization}</p>
                       </div>
-                      {item.skillset?.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-2">
-                          {item.skillset.slice(0, 4).map((s) => (
-                            <span key={s} className="px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-xs text-gray-700 dark:text-gray-300">{s}</span>
-                          ))}
-                        </div>
+                      <SaveButton id={item._id} saved={savedIds.has(item._id)} onToggle={handleSaveToggle} />
+                    </div>
+
+                    {/* Compact fact row */}
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {item.internshipType && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">{item.internshipType}</span>
+                      )}
+                      {item.workMode && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300 capitalize">{item.workMode.replace('_', ' ')}</span>
+                      )}
+                      {item.isPaid === true && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300">Paid</span>
+                      )}
+                      {item.isPaid === false && (
+                        <span className="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-500 dark:text-gray-400">Unpaid</span>
                       )}
                     </div>
-                    <SaveButton id={item._id} saved={savedIds.has(item._id)} onToggle={handleSaveToggle} />
+
+                    {/* Location + duration + deadline */}
+                    <div className="mt-2 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
+                      {(item.countryCode || item.location || item.region || item.province) && (
+                        <p>{formatLocationDisplay(item) || item.location}</p>
+                      )}
+                      <div className="flex flex-wrap gap-x-3">
+                        {item.duration && <span>{item.duration}</span>}
+                        {item.deadline && <span>{t('deadlinePrefix', { ns: 'internships' })} {formatDate(item.deadline)}</span>}
+                      </div>
+                    </div>
+
+                    {/* Skills */}
+                    {item.skillset?.length > 0 && (
+                      <div className="flex flex-wrap gap-1 mt-2">
+                        {item.skillset.slice(0, 5).map((s) => (
+                          <span key={s} className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-xs text-gray-600 dark:text-gray-300">{s}</span>
+                        ))}
+                        {item.skillset.length > 5 && (
+                          <span className="px-1.5 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-xs text-gray-500">+{item.skillset.length - 5}</span>
+                        )}
+                      </div>
+                    )}
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
+
+                  {/* Footer CTA */}
+                  <div className="px-4 pb-4 pt-2 border-t border-gray-100 dark:border-gray-700 flex items-center justify-between gap-2">
                     <Link
                       to={`${ROUTES.INTERNSHIPS}/${item.slug || item._id}`}
                       className="inline-flex items-center px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary-hover btn-theme"
                     >
                       {t('viewAndApply', { ns: 'internships' })}
                     </Link>
+                    {!(item.applyInPlatform || item.applyMethod === 'internal') && (
+                      <span className="text-xs text-gray-400 dark:text-gray-500">Official website</span>
+                    )}
                   </div>
                 </article>
               </li>

@@ -10,6 +10,7 @@ import { AdHost } from '../../components/ads';
 import { useContentView } from '../../hooks/usePageView';
 import { sanitizeHtmlForRender } from '../../utils/sanitizeHtml';
 import { normalizeBlogContent, shouldShowBlogToc } from '@shared/blog/blogContent.js';
+import { displayableBlogCategoryLabel } from '@shared/blog/taxonomy.js';
 
 function readingTimeMinutes(content) {
   if (!content || typeof content !== 'string') return 5;
@@ -56,6 +57,39 @@ function ShareButtons({ title, url, t }) {
       >
         {t('blog:copyLink')}
       </button>
+    </div>
+  );
+}
+
+function MobileToc({ toc, label }) {
+  const [open, setOpen] = useState(false);
+  if (!toc || toc.length < 2) return null;
+  return (
+    <div className="lg:hidden my-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/50">
+      <button
+        type="button"
+        className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-gray-700 dark:text-gray-300"
+        onClick={() => setOpen((v) => !v)}
+        aria-expanded={open}
+      >
+        {label}
+        <span className="text-xs ml-2">{open ? '▲' : '▼'}</span>
+      </button>
+      {open && (
+        <nav className="px-4 pb-3 space-y-1 text-sm border-t border-gray-200 dark:border-gray-700 pt-2">
+          {toc.map((h) => (
+            <a
+              key={h.id}
+              href={`#${h.id}`}
+              onClick={() => setOpen(false)}
+              className="block text-edur-steel dark:text-edur-sky hover:underline py-0.5"
+              style={{ paddingLeft: h.level > 2 ? `${(h.level - 2) * 0.75}rem` : 0 }}
+            >
+              {h.text}
+            </a>
+          ))}
+        </nav>
+      )}
     </div>
   );
 }
@@ -144,34 +178,43 @@ export default function BlogPost() {
           ]),
         )}
       />
-      <article className="max-w-4xl mx-auto px-4 py-8">
+      <article className={`${showToc ? 'max-w-6xl' : 'max-w-4xl'} mx-auto px-4 py-8`}>
         <Link to={ROUTES.BLOG} className="text-sm text-edur-steel dark:text-edur-sky hover:underline mb-6 inline-block">← {t('blog:backToBlog')}</Link>
 
-        <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white">{post.title}</h1>
-        <div className="flex flex-wrap items-center gap-3 mt-3 text-sm text-gray-500 dark:text-gray-400">
-          <span>{authorLabel}</span>
-          {post.category ? <span className="text-edur-steel dark:text-edur-sky">{post.category}</span> : null}
-          {post.publishedAt && <span>{new Date(post.publishedAt).toLocaleDateString()}</span>}
-          <span>{t('blog:minRead', { count: readingMin })}</span>
-        </div>
-        {post.tags?.length > 0 && (
-          <div className="flex flex-wrap gap-2 mt-3">
-            {post.tags.map((tag) => (
-              <span key={tag} className="text-xs px-2 py-0.5 rounded bg-edur-sky/20 dark:bg-edur-sky/10 text-edur-steel dark:text-edur-sky">{tag}</span>
-            ))}
+        {/* Article header */}
+        <header className="max-w-3xl">
+          {displayableBlogCategoryLabel(post.category) && (
+            <span className="inline-block text-xs font-semibold uppercase tracking-wide text-edur-steel dark:text-edur-sky mb-3">
+              {displayableBlogCategoryLabel(post.category)}
+            </span>
+          )}
+          <h1 className="text-3xl md:text-4xl font-bold text-gray-900 dark:text-white leading-tight">{post.title}</h1>
+          {post.excerpt && (
+            <p className="mt-3 text-lg text-gray-600 dark:text-gray-400 leading-relaxed">{post.excerpt}</p>
+          )}
+          <div className="flex flex-wrap items-center gap-3 mt-4 text-sm text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 pb-4">
+            <span className="font-medium text-gray-700 dark:text-gray-300">{authorLabel}</span>
+            {post.publishedAt && <span>{new Date(post.publishedAt).toLocaleDateString('en', { year: 'numeric', month: 'long', day: 'numeric' })}</span>}
+            <span>{readingMin} min read</span>
           </div>
-        )}
+        </header>
 
         {post.imageUrl ? (
-          <img src={post.imageUrl} alt={post.title} className="w-full rounded-xl mt-6 object-cover max-h-64" loading="lazy" />
+          <img src={post.imageUrl} alt={post.title} className="w-full rounded-xl mt-6 object-cover max-h-80" loading="lazy" />
         ) : null}
 
         <AdHost placementId="blog-inline" index={1} variant="inline" className="my-6" />
 
-        <div className={`mt-8 ${showToc ? 'flex flex-col lg:flex-row gap-8' : ''}`}>
-          <div className="flex-1 min-w-0">
+        {/* Mobile TOC — collapsible */}
+        {showToc && (
+          <MobileToc toc={body.toc} label={t('blog:tableOfContents')} />
+        )}
+
+        <div className={`mt-8 ${showToc ? 'flex flex-col lg:flex-row gap-10' : ''}`}>
+          {/* Body */}
+          <div className="flex-1 min-w-0 max-w-[820px]">
             <div
-              className="prose dark:prose-invert text-gray-700 dark:text-gray-300 max-w-none blog-body"
+              className="prose prose-gray dark:prose-invert prose-p:leading-7 prose-h2:mt-8 prose-h3:mt-6 prose-li:my-1 text-gray-800 dark:text-gray-200 max-w-none blog-body"
               dangerouslySetInnerHTML={{ __html: renderedHtml }}
             />
             {gallery.length > 0 ? (
@@ -183,21 +226,25 @@ export default function BlogPost() {
             ) : null}
             <ShareButtons title={post.title} url={buildCanonicalUrl(`${ROUTES.BLOG}/${post.slug}`)} t={t} />
           </div>
+
+          {/* Desktop sticky TOC */}
           {showToc ? (
-            <aside className="lg:w-56 shrink-0">
-              <h3 className="text-sm font-semibold text-gray-900 dark:text-white mb-2">{t('blog:tableOfContents')}</h3>
-              <nav className="space-y-1 text-sm">
-                {body.toc.map((h) => (
-                  <a
-                    key={h.id}
-                    href={`#${h.id}`}
-                    className="block text-edur-steel dark:text-edur-sky hover:underline"
-                    style={{ paddingLeft: h.level > 2 ? `${(h.level - 2) * 0.75}rem` : 0 }}
-                  >
-                    {h.text}
-                  </a>
-                ))}
-              </nav>
+            <aside className="hidden lg:block lg:w-72 xl:w-80 shrink-0">
+              <div className="sticky top-6">
+                <h3 className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">{t('blog:tableOfContents')}</h3>
+                <nav className="space-y-1 text-sm border-l-2 border-gray-200 dark:border-gray-700 pl-4">
+                  {body.toc.map((h) => (
+                    <a
+                      key={h.id}
+                      href={`#${h.id}`}
+                      className="block text-gray-600 dark:text-gray-400 hover:text-edur-steel dark:hover:text-edur-sky hover:underline transition-colors py-0.5"
+                      style={{ paddingLeft: h.level > 2 ? `${(h.level - 2) * 0.75}rem` : 0 }}
+                    >
+                      {h.text}
+                    </a>
+                  ))}
+                </nav>
+              </div>
             </aside>
           ) : null}
         </div>

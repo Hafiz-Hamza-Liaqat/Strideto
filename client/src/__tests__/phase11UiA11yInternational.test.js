@@ -121,7 +121,7 @@ const table = read('components/applications/ApplicationTable.jsx');
   check(/ui\.empty/.test(cases) && /ui\.card/.test(cases), 'Cases empty/card surfaces are dark-capable');
   check(/ui\.empty/.test(consultations) && /ui\.card/.test(consultations), 'Consultations empty/card surfaces are dark-capable');
   check(/ui\.filterPanel/.test(agents) && /ui\.card/.test(agents) && /dark:bg-gray-800/.test(read('design-system/surfaceClasses.js')), 'Agents directory filter + cards are dark-capable');
-  check(layout.includes('StudentPortalNav') && layout.includes('overflow-x-hidden'), 'public shell still mounts StudentPortalNav behind the allowlist and clips page overflow');
+  check(layout.includes('StudentPortalNav') && layout.includes('overflow-x-clip'), 'public shell still mounts StudentPortalNav behind the allowlist and clips page overflow');
 }
 
 // --- A11y MINORs ---

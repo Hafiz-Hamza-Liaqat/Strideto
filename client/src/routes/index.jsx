@@ -152,6 +152,8 @@ const AdminNotifications = lazyLoad(() => import('../pages/Admin/AdminNotificati
 const AdminAnnouncements = lazyLoad(() => import('../pages/Admin/AdminAnnouncements'));
 const AdminAdvertisements = lazyLoad(() => import('../pages/Admin/AdminAdvertisements'));
 const AdminExamPreparation = lazyLoad(() => import('../pages/Admin/AdminExamPreparation'));
+const AdminEducationTests = lazyLoad(() => import('../pages/Admin/AdminEducationTests'));
+const AdminTestAcceptance = lazyLoad(() => import('../pages/Admin/AdminTestAcceptance'));
 const AdminUsers = lazyLoad(() => import('../pages/Admin/AdminUsers'));
 const AdminInvitations = lazyLoad(() => import('../pages/Admin/AdminInvitations'));
 const AdminPayments = lazyLoad(() => import('../pages/Admin/AdminPayments'));
@@ -770,6 +772,8 @@ export const routes = [
           { path: 'announcements', element: <AdminAnnouncements /> },
           { path: 'advertisements', element: <AdminAdvertisements /> },
           { path: 'exam-preparation', element: <AdminExamPreparation /> },
+          { path: 'education/tests', element: <AdminEducationTests /> },
+          { path: 'education/test-acceptance', element: <AdminTestAcceptance /> },
           { path: 'users', element: <AdminUsers /> },
           { path: 'invitations', element: <AdminInvitations /> },
           { path: 'payments', element: <AdminPayments /> },

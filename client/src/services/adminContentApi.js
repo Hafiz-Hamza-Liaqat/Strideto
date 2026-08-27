@@ -61,6 +61,34 @@ export const adminContentApi = {
 
   webinars: crud('/admin/webinars'),
   institutions: crud('/admin/institutions'),
+
+  educationProviders: {
+    list: (params) => axiosInstance.get('/admin/education/providers', { params }),
+    create: (body) => axiosInstance.post('/admin/education/providers', body),
+    update: (id, body) => axiosInstance.patch(`/admin/education/providers/${id}`, body),
+  },
+  educationTests: {
+    list: (params) => axiosInstance.get('/admin/education/tests', { params }),
+    get: (id) => axiosInstance.get(`/admin/education/tests/${id}`),
+    create: (body) => axiosInstance.post('/admin/education/tests', body),
+    update: (id, body) => axiosInstance.patch(`/admin/education/tests/${id}`, body),
+  },
+  educationAcceptance: {
+    list: (params) => axiosInstance.get('/admin/education/acceptance', { params }),
+    get: (id) => axiosInstance.get(`/admin/education/acceptance/${id}`),
+    create: (body) => axiosInstance.post('/admin/education/acceptance', body),
+    update: (id, body) => axiosInstance.patch(`/admin/education/acceptance/${id}`, body),
+    supersede: (id, body) => axiosInstance.post(`/admin/education/acceptance/${id}/supersede`, body),
+  },
+  educationInstitutions: {
+    list: (params) => axiosInstance.get('/admin/education/institutions', { params }),
+    get: (id) => axiosInstance.get(`/admin/education/institutions/${id}`),
+  },
+  educationPrograms: {
+    list: (params) => axiosInstance.get('/admin/education/programs', { params }),
+    get: (id) => axiosInstance.get(`/admin/education/programs/${id}`),
+  },
+
   contactMessages: {
     list: (params) => axiosInstance.get('/admin/contact-messages', { params }),
     get: (id) => axiosInstance.get(`/admin/contact-messages/${id}`),

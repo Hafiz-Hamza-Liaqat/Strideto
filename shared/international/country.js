@@ -94,17 +94,42 @@ export function isValidCountryCode(value) {
 }
 
 /**
- * Best-effort coercion accepting either an alpha-2 code OR a legacy free-text
- * country name. Returns the canonical alpha-2 code or `null`. Used by
- * compatibility adapters so existing name-storing records can be read and
- * migrated incrementally.
+ * Reverse lookup: resolve a locale display name to its ISO alpha-2 code.
+ * Iterates the full ISO_3166_ALPHA2 set and checks Intl.DisplayNames.
+ * Accepts any casing. Returns null when no match is found or Intl is absent.
+ */
+function resolveDisplayNameToCode(displayName) {
+  if (typeof displayName !== 'string' || !displayName.trim()) return null;
+  try {
+    const dn = new Intl.DisplayNames(['en'], { type: 'region' });
+    const needle = displayName.trim().toLowerCase();
+    for (const code of ISO_3166_ALPHA2) {
+      const name = dn.of(code);
+      if (name && name.toLowerCase() === needle) return code;
+    }
+  } catch {
+    // Intl.DisplayNames unavailable — fall through to null
+  }
+  return null;
+}
+
+/**
+ * Best-effort coercion accepting either an alpha-2 code OR a display name.
+ * Resolution order:
+ *   1. Direct normalizeCountryCode (fast path for ISO2 input)
+ *   2. LEGACY_NAME_TO_CODE map (common abbreviations/alternate names)
+ *   3. Reverse Intl.DisplayNames lookup (handles any locale display name)
+ *
+ * Returns the canonical alpha-2 code or `null`.
  */
 export function coerceCountryCode(value) {
   const direct = normalizeCountryCode(value);
   if (direct) return direct;
   if (typeof value !== 'string') return null;
   const key = value.trim().toUpperCase();
-  return LEGACY_NAME_TO_CODE[key] || null;
+  const legacy = LEGACY_NAME_TO_CODE[key];
+  if (legacy) return legacy;
+  return resolveDisplayNameToCode(value);
 }
 
 /**

@@ -86,6 +86,8 @@ export const ADMIN_NAV_GROUPS = /** @type {AdminNavGroup[]} */ ([
       { path: `${ROUTES.ADMIN}/institutions`, labelKey: 'institutions', perm: PERMISSIONS.CONTENT_ADMISSIONS, icon: 'school' },
       { path: `${ROUTES.ADMIN}/companies`, labelKey: 'companies', perm: PERMISSIONS.CONTENT_COMPANIES, icon: 'office' },
       { path: `${ROUTES.ADMIN}/webinars`, labelKey: 'webinars', perm: PERMISSIONS.CONTENT_BLOGS, icon: 'video' },
+      { path: `${ROUTES.ADMIN}/education/tests`, labelKey: 'navTestsProviders', perm: PERMISSIONS.CONTENT_ADMISSIONS, icon: 'graduation' },
+      { path: `${ROUTES.ADMIN}/education/test-acceptance`, labelKey: 'navTestAcceptance', perm: PERMISSIONS.CONTENT_ADMISSIONS, icon: 'clipboard' },
       { path: `${ROUTES.ADMIN}/exam-preparation`, labelKey: 'examPreparation', perm: PERMISSIONS.CONTENT_MCQS, icon: 'clipboard' },
       { path: `${ROUTES.ADMIN}/site-cms`, labelKey: 'siteCms', perm: [PERMISSIONS.CONTENT_SITE, PERMISSIONS.CONTENT_NAV, PERMISSIONS.CONTENT_PAGES], icon: 'cms' },
       { path: `${ROUTES.ADMIN}/page-builder`, labelKey: 'pageBuilder', perm: PERMISSIONS.CONTENT_SITE, icon: 'content', end: true },

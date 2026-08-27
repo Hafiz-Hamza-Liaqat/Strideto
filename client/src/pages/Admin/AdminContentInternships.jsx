@@ -192,7 +192,7 @@ export default function AdminContentInternships() {
                 <input className={adminFieldClass} placeholder={t('admin:fieldTitle')} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
                 <input className={adminFieldClass} placeholder={t('admin:organizationPlaceholder')} value={form.organization} onChange={(e) => setForm({ ...form, organization: e.target.value })} />
                 <input className={adminFieldClass} placeholder={t('admin:fieldInternshipType')} value={form.internshipType} onChange={(e) => setForm({ ...form, internshipType: e.target.value })} />
-                <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isPaid} onChange={(e) => setForm({ ...form, isPaid: e.target.checked })} /> {t('admin:fieldIsPaid')}</label>
+                <label className="inline-flex items-center gap-2 text-sm"><input type="checkbox" checked={form.isPaid} onChange={(e) => setForm({ ...form, isPaid: e.target.checked })} /> {t('admin:fieldPaid')}</label>
                 <input className={adminFieldClass} placeholder={t('admin:fieldDuration')} value={form.duration} onChange={(e) => setForm({ ...form, duration: e.target.value })} />
                 <AdminLocationFields
                   mode="code"
@@ -203,7 +203,7 @@ export default function AdminContentInternships() {
                 />
                 <textarea rows={4} className={adminFieldClass} placeholder={t('admin:fieldDescription')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
                 <textarea rows={3} className={adminFieldClass} placeholder={t('admin:fieldEligibility')} value={form.eligibility} onChange={(e) => setForm({ ...form, eligibility: e.target.value })} />
-                <textarea rows={3} className={adminFieldClass} placeholder={t('admin:fieldSkillset')} value={form.skillset} onChange={(e) => setForm({ ...form, skillset: e.target.value })} />
+                <textarea rows={3} className={adminFieldClass} placeholder={t('admin:fieldSkills')} value={form.skillset} onChange={(e) => setForm({ ...form, skillset: e.target.value })} />
                 <input type="date" className={adminFieldClass} value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />
                 <input className={adminFieldClass} placeholder={t('admin:applyLinkPlaceholder')} value={form.applicationLink} onChange={(e) => setForm({ ...form, applicationLink: e.target.value })} />
                 <AdminSelectBare  value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>

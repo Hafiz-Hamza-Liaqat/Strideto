@@ -75,9 +75,11 @@ function AcceptanceCard({ claim }) {
       <div className="flex flex-wrap items-center gap-2">
         <span className="font-medium text-gray-900 dark:text-white">{name}</span>
         {provider && <span className="text-xs text-gray-500">{provider}</span>}
-        <span className="text-xs px-2 py-0.5 rounded-full bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300">
-          {claim.acceptanceStatus}
-        </span>
+        {(() => {
+          const ST = { accepted: ['Accepted', 'bg-green-50 dark:bg-green-900/20 text-green-700 dark:text-green-300'], conditional: ['Conditional', 'bg-yellow-50 dark:bg-yellow-900/20 text-yellow-700 dark:text-yellow-300'], not_accepted: ['Not Accepted', 'bg-red-50 dark:bg-red-900/20 text-red-700 dark:text-red-300'], case_by_case: ['Case by Case', 'bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300'] };
+          const [label, cls] = ST[claim.acceptanceStatus] || [claim.acceptanceStatus, 'bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-400'];
+          return <span className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{label}</span>;
+        })()}
         {claim.acceptanceScope && (
           <span className="text-xs text-gray-400">{claim.acceptanceScope}</span>
         )}
@@ -111,26 +113,36 @@ function AcceptanceCard({ claim }) {
 
 function InstitutionCard({ institution }) {
   const path = `${ROUTES.EDUCATION_INSTITUTIONS}/${institution.slug}`;
+  const loc = locationLine(institution);
   return (
     <Link
       to={path}
-      className="interactive-card block p-5 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
+      className="group flex flex-col rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md hover:border-primary/30 dark:hover:border-mint/30 transition-all duration-150 overflow-hidden focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2"
     >
-      <h3 className="text-base font-semibold text-gray-900 dark:text-white line-clamp-2">
-        {institution.officialName}
-      </h3>
-      <p className="mt-0.5 text-sm text-gray-500 dark:text-gray-400">{locationLine(institution)}</p>
-      <div className="mt-3 flex flex-wrap gap-2">
-        {institution.institutionType && (
-          <span className="text-xs px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">
-            {TYPE_LABELS[institution.institutionType] || institution.institutionType}
-          </span>
-        )}
-        {typeof institution.programCount === 'number' && (
-          <span className="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
-            {institution.programCount} program{institution.programCount === 1 ? '' : 's'}
-          </span>
-        )}
+      <div className="p-5 flex-1">
+        <div className="flex items-start gap-3">
+          <div className="w-10 h-10 rounded-lg bg-primary/10 dark:bg-mint/10 flex items-center justify-center shrink-0 text-primary dark:text-mint font-bold text-lg select-none">
+            {institution.officialName?.[0]?.toUpperCase() || '?'}
+          </div>
+          <div className="min-w-0">
+            <h3 className="text-sm font-semibold text-gray-900 dark:text-white group-hover:text-primary dark:group-hover:text-mint transition-colors line-clamp-2 leading-snug">
+              {institution.officialName}
+            </h3>
+            {loc && <p className="mt-0.5 text-xs text-gray-500 dark:text-gray-400 line-clamp-1">{loc}</p>}
+          </div>
+        </div>
+        <div className="mt-3 flex flex-wrap gap-1.5">
+          {institution.institutionType && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">
+              {TYPE_LABELS[institution.institutionType] || institution.institutionType}
+            </span>
+          )}
+          {typeof institution.programCount === 'number' && institution.programCount > 0 && (
+            <span className="text-xs px-2 py-0.5 rounded-full bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+              {institution.programCount} program{institution.programCount === 1 ? '' : 's'}
+            </span>
+          )}
+        </div>
       </div>
     </Link>
   );
