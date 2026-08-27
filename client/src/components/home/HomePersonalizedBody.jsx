@@ -6,10 +6,10 @@ import { ListingCardSkeleton } from '../listings/ListingCardSkeleton';
 import { ScrollReveal } from '../ui/ScrollReveal';
 import { NewsletterSubscribe } from '../newsletter/NewsletterSubscribe';
 import { formatDate } from '../../utils/formatDate';
-import { Button } from '../common/Button';
 import { orderedHomeSections } from '../../personalization/layoutPersonalization';
 import { displayableBlogCategoryLabel } from '@shared/blog/taxonomy.js';
 import { Icon } from '../brand/Icon';
+import { HomeWorkWithStrideto } from './HomeWorkWithStrideto';
 
 const SKELETON_COUNT = 3;
 
@@ -54,31 +54,8 @@ export function HomePersonalizedBody({
   return (
     <div className="flex flex-col">
       {order.map((sectionKey) => {
-        if (sectionKey === 'employerCta') {
-          return (
-            <ScrollReveal
-              key="employerCta"
-              as="section"
-              className="max-w-6xl mx-auto px-4 sm:px-6 py-8 sm:py-10 border-t border-gray-200 dark:border-gray-700 w-full"
-            >
-              <div className="rounded-2xl bg-primary/5 dark:bg-primary/10 border border-primary/20 p-6 sm:p-8 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-bold text-gray-900 dark:text-white font-heading mb-1">Hire with Strideto</h2>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Post jobs, review applicants, and manage hiring from your employer dashboard.
-                  </p>
-                </div>
-                <div className="flex flex-wrap gap-3">
-                  <Link to={ROUTES.EMPLOYER_DASHBOARD}>
-                    <Button variant="primary" type="button">Employer Dashboard</Button>
-                  </Link>
-                  <Link to={ROUTES.EMPLOYER_POST_JOB}>
-                    <Button variant="cta" type="button">Post a Job</Button>
-                  </Link>
-                </div>
-              </div>
-            </ScrollReveal>
-          );
+        if (sectionKey === 'workWithStrideto') {
+          return <HomeWorkWithStrideto key="workWithStrideto" />;
         }
 
         if (sectionKey === 'recommended') {

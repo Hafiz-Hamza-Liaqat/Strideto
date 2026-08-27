@@ -7,6 +7,11 @@ import { ROUTES } from '../../constants';
 import { LOGIN_REALMS, resolveLoginReturnPath } from '../../utils/loginReturn.js';
 import { PageState, fieldClass, primaryButton } from './InstitutionUi';
 import { AuthCard } from '../../layouts/AuthLayout.jsx';
+import { WorkspaceComingSoon } from '../../components/launch/WorkspaceComingSoon';
+import {
+  WORKSPACE_LAUNCH_IDS,
+  isInstitutionWorkspaceLaunched,
+} from '../../config/workspaceLaunchGates';
 
 export default function InstitutionLogin() {
   const { account, organizationId, loading, login } = useInstitutionAuth();
@@ -19,6 +24,10 @@ export default function InstitutionLogin() {
   const [busy, setBusy] = useState(false);
 
   useEffect(() => { document.getElementById('institution-email')?.focus(); }, [loading]);
+
+  if (!isInstitutionWorkspaceLaunched()) {
+    return <WorkspaceComingSoon workspaceId={WORKSPACE_LAUNCH_IDS.INSTITUTION} />;
+  }
 
   if (!loading && account && organizationId) return <Navigate to={ROUTES.INSTITUTION_DASHBOARD} replace />;
 

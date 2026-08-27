@@ -14,6 +14,10 @@ import {
 } from '../../../shared/gbs/constants.js';
 import { listProviderDomains, publicProviderDomainProjection } from '../../../shared/provider/providerDomains.js';
 import { PROVIDER_DOMAIN_PERMISSION_GROUPS } from '../../../shared/provider/providerDomainPermissions.js';
+import {
+  WORKSPACE_LAUNCH_IDS,
+  isWorkspaceLaunched,
+} from '../../../shared/launch/workspaceLaunchGates.js';
 
 function actorFrom(req) {
   return {
@@ -35,13 +39,31 @@ function sendError(res, err) {
 }
 
 export async function getCatalog(_req, res) {
-  const businessEnabled = isBusinessServicesProviderEnabled(process.env);
+  const educationLaunched = isWorkspaceLaunched(WORKSPACE_LAUNCH_IDS.EDUCATION_MOBILITY, process.env);
+  const businessLaunched = isWorkspaceLaunched(WORKSPACE_LAUNCH_IDS.BUSINESS_SERVICES, process.env);
+  const businessEnabled = businessLaunched && isBusinessServicesProviderEnabled(process.env);
   return res.json({
-    domains: listProviderDomains().map((d) => ({
-      ...publicProviderDomainProjection(d.domainId),
-      selectable: d.domainId !== 'business_services' || businessEnabled,
-      comingSoon: d.domainId === 'business_services' && !businessEnabled,
-    })),
+    domains: listProviderDomains().map((d) => {
+      if (d.domainId === WORKSPACE_LAUNCH_IDS.EDUCATION_MOBILITY) {
+        return {
+          ...publicProviderDomainProjection(d.domainId),
+          selectable: educationLaunched,
+          comingSoon: !educationLaunched,
+        };
+      }
+      if (d.domainId === WORKSPACE_LAUNCH_IDS.BUSINESS_SERVICES) {
+        return {
+          ...publicProviderDomainProjection(d.domainId),
+          selectable: businessEnabled,
+          comingSoon: !businessEnabled,
+        };
+      }
+      return {
+        ...publicProviderDomainProjection(d.domainId),
+        selectable: false,
+        comingSoon: true,
+      };
+    }),
     businessServicesProviderEnabled: businessEnabled,
     publicMarketplaceEnabled: isBusinessServicesPublicMarketplaceEnabled(process.env),
     permissionGroups: PROVIDER_DOMAIN_PERMISSION_GROUPS,

@@ -14,6 +14,13 @@ import { inputControlClassName, selectControlClassName } from '../../components/
 import { ProviderDomainCards } from '../../components/provider/ProviderDomainCards.jsx';
 import { agentAuthApi } from '../../services/agentService';
 import { listProviderDomains, publicProviderDomainProjection, PROVIDER_DOMAIN_IDS } from '@shared/provider/providerDomains.js';
+import { WorkspaceComingSoon } from '../../components/launch/WorkspaceComingSoon';
+import {
+  WORKSPACE_LAUNCH_IDS,
+  isEducationMobilityWorkspaceLaunched,
+  isBusinessServicesWorkspaceLaunched,
+  isAnyProviderWorkspaceLaunched,
+} from '../../config/workspaceLaunchGates';
 
 const FALLBACK_DOMAINS = listProviderDomains().map((d) => ({
   ...publicProviderDomainProjection(d.domainId),
@@ -101,10 +108,29 @@ export default function AgentRegister() {
 
   const selectable = useMemo(
     () => domains
-      .map((d) => ({ ...d, comingSoon: d.comingSoon || d.selectable === false }))
+      .map((d) => {
+        const launchBlocked =
+          (d.domainId === PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY && !isEducationMobilityWorkspaceLaunched())
+          || (d.domainId === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES && !isBusinessServicesWorkspaceLaunched());
+        return {
+          ...d,
+          comingSoon: d.comingSoon || d.selectable === false || launchBlocked,
+          selectable: launchBlocked ? false : d.selectable,
+        };
+      })
       .filter((d) => !lockedDomainKnown || d.domainId === lockedDomain),
     [domains, lockedDomain, lockedDomainKnown]
   );
+
+  if (lockedDomain === PROVIDER_DOMAIN_IDS.EDUCATION_MOBILITY && !isEducationMobilityWorkspaceLaunched()) {
+    return <WorkspaceComingSoon workspaceId={WORKSPACE_LAUNCH_IDS.EDUCATION_MOBILITY} />;
+  }
+  if (lockedDomain === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES && !isBusinessServicesWorkspaceLaunched()) {
+    return <WorkspaceComingSoon workspaceId={WORKSPACE_LAUNCH_IDS.BUSINESS_SERVICES} />;
+  }
+  if (!lockedDomain && !inviteToken && !isAnyProviderWorkspaceLaunched()) {
+    return <WorkspaceComingSoon workspaceId={WORKSPACE_LAUNCH_IDS.EDUCATION_MOBILITY} />;
+  }
 
   const registerTitle = lockedDomain === PROVIDER_DOMAIN_IDS.BUSINESS_SERVICES
     ? 'Join as a Business Formation Provider'

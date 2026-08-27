@@ -13,6 +13,11 @@ import { PasswordInput } from '../../components/forms/PasswordInput';
 import { pendingVerifyPath } from '../../utils/authUrls.js';
 import { AuthCard } from '../../layouts/AuthLayout.jsx';
 import { clearAuthFormDraft, useAuthFormDraft } from '../../hooks/useAuthFormDraft.js';
+import { WorkspaceComingSoon } from '../../components/launch/WorkspaceComingSoon';
+import {
+  WORKSPACE_LAUNCH_IDS,
+  isInstitutionWorkspaceLaunched,
+} from '../../config/workspaceLaunchGates';
 
 const TYPE_LABELS = Object.freeze({
   university: 'University',
@@ -31,6 +36,10 @@ export default function InstitutionRegister() {
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   useAuthFormDraft('institution', form, (safe) => setForm((current) => ({ ...current, ...safe })));
+
+  if (!isInstitutionWorkspaceLaunched()) {
+    return <WorkspaceComingSoon workspaceId={WORKSPACE_LAUNCH_IDS.INSTITUTION} />;
+  }
 
   if (!loading && account && organizationId) {
     return <Navigate to={ROUTES.INSTITUTION_ONBOARDING} replace />;

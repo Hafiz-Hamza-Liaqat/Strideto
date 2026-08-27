@@ -35,6 +35,12 @@ import {
 } from '../services/auth/realmEmailVerification.js';
 import { AGENT_INVITE_STATUSES } from '../../../shared/agent/team.js';
 import { PROVIDER_SUBJECT_TYPES, isBusinessServicesProviderEnabled } from '../../../shared/gbs/constants.js';
+import {
+  WORKSPACE_LAUNCH_IDS,
+  isWorkspaceLaunched,
+  workspaceComingSoonBody,
+} from '../../../shared/launch/workspaceLaunchGates.js';
+import { assertAgentRegistrationDomainsLaunched } from '../middleware/requireWorkspaceLaunched.js';
 import { PROVIDER_DOMAIN_INITIALIZATION_STATES } from '../../../shared/provider/providerDomains.js';
 import { validateRequiredProviderDomainSelection, resolveProviderDomainInitializationState } from '../../../shared/provider/providerDomainSelection.js';
 import { normalizeDomainAccessList } from '../../../shared/provider/providerDomainPermissions.js';
@@ -149,10 +155,16 @@ export function createAgentRegisterHandler({
   const domainIdsRaw = req.body?.domainIds || req.body?.providerDomainIds;
   if (!pendingInvite) {
     const selection = validateRequiredProviderDomainSelection(domainIdsRaw, {
-      allowBusinessServices: isBusinessServicesProviderEnabled(process.env),
+      allowBusinessServices:
+        isWorkspaceLaunched(WORKSPACE_LAUNCH_IDS.BUSINESS_SERVICES, process.env) &&
+        isBusinessServicesProviderEnabled(process.env),
     });
     if (!selection.ok) {
       return res.status(400).json({ error: selection.error, unknown: selection.unknown });
+    }
+    const launchGate = assertAgentRegistrationDomainsLaunched(selection.domainIds);
+    if (!launchGate.ok) {
+      return res.status(403).json(workspaceComingSoonBody(launchGate.workspace));
     }
   }
 
@@ -169,6 +181,13 @@ export function createAgentRegisterHandler({
   if (pendingInvite) {
     const org = await organizationModel.findById(pendingInvite.organizationId);
     if (!org) return res.status(404).json({ error: 'Organization not found' });
+    // Authoritative domains come from the invitation — never from request body.
+    const domainAccess = normalizeDomainAccessList(pendingInvite.domainAccess);
+    const inviteDomainIds = domainAccess.map((row) => row.domainId);
+    const inviteLaunchGate = assertAgentRegistrationDomainsLaunched(inviteDomainIds);
+    if (!inviteLaunchGate.ok) {
+      return res.status(403).json(workspaceComingSoonBody(inviteLaunchGate.workspace));
+    }
     const account = await agentAccountModel.create({
       email: normalizedEmail,
       password,
@@ -179,7 +198,6 @@ export function createAgentRegisterHandler({
       agentType: org.organizationType,
       providerDomainInitializationState: PROVIDER_DOMAIN_INITIALIZATION_STATES.READY,
     });
-    const domainAccess = normalizeDomainAccessList(pendingInvite.domainAccess);
     await agentMembershipModel.create({
       organizationId: org._id,
       agentAccountId: account._id,
@@ -203,9 +221,17 @@ export function createAgentRegisterHandler({
   }
 
   const selection = validateRequiredProviderDomainSelection(domainIdsRaw, {
-    allowBusinessServices: isBusinessServicesProviderEnabled(process.env),
+    allowBusinessServices:
+      isWorkspaceLaunched(WORKSPACE_LAUNCH_IDS.BUSINESS_SERVICES, process.env) &&
+      isBusinessServicesProviderEnabled(process.env),
   });
-
+  if (!selection.ok) {
+    return res.status(400).json({ error: selection.error, unknown: selection.unknown });
+  }
+  const selectionLaunchGate = assertAgentRegistrationDomainsLaunched(selection.domainIds);
+  if (!selectionLaunchGate.ok) {
+    return res.status(403).json(workspaceComingSoonBody(selectionLaunchGate.workspace));
+  }
   const orgSlug = await ensureUniqueOrganizationSlug(
     normalizedDisplayName,
     (s) => organizationModel.exists({ slug: s })

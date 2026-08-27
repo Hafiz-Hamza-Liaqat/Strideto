@@ -23,6 +23,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { INSTITUTION_TYPES } from '../../../shared/education/taxonomy.js';
 import * as authCtrl from '../controllers/institutionAuthController.js';
 import * as portalCtrl from '../controllers/institutionPortalController.js';
+import { requireInstitutionWorkspaceLaunched } from '../middleware/requireWorkspaceLaunched.js';
 
 export const institutionPortalRouter = Router();
 
@@ -32,6 +33,7 @@ export const institutionPortalRouter = Router();
 
 institutionPortalRouter.post(
   '/auth/institution/register',
+  requireInstitutionWorkspaceLaunched,
   employerAuthLimiter,
   secureTrustedOrigin,
   requireTurnstileWhenEnabled('register'),
@@ -133,6 +135,7 @@ institutionPortalRouter.get(
 // ---------------------------------------------------------------------------
 
 const portal = Router();
+portal.use(requireInstitutionWorkspaceLaunched);
 portal.use(requireAuth, requireInstitutionAuth);
 
 // Onboarding / dashboard

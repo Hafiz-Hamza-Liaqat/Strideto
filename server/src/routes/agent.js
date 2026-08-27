@@ -44,8 +44,58 @@ import { requireAgentEmailVerified } from '../middleware/requireEmailVerified.js
 import * as agentAuth from '../controllers/agentAuthController.js';
 import * as agent from '../controllers/agentController.js';
 import * as marketplace from '../controllers/agentMarketplaceController.js';
+import {
+  requireEducationMobilityWorkspaceLaunched,
+  requireBusinessServicesWorkspaceLaunched,
+  requireAnyProviderWorkspaceLaunched,
+  assertAgentRegistrationDomainsLaunched,
+} from '../middleware/requireWorkspaceLaunched.js';
+import {
+  WORKSPACE_LAUNCH_IDS,
+  isWorkspaceLaunched,
+  workspaceComingSoonBody,
+} from '../../../shared/launch/workspaceLaunchGates.js';
 
 export const agentRouter = Router();
+
+/**
+ * Route launch classes (auth/domain permissions still apply afterward):
+ * A. educationPrivate  — Education & Mobility specific
+ * B. businessPrivate   — Business Formation / GBS specific (plus legacy GBS flag)
+ * C. providerPrivate   — shared provider (team, messages, billing, domains, …)
+ */
+const educationPrivate = [requireAuth, requireAgentAuth, requireEducationMobilityWorkspaceLaunched];
+const providerPrivate = [requireAuth, requireAgentAuth, requireAnyProviderWorkspaceLaunched];
+const businessPrivate = [
+  requireAuth,
+  requireAgentAuth,
+  requireBusinessServicesWorkspaceLaunched,
+  requireProviderDomainReady,
+  requireBusinessServicesEnabled,
+];
+
+/**
+ * Coarse pre-check only. Invite/empty-domain authority is enforced in
+ * createAgentRegisterHandler after server resolves invite domainAccess.
+ * Body domains alone cannot unlock a gated workspace.
+ */
+function requireAgentRegisterWorkspaceLaunched(req, res, next) {
+  const domainIds = req.body?.domainIds || req.body?.providerDomainIds || [];
+  const ids = Array.isArray(domainIds) ? domainIds : [];
+  const eduOk = isWorkspaceLaunched(WORKSPACE_LAUNCH_IDS.EDUCATION_MOBILITY, process.env);
+  const bizOk = isWorkspaceLaunched(WORKSPACE_LAUNCH_IDS.BUSINESS_SERVICES, process.env);
+
+  if (!eduOk && !bizOk) {
+    return res.status(403).json(workspaceComingSoonBody(WORKSPACE_LAUNCH_IDS.EDUCATION_MOBILITY));
+  }
+  if (ids.length > 0) {
+    const gate = assertAgentRegistrationDomainsLaunched(ids);
+    if (!gate.ok) {
+      return res.status(403).json(workspaceComingSoonBody(gate.workspace));
+    }
+  }
+  return next();
+}
 
 // ---------------------------------------------------------------------------
 // Auth
@@ -53,6 +103,7 @@ export const agentRouter = Router();
 
 agentRouter.post(
   '/auth/agent/register',
+  requireAgentRegisterWorkspaceLaunched,
   employerAuthLimiter,
   secureTrustedOrigin,
   requireTurnstileWhenEnabled('register'),
@@ -120,8 +171,7 @@ agentRouter.get(
 
 agentRouter.get(
   '/agent/dashboard',
-  requireAuth,
-  requireAgentAuth,
+  ...educationPrivate,
   agent.getDashboard
 );
 
@@ -131,20 +181,17 @@ agentRouter.get(
 
 agentRouter.get(
   '/agent/profile',
-  requireAuth,
-  requireAgentAuth,
+  ...educationPrivate,
   agent.getProfile
 );
 agentRouter.patch(
   '/agent/profile',
-  requireAuth,
-  requireAgentAuth,
+  ...educationPrivate,
   agent.patchProfile
 );
 agentRouter.get(
   '/agent/profile/completeness',
-  requireAuth,
-  requireAgentAuth,
+  ...educationPrivate,
   agent.getCompleteness
 );
 
@@ -154,8 +201,7 @@ agentRouter.get(
 
 agentRouter.post(
   '/agent/onboarding/step',
-  requireAuth,
-  requireAgentAuth,
+  ...educationPrivate,
   agent.submitOnboardingStep
 );
 
@@ -165,8 +211,7 @@ agentRouter.post(
 
 agentRouter.get(
   '/agent/verification',
-  requireAuth,
-  requireAgentAuth,
+  ...educationPrivate,
   agent.getVerification
 );
 
@@ -176,71 +221,61 @@ agentRouter.get(
 
 agentRouter.get(
   '/agent/services',
-  requireAuth,
-  requireAgentAuth,
+  ...educationPrivate,
   agent.listServices
 );
 agentRouter.post(
   '/agent/services',
-  requireAuth,
-  requireAgentAuth,
+  ...educationPrivate,
   requireProviderDomainReady,
   agent.addService
 );
 agentRouter.patch(
   '/agent/services/:serviceId',
-  requireAuth,
-  requireAgentAuth,
+  ...educationPrivate,
   requireProviderDomainReady,
   agent.editService
 );
 
 // ---------------------------------------------------------------------------
-// Team (Agency)
+// Team (Agency) — shared provider
 // ---------------------------------------------------------------------------
 
 agentRouter.get(
   '/agent/team',
-  requireAuth,
-  requireAgentAuth,
+  ...providerPrivate,
   agent.listTeamMembers
 );
 agentRouter.patch(
   '/agent/team/member',
-  requireAuth,
-  requireAgentAuth,
+  ...providerPrivate,
   agent.changeMemberRole
 );
 agentRouter.patch(
   '/agent/team/member/status',
-  requireAuth,
-  requireAgentAuth,
+  ...providerPrivate,
   agent.changeMemberStatus
 );
 agentRouter.get(
   '/agent/team/invites',
-  requireAuth,
-  requireAgentAuth,
+  ...providerPrivate,
   agent.listInvites
 );
 agentRouter.post(
   '/agent/team/invites',
-  requireAuth,
-  requireAgentAuth,
+  ...providerPrivate,
   agentTeamInviteLimiter,
   agent.createInvite
 );
 agentRouter.patch(
   '/agent/team/member/domain-access',
-  requireAuth,
-  requireAgentAuth,
+  ...providerPrivate,
   agentTeamInviteLimiter,
   agent.changeMemberDomainAccess
 );
 agentRouter.post(
   '/agent/team/invites/:invitationId/revoke',
-  requireAuth,
-  requireAgentAuth,
+  ...providerPrivate,
   agent.revokeInvite
 );
 agentRouter.get(
@@ -249,8 +284,7 @@ agentRouter.get(
 );
 agentRouter.post(
   '/auth/agent/invitations/accept',
-  requireAuth,
-  requireAgentAuth,
+  ...providerPrivate,
   agent.acceptInvite
 );
 
@@ -260,78 +294,68 @@ agentRouter.post(
 
 agentRouter.get(
   '/agent/leads',
-  requireAuth,
-  requireAgentAuth,
+  ...educationPrivate,
   agent.listLeads
 );
 agentRouter.patch(
   '/agent/leads/:leadId',
-  requireAuth,
-  requireAgentAuth,
+  ...educationPrivate,
   agent.patchLeadStatus
 );
 agentRouter.get(
   '/agent/clients',
-  requireAuth,
-  requireAgentAuth,
+  ...educationPrivate,
   agent.listClients
 );
 agentRouter.get(
   '/agent/verification/sources',
-  requireAuth,
-  requireAgentAuth,
+  ...educationPrivate,
   agent.getVerificationSources
 );
 agentRouter.get(
   '/agent/usage-billing',
-  requireAuth,
-  requireAgentAuth,
+  ...providerPrivate,
   agent.getUsageBilling
 );
 agentRouter.get(
   '/agent/commerce/readiness',
-  requireAuth,
-  requireAgentAuth,
+  ...providerPrivate,
   agent.getCommerceReadiness
 );
 agentRouter.get(
   '/agent/messages',
-  requireAuth,
-  requireAgentAuth,
+  ...providerPrivate,
   agent.listMessageHub
 );
 agentRouter.get(
   '/agent/vault/grants',
-  requireAuth,
-  requireAgentAuth,
+  ...providerPrivate,
   agent.listVaultGrants
 );
 
 // Structured Agent marketplace authoring
-agentRouter.get('/agent/marketplace/counts', requireAuth, requireAgentAuth, marketplace.counts);
-agentRouter.get('/agent/marketplace', requireAuth, requireAgentAuth, marketplace.listOwn);
-agentRouter.post('/agent/marketplace', requireAuth, requireAgentAuth, requireAgentEmailVerified(), requireProviderDomainReady, marketplace.create);
-agentRouter.get('/agent/marketplace/:postId', requireAuth, requireAgentAuth, marketplace.getOwn);
-agentRouter.patch('/agent/marketplace/:postId', requireAuth, requireAgentAuth, marketplace.update);
-agentRouter.post('/agent/marketplace/:postId/submit', requireAuth, requireAgentAuth, requireAgentEmailVerified(), marketplace.submit);
-agentRouter.post('/agent/marketplace/:postId/archive', requireAuth, requireAgentAuth, marketplace.archive);
+agentRouter.get('/agent/marketplace/counts', ...educationPrivate, marketplace.counts);
+agentRouter.get('/agent/marketplace', ...educationPrivate, marketplace.listOwn);
+agentRouter.post('/agent/marketplace', ...educationPrivate, requireAgentEmailVerified(), requireProviderDomainReady, marketplace.create);
+agentRouter.get('/agent/marketplace/:postId', ...educationPrivate, marketplace.getOwn);
+agentRouter.patch('/agent/marketplace/:postId', ...educationPrivate, marketplace.update);
+agentRouter.post('/agent/marketplace/:postId/submit', ...educationPrivate, requireAgentEmailVerified(), marketplace.submit);
+agentRouter.post('/agent/marketplace/:postId/archive', ...educationPrivate, marketplace.archive);
 
-const gbsEnabled = [requireAuth, requireAgentAuth, requireProviderDomainReady, requireBusinessServicesEnabled];
+const gbsEnabled = businessPrivate;
 
-agentRouter.get('/agent/provider-domains/catalog', requireAuth, requireAgentAuth, providerDomain.getCatalog);
-agentRouter.get('/agent/provider-domains/home', requireAuth, requireAgentAuth, providerDomain.getHome);
-agentRouter.get('/agent/provider-domains/context', requireAuth, requireAgentAuth, providerDomain.getContext);
+agentRouter.get('/agent/provider-domains/catalog', ...providerPrivate, providerDomain.getCatalog);
+agentRouter.get('/agent/provider-domains/home', ...providerPrivate, providerDomain.getHome);
+agentRouter.get('/agent/provider-domains/context', ...providerPrivate, providerDomain.getContext);
 agentRouter.post(
   '/agent/provider-domains/onboarding',
-  requireAuth,
-  requireAgentAuth,
+  ...providerPrivate,
   providerDomainWriteLimiter,
   providerDomain.completeOnboarding
 );
 agentRouter.post(
   '/agent/provider-domains',
-  requireAuth,
-  requireAgentAuth,
+  ...providerPrivate,
   requireProviderDomainReady,
   providerDomainWriteLimiter,
   providerDomain.addDomain

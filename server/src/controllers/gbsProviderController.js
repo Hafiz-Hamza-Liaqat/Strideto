@@ -1,4 +1,8 @@
 import { isBusinessServicesProviderEnabled, isBusinessServicesPublicMarketplaceEnabled } from '../../../shared/gbs/constants.js';
+import {
+  WORKSPACE_LAUNCH_IDS,
+  isWorkspaceLaunched,
+} from '../../../shared/launch/workspaceLaunchGates.js';
 import { AgentProfile } from '../models/agent/AgentProfile.js';
 import { projectProviderCatalog } from '../../../shared/gbs/providerCatalogProjection.js';
 import {
@@ -82,8 +86,9 @@ async function requireSubject(req, permissionId = PROVIDER_DOMAIN_PERMISSIONS.BU
 }
 
 export async function getEnabled(_req, res) {
+  const launchEnabled = isWorkspaceLaunched(WORKSPACE_LAUNCH_IDS.BUSINESS_SERVICES, process.env);
   return res.json({
-    enabled: isBusinessServicesProviderEnabled(process.env),
+    enabled: launchEnabled && isBusinessServicesProviderEnabled(process.env),
     publicMarketplaceEnabled: isBusinessServicesPublicMarketplaceEnabled(process.env),
   });
 }

@@ -12,16 +12,34 @@ import { resolvePublicSocialLinks } from '@shared/social/officialSocialLinks.js'
 import { SocialLinksRow } from '../social/SocialLinksRow';
 import { sanitizePublicCopyright, isForbiddenPublicHref } from '@shared/seo/publicCopyright.js';
 import { openCookieSettings } from '../../consent/cookieConsentStorage';
+import {
+  isEmployerWorkspaceLaunched,
+  isInstitutionWorkspaceLaunched,
+  isEducationMobilityWorkspaceLaunched,
+  isBusinessServicesWorkspaceLaunched,
+} from '../../config/workspaceLaunchGates';
 
 function FooterLinkColumn({ title, links }) {
-  const visible = links.filter((l) => (l.path && !isForbiddenPublicHref(l.path)) || l.action);
+  const visible = links.filter(
+    (l) => l.comingSoon || (l.path && !isForbiddenPublicHref(l.path)) || l.action
+  );
   return (
     <div>
       <h3 className="font-semibold text-[#CBD5F5] mb-4 text-sm uppercase tracking-wider">{title}</h3>
       <ul className="space-y-3">
-        {visible.map(({ label, path, action }) => (
+        {visible.map(({ label, path, action, comingSoon }) => (
           <li key={path || action || label}>
-            {action === 'cookie-settings' ? (
+            {comingSoon ? (
+              <span
+                className="text-sm text-[#64748B] break-words-safe"
+                aria-disabled="true"
+              >
+                {label}
+                <span className="ml-1.5 text-[10px] font-semibold uppercase tracking-wide text-amber-400/90">
+                  Coming Soon
+                </span>
+              </span>
+            ) : action === 'cookie-settings' ? (
               <button
                 type="button"
                 onClick={() => openCookieSettings()}
@@ -73,10 +91,18 @@ export function Footer() {
   ];
 
   const organizationLinks = [
-    { label: t('footer:employerPortal'), path: ROUTES.EMPLOYER_LOGIN },
-    { label: t('footer:educationProviderPortal'), path: ROUTES.PROVIDERS_EDUCATION_MOBILITY },
-    { label: t('footer:businessProviderPortal'), path: ROUTES.PROVIDERS_BUSINESS_FORMATION },
-    { label: t('footer:institutionPortal'), path: ROUTES.INSTITUTION_LOGIN },
+    isEmployerWorkspaceLaunched()
+      ? { label: t('footer:employerPortal'), path: ROUTES.EMPLOYER_LOGIN }
+      : { label: t('footer:employerPortal'), comingSoon: true },
+    isEducationMobilityWorkspaceLaunched()
+      ? { label: t('footer:educationProviderPortal'), path: ROUTES.PROVIDERS_EDUCATION_MOBILITY }
+      : { label: t('footer:educationProviderPortal'), comingSoon: true },
+    isBusinessServicesWorkspaceLaunched()
+      ? { label: t('footer:businessProviderPortal'), path: ROUTES.PROVIDERS_BUSINESS_FORMATION }
+      : { label: t('footer:businessProviderPortal'), comingSoon: true },
+    isInstitutionWorkspaceLaunched()
+      ? { label: t('footer:institutionPortal'), path: ROUTES.INSTITUTION_LOGIN }
+      : { label: t('footer:institutionPortal'), comingSoon: true },
   ];
 
   const supportLinks = [

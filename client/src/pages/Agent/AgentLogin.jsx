@@ -6,6 +6,13 @@ import { LOGIN_REALMS, resolveLoginReturnPath } from '../../utils/loginReturn.js
 import { PasswordInput } from '../../components/forms/PasswordInput.jsx';
 import { AuthCard } from '../../layouts/AuthLayout.jsx';
 import { inputControlClassName } from '../../components/forms/controlClasses.js';
+import { WorkspaceComingSoon } from '../../components/launch/WorkspaceComingSoon';
+import {
+  WORKSPACE_LAUNCH_IDS,
+  isEducationMobilityWorkspaceLaunched,
+  isBusinessServicesWorkspaceLaunched,
+  isAnyProviderWorkspaceLaunched,
+} from '../../config/workspaceLaunchGates';
 
 export default function AgentLogin() {
   const navigate = useNavigate();
@@ -16,6 +23,16 @@ export default function AgentLogin() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [submitting, setSubmitting] = useState(false);
+
+  if (portal === 'education' && !isEducationMobilityWorkspaceLaunched()) {
+    return <WorkspaceComingSoon workspaceId={WORKSPACE_LAUNCH_IDS.EDUCATION_MOBILITY} />;
+  }
+  if (portal === 'business' && !isBusinessServicesWorkspaceLaunched()) {
+    return <WorkspaceComingSoon workspaceId={WORKSPACE_LAUNCH_IDS.BUSINESS_SERVICES} />;
+  }
+  if (!portal && !isAnyProviderWorkspaceLaunched()) {
+    return <WorkspaceComingSoon workspaceId={WORKSPACE_LAUNCH_IDS.EDUCATION_MOBILITY} />;
+  }
 
   const defaultReturn = portal === 'business'
     ? ROUTES.AGENT_BUSINESS_SERVICES
