@@ -40,6 +40,11 @@ export const INDEXABLE_STATIC_PATHS = Object.freeze([
   '/latest-government-jobs',
 ]);
 
+/**
+ * Trailing-slash prefixes match the bare path and its subtree only. `/agent/`
+ * must not match public `/agents`, and `/business/` (the private buyer
+ * workspace) must not match the public `/business-services` marketplace.
+ */
 export const FORBIDDEN_SITEMAP_PATHS = Object.freeze([
   '/license',
   '/admin',
@@ -53,6 +58,7 @@ export const FORBIDDEN_SITEMAP_PATHS = Object.freeze([
   '/employer',
   '/agent/',
   '/institution/',
+  '/business/',
 ]);
 
 export function isForbiddenSitemapPath(path) {

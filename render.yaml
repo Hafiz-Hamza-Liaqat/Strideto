@@ -17,9 +17,9 @@ services:
       - key: APP_ENV
         value: production
       - key: SITE_URL
-        value: https://strideto.com
+        value: https://www.strideto.com
       - key: FRONTEND_URL
-        value: https://strideto.com
+        value: https://www.strideto.com
       - key: REQUIRE_REDIS
         value: "1"
       - key: CMS_SEED_ON_START

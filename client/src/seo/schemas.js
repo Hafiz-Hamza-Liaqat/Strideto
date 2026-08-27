@@ -1,6 +1,12 @@
 import { SITE_URL, SITE_NAME, DEFAULT_DESCRIPTION, DEFAULT_OG_IMAGE } from './config.js';
 import { sanitizeJsonLdString } from './sanitize.js';
 import { organizationSameAsUrls } from '@shared/social/officialSocialLinks.js';
+import {
+  JOB_POSTING_SURFACES,
+  evaluateJobPostingEligibility,
+  isFullyRemoteJob,
+  jobPostingCountry,
+} from '@shared/seo/jobPostingEligibility.js';
 
 function mapEmploymentType(type) {
   const t = String(type || '').toUpperCase();
@@ -9,6 +15,12 @@ function mapEmploymentType(type) {
   if (t.includes('CONTRACT')) return 'CONTRACTOR';
   if (t.includes('TEMP')) return 'TEMPORARY';
   return 'FULL_TIME';
+}
+
+function toDateOnly(value) {
+  if (!value) return undefined;
+  const d = new Date(value);
+  return Number.isNaN(d.getTime()) ? undefined : d.toISOString().slice(0, 10);
 }
 
 function toIsoDate(value) {
@@ -133,44 +145,89 @@ export function faqPageSchema(faqs) {
   });
 }
 
-export function jobPostingSchema(job) {
-  if (!job) return null;
-  const status = String(job.status || '').toLowerCase();
-  const publication = String(job.publicationState || '').toLowerCase();
-  if (status && status !== 'active') return null;
-  if (publication === 'closed' || publication === 'expired' || publication === 'draft') return null;
-  if (job.acceptingApplications === false) return null;
-  if (!job.title) return null;
+/**
+ * JobPosting JSON-LD for a SINGLE eligible job detail page (SEO-P0B).
+ *
+ * Every caller must pass `surface`. Anything other than the detail surface —
+ * a collection, search, category, city, province or other ItemList landing —
+ * returns null by policy, and so does any job STRIDETO is not authorized to
+ * publish on behalf of. See shared/seo/jobPostingEligibility.js.
+ */
+export function jobPostingSchema(job, { surface, now } = {}) {
+  const { eligible } = evaluateJobPostingEligibility(job, { surface, now });
+  if (!eligible) return null;
   const org = job.organization || job.company;
   const desc = sanitizeJsonLdString(job.description || `${job.title}${org ? ` at ${org}` : ''}`, 5000);
   const locality = job.city || undefined;
   const region = job.province || job.location || undefined;
+  // Both branches below are guaranteed non-empty by the eligibility gate: a
+  // fully remote job without a truthful applicant country, and a physical job
+  // without a truthful addressCountry, are both already ineligible. Nothing
+  // here invents geography.
+  const remote = isFullyRemoteJob(job);
+  const country = jobPostingCountry(job) || undefined;
   return stripUndefined({
     '@type': 'JobPosting',
     title: sanitizeJsonLdString(job.title, 200),
     description: desc,
-    datePosted: job.createdAt ? new Date(job.createdAt).toISOString().slice(0, 10) : undefined,
-    validThrough: job.deadline ? new Date(job.deadline).toISOString().slice(0, 10) : undefined,
+    // datePosted — the date the employer's posting became public. STRIDETO's
+    // canonical publication field is `publishedAt` (Job.js requires it for the
+    // `active` publication state); `createdAt` is the fallback for legacy and
+    // pre-canonical records that never received one. This is deliberately the
+    // same expression the visible "Posted" fact renders on the detail page
+    // (JobDetail.jsx: `formatDate(job.publishedAt || job.createdAt)`), so the
+    // markup and the page can never disagree about when the job was posted.
+    datePosted: toDateOnly(job.publishedAt || job.createdAt),
+    // validThrough is optional in the Google contract and is emitted only when
+    // the job genuinely has a closing date. The precedence is the product's own
+    // application-closing semantics — deriveJobAvailability() in
+    // shared/publicDiscovery/publicTruth.js resolves `applicationsCloseAt ||
+    // deadline` to decide whether a job still accepts applications, so the same
+    // field, in the same order, is what expires the posting here.
+    validThrough: toDateOnly(job.applicationsCloseAt || job.deadline),
     employmentType: mapEmploymentType(job.type),
     hiringOrganization: org
       ? { '@type': 'Organization', name: org }
       : undefined,
-    jobLocation: locality || region
+    // A fully remote job has no physical premises: emitting a PostalAddress for
+    // it would fabricate a workplace. It carries TELECOMMUTE plus the truthful
+    // applicant-location country instead.
+    jobLocation: !remote && (locality || region)
       ? {
           '@type': 'Place',
           address: {
             '@type': 'PostalAddress',
             addressLocality: locality,
             addressRegion: region,
-            addressCountry: job.countryCode || job.country || undefined,
+            addressCountry: country,
           },
         }
+      : undefined,
+    jobLocationType: remote ? 'TELECOMMUTE' : undefined,
+    applicantLocationRequirements: remote && country
+      ? { '@type': 'Country', name: country }
       : undefined,
     url: job.slug ? `${SITE_URL}/jobs/${job.slug}` : undefined,
   });
 }
 
-export function itemListSchema({ name, description, items, itemType = 'JobPosting' }) {
+/**
+ * ItemList for a listing/landing surface. Genuinely generic: the item type
+ * decides the shape and the URL space, and nothing is routed through another
+ * content type's URL builder.
+ *
+ * SEO-P0B: a list page may point at its detail pages, but it must never embed
+ * `JobPosting` objects — that would claim Google for Jobs eligibility for the
+ * list itself, for every item on it, regardless of authorization. Job items are
+ * therefore emitted as plain summary ListItems carrying a name and the detail
+ * URL. The JobPosting claim, when it is allowed at all, lives only on the
+ * single job detail page.
+ *
+ * Every other item type keeps its own semantics: a Scholarship keeps its
+ * Scholarship entity and its /scholarships/:slug canonical, and an unrecognised
+ * type keeps the `@type`, name and URL it was supplied with.
+ */
+export function itemListSchema({ name, description, items, itemType = 'Job' }) {
   if (!items?.length) return null;
   return stripUndefined({
     '@context': 'https://schema.org',
@@ -181,13 +238,46 @@ export function itemListSchema({ name, description, items, itemType = 'JobPostin
     itemListElement: items.slice(0, 20).map((item, i) => ({
       '@type': 'ListItem',
       position: i + 1,
-      item:
-        itemType === 'JobPosting'
-          ? jobPostingSchema(item)
-          : itemType === 'Scholarship'
-            ? scholarshipSchema(item)
-            : { '@type': itemType, name: item.title || item.name, url: item.url },
+      name: sanitizeJsonLdString(item.title || item.name, 200),
+      url: listItemUrl(item, itemType),
+      item: listItemEntity(item, itemType),
     })),
+  });
+}
+
+/**
+ * Detail path per item type. A type that is not listed here has no STRIDETO URL
+ * space we may assume, so its URL can only come from the item itself — guessing
+ * one would publish a link to a page that does not exist.
+ */
+const LIST_ITEM_DETAIL_PATHS = Object.freeze({
+  Job: '/jobs',
+  // Legacy caller spelling for the same job collection surface. It still gets a
+  // summary ListItem, never a nested JobPosting.
+  JobPosting: '/jobs',
+  Scholarship: '/scholarships',
+});
+
+/** Item types listed as bare summaries — never a nested entity object. */
+const SUMMARY_ONLY_LIST_ITEM_TYPES = Object.freeze(['Job', 'JobPosting']);
+
+/** Canonical detail URL for a summary list entry, in that type's own URL space. */
+function listItemUrl(item, itemType) {
+  if (item?.url) {
+    return item.url.startsWith('http') ? item.url : `${SITE_URL}${item.url}`;
+  }
+  const basePath = LIST_ITEM_DETAIL_PATHS[itemType];
+  return basePath && item?.slug ? `${SITE_URL}${basePath}/${item.slug}` : undefined;
+}
+
+/** The nested entity for a list position, if the type has one. */
+function listItemEntity(item, itemType) {
+  if (SUMMARY_ONLY_LIST_ITEM_TYPES.includes(itemType)) return undefined;
+  if (itemType === 'Scholarship') return scholarshipSchema(item);
+  return stripUndefined({
+    '@type': itemType,
+    name: item?.title || item?.name,
+    url: listItemUrl(item, itemType),
   });
 }
 
@@ -283,6 +373,8 @@ export function eventSchema(webinar) {
     organizer: { '@type': 'Organization', name: SITE_NAME },
   });
 }
+
+export { JOB_POSTING_SURFACES };
 
 export function combineSchemas(...schemas) {
   const flat = schemas.flat().filter(Boolean);

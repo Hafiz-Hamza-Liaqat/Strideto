@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
-import { jobPostingSchema, breadcrumbSchema, combineSchemas } from '../../seo/schemas';
+import { webPageSchema, breadcrumbSchema, combineSchemas } from '../../seo/schemas';
 import { buildCanonicalUrl } from '../../seo/config';
 import { internshipsApi, savedApi } from '../../services/listingsService';
 import { applicationsApi as oaApi } from '../../services/applicationsApi';
@@ -128,13 +128,19 @@ export default function InternshipDetail() {
     ns: 'internships',
   }) + (internship.duration ? `. ${internship.duration}` : '');
   const seoTitle = t('detailSeoTitle', { title: internship.title, ns: 'internships' });
-  const postingSchema = jobPostingSchema({
-    ...internship,
-    organization: internship.organization,
-    type: 'INTERN',
-    slug: undefined,
+  // SEO-P0B — internships carry no publication-authorization model at all: the
+  // Internship record has no employer linkage and no authorized-publisher
+  // workflow, so every internship on STRIDETO is an editorially curated
+  // external opportunity. Curated opportunities must not claim Google for Jobs
+  // eligibility on the employer's behalf, so this page emits ordinary WebPage
+  // content and links to the official source instead of JobPosting. If an
+  // employer-authorized internship workflow is ever built, it must go through
+  // shared/seo/jobPostingEligibility.js like jobs do — not around it.
+  const postingSchema = webPageSchema({
+    name: internship.title,
+    description,
+    url: buildCanonicalUrl(canonicalPath),
   });
-  if (postingSchema) postingSchema.url = buildCanonicalUrl(canonicalPath);
 
   return (
     <>

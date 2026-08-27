@@ -83,7 +83,7 @@ equal(
   34,
   'expected PRESERVE field count'
 );
-equal(JOB_DUPLICATE_RESET_FIELDS.length, 22, 'expected RESET field count');
+equal(JOB_DUPLICATE_RESET_FIELDS.length, 23, 'expected RESET field count');
 equal(JOB_DUPLICATE_FORBIDDEN_FIELDS.length, 19, 'expected FORBID field count');
 for (const field of CANONICAL_JOB_PUBLICATION_FIELDS) {
   ok(

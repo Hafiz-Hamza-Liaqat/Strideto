@@ -116,6 +116,16 @@ const jobSchema = new mongoose.Schema(
     boostLevel: { type: Number, default: 0 },
     paidUntil: { type: Date },
     source: { type: String, enum: ['manual', 'scraper', 'employer'], default: 'manual' },
+    /**
+     * SEO-P0B — publication authority for schema.org/JobPosting (Google for Jobs).
+     * MUST default to false: emitting JobPosting asserts STRIDETO is the
+     * authoritative publisher for this job. Only the employer self-service
+     * workflow (employerController.createJob) sets it true, because only there
+     * is the hiring organization itself the author. Editorially curated
+     * external jobs stay false and remain ordinary indexable WebPage content.
+     * Never infer it from applicationLink / sourceUrl / sourceWebsite / company.
+     */
+    jobsGraphEligible: { type: Boolean, default: false },
     salaryRange: { type: String },
     skillsRequired: [{ type: String }],
     applyEmail: { type: String },

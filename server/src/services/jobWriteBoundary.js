@@ -163,6 +163,14 @@ export const JOB_DUPLICATE_PRESERVE_FIELDS = Object.freeze([
  * pick jobs for auto-generated content. Translation-linkage fields (locale, translationGroupId,
  * translationOf, translationStatus) are reset because a duplicate is a new standalone document,
  * not a translation of the source.
+ *
+ * jobsGraphEligible (SEO-P0B) is reset for an authorization reason rather than a
+ * business-state one: it records that the hiring organization itself published
+ * the job through the employer workflow, which is an assertion about a specific
+ * document's provenance. An admin-created fork of that document was not
+ * published by the employer, so copying the flag would silently manufacture
+ * Google for Jobs eligibility for a record nobody authorized. It falls back to
+ * the schema default (false).
  */
 export const JOB_DUPLICATE_RESET_FIELDS = Object.freeze([
   'views',
@@ -180,6 +188,7 @@ export const JOB_DUPLICATE_RESET_FIELDS = Object.freeze([
   'scrapedAt',
   'sourceUrl',
   'sourceWebsite',
+  'jobsGraphEligible',
   'locale',
   'translationGroupId',
   'translationOf',

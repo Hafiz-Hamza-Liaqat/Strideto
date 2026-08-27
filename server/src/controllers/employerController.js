@@ -279,6 +279,13 @@ export const createJob = asyncHandler(async (req, res) => {
     employerId,
     postedByEmployerId: req.employer.employerId,
     source: 'employer',
+    // SEO-P0B — the only workflow that may grant Google for Jobs eligibility:
+    // the hiring organization is authenticated here and is publishing its own
+    // vacancy, so STRIDETO is an authorized publisher for this record. Curated
+    // external jobs never reach this path and keep the schema default (false).
+    // The job still has to clear moderation (approvalStatus/status) before it
+    // is public at all, and the detail page re-checks required fields.
+    jobsGraphEligible: true,
     status: 'draft',
     approvalStatus,
     planType: isFirstJob ? 'free' : null,

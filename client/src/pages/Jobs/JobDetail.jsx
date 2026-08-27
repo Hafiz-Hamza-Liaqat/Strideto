@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useNavigate, useParams, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
-import { jobPostingSchema, breadcrumbSchema, combineSchemas } from '../../seo/schemas';
+import { jobPostingSchema, breadcrumbSchema, combineSchemas, JOB_POSTING_SURFACES } from '../../seo/schemas';
 import { jobsApi, savedApi, recentViewedApi, coverLetterApi, recommendationsApi, applicationsApi } from '../../services/listingsService';
 import { applicationsApi as oaApi } from '../../services/applicationsApi';
 import { talentApi } from '../../services/talentApi';
@@ -413,7 +413,10 @@ export default function JobDetail() {
         canonical={canonicalPath}
         ogImage={job.image || undefined}
         jsonLd={combineSchemas(
-          jobPostingSchema(job),
+          // SEO-P0B: only an employer-authorized, currently open job with complete
+          // required fields emits JobPosting here; curated external jobs stay
+          // ordinary indexable WebPage content with their official-source link.
+          jobPostingSchema(job, { surface: JOB_POSTING_SURFACES.DETAIL }),
           breadcrumbSchema([
             { name: t('home', { ns: 'navbar' }), url: ROUTES.HOME },
             { name: t('jobs', { ns: 'navbar' }), url: ROUTES.JOBS },

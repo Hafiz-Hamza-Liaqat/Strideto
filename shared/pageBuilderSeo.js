@@ -4,7 +4,7 @@
 import { parseJsonArray } from './blockSchema.js';
 import { collectDynamicBlockJsonLd, dedupeDynamicJsonLd } from './dynamicBlocks/seo.js';
 
-const DEFAULT_SITE_URL = 'https://strideto.com';
+const DEFAULT_SITE_URL = 'https://www.strideto.com';
 
 /**
  * @param {string} [html]

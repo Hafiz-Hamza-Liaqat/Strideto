@@ -6,7 +6,8 @@ export const BRAND_TAGLINE = 'Every Step Toward Success.';
 export const BRAND_MISSION =
   'Help students and professionals discover jobs, scholarships, admissions, internships, career guidance, and opportunities through one modern platform.';
 export const BRAND_DOMAIN = 'strideto.com';
-export const BRAND_SITE_URL = 'https://strideto.com';
+/** Canonical public origin — apex 308-redirects to www in production (SEO-P0A). */
+export const BRAND_SITE_URL = 'https://www.strideto.com';
 
 export const BRAND_ASSETS = {
   logo: '/branding/logo.svg',

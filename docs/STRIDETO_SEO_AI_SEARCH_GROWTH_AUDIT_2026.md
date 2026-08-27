@@ -567,4 +567,89 @@ These do not change SEO contracts.
 
 ---
 
+## 28. SEO-P0A / SEO-P0B implementation evidence (2026-08-27)
+
+Implemented against baseline `a6ad681d7f13ddbf8c6c4ab7a23e279155f8df54`. Live probes were read-only; no production data was mutated. Regression coverage: `server/src/__tests__/seoP0IndexabilityAndJobPostingPolicy.test.js` (161 checks).
+
+### Canonical host — corrected finding
+
+Production has **already established `https://www.strideto.com`** as the canonical origin, in two independent places:
+
+- `https://strideto.com/*` answers **308 → `https://www.strideto.com/*`** (the http apex 308s to the https apex first)
+- the deployed API's generated sitemap emits `https://www.strideto.com/...`, and the deployed client bundle carries `VITE_APP_URL=https://www.strideto.com`
+
+The repository defaults still named the **apex** host (`PRODUCTION_PUBLIC_ORIGIN`, `BRAND_SITE_URL`, `render.yaml`, the static `robots.txt` Sitemap line, `client/index.html` social URLs). Any build or deploy without the live env overrides would emit canonicals, hreflang, OG URLs and sitemap URLs pointing at a **redirecting** host. Repository defaults were aligned to the www host, and `resolvePublicSiteOrigin()` now normalizes a configured apex origin to www so stale configuration cannot reintroduce the drift. Non-SEO apex references (CORS/cookie trusted origins, email and referral link defaults) were deliberately left alone — a different contract, out of P0 scope.
+
+### SEO-P0A — Production indexability truth
+
+| Item | Status | Evidence |
+|---|---|---|
+| Live robots reachable | **CURRENT** | `https://www.strideto.com/robots.txt` → `200 text/plain`. Vercel serves the **static** `client/public/robots.txt`; the API's dynamic route is not reachable at the public origin |
+| Static ↔ shared policy alignment | **FIXED** | Static file regenerated from `buildRobotsTxt(PRODUCTION_PUBLIC_ORIGIN)`; a test asserts content equality so the two can no longer drift |
+| Public acquisition routes unblocked | **FIXED** | The live static robots carried `Disallow: /business`, which **also blocked public `/business-services`** (a sitemap-eligible acquisition surface). Replaced with `/business/`, matching the existing `/agent/` vs `/agents` trailing-slash convention. Added to `PRIVATE_SEO_PREFIXES` and `FORBIDDEN_SITEMAP_PATHS` so the private buyer workspace stays noindex and out of the sitemap |
+| Live sitemap reachable | **FIXED (deploy required)** | `https://www.strideto.com/sitemap.xml` returned **`200 text/html` — the SPA shell**, not XML: the Vercel catch-all rewrite swallowed it, so production had **no working sitemap**. A `/sitemap.xml` rewrite to the generator was added ahead of the catch-all. The generator itself is correct — `https://api.strideto.com/sitemap.xml` returns valid XML with 111 canonical www URLs |
+| Sitemap content correctness | **CURRENT** | Active/published records with a slug only, fixture-excluded, private paths guarded by `isForbiddenSitemapPath`; a single file is right at this scale (111 URLs) |
+| Canonical host redirect | **CURRENT (infra) / FIXED (code)** | Apex→www 308 already enforced at the edge; repository defaults and the origin resolver aligned to it |
+| True 404 HTTP status | **DEFERRED — documented, not faked** | `https://www.strideto.com/nonexistent-seo-probe-xyz` returns **200**. This cannot be fixed correctly at the edge under the current architecture: detail routes are DB-resolved slugs, so no static rewrite rule can tell a real `/jobs/<slug>` from a fake one, and narrowing the catch-all would break React routing for valid URLs. A correct 404 needs an SSR/edge function with data access — an architectural decision, not a P0 config toggle. The SPA 404 view does emit `noindex`, so bad URLs are not indexed; soft-404 handling is left to Google unless SSR is adopted |
+| Rendered / index status | **PARTIAL — PRODUCTION EVIDENCE REQUIRED** | Raw shells are empty (3.1 KB, no title/canonical/JSON-LD before JS), as expected for a Vite SPA. Confirming whether Google's *rendered* HTML is complete requires GSC URL Inspection; the browser tool was unavailable in this session. Per §3 this is **not** classified as a defect |
+| Shell default `robots` meta | **PARTIAL** | `client/index.html` hardcodes `index, follow`; Helmet overrides it after render (including `noindex` on private and 404 views). Pre-render crawler snapshots see the permissive default. Not changed — flipping the shell default would risk noindexing real pages if hydration fails |
+| GSC verification / sitemap submission | **EXTERNAL CONFIG REQUIRED** | Not verifiable from the repository. Resubmit `https://www.strideto.com/sitemap.xml` **after** the sitemap rewrite deploys |
+| Crawlable `href` pagination | **PARTIAL — DEFERRED** | `Pagination` uses buttons, and page/filter state is component state that is never pushed to the URL. Page 2+ is therefore not crawlable — but it also creates **no duplicate indexable URLs**, and every detail record is reachable from the sitemap. Making pagination crawlable requires a URL-state refactor across every listing surface, which is beyond P0A |
+| Filter/sort canonical control | **CURRENT** | `/jobs` self-canonicalizes to `/jobs` regardless of query, so `?category=` / `?search=` variants never become separate index URLs. SEO landings each emit one stable canonical. `?lang=` is handled as an hreflang alternate, not a canonical |
+| `rel=prev`/`rel=next` | **NOT IMPLEMENTED BY DESIGN** | Google no longer uses it (§3) |
+
+### SEO-P0B — Structured-data policy safety
+
+Policy is centralized in `shared/seo/jobPostingEligibility.js` — one decision point for every JobPosting emission in the product.
+
+| Item | Status | Evidence |
+|---|---|---|
+| JobPosting emission inventory (before) | — | `JobDetail.jsx` (detail), `InternshipDetail.jsx` (detail), and — via `itemListSchema`'s `itemType: 'JobPosting'` default — `SEOJobsPage.jsx`, `JobsCategoryLanding.jsx`, `JobsProvinceLanding.jsx` (**ItemList landings**) |
+| Listing / `ItemList` embedding JobPosting | **FIXED — was a P0 CODE DEFECT** | Three SEO landing families embedded a full `JobPosting` object per item, claiming Google for Jobs eligibility for every listed job on a collection page. `itemListSchema` no longer constructs JobPosting at all; job items are now plain summary `ListItem`s (name + detail URL). `ItemList` itself is retained |
+| Detail-page-only placement | **FIXED** | `jobPostingSchema` requires an explicit `surface`; anything other than `JOB_POSTING_SURFACES.DETAIL` returns `null`, and an **omitted** surface fails closed. A repository-wide test asserts `JobDetail.jsx` is the only caller and that JobPosting is constructed in exactly one helper |
+| Authorization gate | **FIXED** | Emission requires `jobsGraphEligible === true`. Authorization is **never inferred**: external apply URL, `sourceUrl`, `sourceWebsite`, employer name and `employerId` are explicitly not consulted, each covered by a negative test |
+| A. Employer-authorized / native | **FIXED** | `employerController.createJob` is the single grant point — the hiring organization is authenticated there and is publishing its own vacancy. The job still has to clear moderation before it is public at all |
+| B. Curated external opportunity | **FIXED** | Stays `jobsGraphEligible: false` → **no JobPosting**, while remaining fully public, canonical, crawlable and indexable as ordinary `WebPage` / CollectionPage content with its official-source link (ProvenanceStrip). No eligibility claim, no loss of discoverability |
+| Default false / no back door | **FIXED** | Schema default `false`; the public projection normalizes a missing flag to `false`; the admin CMS write allowlist (`applyJobBody`) cannot set it, so no admin action implies authorization; **no migration** and no backfill — every pre-existing record stays `false` |
+| Duplication safety | **FIXED** | `jobsGraphEligible` classified **RESET** in `JOB_DUPLICATE_RESET_FIELDS`: an admin fork of an employer's job was not published by that employer, so copying the flag would manufacture eligibility nobody authorized |
+| Expired / closed / draft | **FIXED** | `isJobPostingPubliclyOpen` rejects non-active status, every non-public `publicationState`, `acceptingApplications: false`, non-open availability, and a past `deadline` / `applicationsCloseAt` / `visibleUntil`. Twelve cases covered |
+| Structured-data / content parity | **FIXED** | Eligibility requires title, description, hiring organization, `datePosted`, `validThrough` and a location; the emitter now reads the **same** sources the gate checked. A genuinely remote job declares `jobLocationType: TELECOMMUTE` rather than a fabricated address |
+| Internships | **FIXED** | The `Internship` model has **no employer linkage and no authorized-publisher workflow**, so every internship on STRIDETO is an editorially curated external opportunity and none can be authorized today. `InternshipDetail.jsx` no longer emits JobPosting; it emits `WebPage` and stays canonical and indexable. No dead eligibility field was added to the model — any future authorized-internship workflow must route through the same shared policy |
+
+### Other structured data — audited, narrow corrections only
+
+| Type | Action |
+|---|---|
+| `Organization`, `WebSite`, `BreadcrumbList`, `Article` / `BlogPosting` | **KEPT unchanged** |
+| `SearchAction` | **KEPT** — legacy/optional, no change made, no Google benefit claimed |
+| `FAQPage` | **KEPT** — no change; not treated as a growth tactic |
+| `Service` | **KEPT** — semantic/entity value only, no rich result promised |
+| `Course` / `EducationalOrganization` | **KEPT** — semantically accurate on their surfaces |
+| `Scholarship` inside `ItemList` | **KEPT** — carries no Google eligibility claim, unlike JobPosting |
+| `ItemList` on job landings | **NARROWED** — summary ListItems only |
+
+### EXTERNAL CONFIG REQUIRED
+
+- Deploy the client so the `/sitemap.xml` rewrite takes effect, then re-verify that `https://www.strideto.com/sitemap.xml` returns `application/xml`
+- Google Search Console: verify the **`https://www.strideto.com`** property, resubmit the sitemap after that deploy, and read URL Inspection / Page indexing for the rendered/index evidence §3 requires
+- Bing Webmaster Tools + sitemap; GSC generative AI performance reporting (§20)
+- Align the deployed Render/Vercel env values with the now-www repository defaults (production is already www; `render.yaml` was the stale copy)
+- A true edge 404 remains an architectural decision (SSR / edge function), not a config toggle
+
+### DATA/OPS REQUIRED
+
+- `jobsGraphEligible` is `false` for every existing record by design. Any employer-authorized job posted **before** this change stays ineligible until it is re-posted through the employer workflow or explicitly granted by an authorized operational process. This is deliberate: no migration may assert publication authority on an employer's behalf
+- Production Blog content quality (§5) is unchanged and still requires editorial inspection
+
+### Remaining P0 blockers
+
+1. **Deploy and re-verify the sitemap route.** Until the rewrite ships, `https://www.strideto.com/sitemap.xml` still returns the SPA shell and production effectively has no sitemap.
+2. **GSC rendered/index evidence** is still unobtained (browser tooling unavailable this session), so §3's JavaScript render/index reliability stays PARTIAL rather than CURRENT.
+
+### Pre-existing failure noted, not introduced here
+
+`server/src/__tests__/adminJobDuplicateBoundaryRegression.test.js` **already failed at baseline `a6ad681`**: 14 `Job` schema fields added by earlier work (`countryCode`, `region`, `workMode`, `jobFamily`, `specialization`, `openingsCount`, `submittedAt`, `chargedSubmissionAt`, `postedByEmployerId`, `isFixture`, `dataClass`, `environment`, `launchEligible`, `demoOnly`) are unclassified in the PRESERVE/RESET/FORBID inventory. `jobsGraphEligible` **was** classified, and the RESET count expectation was updated accordingly. Closing the pre-existing drift is an admin-duplication concern, out of SEO-P0 scope.
+
+---
+
 *End of audit document.*

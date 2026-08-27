@@ -51,6 +51,9 @@ const JOB_PUBLIC_KEYS = [
   'hybrid',
   'openingsCount',
   'locale',
+  // SEO-P0B — read by the job detail page to decide whether JobPosting markup
+  // may be emitted. Server-derived only; the client never infers it.
+  'jobsGraphEligible',
 ];
 
 function pick(doc, keys) {
@@ -88,6 +91,8 @@ export function projectPublicJob(job, extras = {}) {
 
   return {
     ...pick(job, JOB_PUBLIC_KEYS),
+    // Absent/legacy documents are unauthorized, never "unknown".
+    jobsGraphEligible: job.jobsGraphEligible === true,
     applyType,
     applicationLink,
     applyEmail: applyType === 'external' && job.applyEmail ? String(job.applyEmail) : null,

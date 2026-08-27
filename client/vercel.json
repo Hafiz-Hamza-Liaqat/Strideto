@@ -4,6 +4,7 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist",
   "rewrites": [
+    { "source": "/sitemap.xml", "destination": "https://api.strideto.com/sitemap.xml" },
     { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ],
   "headers": [

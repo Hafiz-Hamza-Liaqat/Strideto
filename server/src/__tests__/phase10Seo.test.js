@@ -65,7 +65,11 @@ check(!controller.includes('priority'), 'no fabricated priority');
 check(!controller.includes('localhost:8080'), 'no retired 8080 sitemap origin');
 check(controller.includes('application/xml'), 'XML content type');
 
-check(/if \(status && status !== 'active'\) return null/.test(schemas), 'JobPosting skipped when not active');
+// SEO-P0B moved the non-active/expired/draft suppression (and the new
+// authorization + detail-surface gates) into shared/seo/jobPostingEligibility.js,
+// which seoP0IndexabilityAndJobPostingPolicy.test.js covers case by case.
+check(/evaluateJobPostingEligibility\(job, \{ surface, now \}\)/.test(schemas), 'JobPosting delegates emission to the shared eligibility policy');
+check(/if \(!eligible\) return null/.test(schemas), 'JobPosting emits nothing when the policy denies it');
 check(!/baseSalary|salaryCurrency/.test(schemas), 'JobPosting does not emit salary');
 check(!/AggregateRating|aggregateRating/.test(schemas), 'no fake ratings schema');
 

@@ -1,6 +1,6 @@
 User-agent: *
 Allow: /
-
+Disallow: /auth$
 Disallow: /auth/
 Disallow: /profile
 Disallow: /dashboard
@@ -15,8 +15,12 @@ Disallow: /budget
 Disallow: /copilot
 Disallow: /account
 Disallow: /employer
+Disallow: /agent$
 Disallow: /agent/
+Disallow: /institution$
 Disallow: /institution/
+Disallow: /business$
+Disallow: /business/
 Disallow: /help/student
 Disallow: /messages
 Disallow: /commerce-history
@@ -27,7 +31,7 @@ Disallow: /trust-center
 Disallow: /journey
 Disallow: /personalization
 Disallow: /notifications
+Disallow: /exam-prep/quiz$
 Disallow: /exam-prep/quiz/
-Disallow: /business
 
-Sitemap: https://strideto.com/sitemap.xml
+Sitemap: https://www.strideto.com/sitemap.xml
