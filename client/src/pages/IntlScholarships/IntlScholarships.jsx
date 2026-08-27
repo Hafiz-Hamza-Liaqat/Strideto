@@ -123,26 +123,41 @@ export default function IntlScholarships() {
             <ListingCardSkeleton />
           </div>
         ) : (
-          <ul className="space-y-4">
+          <ul className="grid gap-4 sm:grid-cols-2">
             {data.map((item) => (
-              <li key={item._id}>
-                <article className="p-4 md:p-5 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md transition">
-                  <div className="flex flex-wrap items-start justify-between gap-2">
-                    <div className="min-w-0 flex-1">
-                      <Link to={`${ROUTES.INTL_SCHOLARSHIPS}/${item._id}`} className="font-semibold text-lg text-gray-900 dark:text-white hover:text-primary dark:hover:text-mint">
-                        {item.title}
-                      </Link>
-                      <p className="text-gray-600 dark:text-gray-400 mt-1">{item.country}{item.university ? ` · ${item.university}` : ''}</p>
-                      <div className="flex flex-wrap gap-2 mt-2 text-sm text-gray-500 dark:text-gray-400">
-                        {item.deadline && <span>{t('scholarships:deadlinePrefix')} {formatDate(item.deadline)}</span>}
-                        {item.visaRequirements && <span> · {t('scholarships:visaInfoAvailable')}</span>}
+              <li key={item._id} className="min-w-0">
+                <article className="h-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md transition flex flex-col">
+                  <div className="p-4 md:p-5 flex-1 flex flex-col">
+                    <div className="flex items-start justify-between gap-2">
+                      <div className="min-w-0 flex-1">
+                        <Link to={`${ROUTES.INTL_SCHOLARSHIPS}/${item._id}`} className="font-semibold text-base text-gray-900 dark:text-white hover:text-primary dark:hover:text-mint break-words-safe line-clamp-2">
+                          {item.title}
+                        </Link>
+                        <p className="text-sm text-gray-600 dark:text-gray-400 mt-0.5 break-words-safe">
+                          {[item.country, item.university || item.provider].filter(Boolean).join(' · ')}
+                        </p>
                       </div>
+                      {isAuthenticated && (
+                        <SaveButton saved={savedIds.has(item._id)} onToggle={() => handleSaveToggle(item._id, !savedIds.has(item._id))} />
+                      )}
                     </div>
-                    {isAuthenticated && <SaveButton saved={savedIds.has(item._id)} onToggle={() => handleSaveToggle(item._id, !savedIds.has(item._id))} />}
+                    <div className="flex flex-wrap gap-1.5 mt-2">
+                      {item.fundingType ? (
+                        <span className="text-xs px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">{item.fundingType}</span>
+                      ) : null}
+                      {item.visaRequirements ? (
+                        <span className="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">{t('scholarships:visaInfoAvailable')}</span>
+                      ) : null}
+                    </div>
+                    {item.deadline ? (
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        {t('scholarships:deadlinePrefix')} {formatDate(item.deadline)}
+                      </p>
+                    ) : null}
+                    <Link to={`${ROUTES.INTL_SCHOLARSHIPS}/${item._id}`} className="inline-block mt-auto pt-3 text-sm text-primary dark:text-mint hover:underline">
+                      {t('scholarships:viewDetails')}
+                    </Link>
                   </div>
-                  <Link to={`${ROUTES.INTL_SCHOLARSHIPS}/${item._id}`} className="inline-block mt-3 text-sm text-primary dark:text-mint hover:underline">
-                    {t('scholarships:viewDetails')}
-                  </Link>
                 </article>
               </li>
             ))}

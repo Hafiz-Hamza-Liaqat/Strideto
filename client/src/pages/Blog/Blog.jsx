@@ -10,6 +10,7 @@ import { SAMPLE_BLOGS } from '../../constants/seedData';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { ScrollReveal } from '../../components/ui/ScrollReveal';
 import { AdHost } from '../../components/ads';
+import { Icon } from '../../components/brand/Icon';
 import { listBlogCategoryOptions, blogCategoryFilterValues, canonicalBlogCategoryLabel, displayableBlogCategoryLabel } from '@shared/blog/taxonomy.js';
 
 function readingTime(content) {
@@ -131,8 +132,10 @@ export default function Blog() {
                     {post.imageUrl ? (
                       <img src={post.imageUrl} alt="" className="w-full h-40 object-cover" loading="lazy" />
                     ) : (
-                      <div className="w-full h-32 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent dark:from-mint/10 dark:via-mint/5 dark:to-transparent flex items-center justify-center">
-                        <span className="text-4xl opacity-30 select-none">✦</span>
+                      <div className="w-full h-32 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent dark:from-mint/10 dark:via-mint/5 dark:to-transparent flex items-center justify-center" aria-hidden="true">
+                        <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/70 dark:bg-gray-900/50 text-primary dark:text-mint shadow-sm ring-1 ring-primary/15 dark:ring-mint/20">
+                          <Icon name="document" className="w-7 h-7" />
+                        </span>
                       </div>
                     )}
                     <div className="flex flex-col flex-1 p-4">

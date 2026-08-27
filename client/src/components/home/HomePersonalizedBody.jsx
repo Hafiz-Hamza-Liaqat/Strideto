@@ -9,6 +9,7 @@ import { formatDate } from '../../utils/formatDate';
 import { Button } from '../common/Button';
 import { orderedHomeSections } from '../../personalization/layoutPersonalization';
 import { displayableBlogCategoryLabel } from '@shared/blog/taxonomy.js';
+import { Icon } from '../brand/Icon';
 
 const SKELETON_COUNT = 3;
 
@@ -323,8 +324,10 @@ export function HomePersonalizedBody({
                         {post.imageUrl ? (
                           <img src={post.imageUrl} alt="" className="w-full h-40 object-cover" loading="lazy" />
                         ) : (
-                          <div className="w-full h-28 bg-gradient-to-br from-primary/8 to-transparent dark:from-mint/8 flex items-center justify-center">
-                            <span className="text-3xl opacity-25 select-none">✦</span>
+                          <div className="w-full h-28 bg-gradient-to-br from-primary/8 to-transparent dark:from-mint/8 flex items-center justify-center" aria-hidden="true">
+                            <span className="inline-flex h-12 w-12 items-center justify-center rounded-2xl bg-white/70 dark:bg-gray-900/50 text-primary dark:text-mint shadow-sm ring-1 ring-primary/15 dark:ring-mint/20">
+                              <Icon name="document" className="w-6 h-6" />
+                            </span>
                           </div>
                         )}
                         <div className="flex flex-col flex-1 p-4">
