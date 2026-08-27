@@ -12,6 +12,7 @@ import { useActiveWorkspace } from '../../context/ActiveWorkspaceContext';
 import { StudentAuthorityNotice } from '../../components/auth/StudentAuthorityNotice';
 import { useToast } from '../../context/ToastContext';
 import { SaveButton } from '../../components/listings/SaveButton';
+import { PublicListingLogo } from '../../components/listings/PublicListingLogo';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { Alert } from '../../components/ui/Alerts';
 import { VerificationBadge } from '../../components/common/VerificationBadge';
@@ -430,6 +431,13 @@ export default function JobDetail() {
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)] lg:gap-8 lg:items-start">
           <div className="min-w-0">
             <header className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
+              <div className="flex flex-wrap items-start gap-3">
+                <PublicListingLogo
+                  logoUrl={job.logoUrl}
+                  label={job.organization || job.company || job.title}
+                  className="h-12 w-12 sm:h-14 sm:w-14 rounded-lg"
+                />
+                <div className="min-w-0 flex-1">
               <div className="flex flex-wrap items-center gap-2">
                 <h1 className="text-xl sm:text-2xl md:text-3xl font-bold text-gray-900 dark:text-white break-words-safe min-w-0">{job.title}</h1>
                 <span className={`text-xs font-medium px-2 py-1 rounded ${JOB_TYPE_BADGE[jobType] || JOB_TYPE_BADGE.Private}`}>
@@ -448,6 +456,8 @@ export default function JobDetail() {
               <div className="mt-4 lg:hidden space-y-4">
                 {summaryFacts}
                 {actions}
+              </div>
+                </div>
               </div>
             </header>
 

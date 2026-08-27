@@ -4,6 +4,8 @@
  */
 import { parseOpeningsCount } from '../../../../shared/employer/openingsCount.js';
 import { normalizeCountryCode } from '../../../../shared/international/country.js';
+import { normalizeCurrency } from '../../../../shared/international/currency.js';
+import { normalizeJobLineItems, jobLineItemsToText } from '../../../../shared/employer/jobLineItems.js';
 import {
   JOB_FAMILIES,
   SPECIALIZATIONS_BY_FAMILY,
@@ -29,7 +31,10 @@ export const FIELD_IDS = {
   workMode: 'employer-post-work-mode',
   experience: 'employer-post-experience',
   educationRequirement: 'employer-post-education-req',
+  requirements: 'employer-post-requirements',
+  responsibilities: 'employer-post-responsibilities',
   salaryRange: 'employer-post-salary',
+  salaryCurrency: 'employer-post-salary-currency',
   skillsRequired: 'employer-post-skills',
   jobDescription: 'employer-post-description',
   applicationDeadline: 'employer-post-deadline',
@@ -48,7 +53,7 @@ export const FIELD_IDS = {
 export const APPLY_METHOD_VALUES = ['internal', 'external_url', 'external_email'];
 export const DEFAULT_APPLY_METHOD = 'internal';
 
-export { JOB_FAMILIES, SPECIALIZATIONS_BY_FAMILY };
+export { JOB_FAMILIES, SPECIALIZATIONS_BY_FAMILY, normalizeJobLineItems, jobLineItemsToText };
 
 const MAX_REGION = 120;
 const MAX_CITY = 120;
@@ -57,6 +62,8 @@ const MAX_COMPANY = 200;
 const MAX_LOCATION = 200;
 const MAX_SALARY = 120;
 const MAX_DESCRIPTION = 20000;
+const MAX_LINE_ITEM = 500;
+const MAX_LINE_ITEMS = 50;
 const MAX_SKILL_ITEM = 80;
 const MAX_SKILLS = 40;
 const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -215,6 +222,25 @@ export function validateEmployerPostJobForm(form, { today, requireOpenings = tru
 
   if (salary.length > MAX_SALARY) errors.salaryRange = 'validationSalaryTooLong';
 
+  const salaryCurrencyRaw = String(form.salaryCurrency || '').trim();
+  if (salaryCurrencyRaw && !normalizeCurrency(salaryCurrencyRaw)) {
+    errors.salaryCurrency = 'validationSalaryCurrencyInvalid';
+  }
+
+  const requirements = normalizeJobLineItems(form.requirements);
+  if (typeof form.requirements === 'string' && form.requirements.trim()) {
+    const lines = form.requirements.split('\n').map((s) => s.trim()).filter(Boolean);
+    if (lines.some((line) => line.length > MAX_LINE_ITEM)) errors.requirements = 'validationRequirementTooLong';
+    else if (lines.length > MAX_LINE_ITEMS) errors.requirements = 'validationTooManyRequirements';
+  }
+
+  const responsibilities = normalizeJobLineItems(form.responsibilities);
+  if (typeof form.responsibilities === 'string' && form.responsibilities.trim()) {
+    const lines = form.responsibilities.split('\n').map((s) => s.trim()).filter(Boolean);
+    if (lines.some((line) => line.length > MAX_LINE_ITEM)) errors.responsibilities = 'validationResponsibilityTooLong';
+    else if (lines.length > MAX_LINE_ITEMS) errors.responsibilities = 'validationTooManyResponsibilities';
+  }
+
   if (!description) errors.jobDescription = 'validationDescriptionRequired';
   else if (description.length < 20) errors.jobDescription = 'validationDescriptionTooShort';
   else if (description.length > MAX_DESCRIPTION) errors.jobDescription = 'validationDescriptionTooLong';
@@ -246,6 +272,8 @@ export function validateEmployerPostJobForm(form, { today, requireOpenings = tru
     errors,
     applyMode,
     skills,
+    requirements,
+    responsibilities,
   };
 }
 
@@ -288,7 +316,10 @@ export function jobToForm(job = {}) {
     experience: job.experience || '',
     educationRequirement: job.educationRequirement || '',
     salaryRange: job.salaryRange || '',
+    salaryCurrency: job.salaryCurrency || '',
     skillsRequired: Array.isArray(job.skillsRequired) ? job.skillsRequired.join(', ') : '',
+    requirements: jobLineItemsToText(job.requirements),
+    responsibilities: jobLineItemsToText(job.responsibilities),
     jobDescription: job.description || '',
     applicationDeadline: deadline,
     applyLink: job.applicationLink || '',
@@ -312,6 +343,10 @@ export function buildUpdateJobPayload(form, skills) {
 export function buildCreateJobPayload(form, skills) {
   const applyLink = String(form.applyLink || '').trim();
   const applyEmail = String(form.applyEmail || '').trim();
+  const currencyRaw = String(form.salaryCurrency || '').trim();
+  const salaryCurrency = currencyRaw ? normalizeCurrency(currencyRaw) || undefined : undefined;
+  const requirements = normalizeJobLineItems(form.requirements);
+  const responsibilities = normalizeJobLineItems(form.responsibilities);
   return {
     jobTitle: String(form.jobTitle || '').trim(),
     companyName: String(form.companyName || '').trim(),
@@ -328,7 +363,10 @@ export function buildCreateJobPayload(form, skills) {
     experience: String(form.experience || '').trim() || undefined,
     educationRequirement: String(form.educationRequirement || '').trim() || undefined,
     salaryRange: String(form.salaryRange || '').trim() || undefined,
+    salaryCurrency,
     skillsRequired: skills || normalizeSkills(form.skillsRequired),
+    requirements,
+    responsibilities,
     jobDescription: String(form.jobDescription || '').trim(),
     applicationDeadline: String(form.applicationDeadline || '').trim() || undefined,
     applyLink: applyLink || undefined,

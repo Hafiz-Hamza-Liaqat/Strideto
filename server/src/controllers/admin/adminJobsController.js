@@ -26,6 +26,7 @@ import { assignLaunchEligibleOnAuthorityPublish } from '../../../../shared/publi
 import { deriveJobLaunchEligible, CMS_STATUS } from '../../../../shared/cms/launchEligible.js';
 import { PUBLISHING_QUOTA_RESULT_CODES } from '../../config/freeBetaPublishingPolicy.js';
 import { normalizeCountryCode } from '../../../../shared/international/country.js';
+import { parseOpeningsCount } from '../../../../shared/employer/openingsCount.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -97,6 +98,11 @@ function applyJobBody(doc, body, isCreate = false) {
   }
   if (body.salaryCurrency !== undefined || body.currency !== undefined) {
     doc.salaryCurrency = sanitizeString(body.salaryCurrency || body.currency);
+  }
+  if (body.openingsCount !== undefined) {
+    const openings = parseOpeningsCount(body.openingsCount, { required: false });
+    if (!openings.ok) return { status: 400, error: openings.error, field: 'openingsCount', code: openings.code };
+    doc.openingsCount = openings.specified ? openings.value : null;
   }
   const reqs = parseStringArray(body.requirements);
   if (reqs !== undefined) doc.requirements = reqs;

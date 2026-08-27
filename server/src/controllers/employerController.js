@@ -19,6 +19,8 @@ import { buildEmployerProfileUpdates } from '../utils/employerProfileValidation.
 import { isSameStatusNoOp } from '../utils/applicationStatusTransition.js';
 import { parseOpeningsCount } from '../../../shared/employer/openingsCount.js';
 import { normalizeCountryCode } from '../../../shared/international/country.js';
+import { normalizeCurrency } from '../../../shared/international/currency.js';
+import { normalizeJobLineItems } from '../../../shared/employer/jobLineItems.js';
 import { isValidJobFamily, isValidSpecialization } from '../../../shared/career/jobTaxonomy.js';
 import { hiringOwnerIdFrom } from '../services/employer/employerOrganizationService.js';
 import {
@@ -201,7 +203,17 @@ export const getJobSelectorOptions = asyncHandler(async (req, res) => {
   res.json({ data, total, limit: SELECTOR_LIMIT, truncated: total > data.length });
 });
 
-/** POST /employer/jobs - Create job as draft (first job can be free) */
+function parseEmployerSalaryCurrency(raw) {
+  if (raw === undefined) return { ok: true, value: undefined, supplied: false };
+  const trimmed = String(raw || '').trim();
+  if (!trimmed) return { ok: true, value: undefined, supplied: true };
+  const code = normalizeCurrency(trimmed);
+  if (!code) {
+    return { ok: false, field: 'salaryCurrency', error: 'salaryCurrency must be a valid ISO 4217 code' };
+  }
+  return { ok: true, value: code, supplied: true };
+}
+
 export const createJob = asyncHandler(async (req, res) => {
   const employerId = scopeEmployerId(req);
   const employer = await Employer.findById(employerId);
@@ -250,6 +262,10 @@ export const createJob = asyncHandler(async (req, res) => {
   if (!taxonomy.ok) {
     return res.status(400).json({ error: taxonomy.error, field: taxonomy.field });
   }
+  const salaryCurrencyResult = parseEmployerSalaryCurrency(body.salaryCurrency);
+  if (!salaryCurrencyResult.ok) {
+    return res.status(400).json({ error: salaryCurrencyResult.error, field: salaryCurrencyResult.field });
+  }
   const job = await Job.create({
     title,
     slug: finalSlug,
@@ -272,8 +288,10 @@ export const createJob = asyncHandler(async (req, res) => {
     applicationLink: linkResult.value || null,
     applyEmail: emailResult.value || null,
     description: stripAllHtml(body.jobDescription || body.description),
-    requirements: body.requirements || [],
+    requirements: normalizeJobLineItems(body.requirements),
+    responsibilities: normalizeJobLineItems(body.responsibilities),
     salaryRange: body.salaryRange,
+    salaryCurrency: salaryCurrencyResult.value,
     skillsRequired: body.skillsRequired || [],
     deadline: body.applicationDeadline ? new Date(body.applicationDeadline) : null,
     employerId,
@@ -382,6 +400,16 @@ export const updateJob = asyncHandler(async (req, res) => {
     job.openingsCount = openings.value;
   }
 
+  if (body.salaryCurrency !== undefined) {
+    const salaryCurrencyResult = parseEmployerSalaryCurrency(body.salaryCurrency);
+    if (!salaryCurrencyResult.ok) {
+      return res.status(400).json({ error: salaryCurrencyResult.error, field: salaryCurrencyResult.field });
+    }
+    job.salaryCurrency = salaryCurrencyResult.value;
+  }
+  if (body.requirements !== undefined) job.requirements = normalizeJobLineItems(body.requirements);
+  if (body.responsibilities !== undefined) job.responsibilities = normalizeJobLineItems(body.responsibilities);
+
   if (body.jobFamily !== undefined) {
     const val = String(body.jobFamily || '').trim();
     if (val && !isValidJobFamily(val)) {
@@ -400,7 +428,7 @@ export const updateJob = asyncHandler(async (req, res) => {
     'title', 'company', 'organization', 'location', 'countryCode', 'region', 'province', 'city',
     'category', 'jobFamily', 'specialization', 'type', 'jobType', 'workMode',
     'educationRequirement', 'experience', 'applicationLink', 'applyEmail', 'description', 'requirements',
-    'salaryRange', 'skillsRequired', 'deadline', 'jobTitle', 'companyName', 'jobDescription', 'applyLink', 'applicationDeadline',
+    'responsibilities', 'salaryRange', 'salaryCurrency', 'skillsRequired', 'deadline', 'jobTitle', 'companyName', 'jobDescription', 'applyLink', 'applicationDeadline',
   ];
   allowed.forEach((key) => {
     if (body[key] !== undefined) {
@@ -429,7 +457,6 @@ export const updateJob = asyncHandler(async (req, res) => {
       } else job[key] = body[key];
     }
   });
-  if (body.requirements && Array.isArray(body.requirements)) job.requirements = body.requirements;
   if (body.skillsRequired && Array.isArray(body.skillsRequired)) job.skillsRequired = body.skillsRequired;
 
   if (applyTypeSupplied) {

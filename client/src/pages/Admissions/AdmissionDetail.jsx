@@ -7,6 +7,7 @@ import { admissionsApi, savedApi, recentViewedApi } from '../../services/listing
 import { applicationsApi } from '../../services/applicationsApi';
 import { ROUTES } from '../../constants';
 import { SaveButton } from '../../components/listings/SaveButton';
+import { PublicListingLogo } from '../../components/listings/PublicListingLogo';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { Alert } from '../../components/ui/Alerts';
 import { formatDate, daysUntil } from '../../utils/formatDate';
@@ -115,7 +116,13 @@ export default function AdmissionDetail() {
         <Link to={ROUTES.ADMISSIONS} className="text-sm text-primary dark:text-mint hover:underline mb-4 inline-block">{t('backToAdmissions', { ns: 'admissions' })}</Link>
         <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 md:p-8">
           <div className="flex flex-wrap items-start justify-between gap-4">
-            <div>
+            <div className="flex items-start gap-3 min-w-0">
+              <PublicListingLogo
+                logoUrl={item.logoUrl}
+                label={item.institution || item.university || item.program}
+                className="h-12 w-12 rounded-lg"
+              />
+              <div className="min-w-0">
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white break-words-safe">{item.program}</h1>
               <p className="text-lg text-gray-600 dark:text-gray-400 mt-1 break-words-safe">{item.institution}</p>
               {formatLocationDisplay(item) ? (
@@ -134,6 +141,7 @@ export default function AdmissionDetail() {
                   )}
                 </p>
               )}
+              </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <SaveButton type="admission" id={item._id} saved={savedIds.has(item._id)} onToggle={handleSaveToggle} />

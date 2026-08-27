@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { formatDate, daysUntil } from '../../utils/formatDate';
 import { SaveButton } from './SaveButton';
+import { PublicListingLogo } from './PublicListingLogo';
 import { ROUTES } from '../../constants';
 
 const JOB_TYPE_BADGE = {
@@ -18,6 +19,12 @@ function JobCard({ job, saved, onSaveToggle, showBadge = true }) {
     >
       <div className="flex justify-between gap-2">
         <div className="min-w-0 flex-1">
+          <div className="flex items-start gap-2">
+            <PublicListingLogo
+              logoUrl={job.logoUrl}
+              label={job.organization || job.company || job.title}
+            />
+            <div className="min-w-0 flex-1">
           <div className="flex flex-wrap items-center gap-2">
             <h3 className="font-semibold text-gray-900 dark:text-white line-clamp-2">{job.title}</h3>
             {showBadge && (
@@ -33,6 +40,8 @@ function JobCard({ job, saved, onSaveToggle, showBadge = true }) {
           {job.deadline && (
             <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">Deadline: {formatDate(job.deadline)}</p>
           )}
+            </div>
+          </div>
         </div>
         <div onClick={(e) => e.preventDefault()} className="shrink-0">
           <SaveButton type="job" id={job._id} saved={saved} onToggle={onSaveToggle} />

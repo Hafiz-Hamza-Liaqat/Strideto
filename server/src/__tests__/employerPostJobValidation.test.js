@@ -36,7 +36,10 @@ const base = {
   jobType: 'Private',
   type: 'full-time',
   salaryRange: '',
+  salaryCurrency: '',
   skillsRequired: 'React, Node.js',
+  requirements: '',
+  responsibilities: '',
   jobDescription: 'Build and maintain React applications for our platform.',
   applicationDeadline: '',
   applyLink: '',
@@ -309,6 +312,43 @@ assert.strictEqual(resolveApplyMethodFromJob({}), DEFAULT_APPLY_METHOD);
 {
   const form = jobToForm({ title: 'A', openingsCount: null });
   assert.strictEqual(form.openingsCount, '');
+}
+
+// ---- JOB-AUTHORING-P1A: requirements / responsibilities / salaryCurrency ----
+
+{
+  const r = validateEmployerPostJobForm({
+    ...base,
+    requirements: 'Req one\nReq two',
+    responsibilities: 'Own delivery\nMentor juniors',
+    salaryCurrency: 'PKR',
+  });
+  assert.strictEqual(r.ok, true);
+  assert.deepStrictEqual(r.requirements, ['Req one', 'Req two']);
+  assert.deepStrictEqual(r.responsibilities, ['Own delivery', 'Mentor juniors']);
+}
+
+{
+  const payload = buildCreateJobPayload(
+    { ...base, requirements: 'A\nB', responsibilities: 'C', salaryCurrency: 'usd' },
+    ['React']
+  );
+  assert.deepStrictEqual(payload.requirements, ['A', 'B']);
+  assert.deepStrictEqual(payload.responsibilities, ['C']);
+  assert.strictEqual(payload.salaryCurrency, 'USD');
+}
+
+{
+  const form = jobToForm({
+    title: 'T',
+    company: 'C',
+    requirements: ['Need degree'],
+    responsibilities: ['Build APIs'],
+    salaryCurrency: 'GBP',
+  });
+  assert.strictEqual(form.requirements, 'Need degree');
+  assert.strictEqual(form.responsibilities, 'Build APIs');
+  assert.strictEqual(form.salaryCurrency, 'GBP');
 }
 
 console.log('employerPostJobValidation.test.js: all assertions passed');

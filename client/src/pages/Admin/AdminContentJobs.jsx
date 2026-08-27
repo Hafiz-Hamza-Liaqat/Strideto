@@ -35,6 +35,7 @@ const EMPTY_JOB = {
   workMode: 'unspecified',
   salaryRange: '',
   salaryCurrency: '',
+  openingsCount: '',
   experience: '',
   educationRequirement: '',
   gender: '',
@@ -108,6 +109,7 @@ export default function AdminContentJobs() {
         benefits: linesToText(job.benefits),
         skillsRequired: linesToText(job.skillsRequired),
         gallery: linesToText(job.gallery),
+        openingsCount: job.openingsCount == null ? '' : String(job.openingsCount),
         deadline: job.deadline ? job.deadline.slice(0, 10) : '',
       });
       setEmployerEntitlement(job.employerEntitlement || null);
@@ -417,6 +419,17 @@ export default function AdminContentJobs() {
                 <label>
                   <span className="text-xs text-gray-500">{t('admin:fieldDeadline')}</span>
                   <input type="date" className={fieldClass} value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />
+                </label>
+                <label>
+                  <span className="text-xs text-gray-500">{t('admin:fieldOpeningsCount', { defaultValue: 'Number of openings' })}</span>
+                  <input
+                    type="number"
+                    min={1}
+                    className={fieldClass}
+                    value={form.openingsCount}
+                    onChange={(e) => setForm({ ...form, openingsCount: e.target.value })}
+                    placeholder={t('admin:optional', { defaultValue: 'Optional' })}
+                  />
                 </label>
                 <label className="sm:col-span-2">
                   <span className="text-xs text-gray-500">{t('admin:applyLinkLabel')}</span>

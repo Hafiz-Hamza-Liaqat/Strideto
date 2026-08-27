@@ -37,7 +37,10 @@ const defaultForm = {
   experience: '',
   educationRequirement: '',
   salaryRange: '',
+  salaryCurrency: '',
   skillsRequired: '',
+  requirements: '',
+  responsibilities: '',
   jobDescription: '',
   applicationDeadline: '',
   applyLink: '',
@@ -636,26 +639,50 @@ export default function EmployerPostJob() {
           </div>
         </fieldset>
 
-        <div>
-          <label htmlFor={FIELD_IDS.salaryRange} className={labelClass}>
-            {t('employer:salaryRange')}
-            <OptionalMark t={t} />
-          </label>
-          <input
-            id={FIELD_IDS.salaryRange}
-            name="salaryRange"
-            value={form.salaryRange}
-            onChange={handleChange}
-            aria-invalid={fieldErrors.salaryRange ? 'true' : undefined}
-            aria-describedby={describedBy('salaryRange', `${FIELD_IDS.salaryRange}-help`)}
-            disabled={submitting}
-            className={inputClass}
-            placeholder={t('employer:salaryPlaceholder')}
-          />
-          <p id={`${FIELD_IDS.salaryRange}-help`} className={helpClass}>
-            {t('employer:salaryHelp')}
-          </p>
-          <FieldError id={`${FIELD_IDS.salaryRange}-error`} message={translateFieldError(fieldErrors.salaryRange)} />
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div>
+            <label htmlFor={FIELD_IDS.salaryRange} className={labelClass}>
+              {t('employer:salaryRange')}
+              <OptionalMark t={t} />
+            </label>
+            <input
+              id={FIELD_IDS.salaryRange}
+              name="salaryRange"
+              value={form.salaryRange}
+              onChange={handleChange}
+              aria-invalid={fieldErrors.salaryRange ? 'true' : undefined}
+              aria-describedby={describedBy('salaryRange', `${FIELD_IDS.salaryRange}-help`)}
+              disabled={submitting}
+              className={inputClass}
+              placeholder={t('employer:salaryPlaceholder')}
+            />
+            <p id={`${FIELD_IDS.salaryRange}-help`} className={helpClass}>
+              {t('employer:salaryHelp')}
+            </p>
+            <FieldError id={`${FIELD_IDS.salaryRange}-error`} message={translateFieldError(fieldErrors.salaryRange)} />
+          </div>
+          <div>
+            <label htmlFor={FIELD_IDS.salaryCurrency} className={labelClass}>
+              {t('employer:salaryCurrencyLabel', { defaultValue: 'Salary currency' })}
+              <OptionalMark t={t} />
+            </label>
+            <input
+              id={FIELD_IDS.salaryCurrency}
+              name="salaryCurrency"
+              value={form.salaryCurrency}
+              onChange={handleChange}
+              aria-invalid={fieldErrors.salaryCurrency ? 'true' : undefined}
+              aria-describedby={describedBy('salaryCurrency', `${FIELD_IDS.salaryCurrency}-help`)}
+              disabled={submitting}
+              className={inputClass}
+              placeholder={t('employer:salaryCurrencyPlaceholder', { defaultValue: 'e.g. PKR, USD, GBP' })}
+              maxLength={3}
+            />
+            <p id={`${FIELD_IDS.salaryCurrency}-help`} className={helpClass}>
+              {t('employer:salaryCurrencyHelp', { defaultValue: 'ISO 4217 code (optional). Leave blank if salary is not specified.' })}
+            </p>
+            <FieldError id={`${FIELD_IDS.salaryCurrency}-error`} message={translateFieldError(fieldErrors.salaryCurrency)} />
+          </div>
         </div>
 
         <div>
@@ -712,6 +739,56 @@ export default function EmployerPostJob() {
             placeholder={t('employer:educationReqPlaceholder', { defaultValue: "e.g. Bachelor's degree in Computer Science" })}
           />
           <FieldError id={`${FIELD_IDS.educationRequirement}-error`} message={translateFieldError(fieldErrors.educationRequirement)} />
+        </div>
+
+        <div>
+          <label htmlFor={FIELD_IDS.requirements} className={labelClass}>
+            {t('employer:requirementsLabel', { defaultValue: 'Requirements' })}
+            <OptionalMark t={t} />
+          </label>
+          <textarea
+            id={FIELD_IDS.requirements}
+            name="requirements"
+            value={form.requirements}
+            onChange={handleChange}
+            aria-invalid={fieldErrors.requirements ? 'true' : undefined}
+            aria-describedby={describedBy('requirements', `${FIELD_IDS.requirements}-help`)}
+            disabled={submitting}
+            rows={4}
+            className={`${inputClass} min-h-[100px] py-3`}
+            placeholder={t('employer:requirementsPlaceholder', {
+              defaultValue: '5+ years of relevant experience\nStrong communication skills\nExperience with React and Node.js',
+            })}
+          />
+          <p id={`${FIELD_IDS.requirements}-help`} className={helpClass}>
+            {t('employer:requirementsHelp', { defaultValue: 'One requirement per line.' })}
+          </p>
+          <FieldError id={`${FIELD_IDS.requirements}-error`} message={translateFieldError(fieldErrors.requirements)} />
+        </div>
+
+        <div>
+          <label htmlFor={FIELD_IDS.responsibilities} className={labelClass}>
+            {t('employer:responsibilitiesLabel', { defaultValue: 'Responsibilities' })}
+            <OptionalMark t={t} />
+          </label>
+          <textarea
+            id={FIELD_IDS.responsibilities}
+            name="responsibilities"
+            value={form.responsibilities}
+            onChange={handleChange}
+            aria-invalid={fieldErrors.responsibilities ? 'true' : undefined}
+            aria-describedby={describedBy('responsibilities', `${FIELD_IDS.responsibilities}-help`)}
+            disabled={submitting}
+            rows={4}
+            className={`${inputClass} min-h-[100px] py-3`}
+            placeholder={t('employer:responsibilitiesPlaceholder', {
+              defaultValue: 'Design and implement new features\nCollaborate with cross-functional teams',
+            })}
+          />
+          <p id={`${FIELD_IDS.responsibilities}-help`} className={helpClass}>
+            {t('employer:responsibilitiesHelp', { defaultValue: 'One responsibility per line.' })}
+          </p>
+          <FieldError id={`${FIELD_IDS.responsibilities}-error`} message={translateFieldError(fieldErrors.responsibilities)} />
         </div>
 
         <div>

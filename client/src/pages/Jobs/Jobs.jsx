@@ -16,6 +16,7 @@ import { formatLocationDisplay } from '@shared/international/location.js';
 import { SearchBar } from '../../components/ui/SearchBar';
 import { Pagination } from '../../components/ui/Pagination';
 import { SaveButton } from '../../components/listings/SaveButton';
+import { PublicListingLogo } from '../../components/listings/PublicListingLogo';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { Alert } from '../../components/ui/Alerts';
 import { EmptyState } from '../../components/common/EmptyState';
@@ -341,9 +342,11 @@ export default function Jobs() {
                         {job.source === 'scraper' && job.scrapedAt && (
                           <span className="inline-block text-xs font-medium px-2 py-0.5 rounded bg-primary text-white dark:bg-primary mb-2">{t('new', { ns: 'common' })}</span>
                         )}
-                        {job.logoUrl && (
-                          <div className="h-10 w-10 rounded-lg bg-gray-100 dark:bg-gray-700 mb-2 flex items-center justify-center text-xs text-gray-400">{t('logo', { ns: 'jobs' })}</div>
-                        )}
+                        <PublicListingLogo
+                          logoUrl={job.logoUrl}
+                          label={job.organization || job.company || job.title}
+                          className="h-10 w-10 rounded-lg mb-2"
+                        />
                         <h2 className="text-lg font-semibold text-gray-900 dark:text-white break-words-safe">{job.title}</h2>
                         <p className="text-gray-600 dark:text-gray-400 break-words-safe">{job.organization || job.company}</p>
                         <p className="text-sm text-gray-500 dark:text-gray-500 break-words-safe">
