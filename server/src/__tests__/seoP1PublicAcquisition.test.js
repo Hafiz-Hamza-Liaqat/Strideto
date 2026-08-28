@@ -267,8 +267,12 @@ const staticAcquisitionCount = INDEXABLE_STATIC_PATHS.filter((p) =>
 ).length;
 check(staticAcquisitionCount === 3, 'SEO-P1-16: exactly three acquisition paths in sitemap static list');
 check(
-  !INDEXABLE_STATIC_PATHS.includes('/institutions'),
-  'SEO-P1-16: /institutions discovery not duplicated as acquisition persona path'
+  INDEXABLE_STATIC_PATHS.includes('/institutions'),
+  'SEO-P1-16: /institutions discovery is indexable (P3 sitemap resolution)'
+);
+check(
+  INDEXABLE_STATIC_PATHS.includes('/for-institutions') && INDEXABLE_STATIC_PATHS.includes('/institutions'),
+  'SEO-P1-16: acquisition (/for-institutions) and discovery (/institutions) remain distinct'
 );
 
 // ---------------------------------------------------------------------------

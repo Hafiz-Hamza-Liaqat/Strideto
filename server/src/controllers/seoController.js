@@ -8,15 +8,31 @@ import { IntlScholarship } from '../models/IntlScholarship.js';
 import { Institution } from '../models/Institution.js';
 import { ForeignStudy } from '../models/ForeignStudy.js';
 import { Program } from '../models/education/Program.js';
+import { CanonicalInstitution } from '../models/education/CanonicalInstitution.js';
+import { CanonicalScholarship } from '../models/education/CanonicalScholarship.js';
 import { Test } from '../models/education/Test.js';
+import { TestAcceptance } from '../models/education/TestAcceptance.js';
 import { AgentProfile } from '../models/agent/AgentProfile.js';
 import { AgentMarketplacePost } from '../models/agent/AgentMarketplacePost.js';
 import { OrganizationVerification } from '../models/OrganizationVerification.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
-import { PAKISTAN_PROVINCES } from '../../../shared/constants/pakistan.js';
 import { resolvePublicSiteOrigin } from '../../../shared/seo/publicSiteOrigin.js';
 import { buildRobotsTxt } from '../../../shared/seo/robotsPolicy.js';
 import { INDEXABLE_STATIC_PATHS, isForbiddenSitemapPath } from '../../../shared/seo/publicIndexablePages.js';
+import {
+  APPROVED_SEO_LANDING_PATHS,
+  SEO_JOB_SOURCE_SLUGS,
+} from '../../../shared/seo/seoLandingRegistry.js';
+import { resolveSitemapLastmod, isSitemapEligiblePath } from '../../../shared/seo/sitemapPolicy.js';
+import {
+  isJobDetailPubliclyEligible,
+  isCanonicalInstitutionDetailEligible,
+  isCanonicalScholarshipDetailEligible,
+  isIntlScholarshipDetailEligible,
+  isProgramDetailIndexable,
+} from '../../../shared/seo/entityDetailSeoPolicy.js';
+import { currentAcceptanceMongoFilter } from '../../../shared/publicDiscovery/publicTruth.js';
+import { buildPublicJobFilter } from './jobsController.js';
 import { PUB_STATUSES } from '../../../shared/education/taxonomy.js';
 import { VERIFICATION_STATUSES } from '../../../shared/international/verification.js';
 import {
@@ -31,23 +47,14 @@ function getPublicOrigin() {
   return resolvePublicSiteOrigin(process.env.SITE_URL || process.env.FRONTEND_URL || '');
 }
 
-const CITIES = ['lahore', 'karachi', 'islamabad', 'rawalpindi', 'faisalabad', 'multan', 'peshawar', 'quetta', 'sialkot', 'gujranwala'];
-const PROVINCES = PAKISTAN_PROVINCES
-  .filter((p) => p !== 'Other')
-  .map((p) => p.toLowerCase().replace(/\s+/g, '-'));
-const JOB_CATEGORIES = ['government-jobs', 'private-jobs', 'internships', 'internship-jobs'];
-const SCHOLARSHIP_COUNTRIES = ['turkey', 'germany', 'china', 'uk', 'usa', 'australia', 'canada', 'hungary', 'italy'];
-const JOB_SOURCE_SLUGS = ['fpsc', 'ppsc', 'nts', 'wapda'];
+const JOB_SOURCE_SLUGS = SEO_JOB_SOURCE_SLUGS;
 
 function escapeXml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
 
 function formatLastmod(date) {
-  if (!date) return '';
-  const d = date instanceof Date ? date : new Date(date);
-  if (Number.isNaN(d.getTime())) return '';
-  return d.toISOString().slice(0, 10);
+  return resolveSitemapLastmod(date) || '';
 }
 
 function urlEntry(base, path, { lastmod } = {}) {
@@ -67,24 +74,14 @@ export const getSitemap = asyncHandler(async (_req, res) => {
   const urlMap = new Map();
 
   const addUrl = (path, opts) => {
-    if (!path || isForbiddenSitemapPath(path)) return;
+    if (!path || !isSitemapEligiblePath(path)) return;
+    if (isForbiddenSitemapPath(path)) return;
     const entry = urlEntry(base, path, opts);
     urlMap.set(entry.loc, entry);
   };
 
   INDEXABLE_STATIC_PATHS.forEach((path) => addUrl(path));
-
-  JOB_SOURCE_SLUGS.forEach((src) => addUrl(`/${src}-jobs`));
-  CITIES.forEach((city) => addUrl(`/jobs-in-${city}`));
-  PROVINCES.forEach((prov) => {
-    addUrl(`/jobs-in-${prov}`);
-    addUrl(`/jobs/province/${prov}`);
-  });
-  JOB_CATEGORIES.forEach((cat) => {
-    addUrl(`/${cat}`);
-    addUrl(`/jobs/category/${cat}`);
-  });
-  SCHOLARSHIP_COUNTRIES.forEach((c) => addUrl(`/scholarships-in-${c}`));
+  APPROVED_SEO_LANDING_PATHS.forEach((path) => addUrl(path));
 
   const slugFilter = { slug: { $exists: true, $nin: [null, ''] } };
 
@@ -100,10 +97,12 @@ export const getSitemap = asyncHandler(async (_req, res) => {
     foreignStudies,
     programs,
     tests,
+    canonicalInstitutions,
+    canonicalScholarships,
     approvedOrgs,
     marketplacePosts,
   ] = await Promise.all([
-    Job.find(withFixtureExclusion({ status: 'active', ...slugFilter })).select('slug updatedAt').limit(5000).lean(),
+    Job.find(buildPublicJobFilter()).select('slug status approvalStatus publicationState updatedAt').limit(5000).lean(),
     Scholarship.find(withFixtureExclusion({ status: 'active', ...slugFilter })).select('slug updatedAt').limit(2000).lean(),
     Admission.find(withFixtureExclusion({ status: 'active', ...slugFilter })).select('slug updatedAt').limit(2000).lean(),
     Blog.find({ status: 'published', ...slugFilter }).select('slug updatedAt publishedAt').limit(2000).lean(),
@@ -112,8 +111,19 @@ export const getSitemap = asyncHandler(async (_req, res) => {
     IntlScholarship.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(500).lean(),
     Institution.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(1000).lean(),
     ForeignStudy.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(500).lean(),
-    Program.find(withFixtureExclusion({ status: PUB_STATUSES.PUBLISHED, ...slugFilter })).select('slug updatedAt').limit(2000).lean(),
+    Program.find(withFixtureExclusion({ status: PUB_STATUSES.PUBLISHED, ...slugFilter }))
+      .select('slug name institutionId description degreeLevels fields updatedAt status')
+      .limit(2000)
+      .lean(),
     Test.find({ status: PUB_STATUSES.PUBLISHED, ...slugFilter }).select('slug updatedAt').limit(500).lean(),
+    CanonicalInstitution.find(withFixtureExclusion({ status: PUB_STATUSES.PUBLISHED, ...slugFilter }))
+      .select('slug officialName countryCode sources officialWebsite updatedAt status')
+      .limit(2000)
+      .lean(),
+    CanonicalScholarship.find(withFixtureExclusion({ status: PUB_STATUSES.PUBLISHED, ...slugFilter }))
+      .select('slug updatedAt status')
+      .limit(2000)
+      .lean(),
     OrganizationVerification.find({ status: VERIFICATION_STATUSES.APPROVED }, { organizationId: 1 }).lean(),
     AgentMarketplacePost.find(withFixtureExclusion({
       publicationStatus: MARKETPLACE_PUBLICATION_STATUSES.PUBLISHED,
@@ -131,16 +141,58 @@ export const getSitemap = asyncHandler(async (_req, res) => {
     })).select('slug updatedAt').limit(500).lean()
     : [];
 
-  jobs.filter(hasSlug).forEach((j) => addUrl(`/jobs/${j.slug}`, { lastmod: j.updatedAt }));
+  const canonicalInstitutionIds = canonicalInstitutions.map((i) => i._id);
+  const institutionProgramCounts = canonicalInstitutionIds.length
+    ? await Program.aggregate([
+      {
+        $match: withFixtureExclusion({
+          status: PUB_STATUSES.PUBLISHED,
+          institutionId: { $in: canonicalInstitutionIds },
+        }),
+      },
+      { $group: { _id: '$institutionId', count: { $sum: 1 } } },
+    ])
+    : [];
+  const programCountByInstitutionId = new Map(
+    institutionProgramCounts.map((row) => [String(row._id), row.count])
+  );
+
+  const institutionAcceptanceCounts = canonicalInstitutionIds.length
+    ? await TestAcceptance.aggregate([
+      {
+        $match: {
+          institutionId: { $in: canonicalInstitutionIds },
+          ...currentAcceptanceMongoFilter(),
+        },
+      },
+      { $group: { _id: '$institutionId', count: { $sum: 1 } } },
+    ])
+    : [];
+  const acceptedTestCountByInstitutionId = new Map(
+    institutionAcceptanceCounts.map((row) => [String(row._id), row.count])
+  );
+
+  jobs.filter(isJobDetailPubliclyEligible).forEach((j) => addUrl(`/jobs/${j.slug}`, { lastmod: j.updatedAt }));
   scholarships.filter(hasSlug).forEach((s) => addUrl(`/scholarships/${s.slug}`, { lastmod: s.updatedAt }));
   admissions.filter(hasSlug).forEach((a) => addUrl(`/admissions/${a.slug}`, { lastmod: a.updatedAt }));
   blogs.filter(hasSlug).forEach((b) => addUrl(`/blog/${b.slug}`, { lastmod: b.updatedAt || b.publishedAt }));
   internships.filter(hasSlug).forEach((i) => addUrl(`/internships/${i.slug}`, { lastmod: i.updatedAt }));
   exams.filter(hasSlug).forEach((e) => addUrl(`/exam-prep/${e.slug}`, { lastmod: e.updatedAt }));
-  intlScholarships.filter(hasSlug).forEach((s) => addUrl(`/intl-scholarships/${s.slug}`, { lastmod: s.updatedAt }));
+  intlScholarships.filter(isIntlScholarshipDetailEligible).forEach((s) => addUrl(`/intl-scholarships/${s.slug}`, { lastmod: s.updatedAt }));
   institutions.filter(hasSlug).forEach((i) => addUrl(`/schools-and-colleges/${i.slug}`, { lastmod: i.updatedAt }));
+  canonicalInstitutions
+    .filter((i) =>
+      isCanonicalInstitutionDetailEligible(i, {
+        programCount: programCountByInstitutionId.get(String(i._id)) || 0,
+        acceptedTestCount: acceptedTestCountByInstitutionId.get(String(i._id)) || 0,
+      })
+    )
+    .forEach((i) => addUrl(`/institutions/${i.slug}`, { lastmod: i.updatedAt }));
+  canonicalScholarships.filter(isCanonicalScholarshipDetailEligible).forEach((s) =>
+    addUrl(`/scholarship-intelligence/${s.slug}`, { lastmod: s.updatedAt })
+  );
   foreignStudies.filter(hasSlug).forEach((f) => addUrl(`/foreign-studies/${f.slug}`, { lastmod: f.updatedAt }));
-  programs.filter(hasSlug).forEach((p) => addUrl(`/program-explorer/${p.slug}`, { lastmod: p.updatedAt }));
+  programs.filter(isProgramDetailIndexable).forEach((p) => addUrl(`/program-explorer/${p.slug}`, { lastmod: p.updatedAt }));
   tests.filter(hasSlug).forEach((t) => addUrl(`/tests/${t.slug}`, { lastmod: t.updatedAt }));
   agentProfiles.filter(hasSlug).forEach((a) => addUrl(`/agents/${a.slug}`, { lastmod: a.updatedAt }));
   marketplacePosts.filter(hasSlug).forEach((p) => addUrl(`/agents/marketplace/${p.slug}`, { lastmod: p.updatedAt || p.publishedAt }));

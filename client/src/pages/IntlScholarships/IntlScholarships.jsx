@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
+import { useCollectionSeo } from '../../seo/collectionSeo';
 import { breadcrumbSchema, collectionPageSchema, combineSchemas } from '../../seo/schemas';
 import { DEFAULT_KEYWORDS } from '../../seo/config';
 import { intlScholarshipsApi, savedApi } from '../../services/listingsService';
@@ -64,12 +65,16 @@ export default function IntlScholarships() {
     });
   };
 
+  const collectionSeo = useCollectionSeo(ROUTES.INTL_SCHOLARSHIPS);
+
   return (
     <>
       <SeoHead
         title={t('seo:intlScholarshipsTitle')}
         description={t('seo:intlScholarshipsDescription')}
-        canonical={ROUTES.INTL_SCHOLARSHIPS}
+        canonical={collectionSeo.canonical}
+        noindex={collectionSeo.noindex}
+        robots={collectionSeo.robots}
         keywords={`international scholarships, study abroad, ${DEFAULT_KEYWORDS}`}
         ogType="website"
         jsonLd={combineSchemas(

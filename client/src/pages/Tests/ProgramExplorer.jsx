@@ -8,6 +8,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link, useParams, useLocation, useNavigate } from 'react-router-dom';
 import { SeoHead } from '../../components/seo';
+import { useCollectionSeo } from '../../seo/collectionSeo';
 import { programIntelligenceApi } from '../../services/listingsService';
 import { ROUTES } from '../../constants';
 import { useAuth } from '../../context/AuthContext';
@@ -258,12 +259,16 @@ export function ProgramExplorerList() {
     navigate({ pathname: location.pathname, search: '' }, { replace: true });
   };
 
+  const collectionSeo = useCollectionSeo(ROUTES.PROGRAM_EXPLORER);
+
   return (
     <>
       <SeoHead
         title="Study & Institutions | Strideto"
         description="Browse international programs by country, degree, field, and study mode."
-        canonical={ROUTES.PROGRAM_EXPLORER}
+        canonical={collectionSeo.canonical}
+        noindex={collectionSeo.noindex}
+        robots={collectionSeo.robots}
       />
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="max-w-6xl mx-auto px-4 py-10">

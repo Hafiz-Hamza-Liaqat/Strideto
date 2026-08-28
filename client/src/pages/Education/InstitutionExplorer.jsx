@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router-dom';
 import { SeoHead } from '../../components/seo';
+import { useCollectionSeo } from '../../seo/collectionSeo';
 import { testsApi } from '../../services/listingsService';
 import { ROUTES } from '../../constants';
 import { Pagination } from '../../components/ui/Pagination';
@@ -14,6 +15,7 @@ import { countryDisplayName } from '@shared/international/country.js';
 import { formatMoney } from '@shared/international/dateDisplay.js';
 import { NO_GUARANTEE_DISCLAIMER } from '@shared/publicDiscovery/publicTruth.js';
 import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
+import { isCanonicalInstitutionDetailEligible } from '@shared/seo/entityDetailSeoPolicy.js';
 import { INSTITUTION_TYPES } from '@shared/education/taxonomy.js';
 import { fallbackScopeLabel, ACCEPTANCE_SCOPES } from '@shared/education/acceptanceExplorer.js';
 
@@ -201,12 +203,16 @@ export function InstitutionExplorerList() {
 
   useEffect(() => { load(); }, [load]);
 
+  const collectionSeo = useCollectionSeo(ROUTES.EDUCATION_INSTITUTIONS);
+
   return (
     <>
       <SeoHead
         title="Universities & Institutions | Strideto"
         description="Browse universities and education institutions by country, region, and type. Explore programs and accepted tests."
-        canonical={ROUTES.EDUCATION_INSTITUTIONS}
+        canonical={collectionSeo.canonical}
+        noindex={collectionSeo.noindex}
+        robots={collectionSeo.robots}
       />
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="max-w-6xl mx-auto px-4 py-10">
@@ -352,6 +358,10 @@ export function InstitutionExplorerDetail() {
   }
 
   const website = publicHttpUrlOrNull(data.officialWebsite);
+  const detailIndexable = isCanonicalInstitutionDetailEligible(data, {
+    programCount: programs.length,
+    acceptedTestCount: acceptedTests.length,
+  });
 
   return (
     <>
@@ -359,6 +369,8 @@ export function InstitutionExplorerDetail() {
         title={`${data.officialName || 'Institution'} | Strideto`}
         description={`Programs and accepted tests at ${data.officialName || 'this institution'}.`}
         canonical={`${ROUTES.EDUCATION_INSTITUTIONS}/${data.slug || ''}`}
+        noindex={!detailIndexable}
+        robots={detailIndexable ? 'index, follow' : 'noindex, follow'}
       />
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">
         <div className="max-w-4xl mx-auto px-4 py-10">

@@ -220,8 +220,8 @@ check(
   'SEO-P0A-04: sitemap queries exclude fixture records'
 );
 check(
-  seoController.includes("Job.find(withFixtureExclusion({ status: 'active'"),
-  'SEO-P0A-04: only active jobs enter the sitemap'
+  seoController.includes('Job.find(buildPublicJobFilter())'),
+  'SEO-P0A-04: only publicly eligible jobs enter the sitemap'
 );
 check(
   seoController.includes("Blog.find({ status: 'published'"),
@@ -232,8 +232,8 @@ check(
   'SEO-P0A-04: education records enter the sitemap only when published'
 );
 check(
-  seoController.includes('if (!path || isForbiddenSitemapPath(path)) return;'),
-  'SEO-P0A-04: every sitemap URL passes the forbidden-path guard'
+  seoController.includes('isForbiddenSitemapPath(path)') && seoController.includes('isSitemapEligiblePath(path)'),
+  'SEO-P0A-04: every sitemap URL passes eligibility and forbidden-path guards'
 );
 for (const p of ['/admin/x', '/dashboard', '/employer/jobs', '/business', '/business/requests', '/vault']) {
   check(isForbiddenSitemapPath(p), `SEO-P0A-04: ${p} can never be added to the sitemap`);
@@ -293,8 +293,8 @@ check(
 // SEO-P0A-06 — query/filter URLs do not create duplicate indexable URLs
 // ---------------------------------------------------------------------------
 check(
-  /canonical=\{ROUTES\.JOBS\}/.test(jobsListSource),
-  'SEO-P0A-06: /jobs self-canonicalizes, so ?filter= variants do not become separate index URLs'
+  jobsListSource.includes('useCollectionSeo') && /canonical=\{collectionSeo\.canonical\}/.test(jobsListSource),
+  'SEO-P0A-06: /jobs self-canonicalizes via collection SEO policy, so ?filter= variants do not become separate index URLs'
 );
 check(
   !/canonical=\{[^}]*location\.search/.test(jobsListSource),

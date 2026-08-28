@@ -8,8 +8,9 @@
 import { useState, useEffect, useCallback } from 'react';
 import { Link } from 'react-router-dom';
 import { SeoHead } from '../../components/seo';
-import { canonicalScholarshipsApi } from '../../services/listingsService';
+import { useCollectionSeo } from '../../seo/collectionSeo';
 import { ROUTES } from '../../constants';
+import { canonicalScholarshipsApi } from '../../services/listingsService';
 import { Pagination } from '../../components/ui/Pagination';
 
 const FUNDING_LABELS = {
@@ -203,11 +204,16 @@ export default function ScholarshipIntelligence() {
   const handleFiltersChange = (next) => setFilters(next);
   const handlePage = (p) => setFilters((f) => ({ ...f, page: p }));
 
+  const collectionSeo = useCollectionSeo(ROUTES.CANONICAL_SCHOLARSHIPS);
+
   return (
     <>
       <SeoHead
         title="Scholarship Intelligence | Strideto"
         description="Browse source-backed international scholarship opportunities by country, degree, field, and funding type."
+        canonical={collectionSeo.canonical}
+        noindex={collectionSeo.noindex}
+        robots={collectionSeo.robots}
       />
 
       <div className="min-h-screen bg-gray-50 dark:bg-gray-900">

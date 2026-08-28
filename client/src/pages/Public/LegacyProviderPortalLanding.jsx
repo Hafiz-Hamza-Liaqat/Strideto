@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { ROUTES } from '../../constants';
+import { SeoHead } from '../../components/seo';
 
 /**
  * LEGACY COMPATIBILITY landing for historic /agent and generic Provider Portal links.
@@ -8,6 +9,11 @@ import { ROUTES } from '../../constants';
 export default function LegacyProviderPortalLanding() {
   return (
     <main className="mx-auto max-w-3xl px-4 py-16 sm:px-6">
+      <SeoHead
+        title="Professional Provider Portals | Strideto"
+        description="Choose the Strideto professional portal for Education & Mobility or Business Formation. Public product entry pages remain separate from gated provider workspaces."
+        canonical={ROUTES.PROVIDERS}
+      />
       <p className="text-sm font-medium text-primary">Strideto</p>
       <h1 className="mt-2 text-3xl font-semibold tracking-tight text-gray-900 dark:text-white">
         Professional provider portals

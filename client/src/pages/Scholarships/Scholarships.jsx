@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
+import { useCollectionSeo } from '../../seo/collectionSeo';
 import { breadcrumbSchema, collectionPageSchema, combineSchemas } from '../../seo/schemas';
 import { scholarshipsApi, savedApi, recommendationsApi } from '../../services/listingsService';
 import { trackSearchQuery } from '../../utils/platformAnalytics';
@@ -76,13 +77,16 @@ export default function Scholarships() {
 
   const seoTitle = t('seoTitle', { ns: 'scholarships' });
   const seoDescription = t('seoDescription', { ns: 'scholarships' });
+  const collectionSeo = useCollectionSeo(ROUTES.SCHOLARSHIPS, { defaultSort: 'newest' });
 
   return (
     <>
       <SeoHead
         title={seoTitle}
         description={seoDescription}
-        canonical={ROUTES.SCHOLARSHIPS}
+        canonical={collectionSeo.canonical}
+        noindex={collectionSeo.noindex}
+        robots={collectionSeo.robots}
         keywords={t('seoKeywords', { ns: 'scholarships' })}
         ogType="website"
         jsonLd={combineSchemas(

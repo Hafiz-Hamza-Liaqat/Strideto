@@ -2,6 +2,7 @@ import { useState, useEffect, Fragment, useMemo } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
+import { useCollectionSeo } from '../../seo/collectionSeo';
 import { breadcrumbSchema, collectionPageSchema, combineSchemas } from '../../seo/schemas';
 import { jobsApi, savedApi, recommendationsApi } from '../../services/listingsService';
 import { trackSearchQuery } from '../../utils/platformAnalytics';
@@ -134,13 +135,16 @@ export default function Jobs() {
 
   const seoTitle = t('seoTitle', { ns: 'jobs' });
   const seoDescription = t('seoDescription', { ns: 'jobs' });
+  const collectionSeo = useCollectionSeo(ROUTES.JOBS, { defaultSort: 'newest' });
 
   return (
     <>
       <SeoHead
         title={seoTitle}
         description={seoDescription}
-        canonical={ROUTES.JOBS}
+        canonical={collectionSeo.canonical}
+        noindex={collectionSeo.noindex}
+        robots={collectionSeo.robots}
         keywords={t('seoKeywords', { ns: 'jobs' })}
         ogType="website"
         jsonLd={combineSchemas(

@@ -407,7 +407,8 @@ check(!/itemListSchema/.test(jobsListSource.split('collectionPageSchema')[1] || 
 // ---------------------------------------------------------------------------
 const indexable = read('shared/seo/publicIndexablePages.js');
 check(indexable.includes("'/students'"), 'SEO-P2-29: P1 persona routes remain in sitemap list');
-check(!indexable.includes("'/institutions'"), 'SEO-P2-29: /institutions sitemap gap deferred (P3 architecture)');
+check(indexable.includes("'/institutions'"), 'SEO-P2-29: /institutions sitemap gap resolved in P3');
+check(indexable.includes("'/scholarship-intelligence'"), 'SEO-P2-29: scholarship-intelligence sitemap gap resolved in P3');
 
 // ---------------------------------------------------------------------------
 // SEO-P2-30 — P1 persona schema regression green
