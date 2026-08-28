@@ -18,6 +18,12 @@ import { SaveButton } from '../../components/listings/SaveButton';
 import { PublicListingLogo } from '../../components/listings/PublicListingLogo';
 import { PublicTrustBadge } from '../../components/public/PublicTrustBadge';
 import { ProvenanceStrip } from '../../components/public/ProvenanceStrip';
+import { KeyFacts } from '../../components/public/KeyFacts';
+import { PublicSourceSection } from '../../components/public/PublicSourceSection';
+import {
+  resolveCmsScholarshipLink,
+  sourceSectionTitle,
+} from '@shared/seo/sourceAuthority.js';
 import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
 import { AGENT_NON_AUTHORITY_DISCLAIMER, EXTERNAL_APPLY_DISCLOSURE, NO_GUARANTEE_DISCLAIMER } from '@shared/publicDiscovery/publicTruth.js';
 import { RelatedResources } from '../../components/seo/RelatedResources';
@@ -92,6 +98,16 @@ export default function ScholarshipDetail() {
   const related = item.related || [];
   const canonicalPath = `${ROUTES.SCHOLARSHIPS}/${item.slug || item._id}`;
   const seoTitle = t('detailSeoTitle', { title: item.title, ns: 'scholarships' });
+  const officialLink = publicHttpUrlOrNull(item.link);
+  const scholarshipSource = resolveCmsScholarshipLink(item.link);
+
+  const scholarshipFacts = [
+    { label: t('providerLabel', { ns: 'scholarships', defaultValue: 'Provider' }), value: item.provider },
+    { label: t('countryLabel', { ns: 'scholarships', defaultValue: 'Country' }), value: item.country },
+    { label: t('levelLabel', { ns: 'scholarships', defaultValue: 'Study level' }), value: item.level },
+    { label: t('fundingLabel', { ns: 'scholarships', defaultValue: 'Funding' }), value: item.amount },
+    { label: t('deadline', { ns: 'common' }), value: item.deadline ? formatDate(item.deadline) : null },
+  ];
 
   return (
     <>
@@ -122,15 +138,15 @@ export default function ScholarshipDetail() {
               <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white break-words-safe">{item.title}</h1>
               <p className="text-lg text-gray-600 dark:text-gray-400 mt-1 break-words-safe">{item.provider}</p>
               <div className="mt-2"><PublicTrustBadge kind={item.authorityKind} label={item.authorityLabel} /></div>
-              <p className="text-sm text-gray-500">{(item.level || '') + (item.country ? ` · ${item.country}` : '')}</p>
-              {item.amount && <p className="text-primary dark:text-mint font-medium mt-1">{item.amount}</p>}
-              {item.deadline && <p className="text-sm text-amber-600 dark:text-amber-400 mt-2">{t('deadline', { ns: 'common' })}: {formatDate(item.deadline)}</p>}
+              <div className="mt-4">
+                <KeyFacts facts={scholarshipFacts} headingId="scholarship-key-facts" />
+              </div>
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <SaveButton type="scholarship" id={item._id} saved={savedIds.has(item._id)} onToggle={handleSaveToggle} />
-              {publicHttpUrlOrNull(item.link) && (
-                <a href={publicHttpUrlOrNull(item.link)} className="inline-flex items-center min-h-[44px] px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover btn-theme" target="_blank" rel="noopener noreferrer">{t('applyOfficialWebsite', { ns: 'jobs', defaultValue: 'Apply on official website' })}</a>
+              {officialLink && (
+                <a href={officialLink} className="inline-flex items-center min-h-[44px] px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover btn-theme" target="_blank" rel="noopener noreferrer">{t('applyOfficialWebsite', { ns: 'jobs', defaultValue: 'Apply on official website' })}</a>
               )}
               {isAuthenticated && isOpportunityApplicationEnabled() && (
                 <button
@@ -163,12 +179,17 @@ export default function ScholarshipDetail() {
               <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{item.applicationInstructions}</p>
             </section>
           )}
-          {publicHttpUrlOrNull(item.link) && (
+          {officialLink && (
             <p className="mt-4 text-sm text-amber-800 dark:text-amber-200">{EXTERNAL_APPLY_DISCLOSURE}</p>
           )}
-          <div className="mt-6">
-            <ProvenanceStrip authorityLabel={item.authorityLabel} freshnessState={item.freshnessState} officialUrl={item.link} />
-          </div>
+          <PublicSourceSection title={sourceSectionTitle(scholarshipSource?.level)}>
+            <ProvenanceStrip
+              authorityLabel={item.authorityLabel}
+              freshnessState={item.freshnessState}
+              sourceUrl={scholarshipSource?.url}
+              linkLabel={scholarshipSource?.label}
+            />
+          </PublicSourceSection>
           <p className="mt-4 text-xs text-gray-500">{AGENT_NON_AUTHORITY_DISCLAIMER} {NO_GUARANTEE_DISCLAIMER}</p>
         </div>
         {related.length > 0 && (

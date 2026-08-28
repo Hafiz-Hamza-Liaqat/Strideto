@@ -2,6 +2,7 @@ import { FRESHNESS_STATES } from '@shared/trust/sourceVerification.js';
 import { freshnessPublicLabel, NOT_SPECIFIED } from '@shared/publicDiscovery/publicTruth.js';
 import { formatDate } from '../../utils/formatDate';
 import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
+import { PublicSourceLink } from './PublicSourceLink.jsx';
 
 const FRESHNESS_CLASS = {
   [FRESHNESS_STATES.FRESH]: 'text-emerald-700 dark:text-emerald-300',
@@ -16,16 +17,19 @@ export function ProvenanceStrip({
   authorityLabel,
   lastReviewedAt,
   freshnessState,
+  /** @deprecated prefer sourceUrl */
   officialUrl,
+  sourceUrl,
+  linkLabel,
   className = '',
 }) {
-  const url = publicHttpUrlOrNull(officialUrl);
+  const url = publicHttpUrlOrNull(sourceUrl ?? officialUrl);
   const freshness = freshnessState ? freshnessPublicLabel(freshnessState) : null;
   const caution = freshnessState === FRESHNESS_STATES.STALE
     || freshnessState === FRESHNESS_STATES.REVIEW_DUE
     || freshnessState === FRESHNESS_STATES.BROKEN;
 
-  if (!sourceLabel && !authorityLabel && !lastReviewedAt && !freshness) return null;
+  if (!sourceLabel && !authorityLabel && !lastReviewedAt && !freshness && !(url && linkLabel)) return null;
 
   return (
     <div
@@ -43,15 +47,13 @@ export function ProvenanceStrip({
           <span className="font-medium">Data status:</span> {freshness}
         </p>
       ) : null}
-      {url ? (
+      {url && linkLabel ? (
         <p>
-          <a href={url} target="_blank" rel="noopener noreferrer" className="text-primary dark:text-mint hover:underline break-words-safe">
-            View official source ↗
-          </a>
+          <PublicSourceLink url={url} label={linkLabel} />
         </p>
       ) : null}
       {caution ? (
-        <p className="text-amber-800 dark:text-amber-200">Verify this information with the official source before acting.</p>
+        <p className="text-amber-800 dark:text-amber-200">Verify this information with the source before acting.</p>
       ) : null}
     </div>
   );

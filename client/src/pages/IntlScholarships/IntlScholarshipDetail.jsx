@@ -11,6 +11,14 @@ import { useAuth } from '../../context/AuthContext';
 import { formatDate } from '../../utils/formatDate';
 import { useContentView } from '../../hooks/usePageView';
 import { RelatedResources } from '../../components/seo/RelatedResources';
+import { KeyFacts } from '../../components/public/KeyFacts';
+import { ProvenanceStrip } from '../../components/public/ProvenanceStrip';
+import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
+import { PublicSourceSection } from '../../components/public/PublicSourceSection';
+import {
+  resolveIntlScholarshipLink,
+  sourceSectionTitle,
+} from '@shared/seo/sourceAuthority.js';
 
 function isObjectIdParam(value) {
   return /^[a-f\d]{24}$/i.test(String(value || ''));
@@ -90,6 +98,14 @@ export default function IntlScholarshipDetail() {
   const schema = scholarshipSchema({ ...item, slug: undefined });
   if (schema) schema.url = buildCanonicalUrl(canonicalPath);
 
+  const officialLink = publicHttpUrlOrNull(item.link);
+  const intlSource = resolveIntlScholarshipLink(item.link);
+  const intlFacts = [
+    { label: t('scholarships:countryLabel', { defaultValue: 'Country' }), value: item.country },
+    { label: t('scholarships:universityLabel', { defaultValue: 'University' }), value: item.university },
+    { label: t('scholarships:deadlinePrefix'), value: item.deadline ? formatDate(item.deadline) : null },
+  ];
+
   return (
     <>
       <SeoHead
@@ -112,11 +128,9 @@ export default function IntlScholarshipDetail() {
           <div>
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white">{item.title}</h1>
             <p className="text-lg text-gray-600 dark:text-gray-400 mt-1">{item.country}{item.university ? ` · ${item.university}` : ''}</p>
-            {item.deadline && (
-              <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">
-                {t('scholarships:deadlinePrefix')}: {formatDate(item.deadline)}
-              </p>
-            )}
+            <div className="mt-4">
+              <KeyFacts facts={intlFacts} headingId="intl-scholarship-key-facts" />
+            </div>
           </div>
           {isAuthenticated && <SaveButton id={item._id} saved={saved} onToggle={(scholarshipId, save) => handleSaveToggle(scholarshipId, save)} />}
         </div>
@@ -146,11 +160,15 @@ export default function IntlScholarshipDetail() {
           </div>
         )}
 
-        {item.link && (
-          <a href={item.link} target="_blank" rel="noopener noreferrer" className="inline-block mt-6 px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover btn-theme">
+        {officialLink && (
+          <a href={officialLink} target="_blank" rel="noopener noreferrer" className="inline-block mt-6 px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover btn-theme">
             {t('scholarships:applyOfficialSite')}
           </a>
         )}
+
+        <PublicSourceSection title={sourceSectionTitle(intlSource?.level)}>
+          <ProvenanceStrip sourceUrl={intlSource?.url} linkLabel={intlSource?.label} />
+        </PublicSourceSection>
 
         {(item.related || []).length > 0 && (
           <section className="mt-10 pt-6 border-t border-gray-200 dark:border-gray-700">

@@ -18,8 +18,14 @@ import { shouldUseTalentProfileApi, isOpportunityApplicationEnabled } from '../.
 import { ApplyKitBanner } from '../../components/career/ApplyKitBanner';
 import { PublicTrustBadge } from '../../components/public/PublicTrustBadge';
 import { ProvenanceStrip } from '../../components/public/ProvenanceStrip';
+import { KeyFacts } from '../../components/public/KeyFacts';
+import { PublicSourceSection } from '../../components/public/PublicSourceSection';
+import {
+  resolveAdmissionProvenanceLink,
+  sourceSectionTitle,
+} from '@shared/seo/sourceAuthority.js';
 import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
-import { APPLICATION_MODE_LABELS, EXTERNAL_APPLY_DISCLOSURE, NO_GUARANTEE_DISCLAIMER, NOT_SPECIFIED } from '@shared/publicDiscovery/publicTruth.js';
+import { APPLICATION_MODE_LABELS, EXTERNAL_APPLY_DISCLOSURE, NO_GUARANTEE_DISCLAIMER } from '@shared/publicDiscovery/publicTruth.js';
 import { formatLocationDisplay } from '@shared/international/location.js';
 
 export default function AdmissionDetail() {
@@ -95,6 +101,17 @@ export default function AdmissionDetail() {
   const canonicalPath = `${ROUTES.ADMISSIONS}/${item.slug || item._id}`;
   const description = item.description || `${item.program} at ${item.institution}`;
   const seoTitle = t('detailSeoTitle', { program: item.program, ns: 'admissions' });
+  const officialLink = publicHttpUrlOrNull(item.link || item.applyLink);
+  const admissionSource = resolveAdmissionProvenanceLink(item);
+  const admissionFacts = [
+    { label: t('institutionLabel', { ns: 'admissions', defaultValue: 'Institution' }), value: item.institution },
+    { label: t('programLabel', { ns: 'admissions', defaultValue: 'Program' }), value: item.program },
+    { label: t('locationLabel', { ns: 'admissions', defaultValue: 'Location' }), value: formatLocationDisplay(item) },
+    { label: t('sessionLabel', { ns: 'admissions', defaultValue: 'Intake / session' }), value: item.session },
+    { label: t('deadline', { ns: 'common' }), value: item.deadline ? formatDate(item.deadline) : null },
+    { label: t('applicationModeLabel', { ns: 'admissions', defaultValue: 'Application' }), value: APPLICATION_MODE_LABELS[item.applicationMode] },
+    { label: t('departmentLabel', { ns: 'admissions', defaultValue: 'Department' }), value: item.department },
+  ];
 
   return (
     <>
@@ -129,24 +146,20 @@ export default function AdmissionDetail() {
                 <p className="text-sm text-gray-500 dark:text-gray-400 mt-1">{formatLocationDisplay(item)}</p>
               ) : null}
               <div className="mt-2"><PublicTrustBadge kind={item.authorityKind} label={item.authorityLabel} /></div>
-              <p className="text-sm text-gray-500 mt-1">{APPLICATION_MODE_LABELS[item.applicationMode] || NOT_SPECIFIED}</p>
-              {item.department && <p className="text-sm text-gray-500">{item.department}</p>}
-              {item.session && <p className="text-sm text-gray-500">{item.session}</p>}
-              {item.deadline && (
+              <div className="mt-4">
+                <KeyFacts facts={admissionFacts} headingId="admission-key-facts" />
+              </div>
+              {item.deadline && days != null && days >= 0 && (
                 <p className="mt-2">
-                  {days != null && days >= 0 ? (
-                    <span className="inline-block px-3 py-1 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 font-medium">{t('daysUntilDeadline', { count: days, ns: 'admissions' })}</span>
-                  ) : (
-                    <span className="text-gray-500">{t('deadline', { ns: 'common' })}: {formatDate(item.deadline)}</span>
-                  )}
+                  <span className="inline-block px-3 py-1 rounded-lg bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200 font-medium">{t('daysUntilDeadline', { count: days, ns: 'admissions' })}</span>
                 </p>
               )}
               </div>
             </div>
             <div className="flex flex-wrap gap-2">
               <SaveButton type="admission" id={item._id} saved={savedIds.has(item._id)} onToggle={handleSaveToggle} />
-              {publicHttpUrlOrNull(item.link || item.applyLink) && (
-                <a href={publicHttpUrlOrNull(item.link || item.applyLink)} className="inline-flex items-center min-h-[44px] px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover btn-theme" target="_blank" rel="noopener noreferrer">{t('applyOfficialWebsite', { ns: 'jobs', defaultValue: 'Apply on official website' })}</a>
+              {officialLink && (
+                <a href={officialLink} className="inline-flex items-center min-h-[44px] px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover btn-theme" target="_blank" rel="noopener noreferrer">{t('applyOfficialWebsite', { ns: 'jobs', defaultValue: 'Apply on official website' })}</a>
               )}
               {isAuthenticated && isOpportunityApplicationEnabled() && (
                 <button
@@ -179,12 +192,16 @@ export default function AdmissionDetail() {
               <p className="text-gray-700 dark:text-gray-300 whitespace-pre-wrap">{item.applicationInstructions}</p>
             </section>
           )}
-          {publicHttpUrlOrNull(item.link || item.applyLink) && (
+          {officialLink && (
             <p className="mt-4 text-sm text-amber-800 dark:text-amber-200">{EXTERNAL_APPLY_DISCLOSURE}</p>
           )}
-          <div className="mt-6">
-            <ProvenanceStrip authorityLabel={item.authorityLabel} officialUrl={item.sourceUrl || item.link} />
-          </div>
+          <PublicSourceSection title={sourceSectionTitle(admissionSource?.level)}>
+            <ProvenanceStrip
+              authorityLabel={item.authorityLabel}
+              sourceUrl={admissionSource?.url}
+              linkLabel={admissionSource?.label}
+            />
+          </PublicSourceSection>
           <p className="mt-4 text-xs text-gray-500">{NO_GUARANTEE_DISCLAIMER}</p>
         </div>
         {related.length > 0 && (

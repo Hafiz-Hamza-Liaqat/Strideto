@@ -18,6 +18,14 @@ import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
 import { EXTERNAL_APPLY_DISCLOSURE, NO_GUARANTEE_DISCLAIMER } from '@shared/publicDiscovery/publicTruth.js';
 import { formatLocationDisplay } from '@shared/international/location.js';
 import { PublicTrustBadge } from '../../components/public/PublicTrustBadge';
+import { KeyFacts } from '../../components/public/KeyFacts';
+import { ProvenanceStrip } from '../../components/public/ProvenanceStrip';
+import { PublicSourceSection } from '../../components/public/PublicSourceSection';
+import {
+  resolveInternshipApplicationLink,
+  sourceSectionTitle,
+} from '@shared/seo/sourceAuthority.js';
+import { WORK_MODE_LABELS } from '@shared/publicDiscovery/publicTruth.js';
 import { Alert } from '../../components/ui/Alerts';
 import { RelatedResources } from '../../components/seo/RelatedResources';
 
@@ -143,6 +151,29 @@ export default function InternshipDetail() {
     url: buildCanonicalUrl(canonicalPath),
   });
 
+  const applicationLink = publicHttpUrlOrNull(internship.applicationLink);
+  const locationLine = formatLocationDisplay(internship) || internship.location || null;
+  const workModeLabel = internship.workMode && internship.workMode !== 'unspecified'
+    ? (WORK_MODE_LABELS[internship.workMode] || internship.workMode)
+    : null;
+  const paidLabel = internship.isPaid === true
+    ? 'Paid'
+    : internship.isPaid === false
+      ? 'Compensation not specified as paid'
+      : null;
+
+  const internshipFacts = [
+    { label: t('organizationLabel', { ns: 'internships', defaultValue: 'Organization' }), value: internship.organization },
+    { label: t('locationLabel', { ns: 'internships', defaultValue: 'Location' }), value: locationLine },
+    { label: t('workModeLabel', { ns: 'internships', defaultValue: 'Work mode' }), value: workModeLabel },
+    { label: t('durationLabel', { ns: 'internships', defaultValue: 'Duration' }), value: internship.duration },
+    { label: t('deadlinePrefix', { ns: 'internships' }), value: internship.deadline ? formatDate(internship.deadline) : null },
+    { label: t('typeLabel', { ns: 'internships', defaultValue: 'Type' }), value: internship.internshipType },
+    { label: t('compensationLabel', { ns: 'internships', defaultValue: 'Compensation' }), value: paidLabel },
+  ];
+
+  const internshipSource = resolveInternshipApplicationLink(internship.applicationLink);
+
   return (
     <>
       <SeoHead
@@ -166,15 +197,8 @@ export default function InternshipDetail() {
             <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white break-words-safe">{internship.title}</h1>
             <p className="text-lg text-gray-600 dark:text-gray-400 mt-1 break-words-safe">{internship.organization}</p>
             <div className="mt-2"><PublicTrustBadge kind={internship.authorityKind} label={internship.authorityLabel} /></div>
-            {internship.internshipType ? <p className="text-sm text-gray-500 mt-1">{internship.internshipType}</p> : null}
-            {internship.isPaid === true ? <p className="text-sm text-gray-500">Paid</p> : internship.isPaid === false ? <p className="text-sm text-gray-500">Compensation: Not specified as paid</p> : null}
-            <div className="flex flex-wrap gap-2 mt-2 text-sm text-gray-500 dark:text-gray-400">
-              {(formatLocationDisplay(internship) || internship.location) && (
-                <span>{formatLocationDisplay(internship) || internship.location}</span>
-              )}
-              {internship.workMode && internship.workMode !== 'unspecified' && <span> · {internship.workMode}</span>}
-              {internship.duration && <span> · {internship.duration}</span>}
-              {internship.deadline && <span> · {t('deadlinePrefix', { ns: 'internships' })} {formatDate(internship.deadline)}</span>}
+            <div className="mt-4">
+              <KeyFacts facts={internshipFacts} headingId="internship-key-facts" />
             </div>
           </div>
           <SaveButton id={internship._id} saved={saved} onToggle={handleSaveToggle} />
@@ -212,7 +236,7 @@ export default function InternshipDetail() {
           )}
           {publicHttpUrlOrNull(internship.applicationLink) && (
             <a
-              href={publicHttpUrlOrNull(internship.applicationLink)}
+              href={applicationLink}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center min-h-[44px] px-4 py-2 rounded-lg border-2 border-primary text-primary dark:text-mint hover:bg-mint/20 dark:hover:bg-mint/10 btn-theme"
@@ -233,6 +257,16 @@ export default function InternshipDetail() {
             </button>
           )}
         </div>
+
+        <PublicSourceSection title={sourceSectionTitle(internshipSource?.level)}>
+          <ProvenanceStrip
+            authorityLabel={internship.authorityLabel}
+            sourceLabel={internship.sourceWebsite}
+            sourceUrl={internshipSource?.url}
+            linkLabel={internshipSource?.label}
+          />
+        </PublicSourceSection>
+
         <p className="mt-8 text-xs text-gray-500 dark:text-gray-400">{NO_GUARANTEE_DISCLAIMER}</p>
 
         {(internship.related || []).length > 0 && (

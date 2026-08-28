@@ -8,6 +8,14 @@ import { ROUTES } from '../../constants';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { Alert } from '../../components/ui/Alerts';
 import { formatDate } from '../../utils/formatDate';
+import { KeyFacts } from '../../components/public/KeyFacts';
+import { PublicSourceSection } from '../../components/public/PublicSourceSection';
+import { ProvenanceStrip } from '../../components/public/ProvenanceStrip';
+import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
+import {
+  resolveForeignStudyLink,
+  sourceSectionTitle,
+} from '@shared/seo/sourceAuthority.js';
 
 function Section({ title, children }) {
   if (!children) return null;
@@ -45,6 +53,19 @@ export default function ForeignStudyDetail() {
 
   const canonical = `${ROUTES.FOREIGN_STUDIES}/${item.slug || item._id}`;
   const title = item.seoTitle || `${item.program || item.country} – ${item.country}`;
+  const officialLink = publicHttpUrlOrNull(item.link);
+  const foreignStudySource = resolveForeignStudyLink(item.link);
+  const foreignStudyFacts = [
+    { label: t('static:foreignStudiesDestination', { defaultValue: 'Destination' }), value: item.country },
+    { label: t('static:foreignStudiesLevel', { defaultValue: 'Study level' }), value: item.level },
+    { label: t('static:foreignStudiesInstitution', { defaultValue: 'Institution' }), value: item.institution },
+    { label: t('static:foreignStudiesProgram', { defaultValue: 'Program' }), value: item.program },
+    { label: t('static:foreignStudiesDeadline'), value: item.deadline ? formatDate(item.deadline) : null },
+    {
+      label: t('static:foreignStudiesIntakes'),
+      value: item.intakes?.length ? item.intakes.join(' · ') : null,
+    },
+  ];
 
   return (
     <>
@@ -69,11 +90,18 @@ export default function ForeignStudyDetail() {
         </div>
         <h1 className="text-3xl font-bold text-gray-900 dark:text-white mt-1">{item.program || item.institution}</h1>
         {item.institution && item.program && <p className="text-gray-600 dark:text-gray-400 mt-2">{item.institution}</p>}
-        {item.link && (
-          <a href={item.link} target="_blank" rel="noopener noreferrer" className="inline-block mt-4 px-6 py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover">
+        <div className="mt-4">
+          <KeyFacts facts={foreignStudyFacts} headingId="foreign-study-key-facts" />
+        </div>
+        {officialLink && (
+          <a href={officialLink} target="_blank" rel="noopener noreferrer" className="inline-block mt-4 px-6 py-2.5 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover">
             {t('static:foreignStudiesApply')} ↗
           </a>
         )}
+
+        <PublicSourceSection title={sourceSectionTitle(foreignStudySource?.level)}>
+          <ProvenanceStrip sourceUrl={foreignStudySource?.url} linkLabel={foreignStudySource?.label} />
+        </PublicSourceSection>
 
         <Section title={t('static:foreignStudiesOverview')} >{item.description}</Section>
         <Section title={t('static:foreignStudiesVisa')}>{item.visaInfo}</Section>

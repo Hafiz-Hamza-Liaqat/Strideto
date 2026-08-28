@@ -15,6 +15,14 @@ import { formatMoney } from '@shared/international/dateDisplay.js';
 import { formatLocationDisplay } from '@shared/international/location.js';
 import { PublicTrustBadge } from '../../components/public/PublicTrustBadge';
 import { AUTHORITY_KINDS } from '@shared/publicDiscovery/publicTruth.js';
+import { KeyFacts } from '../../components/public/KeyFacts';
+import { PublicSourceSection } from '../../components/public/PublicSourceSection';
+import { ProvenanceStrip } from '../../components/public/ProvenanceStrip';
+import { PublicSourceLink } from '../../components/public/PublicSourceLink.jsx';
+import {
+  resolveCanonicalScholarshipApplicationUrl,
+  sourceSectionTitle,
+} from '@shared/seo/sourceAuthority.js';
 
 const FUNDING_LABELS = {
   full: 'Fully Funded',
@@ -47,15 +55,6 @@ const CRITERIA_LABELS = {
   financial_need: 'Financial Need',
   admission_enrollment: 'Admission / Enrollment',
   other: 'Other',
-};
-
-const METHOD_LABELS = {
-  direct_portal: 'Apply via Scholarship Portal',
-  institution_application: 'Apply through Institution',
-  automatic_consideration: 'Automatic Consideration',
-  nomination: 'Nomination Required',
-  external_provider: 'External Provider',
-  other: 'See Official Website',
 };
 
 const CYCLE_STATUS_COLORS = {
@@ -141,6 +140,25 @@ export default function ScholarshipIntelligenceDetail() {
   const locationLine = institution
     ? formatLocationDisplay(institution)
     : '';
+  const scholarshipApplication = resolveCanonicalScholarshipApplicationUrl(data.applicationUrl);
+
+  const scholarshipIntelFacts = [
+    { label: 'Provider', value: data.provider?.name },
+    { label: 'Institution', value: institution?.officialName },
+    {
+      label: 'Funding',
+      value: funding.type && funding.type !== 'unknown' ? (FUNDING_LABELS[funding.type] || funding.type) : null,
+    },
+    {
+      label: 'Study level',
+      value: (data.degreeLevels || []).length ? (data.degreeLevels || []).map((d) => d.replace(/_/g, ' ')).join(', ') : null,
+    },
+    {
+      label: 'Destination countries',
+      value: countries.length ? countries.join(', ') : null,
+    },
+    { label: 'Applicability', value: scopeLabel },
+  ];
 
   return (
     <>
@@ -194,6 +212,9 @@ export default function ScholarshipIntelligenceDetail() {
                     kind={institution ? AUTHORITY_KINDS.INSTITUTION_SCHOLARSHIP : AUTHORITY_KINDS.SOURCE_BACKED}
                   />
                 </div>
+                <div className="mt-4">
+                  <KeyFacts facts={scholarshipIntelFacts} headingId="canonical-scholarship-key-facts" />
+                </div>
               </div>
               <span className={`inline-block px-3 py-1 rounded-full text-sm font-medium ${funding.type === 'full' ? 'bg-green-100 text-green-800 dark:bg-green-900/40 dark:text-green-300' : 'bg-gray-100 text-gray-700 dark:bg-gray-700 dark:text-gray-300'}`}>
                 {FUNDING_LABELS[funding.type] || 'Funding Not Specified'}
@@ -228,18 +249,24 @@ export default function ScholarshipIntelligenceDetail() {
               ))}
             </div>
 
-            {data.applicationUrl && (
+            {scholarshipApplication?.url && (
               <div className="mt-5">
-                <a
-                  href={data.applicationUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
+                <PublicSourceLink
+                  url={scholarshipApplication.url}
+                  label={scholarshipApplication.label}
                   className="inline-block px-4 py-2 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-colors"
-                >
-                  {METHOD_LABELS[data.applicationMethod] || 'Official Application'}
-                </a>
+                  showArrow={false}
+                />
               </div>
             )}
+
+            <PublicSourceSection title={sourceSectionTitle(scholarshipApplication?.level)} className="mt-6">
+              <ProvenanceStrip
+                authorityLabel={institution ? institution.officialName : data.provider?.name}
+                sourceUrl={scholarshipApplication?.url}
+                linkLabel={scholarshipApplication?.label}
+              />
+            </PublicSourceSection>
           </div>
 
           {/* Funding detail */}

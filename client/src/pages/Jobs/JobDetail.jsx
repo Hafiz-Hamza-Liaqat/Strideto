@@ -18,6 +18,11 @@ import { Alert } from '../../components/ui/Alerts';
 import { VerificationBadge } from '../../components/common/VerificationBadge';
 import { PublicTrustBadge } from '../../components/public/PublicTrustBadge';
 import { ProvenanceStrip } from '../../components/public/ProvenanceStrip';
+import { KeyFacts } from '../../components/public/KeyFacts';
+import { PublicSourceSection } from '../../components/public/PublicSourceSection';
+import {
+  resolveJobProvenanceLink,
+} from '@shared/seo/sourceAuthority.js';
 import { formatDate } from '../../utils/formatDate';
 import { useContentView } from '../../hooks/usePageView';
 import { loginLocationState } from '../../utils/loginReturn.js';
@@ -63,16 +68,6 @@ function JobDiscoveryCard({ job, ctaLabel }) {
         {ctaLabel}
       </span>
     </Link>
-  );
-}
-
-function Fact({ label, value }) {
-  if (value == null || value === '') return null;
-  return (
-    <div className="min-w-0">
-      <dt className="text-xs uppercase tracking-wide text-gray-500 dark:text-gray-400">{label}</dt>
-      <dd className="text-sm text-gray-900 dark:text-white break-words-safe mt-0.5">{value}</dd>
-    </div>
   );
 }
 
@@ -265,10 +260,11 @@ export default function JobDetail() {
   const locationLine = formatLocationDisplay(job) || job.location || NOT_SPECIFIED;
   const compensation = job.salaryRange
     ? [job.salaryRange, job.salaryCurrency].filter(Boolean).join(' ')
-    : NOT_SPECIFIED;
-  const posted = formatDate(job.publishedAt || job.createdAt) || NOT_SPECIFIED;
-  const deadlineLabel = job.deadline ? formatDate(job.deadline) : NOT_SPECIFIED;
-  const loginState = loginLocationState(location);
+    : null;
+  const posted = formatDate(job.publishedAt || job.createdAt) || null;
+  const deadlineLabel = job.deadline ? formatDate(job.deadline) : null;
+  const workModeLabel = WORK_MODE_LABELS[workMode];
+  const employerName = job.organization || job.company || null;
 
   const canonicalPath = `${ROUTES.JOBS}/${job.slug || job._id}`;
   const description = job.description || t('detailSeoDescription', {
@@ -278,21 +274,37 @@ export default function JobDetail() {
   });
   const seoTitle = t('detailSeoTitle', { title: job.title, ns: 'jobs' });
 
+  const loginState = loginLocationState(location);
+
+  const jobFacts = [
+    { label: t('openingsLabel', { ns: 'jobs', defaultValue: 'Openings' }), value: openings.phrase },
+    { label: t('applicationDeadline', { ns: 'jobs' }), value: deadlineLabel },
+    { label: t('locationLabel', { ns: 'jobs', defaultValue: 'Location' }), value: locationLine !== NOT_SPECIFIED ? locationLine : null },
+    { label: t('workModeLabel', { ns: 'jobs', defaultValue: 'Work mode' }), value: workModeLabel !== NOT_SPECIFIED ? workModeLabel : null },
+    { label: t('typeLabel', { ns: 'jobs' }), value: job.type },
+    { label: t('compensationLabel', { ns: 'jobs', defaultValue: 'Compensation' }), value: compensation },
+    { label: t('posted', { ns: 'jobs' }), value: posted },
+    {
+      label: t('applicationModeLabel', { ns: 'jobs', defaultValue: 'Application' }),
+      value: APPLICATION_MODE_LABELS[job.applyType] || APPLICATION_MODE_LABELS.external,
+    },
+    { label: t('experienceLabel', { ns: 'jobs' }), value: job.experience },
+    { label: t('educationLabel', { ns: 'jobs' }), value: job.educationRequirement },
+    {
+      label: t('employerLabel', { ns: 'jobs', defaultValue: 'Employer' }),
+      value: employerName,
+    },
+  ];
+
   const summaryFacts = (
-    <dl className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-      <Fact label={t('openingsLabel', { ns: 'jobs', defaultValue: 'Openings' })} value={openings.phrase} />
-      <Fact label={t('applicationDeadline', { ns: 'jobs' })} value={deadlineLabel} />
-      <Fact label={t('locationLabel', { ns: 'jobs', defaultValue: 'Location' })} value={locationLine} />
-      <Fact label={t('workModeLabel', { ns: 'jobs', defaultValue: 'Work mode' })} value={WORK_MODE_LABELS[workMode] || NOT_SPECIFIED} />
-      <Fact label={t('typeLabel', { ns: 'jobs' })} value={job.type || NOT_SPECIFIED} />
-      <Fact label={t('compensationLabel', { ns: 'jobs', defaultValue: 'Compensation' })} value={compensation} />
-      <Fact label={t('posted', { ns: 'jobs' })} value={posted} />
-      <Fact
-        label={t('applicationModeLabel', { ns: 'jobs', defaultValue: 'Application' })}
-        value={APPLICATION_MODE_LABELS[job.applyType] || APPLICATION_MODE_LABELS.external}
-      />
-    </dl>
+    <KeyFacts
+      title={t('summary', { ns: 'jobs', defaultValue: 'Summary' })}
+      facts={jobFacts}
+      headingId="job-key-facts"
+    />
   );
+
+  const jobProvenance = resolveJobProvenanceLink(job);
 
   const actions = (
     <div className="flex flex-col gap-3 min-w-0">
@@ -519,21 +531,21 @@ export default function JobDetail() {
               </Section>
             ) : null}
 
-            <Section title={t('employerSource', { ns: 'jobs', defaultValue: 'Employer / source' })}>
+            <PublicSourceSection title={t('employerSource', { ns: 'jobs', defaultValue: 'Employer / source' })}>
               <ProvenanceStrip
                 authorityLabel={job.authorityLabel}
                 sourceLabel={job.sourceWebsite || (job.source === 'employer' ? 'Employer-posted on Strideto' : null)}
-                officialUrl={isExternal ? applicationLink : job.sourceUrl}
+                sourceUrl={jobProvenance?.url}
+                linkLabel={jobProvenance?.label}
               />
               {job.applicationsTracked === false && (
                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-400">{t('externalNotTracked', { ns: 'jobs', defaultValue: 'Applicant numbers are not tracked on Strideto for this listing.' })}</p>
               )}
-            </Section>
+            </PublicSourceSection>
           </div>
 
           <aside className="hidden lg:block lg:sticky lg:top-24 min-w-0 mt-0">
             <div className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 shadow-sm space-y-5">
-              <h2 className="text-base font-semibold text-gray-900 dark:text-white">{t('summary', { ns: 'jobs', defaultValue: 'Summary' })}</h2>
               {summaryFacts}
               {actions}
             </div>

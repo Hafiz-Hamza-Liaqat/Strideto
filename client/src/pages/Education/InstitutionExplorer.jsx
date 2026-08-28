@@ -11,10 +11,14 @@ import { ROUTES } from '../../constants';
 import { Pagination } from '../../components/ui/Pagination';
 import { CountrySelect } from '../../components/forms/CountrySelect';
 import { ProvenanceStrip } from '../../components/public/ProvenanceStrip';
+import { KeyFacts } from '../../components/public/KeyFacts';
+import { PublicSourceLink } from '../../components/public/PublicSourceLink.jsx';
+import {
+  resolveInstitutionOfficialWebsite,
+} from '@shared/seo/sourceAuthority.js';
 import { countryDisplayName } from '@shared/international/country.js';
 import { formatMoney } from '@shared/international/dateDisplay.js';
 import { NO_GUARANTEE_DISCLAIMER } from '@shared/publicDiscovery/publicTruth.js';
-import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
 import { isCanonicalInstitutionDetailEligible } from '@shared/seo/entityDetailSeoPolicy.js';
 import { clusterResourceLinks } from '@shared/seo/contentClusters.js';
 import { RelatedResources } from '../../components/seo/RelatedResources';
@@ -359,7 +363,7 @@ export function InstitutionExplorerDetail() {
     );
   }
 
-  const website = publicHttpUrlOrNull(data.officialWebsite);
+  const websiteLink = resolveInstitutionOfficialWebsite(data.officialWebsite);
   const detailIndexable = isCanonicalInstitutionDetailEligible(data, {
     programCount: programs.length,
     acceptedTestCount: acceptedTests.length,
@@ -368,6 +372,19 @@ export function InstitutionExplorerDetail() {
     maxItems: 4,
     currentPath: `${ROUTES.EDUCATION_INSTITUTIONS}/${data.slug || ''}`,
   });
+
+  const institutionFacts = [
+    { label: 'Institution type', value: TYPE_LABELS[data.institutionType] || data.institutionType },
+    { label: 'Location', value: locationLine(data) },
+    {
+      label: 'Published programs',
+      value: programs.length > 0 ? String(programs.length) : null,
+    },
+    {
+      label: 'Accepted tests listed',
+      value: acceptedTests.length > 0 ? String(acceptedTests.length) : null,
+    },
+  ];
 
   return (
     <>
@@ -387,6 +404,9 @@ export function InstitutionExplorerDetail() {
           <div className="bg-white dark:bg-gray-800 rounded-2xl border border-gray-200 dark:border-gray-700 p-6 mb-6">
             <h1 className="text-xl font-bold text-gray-900 dark:text-white">{data.officialName}</h1>
             <p className="mt-1 text-sm text-gray-500">{locationLine(data)}</p>
+            <div className="mt-4">
+              <KeyFacts facts={institutionFacts} headingId="institution-key-facts" />
+            </div>
             <div className="mt-3 flex flex-wrap gap-2">
               {data.institutionType && (
                 <span className="text-xs px-2 py-0.5 rounded bg-blue-50 dark:bg-blue-900/20 text-blue-700 dark:text-blue-300">
@@ -394,17 +414,18 @@ export function InstitutionExplorerDetail() {
                 </span>
               )}
             </div>
-            {website && (
-              <a href={website} target="_blank" rel="noopener noreferrer" className="mt-3 inline-block text-sm text-primary underline">
-                Official website
-              </a>
+            {websiteLink?.url && (
+              <div className="mt-3">
+                <PublicSourceLink url={websiteLink.url} label={websiteLink.label} />
+              </div>
             )}
             <ProvenanceStrip
               className="mt-4"
               authorityLabel={data.authorityLabel}
               lastReviewedAt={data.lastVerifiedAt}
               freshnessState={data.freshnessState}
-              officialUrl={website}
+              sourceUrl={websiteLink?.url}
+              linkLabel={websiteLink?.label}
             />
             <p className="mt-2 text-xs text-gray-400">
               Catalog publication does not mean the organization is verified or that a claim is approved.

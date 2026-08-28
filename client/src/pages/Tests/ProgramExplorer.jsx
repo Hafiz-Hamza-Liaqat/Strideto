@@ -19,6 +19,12 @@ import { countryDisplayName } from '@shared/international/country.js';
 import { formatPublicDateOnly, APPLICATION_MODE_LABELS, NO_GUARANTEE_DISCLAIMER, NOT_SPECIFIED } from '@shared/publicDiscovery/publicTruth.js';
 import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
 import { ProvenanceStrip } from '../../components/public/ProvenanceStrip';
+import { KeyFacts } from '../../components/public/KeyFacts';
+import { PublicSourceLink } from '../../components/public/PublicSourceLink.jsx';
+import {
+  resolveProgramOfficialPage,
+  resolveProgramAdmissionRequirementsUrl,
+} from '@shared/seo/sourceAuthority.js';
 import { testsApi } from '../../services/listingsService';
 import { CountrySelect } from '../../components/forms/CountrySelect';
 import { fallbackScopeLabel, ACCEPTANCE_SCOPES } from '@shared/education/acceptanceExplorer.js';
@@ -475,6 +481,25 @@ export function ProgramExplorerDetail() {
   const inst = data.institutionId;
   const primaryApplyIntake = (data.intakes || []).find((intake) => intakeSupportsApply(intake));
   const loginReturnPath = location.pathname;
+  const officialProgramUrl = resolveProgramOfficialPage(data.officialProgramUrl);
+  const admissionRequirementsLink = resolveProgramAdmissionRequirementsUrl(data.admissionRequirementsUrl);
+
+  const programFacts = [
+    { label: 'Institution', value: inst?.officialName },
+    {
+      label: 'Country',
+      value: data.country ? (countryDisplayName(data.country) || data.country) : (inst?.countryCode ? (countryDisplayName(inst.countryCode) || inst.countryCode) : null),
+    },
+    { label: 'Degree', value: data.degreeLevel ? (DEGREE_LABELS[data.degreeLevel] || data.degreeLevel) : null },
+    { label: 'Field', value: data.field ? (FIELD_LABELS[data.field] || data.field) : null },
+    { label: 'Study mode', value: data.studyMode ? (STUDY_MODE_LABELS[data.studyMode] || data.studyMode) : null },
+    { label: 'Duration', value: data.durationMonths ? `${data.durationMonths} months` : null },
+    { label: 'Campus', value: data.campus },
+    {
+      label: 'Tuition',
+      value: data.tuition?.amountMinor != null ? formatMoney(data.tuition) : null,
+    },
+  ];
 
   return (
     <>
@@ -549,43 +574,8 @@ export function ProgramExplorerDetail() {
               </button>
               {shareStatus ? <span className="text-xs text-gray-500 self-center">{shareStatus}</span> : null}
             </div>
-            <div className="mt-4 grid grid-cols-2 sm:grid-cols-3 gap-3 text-sm">
-              {data.degreeLevel && (
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide">Degree</p>
-                  <p className="text-gray-900 dark:text-white capitalize">{DEGREE_LABELS[data.degreeLevel] || data.degreeLevel}</p>
-                </div>
-              )}
-              {data.field && (
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide">Field</p>
-                  <p className="text-gray-900 dark:text-white capitalize">{FIELD_LABELS[data.field] || data.field}</p>
-                </div>
-              )}
-              {data.studyMode && (
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide">Study Mode</p>
-                  <p className="text-gray-900 dark:text-white">{STUDY_MODE_LABELS[data.studyMode] || data.studyMode}</p>
-                </div>
-              )}
-              {data.durationMonths && (
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide">Duration</p>
-                  <p className="text-gray-900 dark:text-white">{data.durationMonths} months</p>
-                </div>
-              )}
-              {data.campus && (
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide">Campus</p>
-                  <p className="text-gray-900 dark:text-white">{data.campus}</p>
-                </div>
-              )}
-              {data.country && (
-                <div>
-                  <p className="text-xs text-gray-400 uppercase tracking-wide">Country</p>
-                  <p className="text-gray-900 dark:text-white">{countryDisplayName(data.country) || data.country}</p>
-                </div>
-              )}
+            <div className="mt-4">
+              <KeyFacts facts={programFacts} headingId="program-key-facts" />
             </div>
 
             {/* Tuition */}
@@ -614,17 +604,19 @@ export function ProgramExplorerDetail() {
                   loginReturnPath={loginReturnPath}
                 />
               ) : null}
-              {data.officialProgramUrl && (
-                <a href={data.officialProgramUrl} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center min-h-[44px] text-sm px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition-colors">
-                  Official Program Page ↗
-                </a>
+              {officialProgramUrl?.url && (
+                <PublicSourceLink
+                  url={officialProgramUrl.url}
+                  label={officialProgramUrl.label}
+                  className="inline-flex items-center justify-center min-h-[44px] text-sm px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition-colors"
+                />
               )}
-              {data.admissionRequirementsUrl && (
-                <a href={data.admissionRequirementsUrl} target="_blank" rel="noopener noreferrer"
-                  className="inline-flex items-center justify-center min-h-[44px] text-sm px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition-colors">
-                  Admission Requirements ↗
-                </a>
+              {admissionRequirementsLink?.url && (
+                <PublicSourceLink
+                  url={admissionRequirementsLink.url}
+                  label={admissionRequirementsLink.label}
+                  className="inline-flex items-center justify-center min-h-[44px] text-sm px-4 py-2 rounded-lg border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-700 font-medium transition-colors"
+                />
               )}
             </div>
           </div>
@@ -828,7 +820,8 @@ export function ProgramExplorerDetail() {
             authorityLabel={data.authorityLabel}
             lastReviewedAt={data.lastVerifiedAt}
             freshnessState={data.freshnessState}
-            officialUrl={data.officialProgramUrl}
+            sourceUrl={officialProgramUrl?.url}
+            linkLabel={officialProgramUrl?.label}
           />
           <p className="mt-2 text-xs text-gray-400 dark:text-gray-500">
             {NO_GUARANTEE_DISCLAIMER}
