@@ -47,6 +47,7 @@ const SavedJobs = lazyLoad(() => import('../pages/SavedJobs/SavedJobs'));
 const Admin = lazyLoad(() => import('../pages/Admin/Admin'));
 const AIJobGenerator = lazyLoad(() => import('../pages/Admin/AIJobGenerator'));
 const AnalyticsDashboard = lazyLoad(() => import('../pages/Admin/AnalyticsDashboard'));
+const AdminSeoMeasurement = lazyLoad(() => import('../pages/Admin/AdminSeoMeasurement'));
 const GrowthDashboard = lazyLoad(() => import('../pages/Admin/GrowthDashboard'));
 const ExecutiveDashboard = lazyLoad(() => import('../pages/Admin/ExecutiveDashboard'));
 const ModerationQueue = lazyLoad(() => import('../pages/Admin/ModerationQueue'));
@@ -763,6 +764,7 @@ export const routes = [
           { path: 'growth-dashboard', element: <GrowthDashboard /> },
           { path: 'ai-job-generator', element: <AIJobGenerator /> },
           { path: 'analytics', element: <AnalyticsDashboard /> },
+          { path: 'seo-measurement', element: <AdminSeoMeasurement /> },
           { path: 'alerts', element: <AlertsAdmin /> },
           { path: 'jobs', element: <AdminContentJobs /> },
           { path: 'scholarships', element: <AdminContentScholarships /> },

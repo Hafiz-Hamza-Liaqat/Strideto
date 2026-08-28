@@ -53,6 +53,7 @@ import * as translationAdmin from '../controllers/admin/translationController.js
 import * as formSubmissionAdmin from '../controllers/admin/formSubmissionAdminController.js';
 import * as adminSearch from '../controllers/admin/adminSearchController.js';
 import * as contentInsights from '../controllers/admin/contentInsightsController.js';
+import * as seoMeasurement from '../controllers/admin/seoMeasurementController.js';
 import * as editorialWorkflow from '../controllers/admin/editorialWorkflowController.js';
 import { getPlatformHealth } from '../controllers/platformOpsController.js';
 import { uploadAdminImage as uploadAdminImageMw } from '../middleware/imageUpload.js';
@@ -90,6 +91,9 @@ adminRouter.get('/content-insights/dynamic-blocks', requirePermission(PERMISSION
 adminRouter.get('/content-insights/export', requirePermission(PERMISSIONS.ANALYTICS_READ), contentInsights.exportInsights);
 adminRouter.get('/content-insights/cache', requirePermission(PERMISSIONS.ANALYTICS_READ), contentInsights.getCacheStats);
 adminRouter.post('/content-insights/cache/clear', requirePermission(PERMISSIONS.ANALYTICS_READ), contentInsights.clearCache);
+
+adminRouter.get('/seo-measurement', requirePermission(PERMISSIONS.ANALYTICS_READ), seoMeasurement.getSeoMeasurementDashboard);
+adminRouter.post('/seo-measurement/snapshots', requirePermission(PERMISSIONS.DATA_QUALITY_MANAGE), seoMeasurement.postManualSeoSnapshot);
 
 adminRouter.post('/upload/image', requirePermission(
   PERMISSIONS.CONTENT_SITE,

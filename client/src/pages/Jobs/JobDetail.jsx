@@ -25,6 +25,7 @@ import {
 } from '@shared/seo/sourceAuthority.js';
 import { formatDate } from '../../utils/formatDate';
 import { useContentView } from '../../hooks/usePageView';
+import { trackApplicationClick } from '../../utils/applicationClickTracking.js';
 import { loginLocationState } from '../../utils/loginReturn.js';
 import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
 import {
@@ -321,12 +322,30 @@ export default function JobDetail() {
         </p>
       )}
       {isExternal && accepting && applicationLink && (
-        <a href={applicationLink} className={ACTION_PRIMARY} target="_blank" rel="noopener noreferrer">
+        <a
+          href={applicationLink}
+          className={ACTION_PRIMARY}
+          target="_blank"
+          rel="noopener noreferrer"
+          onClick={() => trackApplicationClick({
+            entityType: 'job',
+            entityId: job._id,
+            destinationType: 'external_url',
+          })}
+        >
           {t('applyOfficialWebsite', { ns: 'jobs' })}
         </a>
       )}
       {isExternal && accepting && !applicationLink && applyEmail && (
-        <a href={`mailto:${applyEmail}`} className={ACTION_PRIMARY}>
+        <a
+          href={`mailto:${applyEmail}`}
+          className={ACTION_PRIMARY}
+          onClick={() => trackApplicationClick({
+            entityType: 'job',
+            entityId: job._id,
+            destinationType: 'email',
+          })}
+        >
           {t('applyByEmail', { ns: 'jobs', defaultValue: 'Apply by email' })}
         </a>
       )}

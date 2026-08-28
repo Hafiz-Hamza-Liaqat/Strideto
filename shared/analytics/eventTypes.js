@@ -21,6 +21,7 @@ export const ANALYTICS_EVENT_TYPES = [
   'dynamic_block_render',
   'dynamic_block_click',
   'cta_click',
+  'application_click',
   'newsletter_signup',
   // Legacy / existing
   'view',

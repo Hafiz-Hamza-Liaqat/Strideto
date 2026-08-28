@@ -1,12 +1,14 @@
 /**
- * Canonical client analytics emitter (C.7.0.7.1).
+ * Canonical client analytics emitter (C.7.0.5 + SEO-P8 landing attribution).
  * All public interactions should use this helper.
  * First-party only — gated on analytics consent (no third-party tags).
  */
 import { analyticsEventApi } from '../services/contentInsightsApi';
 import { allowsAnalytics } from '../consent/cookieConsentStorage';
+import { buildLandingAttributionMetadata } from '@shared/seo/measurement/landingAttribution.js';
 
 const SESSION_KEY = 'er_analytics_session';
+const ACQUISITION_KEY = 'er_acquisition_attribution';
 
 function getSessionId() {
   try {
@@ -18,6 +20,26 @@ function getSessionId() {
     return id;
   } catch {
     return '';
+  }
+}
+
+/**
+ * First-touch acquisition attribution for the session (UTM fields only).
+ */
+function getSessionAcquisitionMetadata() {
+  if (typeof window === 'undefined') return {};
+  try {
+    const existing = sessionStorage.getItem(ACQUISITION_KEY);
+    if (existing) return JSON.parse(existing);
+
+    const landing = buildLandingAttributionMetadata(
+      window.location.pathname,
+      window.location.search,
+    );
+    sessionStorage.setItem(ACQUISITION_KEY, JSON.stringify(landing));
+    return landing;
+  } catch {
+    return {};
   }
 }
 
@@ -34,12 +56,20 @@ export function trackPlatformEvent(payload = {}) {
   } catch {
     locale = locale || 'en';
   }
+
+  const acquisition = getSessionAcquisitionMetadata();
+  const metadata = {
+    ...acquisition,
+    ...(payload.metadata && typeof payload.metadata === 'object' ? payload.metadata : {}),
+  };
+
   const body = {
     ...payload,
     locale,
     page: payload.page || window.location.pathname,
     referrer: payload.referrer || document.referrer || '',
     sessionId: payload.sessionId || getSessionId(),
+    metadata,
   };
   analyticsEventApi.record(body).catch(() => {});
 }

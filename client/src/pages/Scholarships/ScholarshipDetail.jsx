@@ -27,6 +27,7 @@ import {
 import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
 import { AGENT_NON_AUTHORITY_DISCLAIMER, EXTERNAL_APPLY_DISCLOSURE, NO_GUARANTEE_DISCLAIMER } from '@shared/publicDiscovery/publicTruth.js';
 import { RelatedResources } from '../../components/seo/RelatedResources';
+import { trackApplicationClick } from '../../utils/applicationClickTracking.js';
 
 export default function ScholarshipDetail() {
   const { t } = useTranslation(['scholarships', 'common', 'navbar', 'applications']);
@@ -146,7 +147,19 @@ export default function ScholarshipDetail() {
             <div className="flex flex-wrap gap-2">
               <SaveButton type="scholarship" id={item._id} saved={savedIds.has(item._id)} onToggle={handleSaveToggle} />
               {officialLink && (
-                <a href={officialLink} className="inline-flex items-center min-h-[44px] px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover btn-theme" target="_blank" rel="noopener noreferrer">{t('applyOfficialWebsite', { ns: 'jobs', defaultValue: 'Apply on official website' })}</a>
+                <a
+                  href={officialLink}
+                  className="inline-flex items-center min-h-[44px] px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover btn-theme"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => trackApplicationClick({
+                    entityType: 'scholarship',
+                    entityId: item._id,
+                    destinationType: 'external_url',
+                  })}
+                >
+                  {t('applyOfficialWebsite', { ns: 'jobs', defaultValue: 'Apply on official website' })}
+                </a>
               )}
               {isAuthenticated && isOpportunityApplicationEnabled() && (
                 <button
