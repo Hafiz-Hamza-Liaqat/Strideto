@@ -224,6 +224,9 @@ const AgentDirectory = lazyLoad(() => import('../pages/Public/AgentDirectory'));
 const AgentPublicProfile = lazyLoad(() => import('../pages/Public/AgentPublicProfile'));
 const EducationProviderEntry = lazyLoad(() => import('../pages/Public/EducationProviderEntry'));
 const BusinessProviderEntry = lazyLoad(() => import('../pages/Public/BusinessProviderEntry'));
+const StudentAcquisition = lazyLoad(() => import('../pages/Public/StudentAcquisition'));
+const EmployerAcquisition = lazyLoad(() => import('../pages/Public/EmployerAcquisition'));
+const InstitutionAcquisition = lazyLoad(() => import('../pages/Public/InstitutionAcquisition'));
 const LegacyProviderPortalLanding = lazyLoad(() => import('../pages/Public/LegacyProviderPortalLanding'));
 const AgentMarketplace = lazyLoad(() => import('../pages/Agent/AgentMarketplace'));
 const AgentMarketplaceForm = lazyLoad(() => import('../pages/Agent/AgentMarketplaceForm'));
@@ -517,6 +520,9 @@ export const routes = [
       { path: `${ROUTES.BLOG}/:slug`, element: <BlogPost /> },
       { path: ROUTES.CONTACT, element: <Contact /> },
       { path: ROUTES.ABOUT, element: <About /> },
+      { path: ROUTES.FOR_STUDENTS, element: <StudentAcquisition /> },
+      { path: ROUTES.FOR_EMPLOYERS, element: <EmployerAcquisition /> },
+      { path: ROUTES.FOR_INSTITUTIONS, element: <InstitutionAcquisition /> },
       { path: ROUTES.SERVICES, element: <Services /> },
       { path: ROUTES.ADVERTISE, element: <Advertise /> },
       { path: ROUTES.HELP_CENTER, element: <HelpCenter /> },

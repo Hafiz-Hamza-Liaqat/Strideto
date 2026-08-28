@@ -82,6 +82,9 @@ export default function HumanSitemap() {
       description: t('static:sitemapOrganizationsDesc', { defaultValue: 'Portals for employers, agents, and institutions.' }),
       icon: 'briefcase',
       links: [
+        { to: ROUTES.FOR_STUDENTS, label: t('footer:forStudents', { defaultValue: 'For Students' }) },
+        { to: ROUTES.FOR_EMPLOYERS, label: t('footer:forEmployers', { defaultValue: 'For Employers' }) },
+        { to: ROUTES.FOR_INSTITUTIONS, label: t('footer:forInstitutions', { defaultValue: 'For Institutions' }) },
         { to: ROUTES.EMPLOYER_LOGIN, label: t('footer:employerPortal'), note: t('static:sitemapOrgNote') },
         { to: ROUTES.PROVIDERS_EDUCATION_MOBILITY, label: t('footer:educationProviderPortal'), note: t('static:sitemapOrgNote') },
         { to: ROUTES.PROVIDERS_BUSINESS_FORMATION, label: t('footer:businessProviderPortal'), note: t('static:sitemapOrgNote') },

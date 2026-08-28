@@ -91,6 +91,9 @@ export function Footer() {
   ];
 
   const organizationLinks = [
+    { label: t('footer:forStudents', { defaultValue: 'For Students' }), path: ROUTES.FOR_STUDENTS },
+    { label: t('footer:forEmployers', { defaultValue: 'For Employers' }), path: ROUTES.FOR_EMPLOYERS },
+    { label: t('footer:forInstitutions', { defaultValue: 'For Institutions' }), path: ROUTES.FOR_INSTITUTIONS },
     isEmployerWorkspaceLaunched()
       ? { label: t('footer:employerPortal'), path: ROUTES.EMPLOYER_LOGIN }
       : { label: t('footer:employerPortal'), comingSoon: true },
