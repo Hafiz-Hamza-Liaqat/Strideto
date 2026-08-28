@@ -25,6 +25,9 @@ import { FRESHNESS_STATES } from '../../../../shared/trust/sourceVerification.js
 import { projectPublicProgram } from '../../../../shared/publicDiscovery/projectPublicDiscovery.js';
 import { currentAcceptanceMongoFilter } from '../../../../shared/publicDiscovery/publicTruth.js';
 import { withFixtureExclusion } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
+import { rankRelatedPrograms } from '../../../../shared/seo/relatedRanking.js';
+import { clusterResourceLinks } from '../../../../shared/seo/contentClusters.js';
+import { isProgramDetailIndexable } from '../../../../shared/seo/entityDetailSeoPolicy.js';
 
 const PAGE_SIZE = 20;
 const MAX_PAGE_SIZE = 50;
@@ -150,11 +153,31 @@ export const getProgramDetail = asyncHandler(async (req, res) => {
 
   const warning = freshnessWarning(doc.freshnessState);
 
+  const relatedProgramCandidates = doc.institutionId
+    ? await Program.find(withFixtureExclusion({
+        status: 'published',
+        institutionId: doc.institutionId._id || doc.institutionId,
+        _id: { $ne: doc._id },
+      }))
+        .select('name slug degreeLevel field studyMode institutionId status')
+        .limit(12)
+        .lean()
+    : [];
+  const relatedPrograms = rankRelatedPrograms(doc, relatedProgramCandidates, { limit: 4 })
+    .filter(isProgramDetailIndexable);
+
+  const relatedResources = clusterResourceLinks('institutions-programs', {
+    maxItems: 4,
+    currentPath: `/program-explorer/${doc.slug}`,
+  });
+
   res.json({
     data: projectProgram(doc),
     requirements: requirements.map(projectPublicProgramRequirement),
     acceptedTests: acceptedTests.map(projectPublicAcceptance),
     relatedScholarships,
+    relatedPrograms,
+    relatedResources,
     ...(warning ? { freshnessWarning: warning } : {}),
   });
 });

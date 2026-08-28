@@ -6,6 +6,7 @@ import { listResponse, paginate } from '../utils/apiResponse.js';
 import { sanitizeString } from '../utils/sanitize.js';
 import { freeTextCountryRegex } from '../../../shared/international/location.js';
 import { isObjectIdParam } from '../utils/localeQuery.js';
+import { clusterResourceLinks } from '../../../shared/seo/contentClusters.js';
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
@@ -55,7 +56,33 @@ export const getIntlScholarshipByIdOrSlug = asyncHandler(async (req, res) => {
   const doc = await findPublicIntlScholarship(key);
   if (!doc) return res.status(404).json({ error: 'Scholarship not found' });
 
-  const payload = { ...doc };
+  const relatedCandidates = await IntlScholarship.find({
+    status: PUBLIC_STATUS,
+    _id: { $ne: doc._id },
+  })
+    .sort({ deadline: 1, applicationDeadline: 1 })
+    .limit(24)
+    .lean();
+  const related = relatedCandidates
+    .map((candidate) => {
+      let score = 0;
+      if (doc.country && candidate.country === doc.country) score += 30;
+      if (doc.universityId && String(candidate.universityId) === String(doc.universityId)) score += 25;
+      if (doc.level && candidate.level === doc.level) score += 20;
+      return { candidate, score };
+    })
+    .filter((row) => row.score > 0)
+    .sort((a, b) => b.score - a.score)
+    .slice(0, 4)
+    .map((row) => row.candidate);
+
+  const slugPath = doc.slug || doc._id;
+  const relatedResources = clusterResourceLinks('international-study', {
+    maxItems: 4,
+    currentPath: `/intl-scholarships/${slugPath}`,
+  });
+
+  const payload = { ...doc, related, relatedResources };
   if (isObjectIdParam(key) && doc.slug) {
     payload.canonicalSlug = doc.slug;
   }

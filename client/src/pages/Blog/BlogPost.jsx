@@ -12,6 +12,7 @@ import { sanitizeHtmlForRender } from '../../utils/sanitizeHtml';
 import { normalizeBlogContent, shouldShowBlogToc } from '@shared/blog/blogContent.js';
 import { displayableBlogCategoryLabel } from '@shared/blog/taxonomy.js';
 import { resolveBlogReadingMinutes } from '@shared/blog/readingTime.js';
+import { RelatedResources } from '../../components/seo/RelatedResources';
 
 const MS_DAY = 24 * 60 * 60 * 1000;
 
@@ -110,6 +111,8 @@ export default function BlogPost() {
   const { slug } = useParams();
   const [post, setPost] = useState(null);
   const [related, setRelated] = useState([]);
+  const [relatedResources, setRelatedResources] = useState([]);
+  const [relatedRelation, setRelatedRelation] = useState('related');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -118,23 +121,18 @@ export default function BlogPost() {
   useEffect(() => {
     if (!slug) return;
     blogsApi.get(slug)
-      .then(({ data }) => setPost(data))
+      .then(({ data }) => {
+        setPost(data);
+        setRelated(data.relatedPosts || []);
+        setRelatedResources(data.relatedResources || []);
+        setRelatedRelation(data.relatedPostsMeta?.relation || 'related');
+      })
       .catch(() => {
         setPost(null);
         setError('Not found');
       })
       .finally(() => setLoading(false));
   }, [slug]);
-
-  useEffect(() => {
-    if (!post?.slug) return;
-    blogsApi.list({ limit: 10, status: 'published' })
-      .then(({ data }) => {
-        const list = data?.data || data || [];
-        setRelated(list.filter((p) => (p.slug || p._id) !== post.slug).slice(0, 3));
-      })
-      .catch(() => setRelated([]));
-  }, [post?.slug]);
 
   const body = useMemo(() => {
     if (!post?.content && !post?.excerpt) return { html: '', toc: [] };
@@ -280,7 +278,9 @@ export default function BlogPost() {
 
         {related.length > 0 && (
           <section className="mt-12 pt-8 border-t border-gray-200 dark:border-gray-700">
-            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">{t('blog:relatedPosts')}</h2>
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              {relatedRelation === 'recent' ? t('blog:latestPosts', { defaultValue: 'Latest articles' }) : t('blog:relatedPosts')}
+            </h2>
             <div className="grid sm:grid-cols-3 gap-4">
               {related.map((p) => (
                 <Link key={p._id || p.slug} to={`${ROUTES.BLOG}/${p.slug}`} className="block p-3 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md hover:border-edur-blue/50 card-hover">
@@ -290,6 +290,14 @@ export default function BlogPost() {
               ))}
             </div>
           </section>
+        )}
+
+        {relatedResources.length > 0 && (
+          <RelatedResources
+            title={t('blog:exploreRelatedResources', { defaultValue: 'Explore related resources' })}
+            items={relatedResources}
+            maxItems={4}
+          />
         )}
       </article>
     </>

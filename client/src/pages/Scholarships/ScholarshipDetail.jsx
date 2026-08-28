@@ -20,6 +20,7 @@ import { PublicTrustBadge } from '../../components/public/PublicTrustBadge';
 import { ProvenanceStrip } from '../../components/public/ProvenanceStrip';
 import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
 import { AGENT_NON_AUTHORITY_DISCLAIMER, EXTERNAL_APPLY_DISCLOSURE, NO_GUARANTEE_DISCLAIMER } from '@shared/publicDiscovery/publicTruth.js';
+import { RelatedResources } from '../../components/seo/RelatedResources';
 
 export default function ScholarshipDetail() {
   const { t } = useTranslation(['scholarships', 'common', 'navbar', 'applications']);
@@ -183,6 +184,14 @@ export default function ScholarshipDetail() {
               ))}
             </div>
           </section>
+        )}
+
+        {Array.isArray(item.relatedResources) && item.relatedResources.length > 0 && (
+          <RelatedResources
+            title={t('exploreScholarshipResources', { ns: 'scholarships', defaultValue: 'Explore scholarship resources' })}
+            items={item.relatedResources}
+            maxItems={4}
+          />
         )}
       </article>
     </>

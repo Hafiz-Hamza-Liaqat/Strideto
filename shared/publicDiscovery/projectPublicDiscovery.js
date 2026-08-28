@@ -123,6 +123,7 @@ export function projectPublicJob(job, extras = {}) {
     acceptingApplications: availability === 'open',
     employerVerification: extras.employerVerification || null,
     related,
+    relatedResources: Array.isArray(extras.relatedResources) ? extras.relatedResources : undefined,
   };
 }
 
@@ -221,6 +222,7 @@ export function projectPublicCmsScholarship(doc, extras = {}) {
     authorityLabel: authorityLabel(AUTHORITY_KINDS.SOURCE_BACKED),
     freshnessState: 'unknown',
     related,
+    relatedResources: Array.isArray(extras.relatedResources) ? extras.relatedResources : undefined,
   };
 }
 

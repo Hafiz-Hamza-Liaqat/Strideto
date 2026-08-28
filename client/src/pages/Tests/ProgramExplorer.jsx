@@ -22,6 +22,8 @@ import { ProvenanceStrip } from '../../components/public/ProvenanceStrip';
 import { testsApi } from '../../services/listingsService';
 import { CountrySelect } from '../../components/forms/CountrySelect';
 import { fallbackScopeLabel, ACCEPTANCE_SCOPES } from '@shared/education/acceptanceExplorer.js';
+import { resolveScholarshipDetailPath } from '@shared/seo/entityDetailSeoPolicy.js';
+import { RelatedResources } from '../../components/seo/RelatedResources';
 
 const DEGREE_LABELS = {
   high_school: 'High School',
@@ -407,6 +409,8 @@ export function ProgramExplorerDetail() {
   const [requirements, setRequirements] = useState([]);
   const [acceptedTests, setAcceptedTests] = useState([]);
   const [relatedScholarships, setRelatedScholarships] = useState([]);
+  const [relatedPrograms, setRelatedPrograms] = useState([]);
+  const [relatedResources, setRelatedResources] = useState([]);
   const [freshnessWarning, setFreshnessWarning] = useState(null);
   const [acceptanceFallback, setAcceptanceFallback] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -422,6 +426,8 @@ export function ProgramExplorerDetail() {
         setRequirements(res.data.requirements || []);
         setAcceptedTests(res.data.acceptedTests || []);
         setRelatedScholarships(res.data.relatedScholarships || []);
+        setRelatedPrograms(res.data.relatedPrograms || []);
+        setRelatedResources(res.data.relatedResources || []);
         setFreshnessWarning(res.data.freshnessWarning || null);
         if (!(res.data.acceptedTests || []).length) {
           return testsApi.getProgramAcceptance(slug).then(({ data: acc }) => {
@@ -762,10 +768,16 @@ export function ProgramExplorerDetail() {
           {relatedScholarships.length > 0 && (
             <Section title="Related Scholarships">
               <div className="space-y-2">
-                {relatedScholarships.map((s) => (
+                {relatedScholarships.map((s) => {
+                  const scholarshipPath = resolveScholarshipDetailPath({
+                    ...s,
+                    sourceType: 'institution_canonical',
+                  });
+                  if (!scholarshipPath) return null;
+                  return (
                   <Link
                     key={s._id}
-                    to={`${ROUTES.CANONICAL_SCHOLARSHIPS}/${s.slug}`}
+                    to={scholarshipPath}
                     className="flex items-center justify-between gap-3 bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 hover:shadow-sm transition-shadow text-sm"
                   >
                     <span className="font-medium text-gray-800 dark:text-gray-200">{s.title}</span>
@@ -773,9 +785,36 @@ export function ProgramExplorerDetail() {
                       {s['funding.type'] || s.funding?.type || ''}
                     </span>
                   </Link>
+                  );
+                })}
+              </div>
+            </Section>
+          )}
+
+          {relatedPrograms.length > 0 && (
+            <Section title="Related Programs">
+              <div className="space-y-2">
+                {relatedPrograms.map((program) => (
+                  <Link
+                    key={program._id}
+                    to={`${ROUTES.PROGRAM_EXPLORER}/${program.slug}`}
+                    className="block bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 px-4 py-3 hover:shadow-sm transition-shadow text-sm"
+                  >
+                    <span className="font-medium text-gray-800 dark:text-gray-200">{program.name}</span>
+                  </Link>
                 ))}
               </div>
             </Section>
+          )}
+
+          {relatedResources.length > 0 && (
+            <RelatedResources
+              title="Explore related resources"
+              items={relatedResources}
+              maxItems={4}
+              variant="list"
+              className="!mt-0 !pt-0 !border-0"
+            />
           )}
 
           {/* Source */}

@@ -32,6 +32,7 @@ import {
   deriveJobWorkMode,
 } from '@shared/publicDiscovery/publicTruth.js';
 import { formatLocationDisplay } from '@shared/international/location.js';
+import { RelatedResources } from '../../components/seo/RelatedResources';
 
 const JOB_TYPE_BADGE = {
   Government: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
@@ -559,6 +560,14 @@ export default function JobDetail() {
               ))}
             </div>
           </section>
+        )}
+
+        {Array.isArray(job.relatedResources) && job.relatedResources.length > 0 && (
+          <RelatedResources
+            title={t('careerResources', { ns: 'jobs', defaultValue: 'Career resources' })}
+            items={job.relatedResources}
+            maxItems={4}
+          />
         )}
       </article>
     </>

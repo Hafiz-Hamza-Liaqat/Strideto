@@ -22,6 +22,8 @@ import {
   collectEmployerIdsForLogoFallback,
   fetchEmployerLogoMap,
 } from '../utils/employerLogoProjection.js';
+import { rankRelatedJobs } from '../../../shared/seo/relatedRanking.js';
+import { clusterResourceLinks } from '../../../shared/seo/contentClusters.js';
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
@@ -228,10 +230,18 @@ export const getJobByIdOrSlug = asyncHandler(async (req, res) => {
   await Job.findByIdAndUpdate(job._id, { $inc: { views: 1 } });
   const docLocale = job.locale || locale;
   const relatedFilter = withListLocaleFilter({ ...buildPublicJobFilter(), _id: { $ne: job._id } }, docLocale);
-  if (job.category) relatedFilter.category = job.category;
-  else if (job.province) relatedFilter.province = job.province;
-  const related = await Job.find(relatedFilter).sort({ createdAt: -1 }).limit(4).lean();
+  const relatedCandidates = await Job.find(relatedFilter).sort({ createdAt: -1 }).limit(24).lean();
+  const related = rankRelatedJobs(job, relatedCandidates, { limit: 4 });
   const relatedLogoMap = await fetchEmployerLogoMap(collectEmployerIdsForLogoFallback(related));
   const relatedWithLogos = attachEmployerLogos(related, relatedLogoMap);
-  res.json(projectPublicJob(job, { related: relatedWithLogos, employerVerification, employerLogoUrl }));
+  const relatedResources = clusterResourceLinks('career', {
+    maxItems: 4,
+    currentPath: `/jobs/${job.slug}`,
+  });
+  res.json(projectPublicJob(job, {
+    related: relatedWithLogos,
+    relatedResources,
+    employerVerification,
+    employerLogoUrl,
+  }));
 });

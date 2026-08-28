@@ -1,6 +1,8 @@
 import { Blog } from '../models/Blog.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { listResponse, paginate } from '../utils/apiResponse.js';
+import { rankRelatedBlogPosts } from '../../../shared/blog/relatedPosts.js';
+import { blogClusterResourceLinks } from '../../../shared/seo/contentClusters.js';
 import {
   getRequestLocale,
   withListLocaleFilter,
@@ -49,6 +51,23 @@ export const getBlogs = asyncHandler(async (req, res) => {
   res.json(listResponse(data, paginate(page, limit, total), req.query));
 });
 
+async function loadCuratedRelatedArticles(blog) {
+  const ids = (blog.relatedArticleIds || []).filter(Boolean);
+  if (!ids.length) return [];
+  return Blog.find({ _id: { $in: ids }, status: 'published' })
+    .select('title slug excerpt publishedAt updatedAt category tags status canonicalUrl')
+    .lean();
+}
+
+async function loadRelatedBlogCandidates(blog, locale) {
+  const filter = withListLocaleFilter({ status: 'published', _id: { $ne: blog._id } }, locale);
+  return Blog.find(filter)
+    .select('title slug excerpt publishedAt updatedAt category tags status canonicalUrl')
+    .sort({ publishedAt: -1, createdAt: -1 })
+    .limit(30)
+    .lean();
+}
+
 export const getBlogByIdOrSlug = asyncHandler(async (req, res) => {
   const { idOrSlug } = req.params;
   const locale = getRequestLocale(req);
@@ -60,10 +79,31 @@ export const getBlogByIdOrSlug = asyncHandler(async (req, res) => {
   if (blog.author) {
     blog = await Blog.findById(blog._id).populate('author', 'name').lean();
   }
+  const [curated, candidates] = await Promise.all([
+    loadCuratedRelatedArticles(blog),
+    loadRelatedBlogCandidates(blog, blog.locale || locale),
+  ]);
+  const relatedResult = rankRelatedBlogPosts(blog, candidates, {
+    limit: 3,
+    curated,
+    excludeSlug: blog.slug,
+    excludeId: blog._id,
+  });
+  const currentPath = `/blog/${blog.slug}`;
+  const relatedResources = blogClusterResourceLinks(blog.category, {
+    maxItems: 4,
+    currentPath,
+  });
   await Blog.findByIdAndUpdate(blog._id, { $inc: { views: 1 } });
   res.json({
     ...blog,
     views: (blog.views || 0) + 1,
     authorDisplay: projectPublicBlogAuthor(blog),
+    relatedPosts: relatedResult.items,
+    relatedPostsMeta: {
+      relation: relatedResult.relation,
+      usedFallback: relatedResult.usedFallback,
+    },
+    relatedResources,
   });
 });

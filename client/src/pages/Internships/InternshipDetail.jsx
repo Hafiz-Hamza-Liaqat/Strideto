@@ -19,6 +19,7 @@ import { EXTERNAL_APPLY_DISCLOSURE, NO_GUARANTEE_DISCLAIMER } from '@shared/publ
 import { formatLocationDisplay } from '@shared/international/location.js';
 import { PublicTrustBadge } from '../../components/public/PublicTrustBadge';
 import { Alert } from '../../components/ui/Alerts';
+import { RelatedResources } from '../../components/seo/RelatedResources';
 
 export default function InternshipDetail() {
   const { t } = useTranslation(['internships', 'common', 'navbar']);
@@ -233,6 +234,35 @@ export default function InternshipDetail() {
           )}
         </div>
         <p className="mt-8 text-xs text-gray-500 dark:text-gray-400">{NO_GUARANTEE_DISCLAIMER}</p>
+
+        {(internship.related || []).length > 0 && (
+          <section className="mt-10 pt-6 border-t border-gray-200 dark:border-gray-700">
+            <h2 className="text-xl font-bold text-gray-900 dark:text-white mb-4">
+              {t('similarInternships', { ns: 'internships', defaultValue: 'Similar internships' })}
+            </h2>
+            <div className="grid sm:grid-cols-2 gap-4">
+              {(internship.related || []).map((r) => (
+                <Link
+                  key={r._id}
+                  to={`${ROUTES.INTERNSHIPS}/${r.slug || r._id}`}
+                  className="block p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-md transition min-w-0"
+                >
+                  <h3 className="font-semibold text-gray-900 dark:text-white break-words-safe">{r.title}</h3>
+                  <p className="text-sm text-gray-600 dark:text-gray-400 break-words-safe">{r.organization}</p>
+                </Link>
+              ))}
+            </div>
+          </section>
+        )}
+
+        {Array.isArray(internship.relatedResources) && internship.relatedResources.length > 0 && (
+          <RelatedResources
+            title={t('careerResources', { ns: 'internships', defaultValue: 'Career resources' })}
+            items={internship.relatedResources}
+            maxItems={4}
+            className="mt-8"
+          />
+        )}
       </div>
     </>
   );

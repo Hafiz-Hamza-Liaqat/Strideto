@@ -9,6 +9,8 @@ import { ApplicationMigrationService } from '../services/career/migration/Applic
 import { projectPublicInternship } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 import { withFixtureExclusion } from '../../../shared/publicDiscovery/fixtureExclusion.js';
 import { normalizeCountryCode } from '../../../shared/international/country.js';
+import { rankRelatedInternships } from '../../../shared/seo/relatedRanking.js';
+import { clusterResourceLinks } from '../../../shared/seo/contentClusters.js';
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
@@ -70,7 +72,24 @@ export const getInternshipByIdOrSlug = asyncHandler(async (req, res) => {
   const isId = mongoose.Types.ObjectId.isValid(idOrSlug) && String(new mongoose.Types.ObjectId(idOrSlug)) === idOrSlug;
   const doc = await Internship.findOne(isId ? { _id: idOrSlug, status: 'active' } : { slug: idOrSlug, status: 'active' }).lean();
   if (!doc) return res.status(404).json({ error: 'Internship not found' });
-  res.json(projectPublicInternship(doc));
+  const relatedCandidates = await Internship.find({
+    status: 'active',
+    _id: { $ne: doc._id },
+  })
+    .sort({ createdAt: -1 })
+    .limit(24)
+    .lean();
+  const related = rankRelatedInternships(doc, relatedCandidates, { limit: 4 }).map(projectPublicInternship);
+  const slugPath = doc.slug || doc._id;
+  const relatedResources = clusterResourceLinks('career', {
+    maxItems: 4,
+    currentPath: `/internships/${slugPath}`,
+  });
+  res.json({
+    ...projectPublicInternship(doc),
+    related,
+    relatedResources,
+  });
 });
 
 export const applyToInternship = asyncHandler(async (req, res) => {

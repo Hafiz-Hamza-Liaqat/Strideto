@@ -11,6 +11,8 @@ import {
 } from '../utils/localeQuery.js';
 import { projectPublicCmsScholarship } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 import { listUnifiedScholarships } from '../services/unifiedScholarshipDiscoveryService.js';
+import { rankRelatedCmsScholarships } from '../../../shared/seo/relatedRanking.js';
+import { clusterResourceLinks } from '../../../shared/seo/contentClusters.js';
 
 export const getScholarships = asyncHandler(async (req, res) => {
   const result = await listUnifiedScholarships(req);
@@ -32,8 +34,11 @@ export const getScholarshipByIdOrSlug = asyncHandler(async (req, res) => {
   await Scholarship.findByIdAndUpdate(scholarship._id, { $inc: { views: 1 } });
   const docLocale = scholarship.locale || locale;
   const relatedFilter = withListLocaleFilter({ status: 'active', _id: { $ne: scholarship._id } }, docLocale);
-  if (scholarship.level) relatedFilter.level = scholarship.level;
-  else if (scholarship.country) relatedFilter.country = scholarship.country;
-  const related = await Scholarship.find(relatedFilter).sort({ deadline: 1 }).limit(4).lean();
-  res.json(projectPublicCmsScholarship(scholarship, { related }));
+  const relatedCandidates = await Scholarship.find(relatedFilter).sort({ deadline: 1 }).limit(24).lean();
+  const related = rankRelatedCmsScholarships(scholarship, relatedCandidates, { limit: 4 });
+  const relatedResources = clusterResourceLinks('scholarships', {
+    maxItems: 4,
+    currentPath: `/scholarships/${scholarship.slug}`,
+  });
+  res.json(projectPublicCmsScholarship(scholarship, { related, relatedResources }));
 });

@@ -16,6 +16,8 @@ import { formatMoney } from '@shared/international/dateDisplay.js';
 import { NO_GUARANTEE_DISCLAIMER } from '@shared/publicDiscovery/publicTruth.js';
 import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
 import { isCanonicalInstitutionDetailEligible } from '@shared/seo/entityDetailSeoPolicy.js';
+import { clusterResourceLinks } from '@shared/seo/contentClusters.js';
+import { RelatedResources } from '../../components/seo/RelatedResources';
 import { INSTITUTION_TYPES } from '@shared/education/taxonomy.js';
 import { fallbackScopeLabel, ACCEPTANCE_SCOPES } from '@shared/education/acceptanceExplorer.js';
 
@@ -362,6 +364,10 @@ export function InstitutionExplorerDetail() {
     programCount: programs.length,
     acceptedTestCount: acceptedTests.length,
   });
+  const relatedResources = clusterResourceLinks('institutions-programs', {
+    maxItems: 4,
+    currentPath: `${ROUTES.EDUCATION_INSTITUTIONS}/${data.slug || ''}`,
+  });
 
   return (
     <>
@@ -457,8 +463,8 @@ export function InstitutionExplorerDetail() {
               </div>
             )}
             <p className="mt-3 text-xs">
-              <Link to={`${ROUTES.PROGRAM_EXPLORER}?institutionId=${data._id}`} className="text-primary underline">
-                Browse in Program Explorer
+              <Link to={ROUTES.PROGRAM_EXPLORER} className="text-primary underline">
+                Browse all programs
               </Link>
             </p>
           </section>
@@ -478,6 +484,13 @@ export function InstitutionExplorerDetail() {
               </div>
             )}
           </section>
+
+          <RelatedResources
+            title="Explore related resources"
+            items={relatedResources}
+            maxItems={4}
+            variant="list"
+          />
 
           <p className="text-xs text-gray-400">{NO_GUARANTEE_DISCLAIMER}</p>
         </div>
