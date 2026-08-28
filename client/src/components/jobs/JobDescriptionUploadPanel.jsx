@@ -18,6 +18,20 @@ function formatValue(val) {
   return String(val ?? '');
 }
 
+function formatSuggestionStatus(sug) {
+  const st = sug?.status || 'accepted';
+  if (st === 'accepted') return 'Ready';
+  if (st === 'review') return 'Review';
+  return 'Not found';
+}
+
+function suggestionStatusClass(sug) {
+  const st = sug?.status || 'accepted';
+  if (st === 'accepted') return 'text-green-700 dark:text-green-400';
+  if (st === 'review') return 'text-amber-700 dark:text-amber-400';
+  return 'text-gray-500';
+}
+
 export function JobDescriptionUploadPanel({
   uploadFn,
   fieldMap,
@@ -127,6 +141,8 @@ export function JobDescriptionUploadPanel({
 
   const suggestionEntries = Object.entries(suggestions || {});
   const openConflicts = conflicts.filter((c) => !resolvedConflicts[c.field]);
+  const acceptedCount = suggestionEntries.filter(([, sug]) => (sug?.status || 'accepted') === 'accepted').length;
+  const canApply = acceptedCount > 0 || openConflicts.some((c) => resolvedConflicts[c.field] === 'suggestion');
 
   return (
     <div className={`rounded-lg border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-800/40 p-4 ${className}`}>
@@ -172,11 +188,28 @@ export function JobDescriptionUploadPanel({
               <li key={field} className="rounded border border-gray-200 dark:border-gray-600 p-2 bg-white dark:bg-gray-900">
                 <div className="font-medium text-gray-800 dark:text-gray-200">
                   {SUGGESTION_FIELD_LABELS[field] || field}
-                  <span className="ml-2 text-xs font-normal text-gray-500">({sug.confidence})</span>
+                  <span className={`ml-2 text-xs font-normal ${suggestionStatusClass(sug)}`}>
+                    {formatSuggestionStatus(sug)}
+                  </span>
+                  {sug.confidence && (
+                    <span className="ml-1 text-xs font-normal text-gray-400">({sug.confidence})</span>
+                  )}
                 </div>
                 <div className="text-gray-700 dark:text-gray-300 mt-0.5">{formatValue(sug.value)}</div>
                 {sug.evidence && (
                   <div className="text-xs text-gray-500 mt-1 italic">&ldquo;{sug.evidence}&rdquo;</div>
+                )}
+                {sug.reason && (
+                  <div className="text-xs text-gray-500 mt-1">{sug.reason.replace(/_/g, ' ')}</div>
+                )}
+                {sug.status === 'review' && (
+                  <button
+                    type="button"
+                    className="mt-1 text-xs px-2 py-0.5 rounded border border-amber-400 text-amber-800 dark:text-amber-300"
+                    onClick={() => applyField(field, true)}
+                  >
+                    Use this value
+                  </button>
                 )}
               </li>
             ))}
@@ -215,7 +248,8 @@ export function JobDescriptionUploadPanel({
             <button
               type="button"
               onClick={applyEmpty}
-              className="px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-medium"
+              disabled={!canApply || status === STATUS.uploading || status === STATUS.parsing}
+              className="px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-medium disabled:opacity-50"
             >
               Apply all valid suggestions
             </button>

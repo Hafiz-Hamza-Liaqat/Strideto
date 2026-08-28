@@ -10,6 +10,13 @@ import {
   isValidJobFamily,
   isValidSpecialization,
 } from '../career/jobTaxonomy.js';
+import {
+  applyFieldContract,
+  CANDIDATE_STATUS,
+  validateExperienceCandidate,
+  validateSkillsItemCandidate,
+  validateTitleCandidate,
+} from './jobDocumentFieldContracts.js';
 
 /** Fields that document parsing must never populate or return. */
 export const JOB_DOCUMENT_PROTECTED_FIELDS = [
@@ -102,12 +109,12 @@ const LABEL_ALIASES = Object.freeze({
   salaryRange: ['salary', 'salary range', 'compensation range', 'pay range', 'compensation'],
   salaryCurrency: ['salary currency', 'currency'],
   skillsRequired: ['required skills', 'skills', 'technical skills', 'key skills'],
-  experience: ['experience', 'experience requirement', 'required experience', 'years of experience'],
-  educationRequirement: ['education', 'education requirement', 'qualification', 'academic requirement'],
+  experience: ['experience requirement', 'required experience', 'years of experience', 'minimum experience', 'professional experience'],
+  educationRequirement: ['education requirement', 'qualification', 'academic requirement', 'education'],
   requirements: ['requirements', 'qualifications', 'candidate requirements'],
   responsibilities: ['responsibilities', 'duties', 'key responsibilities', 'role responsibilities'],
   description: ['job description', 'about the role', 'role overview', 'overview', 'summary'],
-  deadline: ['application deadline', 'deadline', 'closing date', 'apply by'],
+  deadline: ['application deadline', 'closing date', 'apply by', 'last date to apply', 'deadline'],
   applicationMethod: ['application method', 'how to apply', 'apply method'],
   applicationLink: ['application link', 'apply link', 'application url', 'careers url', 'apply url'],
   applyEmail: ['application email', 'apply email', 'email applications'],
@@ -223,6 +230,13 @@ function nextNonEmptyLine(lines, startIdx) {
   return null;
 }
 
+/** Bare aliases that require an explicit colon to avoid prose false positives (e.g. "Experience integrating…"). */
+const STRICT_COLON_FIELDS = Object.freeze({
+  experience: 'experience',
+  educationRequirement: 'education',
+  deadline: 'deadline',
+});
+
 function matchLabelLine(line) {
   const trimmed = String(line || '').trim();
   if (!trimmed) return null;
@@ -231,6 +245,10 @@ function matchLabelLine(line) {
   for (const [field, aliases] of Object.entries(LABEL_ALIASES)) {
     const sorted = [...aliases].sort((a, b) => b.length - a.length);
     for (const alias of sorted) {
+      const strictColon = STRICT_COLON_FIELDS[field];
+      if (strictColon && alias === strictColon && !new RegExp(`^${escapeRegExp(alias)}\\s*:`, 'i').test(trimmed)) {
+        continue;
+      }
       const re = new RegExp(`^${escapeRegExp(alias)}\\s*:?\\s*(.*)$`, 'i');
       const m = trimmed.match(re);
       if (!m) continue;
@@ -241,6 +259,7 @@ function matchLabelLine(line) {
           inlineValue: (m[1] || '').trim(),
           raw: trimmed,
           matchLen,
+          alias,
         };
       }
     }
@@ -503,11 +522,26 @@ function suggestionFromCandidate(candidate) {
   if (!candidate || candidate.value == null || candidate.value === '') return null;
   if (Array.isArray(candidate.value) && !candidate.value.length) return null;
   if (isLabelLeakage(Array.isArray(candidate.value) ? candidate.value[0] : candidate.value)) return null;
+  const status = candidate.status || CANDIDATE_STATUS.ACCEPTED;
+  if (status === CANDIDATE_STATUS.REJECTED) return null;
   return {
     value: candidate.value,
     confidence: confidenceForSource(candidate.sourceType),
     evidence: trimEvidence(candidate.evidence),
     sourceType: candidate.sourceType,
+    status,
+    reason: candidate.reason || undefined,
+  };
+}
+
+function applyContractToCandidate(field, base, normalizedValue) {
+  const contract = applyFieldContract(field, normalizedValue, { evidence: base.evidence });
+  if (contract.status === CANDIDATE_STATUS.REJECTED) return null;
+  return {
+    ...base,
+    value: contract.value ?? normalizedValue,
+    status: contract.status,
+    reason: contract.reason,
   };
 }
 
@@ -522,10 +556,14 @@ function validateAndNormalizeField(field, rawCandidate, mode) {
     case 'title': {
       const title = String(value).trim();
       if (!title || isLabelLeakage(title)) return null;
-      return { ...base, value: title.slice(0, 200) };
+      const titleCheck = validateTitleCandidate(title);
+      if (titleCheck.status === CANDIDATE_STATUS.REJECTED) return null;
+      return applyContractToCandidate(field, base, title.slice(0, 200));
     }
-    case 'company':
-      return { ...base, value: String(value).trim().slice(0, 200) };
+    case 'company': {
+      const company = String(value).trim().slice(0, 200);
+      return applyContractToCandidate(field, base, company);
+    }
     case 'location':
       return { ...base, value: String(value).trim().slice(0, 200) };
     case 'countryCode': {
@@ -542,7 +580,7 @@ function validateAndNormalizeField(field, rawCandidate, mode) {
     case 'openingsCount': {
       const n = typeof value === 'number' ? value : parseOpeningsFromText(value);
       if (n == null || n < 1 || n > 10000) return null;
-      return { ...base, value: n };
+      return applyContractToCandidate(field, base, n);
     }
     case 'jobFamily': {
       const family = resolveJobFamily(value);
@@ -572,28 +610,42 @@ function validateAndNormalizeField(field, rawCandidate, mode) {
       const sal = String(value).trim();
       if (!sal || isLabelLeakage(sal) || /^range\s*:?$/i.test(sal)) return null;
       if (!/\d/.test(sal)) return null;
-      return { ...base, value: sal.slice(0, 120) };
+      return applyContractToCandidate(field, base, sal.slice(0, 120));
     }
     case 'salaryCurrency': {
       const cur = parseSalaryCurrency(value);
       return cur ? { ...base, value: cur } : null;
     }
-    case 'skillsRequired':
+    case 'skillsRequired': {
+      const arr = (Array.isArray(value) ? value : [String(value)])
+        .map((s) => String(s).trim())
+        .filter(Boolean)
+        .filter((item) => validateSkillsItemCandidate(item).status !== CANDIDATE_STATUS.REJECTED);
+      if (!arr.length) return null;
+      return { ...base, value: arr, status: CANDIDATE_STATUS.ACCEPTED };
+    }
     case 'requirements':
     case 'responsibilities': {
       const arr = (Array.isArray(value) ? value : [String(value)])
         .map((s) => String(s).trim())
         .filter(Boolean);
       if (!arr.length) return null;
-      return { ...base, value: arr };
+      return { ...base, value: arr, status: CANDIDATE_STATUS.ACCEPTED };
     }
-    case 'experience':
-    case 'educationRequirement':
+    case 'experience': {
+      const exp = String(value).trim().slice(0, 5000);
+      return applyContractToCandidate(field, base, exp);
+    }
+    case 'educationRequirement': {
+      const edu = String(value).trim().slice(0, 5000);
+      return applyContractToCandidate(field, base, edu);
+    }
     case 'description':
-      return { ...base, value: String(value).trim().slice(0, 5000) };
+      return { ...base, value: String(value).trim().slice(0, 5000), status: CANDIDATE_STATUS.ACCEPTED };
     case 'deadline': {
       const d = parseDateValue(value);
-      return d ? { ...base, value: d } : null;
+      if (!d) return null;
+      return applyContractToCandidate(field, base, d);
     }
     case 'applicationMethod': {
       const method = normalizeApplicationMethod(value);
@@ -601,19 +653,21 @@ function validateAndNormalizeField(field, rawCandidate, mode) {
     }
     case 'applicationLink': {
       const url = String(value).trim().replace(/[.,;)]+$/, '');
-      if (!/^https?:\/\//i.test(url)) return null;
-      return { ...base, value: url };
+      return applyContractToCandidate(field, base, url);
     }
     case 'applyEmail': {
       const email = String(value).trim();
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return null;
-      return { ...base, value: email };
+      return applyContractToCandidate(field, base, email);
     }
     case 'sourceWebsite':
+      if (mode !== 'admin') return null;
+      return applyContractToCandidate(field, base, String(value).trim().slice(0, 500));
     case 'sourceUrl':
+      if (mode !== 'admin') return null;
+      return applyContractToCandidate(field, base, String(value).trim().replace(/[.,;)]+$/, ''));
     case 'externalId':
       if (mode !== 'admin') return null;
-      return { ...base, value: String(value).trim().slice(0, 500) };
+      return applyContractToCandidate(field, base, String(value).trim().slice(0, 500));
     default:
       return null;
   }
@@ -732,6 +786,11 @@ function extractFromLabels(lines, store, mode) {
 
     if (value == null || value === '') continue;
     if (typeof value === 'string' && isLabelLeakage(value)) continue;
+
+    if (field === 'experience' && typeof value === 'string') {
+      const expCheck = validateExperienceCandidate(value, { evidence: raw });
+      if (expCheck.status === CANDIDATE_STATUS.REJECTED) continue;
+    }
 
     addCandidate(store, field, {
       value,
@@ -895,12 +954,19 @@ function extractHeuristicCandidates(lines, store) {
   while ((m = urlRe.exec(joined)) !== null) urls.push(m[0]);
 
   if (emails.length) {
-    addCandidate(store, 'applyEmail', {
-      value: emails[0],
-      sourceType: 'heuristic',
-      evidence: emails[0],
-      lineIndex: joined.indexOf(emails[0]),
-    });
+    const applyContext = joined.slice(Math.max(0, joined.indexOf(emails[0]) - 80), joined.indexOf(emails[0]) + 80);
+    for (const email of emails) {
+      const contract = applyFieldContract('applyEmail', email, { evidence: applyContext });
+      if (contract.status !== CANDIDATE_STATUS.REJECTED) {
+        addCandidate(store, 'applyEmail', {
+          value: email,
+          sourceType: 'heuristic',
+          evidence: applyContext.trim() || email,
+          lineIndex: joined.indexOf(email),
+        });
+        break;
+      }
+    }
   }
   const applyUrl = urls.find((u) => /apply|career|jobs?/i.test(u));
   if (applyUrl) {

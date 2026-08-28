@@ -209,6 +209,14 @@ export function applyJobDocumentSuggestions(form, suggestions, options = {}) {
       skipped.push(field);
       continue;
     }
+    if (suggestion?.status === 'rejected') {
+      skipped.push(field);
+      continue;
+    }
+    if (onlyEmpty && suggestion?.status === 'review') {
+      skipped.push(field);
+      continue;
+    }
 
     const formKey = fieldMap[field] || field;
     const current = next[formKey];
