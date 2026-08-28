@@ -17,6 +17,7 @@ const blogSchema = new mongoose.Schema(
     publishedAt: { type: Date },
     scheduledAt: { type: Date },
     imageUrl: { type: String },
+    imageAlt: { type: String, trim: true },
     gallery: [{ type: String }],
     isFeatured: { type: Boolean, default: false },
     readingTime: { type: Number },

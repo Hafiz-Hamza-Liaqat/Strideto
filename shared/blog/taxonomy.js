@@ -1,13 +1,16 @@
 /** Canonical blog category registry — single source for Admin + public filters. */
 export const BLOG_CATEGORY_REGISTRY = Object.freeze([
   { id: 'career_advice', label: 'Career Advice', legacyValues: ['Career', 'Career Advice'] },
-  { id: 'scholarships', label: 'Scholarships', legacyValues: ['Scholarships'] },
   { id: 'job_preparation', label: 'Job Preparation', legacyValues: ['Jobs', 'Job Preparation'] },
-  { id: 'international_study', label: 'International Study', legacyValues: ['International Study'] },
-  { id: 'platform_updates', label: 'Platform Updates', legacyValues: ['Platform Updates'] },
+  { id: 'internships', label: 'Internships', legacyValues: ['Internships'] },
+  { id: 'scholarships', label: 'Scholarships', legacyValues: ['Scholarships'] },
   { id: 'admissions', label: 'Admissions', legacyValues: ['Admissions'] },
+  { id: 'international_study', label: 'International Study', legacyValues: ['International Study'] },
+  { id: 'universities_programs', label: 'Universities & Programs', legacyValues: ['Universities & Programs'] },
   { id: 'exam_prep', label: 'Exam Prep', legacyValues: ['Exam Prep'] },
   { id: 'opportunities', label: 'Opportunities', legacyValues: ['Opportunities'] },
+  { id: 'employer_hiring', label: 'Employer & Hiring', legacyValues: ['Employer & Hiring'] },
+  { id: 'platform_updates', label: 'Platform Updates', legacyValues: ['Platform Updates'] },
 ]);
 
 export function listBlogCategoryOptions() {
@@ -17,6 +20,7 @@ export function listBlogCategoryOptions() {
 export function canonicalBlogCategoryLabel(value) {
   const raw = String(value || '').trim();
   if (!raw) return '';
+  if (raw.toLowerCase() === 'all') return '';
   const exact = BLOG_CATEGORY_REGISTRY.find((c) => c.label === raw);
   if (exact) return exact.label;
   const legacy = BLOG_CATEGORY_REGISTRY.find((c) => c.legacyValues.includes(raw));
@@ -26,7 +30,7 @@ export function canonicalBlogCategoryLabel(value) {
 /** Longest plausible category label, in characters. */
 const CATEGORY_MAX_LENGTH = 40;
 /** Longest plausible category label, in words. */
-const CATEGORY_MAX_WORDS = 4;
+const CATEGORY_MAX_WORDS = 6;
 
 /**
  * Display guard for public cards.
@@ -34,14 +38,6 @@ const CATEGORY_MAX_WORDS = 4;
  * Returns the canonical registry label when the stored value is a known canonical or
  * legacy category; otherwise returns the trimmed raw value only when it is still
  * *shaped* like a category label, and '' when it cannot be one.
- *
- * Registry membership alone is deliberately NOT the test. Published content uses many
- * legitimate categories that predate the registry ("Study Abroad", "Interview Tips",
- * "Government Jobs"); rejecting everything unregistered would blank the category on a
- * large share of published posts. What actually distinguishes corrupted CMS data is
- * shape — malformed values are prose: long, multi-sentence, punctuated. So we reject on
- * shape (length, word count, sentence punctuation, line breaks) rather than on
- * membership, which suppresses genuine corruption without erasing valid taxonomy.
  */
 export function displayableBlogCategoryLabel(value) {
   const raw = String(value || '').trim();

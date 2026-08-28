@@ -8,7 +8,7 @@ const ALLOWED_TAGS = [
   'strong', 'b', 'em', 'i', 'u', 's', 'sub', 'sup',
   'blockquote', 'pre', 'code',
   'a',
-  'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td',
+  'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption',
   'img',
 ];
 

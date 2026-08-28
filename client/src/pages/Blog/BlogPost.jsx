@@ -11,10 +11,21 @@ import { useContentView } from '../../hooks/usePageView';
 import { sanitizeHtmlForRender } from '../../utils/sanitizeHtml';
 import { normalizeBlogContent, shouldShowBlogToc } from '@shared/blog/blogContent.js';
 import { displayableBlogCategoryLabel } from '@shared/blog/taxonomy.js';
+import { resolveBlogReadingMinutes } from '@shared/blog/readingTime.js';
 
-function readingTimeMinutes(content) {
-  if (!content || typeof content !== 'string') return 5;
-  return Math.max(1, Math.ceil(content.trim().split(/\s+/).length / 200));
+const MS_DAY = 24 * 60 * 60 * 1000;
+
+function formatArticleDate(value) {
+  if (!value) return '';
+  return new Date(value).toLocaleDateString('en', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+function shouldShowLastUpdated(publishedAt, updatedAt) {
+  if (!publishedAt || !updatedAt) return false;
+  const pub = new Date(publishedAt).getTime();
+  const upd = new Date(updatedAt).getTime();
+  if (Number.isNaN(pub) || Number.isNaN(upd)) return false;
+  return upd - pub > MS_DAY;
 }
 
 function ShareButtons({ title, url, t }) {
@@ -76,7 +87,7 @@ function MobileToc({ toc, label }) {
         <span className="text-xs ml-2">{open ? '▲' : '▼'}</span>
       </button>
       {open && (
-        <nav className="px-4 pb-3 space-y-1 text-sm border-t border-gray-200 dark:border-gray-700 pt-2">
+        <nav className="px-4 pb-3 space-y-1 text-sm border-t border-gray-200 dark:border-gray-700 pt-2" aria-label={label}>
           {toc.map((h) => (
             <a
               key={h.id}
@@ -156,9 +167,13 @@ export default function BlogPost() {
   const seoTitle = post.seoTitle || post.title;
   const seoDescription = post.metaDescription || post.excerpt || post.title;
   const ogImage = post.ogImageUrl || post.imageUrl || undefined;
-  const readingMin = post.readingTime || readingTimeMinutes(post.content || post.excerpt);
+  const heroAlt = post.imageAlt?.trim() || post.title;
+  const readingMin = resolveBlogReadingMinutes(post);
   const authorLabel = post.authorDisplay || post.authorName || t('blog:defaultAuthor');
   const gallery = (post.gallery || []).filter((url) => typeof url === 'string' && /^https?:\/\//i.test(url.trim()));
+  const tags = (post.tags || []).filter((tag) => typeof tag === 'string' && tag.trim());
+  const showUpdated = shouldShowLastUpdated(post.publishedAt, post.updatedAt);
+  const publishedLabel = post.publishedAt ? `${t('blog:published')} ${formatArticleDate(post.publishedAt)}` : '';
 
   return (
     <>
@@ -168,7 +183,7 @@ export default function BlogPost() {
         canonical={canonicalPath.startsWith('http') ? canonicalPath : canonicalPath}
         ogType="article"
         ogImage={ogImage}
-        ogImageAlt={post.title}
+        ogImageAlt={heroAlt}
         jsonLd={combineSchemas(
           blogPostingSchema({ ...post, author: authorLabel }, { readingMinutes: readingMin }),
           breadcrumbSchema([
@@ -181,7 +196,6 @@ export default function BlogPost() {
       <article className={`${showToc ? 'max-w-6xl' : 'max-w-4xl'} mx-auto px-4 py-8`}>
         <Link to={ROUTES.BLOG} className="text-sm text-edur-steel dark:text-edur-sky hover:underline mb-6 inline-block">← {t('blog:backToBlog')}</Link>
 
-        {/* Article header */}
         <header className="max-w-3xl">
           {displayableBlogCategoryLabel(post.category) && (
             <span className="inline-block text-xs font-semibold uppercase tracking-wide text-edur-steel dark:text-edur-sky mb-3">
@@ -192,29 +206,39 @@ export default function BlogPost() {
           {post.excerpt && (
             <p className="mt-3 text-lg text-gray-600 dark:text-gray-400 leading-relaxed">{post.excerpt}</p>
           )}
-          <div className="flex flex-wrap items-center gap-3 mt-4 text-sm text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 pb-4">
+          <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-4 text-sm text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 pb-4">
             <span className="font-medium text-gray-700 dark:text-gray-300">{authorLabel}</span>
-            {post.publishedAt && <span>{new Date(post.publishedAt).toLocaleDateString('en', { year: 'numeric', month: 'long', day: 'numeric' })}</span>}
+            {publishedLabel && <span>{publishedLabel}</span>}
+            {showUpdated && (
+              <span>{t('blog:lastUpdated', { date: formatArticleDate(post.updatedAt) })}</span>
+            )}
             <span>{readingMin} min read</span>
           </div>
+          {tags.length > 0 && (
+            <ul className="flex flex-wrap gap-2 mt-3" aria-label={t('blog:tagsLabel')}>
+              {tags.map((tag) => (
+                <li key={tag} className="text-xs px-2.5 py-1 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
+                  {tag}
+                </li>
+              ))}
+            </ul>
+          )}
         </header>
 
         {post.imageUrl ? (
-          <img src={post.imageUrl} alt={post.title} className="w-full rounded-xl mt-6 object-cover max-h-80" loading="lazy" />
+          <img src={post.imageUrl} alt={heroAlt} className="w-full rounded-xl mt-6 object-cover max-h-80" loading="lazy" />
         ) : null}
 
         <AdHost placementId="blog-inline" index={1} variant="inline" className="my-6" />
 
-        {/* Mobile TOC — collapsible */}
         {showToc && (
           <MobileToc toc={body.toc} label={t('blog:tableOfContents')} />
         )}
 
         <div className={`mt-8 ${showToc ? 'flex flex-col lg:flex-row gap-10' : ''}`}>
-          {/* Body */}
           <div className="flex-1 min-w-0 max-w-[820px]">
             <div
-              className="prose prose-gray dark:prose-invert prose-p:leading-7 prose-h2:mt-8 prose-h3:mt-6 prose-li:my-1 text-gray-800 dark:text-gray-200 max-w-none blog-body"
+              className="blog-body text-gray-800 dark:text-gray-200 max-w-none"
               dangerouslySetInnerHTML={{ __html: renderedHtml }}
             />
             {gallery.length > 0 ? (
@@ -227,12 +251,11 @@ export default function BlogPost() {
             <ShareButtons title={post.title} url={buildCanonicalUrl(`${ROUTES.BLOG}/${post.slug}`)} t={t} />
           </div>
 
-          {/* Desktop sticky TOC */}
           {showToc ? (
             <aside className="hidden lg:block lg:w-72 xl:w-80 shrink-0">
               <div className="sticky top-6">
                 <h3 className="text-xs font-semibold uppercase tracking-widest text-gray-500 dark:text-gray-400 mb-3">{t('blog:tableOfContents')}</h3>
-                <nav className="space-y-1 text-sm border-l-2 border-gray-200 dark:border-gray-700 pl-4">
+                <nav className="space-y-1 text-sm border-l-2 border-gray-200 dark:border-gray-700 pl-4" aria-label={t('blog:tableOfContents')}>
                   {body.toc.map((h) => (
                     <a
                       key={h.id}

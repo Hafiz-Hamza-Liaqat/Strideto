@@ -95,6 +95,7 @@ function applyBody(doc, body, isCreate = false) {
   if (body.publishedAt !== undefined) doc.publishedAt = parseOptionalDate(body.publishedAt);
   if (body.scheduledAt !== undefined) doc.scheduledAt = parseOptionalDate(body.scheduledAt);
   if (body.imageUrl !== undefined) doc.imageUrl = optionalUrl(body.imageUrl);
+  if (body.imageAlt !== undefined) doc.imageAlt = sanitizeString(body.imageAlt) || undefined;
   if (body.isFeatured !== undefined) doc.isFeatured = !!body.isFeatured;
   if (body.seoTitle !== undefined) doc.seoTitle = sanitizeString(body.seoTitle) || undefined;
   if (body.metaDescription !== undefined) doc.metaDescription = sanitizeString(body.metaDescription) || undefined;

@@ -6,7 +6,7 @@ const ALLOWED_TAGS = [
   'ul', 'ol', 'li',
   'strong', 'b', 'em', 'i', 'u', 's', 'sub', 'sup',
   'blockquote', 'pre', 'code',
-  'a', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'img',
+  'a', 'table', 'thead', 'tbody', 'tfoot', 'tr', 'th', 'td', 'caption', 'img',
 ];
 
 const ALLOWED_ATTR = ['href', 'title', 'target', 'rel', 'src', 'alt', 'width', 'height', 'loading', 'class', 'colspan', 'rowspan', 'scope', 'id'];

@@ -12,11 +12,7 @@ import { ScrollReveal } from '../../components/ui/ScrollReveal';
 import { AdHost } from '../../components/ads';
 import { Icon } from '../../components/brand/Icon';
 import { listBlogCategoryOptions, blogCategoryFilterValues, canonicalBlogCategoryLabel, displayableBlogCategoryLabel } from '@shared/blog/taxonomy.js';
-
-function readingTime(content) {
-  if (!content || typeof content !== 'string') return 5;
-  return Math.max(1, Math.ceil(content.trim().split(/\s+/).length / 200));
-}
+import { resolveBlogReadingMinutes } from '@shared/blog/readingTime.js';
 
 const isProduction = import.meta.env.PROD;
 
@@ -65,7 +61,7 @@ export default function Blog() {
   const filtered = useMemo(() => {
     if (!category) return list;
     const values = blogCategoryFilterValues(category);
-    return list.filter((p) => values.includes(canonicalBlogCategoryLabel(p.category || p.tags?.[0] || '')));
+    return list.filter((p) => values.includes(canonicalBlogCategoryLabel(p.category || '')));
   }, [list, category]);
 
   return (
@@ -95,17 +91,25 @@ export default function Blog() {
         <ScrollReveal>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('blog:pageTitle')}</h1>
           <p className="text-gray-600 dark:text-gray-400 mb-6">{t('blog:subtitle')}</p>
-          <div className="flex flex-wrap gap-2 mb-8">
-            {categories.map(({ labelKey, label, value }) => (
+          <div
+            className="flex gap-2 mb-8 md:flex-wrap max-md:scroll-tabs max-md:flex-nowrap"
+            role="tablist"
+            aria-label={t('blog:pageTitle')}
+          >
+            {categories.map(({ labelKey, label, value }) => {
+              const active = category === value;
+              return (
               <button
                 key={value || 'all'}
                 type="button"
+                role="tab"
+                aria-selected={active}
                 onClick={() => setCategory(value)}
-                className={`px-4 py-2 rounded-xl text-sm font-medium transition-colors ${category === value ? 'bg-edur-steel text-white dark:bg-edur-sky dark:text-gray-900' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
+                className={`shrink-0 px-4 py-2 rounded-xl text-sm font-medium transition-colors min-h-[44px] ${active ? 'bg-edur-steel text-white dark:bg-edur-sky dark:text-gray-900 ring-2 ring-edur-steel/30 dark:ring-edur-sky/40' : 'bg-gray-100 dark:bg-gray-700 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-600'}`}
               >
                 {labelKey ? t(`blog:${labelKey}`) : label}
               </button>
-            ))}
+            );})}
           </div>
         </ScrollReveal>
         {loading ? (
@@ -122,7 +126,7 @@ export default function Blog() {
               {filtered.map((post) => {
                 const catLabel = displayableBlogCategoryLabel(post.category);
                 const dateStr = post.publishedAt ? new Date(post.publishedAt).toLocaleDateString() : post.createdAt ? new Date(post.createdAt).toLocaleDateString() : '';
-                const mins = readingTime(post.content || post.excerpt);
+                const mins = resolveBlogReadingMinutes(post);
                 return (
                   <Link
                     key={post._id || post.slug}
@@ -130,7 +134,7 @@ export default function Blog() {
                     className="group flex flex-col rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 hover:shadow-lg hover:border-edur-blue/40 dark:hover:border-edur-sky/40 transition-all duration-200 overflow-hidden"
                   >
                     {post.imageUrl ? (
-                      <img src={post.imageUrl} alt="" className="w-full h-40 object-cover" loading="lazy" />
+                      <img src={post.imageUrl} alt={post.imageAlt || post.title || ''} className="w-full h-40 object-cover" loading="lazy" />
                     ) : (
                       <div className="w-full h-32 bg-gradient-to-br from-primary/10 via-primary/5 to-transparent dark:from-mint/10 dark:via-mint/5 dark:to-transparent flex items-center justify-center" aria-hidden="true">
                         <span className="inline-flex h-14 w-14 items-center justify-center rounded-2xl bg-white/70 dark:bg-gray-900/50 text-primary dark:text-mint shadow-sm ring-1 ring-primary/15 dark:ring-mint/20">

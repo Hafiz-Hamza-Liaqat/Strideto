@@ -24,6 +24,8 @@
   "featuredImage": "Featured image",
   "tableOfContents": "Table of contents",
   "relatedPosts": "Related posts",
+  "lastUpdated": "Last updated {{date}}",
+  "tagsLabel": "Topics",
   "shareOnX": "Share on X",
   "facebook": "Facebook",
   "whatsapp": "WhatsApp",

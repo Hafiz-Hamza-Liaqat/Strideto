@@ -98,7 +98,7 @@ check(blogPost.includes('post.imageUrl') && !blogPost.includes('featuredImage ?'
 check(blogPost.includes('gallery') && blogPost.includes('normalizeBlogContent'), 'BLOG-RENDER-10 gallery + normalize');
 
 // ── BLOG TAXONOMY / SEO / SAMPLE ────────────────────────────────────────────
-check(taxonomy.listBlogCategoryOptions().length >= 8, 'BLOG-CATEGORY-01 canonical options');
+check(taxonomy.listBlogCategoryOptions().length >= 11, 'BLOG-CATEGORY-01 canonical options');
 check(read('client/src/pages/Blog/Blog.jsx').includes('listBlogCategoryOptions'), 'BLOG-CATEGORY-02 public uses canonical');
 check(taxonomy.canonicalBlogCategoryLabel('Career') === 'Career Advice', 'BLOG-CATEGORY-03 legacy career maps');
 check(blogPost.includes('seoTitle') && blogPost.includes('metaDescription') && blogPost.includes('ogImageUrl'), 'BLOG-SEO-01..03');

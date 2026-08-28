@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '../../context/ToastContext';
 import { usePermissions } from '../../hooks/usePermissions';
@@ -12,17 +12,19 @@ import { AdminSelectBare } from '../../components/admin/AdminFormFields';
 import { AdminSlugField } from '../../components/admin/AdminSlugField';
 import { AdminViewPublicLink, isAdminSlugPreviewReady } from '../../components/admin/AdminViewPublicLink';
 import { TranslationToolbar } from '../../components/admin/TranslationToolbar';
+import { BlogRichTextEditor } from '../../components/richText/BlogRichTextEditor';
 import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
 import { listBlogCategoryOptions } from '@shared/blog/taxonomy.js';
 import { formatBlogPublicationStatus } from '@shared/cms/publicReadiness.js';
+import { resolveBlogReadingMinutes } from '@shared/blog/readingTime.js';
 
 const BLOG_CATEGORIES = listBlogCategoryOptions();
 
 const EMPTY = {
   title: '', excerpt: '', content: '', category: '', authorName: '', tags: '',
-  imageUrl: '', gallery: '', readingTime: '', status: 'draft', publishedAt: '',
+  imageUrl: '', imageAlt: '', gallery: '', readingTime: '', status: 'draft', publishedAt: '',
   isFeatured: false, slug: '', seoTitle: '', metaDescription: '', canonicalUrl: '', ogImageUrl: '',
 };
 
@@ -40,6 +42,11 @@ export default function AdminContentBlogs() {
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(null);
 
+  const readingPreview = useMemo(
+    () => resolveBlogReadingMinutes({ content: form.content, excerpt: form.excerpt, readingTime: form.readingTime }),
+    [form.content, form.excerpt, form.readingTime],
+  );
+
   const openCreate = () => { setEditingId(null); setForm(EMPTY); setFormOpen(true); };
 
   const openEdit = async (id) => {
@@ -51,6 +58,7 @@ export default function AdminContentBlogs() {
         authorName: b.authorName || (typeof b.author === 'object' && b.author?.name) || '',
         tags: linesToText(b.tags), gallery: linesToText(b.gallery),
         publishedAt: b.publishedAt ? b.publishedAt.slice(0, 16) : '',
+        imageAlt: b.imageAlt || '',
       });
       setEditingId(id);
       setFormOpen(true);
@@ -70,6 +78,7 @@ export default function AdminContentBlogs() {
       readingTime: form.readingTime ? Number(form.readingTime) : undefined,
       publishedAt: form.publishedAt || undefined,
       imageUrl: form.imageUrl || undefined,
+      imageAlt: form.imageAlt || undefined,
       canonicalUrl: form.canonicalUrl || undefined,
       ogImageUrl: form.ogImageUrl || undefined,
     };
@@ -178,10 +187,28 @@ export default function AdminContentBlogs() {
                 </AdminSelectBare>
                 <input className={adminFieldClass} placeholder={t('admin:fieldAuthor')} value={form.authorName} onChange={(e) => setForm({ ...form, authorName: e.target.value })} />
                 <textarea rows={2} className={adminFieldClass} placeholder={t('admin:fieldSummary')} value={form.excerpt} onChange={(e) => setForm({ ...form, excerpt: e.target.value })} />
-                <textarea rows={6} className={adminFieldClass} placeholder={t('admin:fieldContent')} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">{t('admin:fieldContent')}</label>
+                  <BlogRichTextEditor value={form.content} onChange={(content) => setForm({ ...form, content })} />
+                </div>
                 <AdminImageUrlField label={t('admin:fieldFeaturedImage')} value={form.imageUrl} onChange={(v) => setForm({ ...form, imageUrl: v })} />
+                <div>
+                  <input
+                    className={adminFieldClass}
+                    placeholder={t('admin:fieldFeaturedImageAlt')}
+                    aria-label={t('admin:fieldFeaturedImageAlt')}
+                    value={form.imageAlt}
+                    onChange={(e) => setForm({ ...form, imageAlt: e.target.value })}
+                  />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{t('admin:fieldFeaturedImageAltHelp')}</p>
+                </div>
                 <textarea rows={2} className={adminFieldClass} placeholder={t('admin:fieldGallery')} value={form.gallery} onChange={(e) => setForm({ ...form, gallery: e.target.value })} />
-                <input className={adminFieldClass} placeholder={t('admin:fieldReadingTime')} value={form.readingTime} onChange={(e) => setForm({ ...form, readingTime: e.target.value })} />
+                <div>
+                  <input className={adminFieldClass} placeholder={t('admin:fieldReadingTime')} value={form.readingTime} onChange={(e) => setForm({ ...form, readingTime: e.target.value })} />
+                  <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
+                    {t('admin:fieldReadingTimePreview', { count: readingPreview })}
+                  </p>
+                </div>
                 <input className={adminFieldClass} placeholder={t('admin:fieldTags')} value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
                 <input type="datetime-local" className={adminFieldClass} aria-label={t('admin:fieldPublishedAt', { defaultValue: 'Published at' })} value={form.publishedAt} onChange={(e) => setForm({ ...form, publishedAt: e.target.value })} />
                 <AdminSelectBare  value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
