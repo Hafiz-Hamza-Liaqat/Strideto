@@ -29,6 +29,8 @@ export const ROUTES = {
   CAREER_GUIDANCE: '/career-guidance',
   CAREER_ARTICLE: '/career-guidance/:slug',
   ABOUT: '/about',
+  EDITORIAL_POLICY: '/editorial-policy',
+  PRESS: '/press',
   FOR_STUDENTS: '/students',
   FOR_EMPLOYERS: '/employers',
   FOR_INSTITUTIONS: '/for-institutions',

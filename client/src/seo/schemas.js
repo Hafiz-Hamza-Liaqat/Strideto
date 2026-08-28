@@ -1,6 +1,10 @@
 import { SITE_URL, SITE_NAME, DEFAULT_DESCRIPTION, DEFAULT_OG_IMAGE, buildCanonicalUrl } from './config.js';
 import { sanitizeJsonLdString } from './sanitize.js';
-import { organizationSameAsUrls } from '@shared/social/officialSocialLinks.js';
+import {
+  ORGANIZATION_PUBLIC_NAME,
+  ORGANIZATION_PUBLIC_DESCRIPTION,
+  organizationPublicSameAs,
+} from '@shared/seo/organizationIdentity.js';
 import {
   ORGANIZATION_ID,
   WEBSITE_ID,
@@ -64,15 +68,15 @@ export function organizationSchema() {
   return stripUndefined({
     '@type': 'Organization',
     '@id': ORGANIZATION_ID,
-    name: SITE_NAME,
+    name: ORGANIZATION_PUBLIC_NAME,
     url: SITE_URL,
     logo: {
       '@type': 'ImageObject',
       url: ORGANIZATION_LOGO_URL,
     },
-    description: DEFAULT_DESCRIPTION,
+    description: ORGANIZATION_PUBLIC_DESCRIPTION,
     areaServed: 'Worldwide',
-    sameAs: organizationSameAsUrls(),
+    sameAs: organizationPublicSameAs(),
   });
 }
 

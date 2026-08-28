@@ -12,6 +12,7 @@ import { sanitizeHtmlForRender } from '../../utils/sanitizeHtml';
 import { normalizeBlogContent, shouldShowBlogToc } from '@shared/blog/blogContent.js';
 import { displayableBlogCategoryLabel } from '@shared/blog/taxonomy.js';
 import { resolveBlogReadingMinutes } from '@shared/blog/readingTime.js';
+import { resolvePublicBlogAuthorLabel } from '@shared/blog/publicAuthor.js';
 import { RelatedResources } from '../../components/seo/RelatedResources';
 
 const MS_DAY = 24 * 60 * 60 * 1000;
@@ -167,7 +168,7 @@ export default function BlogPost() {
   const ogImage = post.ogImageUrl || post.imageUrl || undefined;
   const heroAlt = post.imageAlt?.trim() || post.title;
   const readingMin = resolveBlogReadingMinutes(post);
-  const authorLabel = post.authorDisplay || post.authorName || t('blog:defaultAuthor');
+  const authorLabel = resolvePublicBlogAuthorLabel(post);
   const gallery = (post.gallery || []).filter((url) => typeof url === 'string' && /^https?:\/\//i.test(url.trim()));
   const tags = (post.tags || []).filter((tag) => typeof tag === 'string' && tag.trim());
   const showUpdated = shouldShowLastUpdated(post.publishedAt, post.updatedAt);
@@ -184,7 +185,7 @@ export default function BlogPost() {
         ogImageAlt={heroAlt}
         jsonLd={combineSchemas(
           blogPostingSchema(
-            { ...post, author: authorLabel },
+            authorLabel ? { ...post, author: authorLabel } : post,
             { readingMinutes: readingMin, canonicalUrl: buildCanonicalUrl(canonicalPath) }
           ),
           breadcrumbSchema(
@@ -211,12 +212,20 @@ export default function BlogPost() {
             <p className="mt-3 text-lg text-gray-600 dark:text-gray-400 leading-relaxed">{post.excerpt}</p>
           )}
           <div className="flex flex-wrap items-center gap-x-3 gap-y-1 mt-4 text-sm text-gray-500 dark:text-gray-400 border-b border-gray-200 dark:border-gray-700 pb-4">
-            <span className="font-medium text-gray-700 dark:text-gray-300">{authorLabel}</span>
+            {authorLabel ? (
+              <span className="font-medium text-gray-700 dark:text-gray-300">{authorLabel}</span>
+            ) : null}
             {publishedLabel && <span>{publishedLabel}</span>}
             {showUpdated && (
               <span>{t('blog:lastUpdated', { date: formatArticleDate(post.updatedAt) })}</span>
             )}
             <span>{readingMin} min read</span>
+            <Link
+              to={ROUTES.EDITORIAL_POLICY}
+              className="text-edur-steel dark:text-edur-sky hover:underline"
+            >
+              {t('blog:editorialStandardsLink')}
+            </Link>
           </div>
           {tags.length > 0 && (
             <ul className="flex flex-wrap gap-2 mt-3" aria-label={t('blog:tagsLabel')}>

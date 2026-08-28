@@ -103,6 +103,8 @@ const CareerArticleDetail = lazyLoad(() => import('../pages/CareerGuidance/Caree
 const SEOJobsPage = lazyLoad(() => import('../pages/SEO/SEOJobsPage'));
 const SEOScholarshipsPage = lazyLoad(() => import('../pages/SEO/SEOScholarshipsPage'));
 const About = lazyLoad(() => import('../pages/Static/staticCmsPages').then((m) => ({ default: m.AboutPage })));
+const EditorialPolicy = lazyLoad(() => import('../pages/Static/EditorialPolicy'));
+const Press = lazyLoad(() => import('../pages/Static/Press'));
 const Services = lazyLoad(() => import('../pages/Static/staticCmsPages').then((m) => ({ default: m.ServicesPage })));
 const Advertise = lazyLoad(() => import('../pages/Static/staticCmsPages').then((m) => ({ default: m.AdvertisePage })));
 const HelpCenter = lazyLoad(() => import('../pages/Static/staticCmsPages').then((m) => ({ default: m.HelpCenterPage })));
@@ -520,6 +522,8 @@ export const routes = [
       { path: `${ROUTES.BLOG}/:slug`, element: <BlogPost /> },
       { path: ROUTES.CONTACT, element: <Contact /> },
       { path: ROUTES.ABOUT, element: <About /> },
+      { path: ROUTES.EDITORIAL_POLICY, element: <EditorialPolicy /> },
+      { path: ROUTES.PRESS, element: <Press /> },
       { path: ROUTES.FOR_STUDENTS, element: <StudentAcquisition /> },
       { path: ROUTES.FOR_EMPLOYERS, element: <EmployerAcquisition /> },
       { path: ROUTES.FOR_INSTITUTIONS, element: <InstitutionAcquisition /> },

@@ -604,8 +604,8 @@ const schemasModule = await import(
     schemasBundled
       .replace(/'\.\/sanitize\.js'/, `'${fileUrl('client/src/seo/sanitize.js')}'`)
       .replace(
-        /'@shared\/social\/officialSocialLinks\.js'/,
-        `'${fileUrl('shared/social/officialSocialLinks.js')}'`
+        /'@shared\/seo\/organizationIdentity\.js'/,
+        `'${fileUrl('shared/seo/organizationIdentity.js')}'`
       )
       .replace(
         /'@shared\/seo\/jobPostingEligibility\.js'/,

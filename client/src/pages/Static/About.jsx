@@ -1,49 +1,99 @@
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { SeoHead } from '../../components/seo';
-import { aboutPageSchema, breadcrumbSchema, combineSchemas } from '../../seo/schemas';
+import { PublicInfoPage, PublicInfoSection } from '../../components/static/PublicInfoPage';
 import { ROUTES } from '../../constants';
+import { ORGANIZATION_PUBLIC_URL } from '@shared/seo/organizationIdentity.js';
+import { OFFICIAL_LINKEDIN_COMPANY_URL } from '@shared/social/officialSocialLinks.js';
 
 export default function About() {
-  const { t } = useTranslation(['static', 'seo', 'common']);
+  const { t } = useTranslation(['static']);
 
   return (
-    <>
-      <SeoHead
-        title={t('seo:aboutTitle')}
-        description={t('seo:aboutDescription')}
-        canonical={ROUTES.ABOUT}
-        jsonLd={combineSchemas(
-          breadcrumbSchema([
-            { name: t('seo:breadcrumbHome'), url: ROUTES.HOME },
-            { name: t('static:breadcrumbAbout'), url: ROUTES.ABOUT },
-          ]),
-          aboutPageSchema({ name: t('static:aboutHeading'), description: t('seo:aboutDescription'), url: ROUTES.ABOUT })
-        )}
-      />
-      <div className="max-w-3xl mx-auto px-4 py-10">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">{t('static:aboutHeading')}</h1>
-        <p className="text-lg text-gray-600 dark:text-gray-300 mb-6">{t('static:aboutIntro')}</p>
-        <section className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">{t('static:aboutMissionTitle')}</h2>
-          <p className="text-gray-600 dark:text-gray-300">{t('static:aboutMissionBody')}</p>
-        </section>
-        <section className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">{t('static:aboutOfferTitle')}</h2>
-          <ul className="list-disc list-inside space-y-2 text-gray-600 dark:text-gray-300">
-            <li>{t('static:aboutOffer1')}</li>
-            <li>{t('static:aboutOffer2')}</li>
-            <li>{t('static:aboutOffer3')}</li>
-            <li>{t('static:aboutOffer4')}</li>
-            <li>{t('static:aboutOffer5')}</li>
-          </ul>
-        </section>
-        <section className="mb-8">
-          <h2 className="text-xl font-semibold text-gray-900 dark:text-white mb-3">{t('static:aboutStudentsTitle')}</h2>
-          <p className="text-gray-600 dark:text-gray-300">{t('static:aboutStudentsBody')}</p>
-        </section>
-        <Link to={ROUTES.CONTACT} className="text-primary dark:text-mint font-medium hover:underline">{t('static:getInTouch')}</Link>
-      </div>
-    </>
+    <PublicInfoPage
+      titleKey="aboutTitle"
+      descriptionKey="aboutDescription"
+      headingKey="aboutHeading"
+      breadcrumbKey="breadcrumbAbout"
+      canonical={ROUTES.ABOUT}
+      ns="static"
+      seoNs="seo"
+      relatedLinks={[
+        { to: ROUTES.EDITORIAL_POLICY, label: t('aboutRelatedEditorial') },
+        { to: ROUTES.PRESS, label: t('aboutRelatedPress') },
+        { to: ROUTES.CONTACT, label: t('contactUs') },
+      ]}
+    >
+      <PublicInfoSection title={t('aboutWhatTitle')}>
+        <p>{t('aboutWhatBody')}</p>
+      </PublicInfoSection>
+
+      <PublicInfoSection title={t('aboutAudiencesTitle')}>
+        <ul className="list-disc list-inside space-y-2">
+          <li>{t('aboutAudienceStudents')}</li>
+          <li>{t('aboutAudienceJobSeekers')}</li>
+          <li>{t('aboutAudienceEmployers')}</li>
+          <li>{t('aboutAudienceInstitutions')}</li>
+          <li>{t('aboutAudienceProviders')}</li>
+        </ul>
+      </PublicInfoSection>
+
+      <PublicInfoSection title={t('aboutPlatformTitle')}>
+        <p>{t('aboutPlatformIntro')}</p>
+        <ul className="list-disc list-inside space-y-2 mt-3">
+          <li><Link to={ROUTES.JOBS} className="text-primary dark:text-mint hover:underline">{t('aboutPlatformJobs')}</Link></li>
+          <li><Link to={ROUTES.SCHOLARSHIPS} className="text-primary dark:text-mint hover:underline">{t('aboutPlatformScholarships')}</Link></li>
+          <li><Link to={ROUTES.ADMISSIONS} className="text-primary dark:text-mint hover:underline">{t('aboutPlatformAdmissions')}</Link></li>
+          <li><Link to={ROUTES.INTERNSHIPS} className="text-primary dark:text-mint hover:underline">{t('aboutPlatformInternships')}</Link></li>
+          <li><Link to={ROUTES.PROGRAM_EXPLORER} className="text-primary dark:text-mint hover:underline">{t('aboutPlatformPrograms')}</Link></li>
+          <li><Link to={ROUTES.BLOG} className="text-primary dark:text-mint hover:underline">{t('aboutPlatformBlog')}</Link></li>
+          <li><Link to={ROUTES.CAREER_GUIDANCE} className="text-primary dark:text-mint hover:underline">{t('aboutPlatformCareer')}</Link></li>
+        </ul>
+      </PublicInfoSection>
+
+      <PublicInfoSection title={t('aboutNotClaimTitle')}>
+        <ul className="list-disc list-inside space-y-2">
+          <li>{t('aboutNotClaim1')}</li>
+          <li>{t('aboutNotClaim2')}</li>
+          <li>{t('aboutNotClaim3')}</li>
+          <li>{t('aboutNotClaim4')}</li>
+        </ul>
+      </PublicInfoSection>
+
+      <PublicInfoSection title={t('aboutWorkspacesTitle')}>
+        <p>{t('aboutWorkspacesBody')}</p>
+      </PublicInfoSection>
+
+      <PublicInfoSection title={t('aboutOfficialTitle')}>
+        <p>
+          {t('aboutOfficialWebsite')}{' '}
+          <a
+            href={ORGANIZATION_PUBLIC_URL}
+            className="text-primary dark:text-mint hover:underline break-words-safe"
+          >
+            {ORGANIZATION_PUBLIC_URL}
+          </a>
+        </p>
+        <p className="mt-3">
+          {t('aboutOfficialLinkedIn')}{' '}
+          <a
+            href={OFFICIAL_LINKEDIN_COMPANY_URL}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-primary dark:text-mint hover:underline break-words-safe"
+          >
+            {OFFICIAL_LINKEDIN_COMPANY_URL}
+          </a>
+        </p>
+      </PublicInfoSection>
+
+      <PublicInfoSection title={t('aboutContactTitle')}>
+        <p>
+          {t('aboutContactBody')}{' '}
+          <Link to={ROUTES.CONTACT} className="text-primary dark:text-mint hover:underline">
+            {t('contactUs')}
+          </Link>
+        </p>
+      </PublicInfoSection>
+    </PublicInfoPage>
   );
 }

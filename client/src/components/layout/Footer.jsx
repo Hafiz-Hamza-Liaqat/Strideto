@@ -109,15 +109,18 @@ export function Footer() {
   ];
 
   const supportLinks = [
+    { label: t('footer:aboutUs'), path: ROUTES.ABOUT },
     { label: t('footer:careerBlog'), path: ROUTES.BLOG },
     { label: t('footer:helpCenter'), path: ROUTES.HELP_CENTER },
     { label: t('footer:faq'), path: ROUTES.FAQ },
     { label: t('footer:support'), path: ROUTES.SUPPORT },
     { label: t('footer:contactLink'), path: ROUTES.CONTACT },
+    { label: t('footer:press'), path: ROUTES.PRESS },
     { label: t('footer:sitemap'), path: ROUTES.SITEMAP },
   ];
 
   const legalLinks = [
+    { label: t('footer:editorialPolicy'), path: ROUTES.EDITORIAL_POLICY },
     { label: t('footer:privacyPolicy'), path: ROUTES.PRIVACY_POLICY },
     { label: t('footer:termsConditions'), path: ROUTES.TERMS },
     { label: t('footer:refundPolicy'), path: ROUTES.REFUND_POLICY },

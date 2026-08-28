@@ -102,6 +102,17 @@ export default function HumanSitemap() {
       ],
     },
     {
+      title: t('static:sitemapTrust', { defaultValue: 'Company & trust' }),
+      description: t('static:sitemapTrustDesc', { defaultValue: 'About Strideto, editorial standards, press, and contact.' }),
+      icon: 'document',
+      links: [
+        { to: ROUTES.ABOUT, label: t('static:aboutHeading') },
+        { to: ROUTES.EDITORIAL_POLICY, label: t('static:editorialPolicyHeading') },
+        { to: ROUTES.PRESS, label: t('static:pressHeading') },
+        { to: ROUTES.CONTACT, label: t('footer:contactLink', { ns: 'footer' }) },
+      ],
+    },
+    {
       title: t('static:sitemapHelp', { defaultValue: 'Help & safety' }),
       description: t('static:sitemapHelpDesc', { defaultValue: 'Support, policies, and legal information.' }),
       icon: 'search',

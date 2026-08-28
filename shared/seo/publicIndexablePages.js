@@ -28,6 +28,8 @@ export const INDEXABLE_STATIC_PATHS = Object.freeze([
   '/blog',
   '/webinars',
   '/about',
+  '/editorial-policy',
+  '/press',
   '/students',
   '/employers',
   '/for-institutions',
