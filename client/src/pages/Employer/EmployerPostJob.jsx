@@ -22,7 +22,7 @@ import { CountrySelect } from '../../components/forms/CountrySelect';
 import { DateInput } from '../../components/forms/NativeTemporalInput';
 import { regionsForCountry } from '@shared/international/regions.js';
 import { JobDescriptionUploadPanel } from '../../components/jobs/JobDescriptionUploadPanel';
-import { EMPLOYER_SUGGESTION_FIELD_MAP } from '../../components/jobs/jobDocumentSuggestionMerge';
+import { EMPLOYER_SUGGESTION_FIELD_MAP, EMPLOYER_FORM_DEFAULTS } from '../../components/jobs/jobDocumentSuggestionMerge';
 
 const defaultForm = {
   jobTitle: '',
@@ -106,6 +106,8 @@ export default function EmployerPostJob() {
   const [prefilledCompany, setPrefilledCompany] = useState(false);
   const [loadingJob, setLoadingJob] = useState(isEdit);
   const [editMeta, setEditMeta] = useState(null);
+  const [touchedFields, setTouchedFields] = useState(() => new Set());
+  const [initialFormSnapshot, setInitialFormSnapshot] = useState(defaultForm);
 
   useEffect(() => {
     if (!isEdit || !jobId) return;
@@ -114,6 +116,8 @@ export default function EmployerPostJob() {
       .getJob(jobId)
       .then(({ data }) => {
         setForm(jobToForm(data.job));
+        setInitialFormSnapshot(jobToForm(data.job));
+        setTouchedFields(new Set());
         setEditMeta({
           status: data.job?.status,
           approvalStatus: data.job?.approvalStatus,
@@ -140,11 +144,13 @@ export default function EmployerPostJob() {
     const company = employer?.companyName?.trim();
     if (!company) return;
     setForm((f) => (f.companyName ? f : { ...f, companyName: company }));
+    setInitialFormSnapshot((f) => (f.companyName ? f : { ...f, companyName: company }));
     setPrefilledCompany(true);
   }, [employer?.companyName, prefilledCompany, isEdit]);
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    setTouchedFields((prev) => new Set(prev).add(name));
     setForm((f) => {
       const next = { ...f, [name]: value };
       if (name === 'jobFamily') next.specialization = '';
@@ -358,6 +364,9 @@ export default function EmployerPostJob() {
           uploadFn={employerApi.extractJobFromDocument}
           fieldMap={EMPLOYER_SUGGESTION_FIELD_MAP}
           form={form}
+          formDefaults={EMPLOYER_FORM_DEFAULTS}
+          initialForm={initialFormSnapshot}
+          touchedFields={touchedFields}
           onApply={(next) => setForm(next)}
         />
 
@@ -470,6 +479,7 @@ export default function EmployerPostJob() {
               disabled={submitting}
               placeholder={t('employer:selectCountry', { defaultValue: 'Select country' })}
               onChange={(code) => {
+                setTouchedFields((prev) => new Set(prev).add('countryCode'));
                 setForm((f) => ({ ...f, countryCode: code || '', region: '', city: '' }));
                 setFieldErrors((prev) => {
                   if (!prev.countryCode && !prev.region && !prev.city) return prev;

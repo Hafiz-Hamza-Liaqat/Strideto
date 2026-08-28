@@ -21,7 +21,7 @@ import { formatJobPublicationStatus } from '@shared/cms/publicReadiness.js';
 import { AdminLocationFields } from '../../components/admin/AdminLocationFields';
 import { formatLocationDisplay } from '@shared/international/location.js';
 import { JobDescriptionUploadPanel } from '../../components/jobs/JobDescriptionUploadPanel';
-import { ADMIN_SUGGESTION_FIELD_MAP } from '../../components/jobs/jobDocumentSuggestionMerge';
+import { ADMIN_SUGGESTION_FIELD_MAP, ADMIN_FORM_DEFAULTS } from '../../components/jobs/jobDocumentSuggestionMerge';
 
 const EMPTY_JOB = {
   title: '',
@@ -92,10 +92,14 @@ export default function AdminContentJobs() {
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(null);
   const [employerEntitlement, setEmployerEntitlement] = useState(null);
+  const [touchedFields, setTouchedFields] = useState(() => new Set());
+  const [initialFormSnapshot, setInitialFormSnapshot] = useState(EMPTY_JOB);
 
   const openCreate = () => {
     setEditingId(null);
     setForm(EMPTY_JOB);
+    setInitialFormSnapshot(EMPTY_JOB);
+    setTouchedFields(new Set());
     setFormOpen(true);
   };
 
@@ -114,6 +118,18 @@ export default function AdminContentJobs() {
         openingsCount: job.openingsCount == null ? '' : String(job.openingsCount),
         deadline: job.deadline ? job.deadline.slice(0, 10) : '',
       });
+      setInitialFormSnapshot({
+        ...EMPTY_JOB,
+        ...job,
+        requirements: linesToText(job.requirements),
+        responsibilities: linesToText(job.responsibilities),
+        benefits: linesToText(job.benefits),
+        skillsRequired: linesToText(job.skillsRequired),
+        gallery: linesToText(job.gallery),
+        openingsCount: job.openingsCount == null ? '' : String(job.openingsCount),
+        deadline: job.deadline ? job.deadline.slice(0, 10) : '',
+      });
+      setTouchedFields(new Set());
       setEmployerEntitlement(job.employerEntitlement || null);
       setEditingId(id);
       setFormOpen(true);
@@ -358,6 +374,9 @@ export default function AdminContentJobs() {
                 uploadFn={adminContentApi.extractJobFromDocument}
                 fieldMap={ADMIN_SUGGESTION_FIELD_MAP}
                 form={form}
+                formDefaults={ADMIN_FORM_DEFAULTS}
+                initialForm={initialFormSnapshot}
+                touchedFields={touchedFields}
                 onApply={(next) => setForm(next)}
                 className="mt-3"
               />

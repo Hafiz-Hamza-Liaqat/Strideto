@@ -23,6 +23,9 @@ export function JobDescriptionUploadPanel({
   fieldMap,
   form,
   onApply,
+  formDefaults,
+  initialForm,
+  touchedFields,
   className = '',
 }) {
   const fileRef = useRef(null);
@@ -52,7 +55,12 @@ export function JobDescriptionUploadPanel({
       const { data } = await uploadFn(formData);
       const sug = data?.suggestions || {};
       setSuggestions(sug);
-      setConflicts(buildSuggestionConflicts(form, sug, fieldMap));
+      setConflicts(buildSuggestionConflicts(form, sug, {
+        fieldMap,
+        touchedFields,
+        initialForm,
+        formDefaults,
+      }));
       setResolvedConflicts({});
       setStatus(STATUS.review);
     } catch (err) {
@@ -61,11 +69,19 @@ export function JobDescriptionUploadPanel({
     }
   };
 
+  const mergeOptions = {
+    fieldMap,
+    touchedFields,
+    initialForm,
+    formDefaults,
+  };
+
   const applyEmpty = () => {
     if (!suggestions) return;
     const { form: next } = applyJobDocumentSuggestions(form, suggestions, {
-      fieldMap,
+      ...mergeOptions,
       onlyEmpty: true,
+      allowUntouchedDefaults: true,
     });
     onApply(next);
     reset();
@@ -78,7 +94,7 @@ export function JobDescriptionUploadPanel({
       : {};
     if (useSuggestion) {
       const { form: next } = applyJobDocumentSuggestions(form, patch, {
-        fieldMap,
+        ...mergeOptions,
         onlyEmpty: false,
       });
       onApply(next);
@@ -94,15 +110,16 @@ export function JobDescriptionUploadPanel({
       const choice = resolvedConflicts[c.field];
       if (choice === 'suggestion' && suggestions[c.field]) {
         const { form: patched } = applyJobDocumentSuggestions(nextForm, { [c.field]: suggestions[c.field] }, {
-          fieldMap,
+          ...mergeOptions,
           onlyEmpty: false,
         });
         nextForm = patched;
       }
     }
     const { form: withEmpty } = applyJobDocumentSuggestions(nextForm, suggestions, {
-      fieldMap,
+      ...mergeOptions,
       onlyEmpty: true,
+      allowUntouchedDefaults: true,
     });
     onApply(withEmpty);
     reset();
@@ -200,7 +217,7 @@ export function JobDescriptionUploadPanel({
               onClick={applyEmpty}
               className="px-3 py-1.5 rounded-lg bg-primary text-white text-sm font-medium"
             >
-              Apply all empty fields
+              Apply all valid suggestions
             </button>
             {openConflicts.length > 0 && (
               <button type="button" onClick={applyAllResolved} className="px-3 py-1.5 rounded-lg border text-sm">
