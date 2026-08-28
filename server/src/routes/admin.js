@@ -16,6 +16,10 @@ import * as adminInternships from '../controllers/admin/adminInternshipsControll
 import * as adminWebinars from '../controllers/admin/adminWebinarsController.js';
 import * as adminIntl from '../controllers/admin/adminIntlScholarshipsController.js';
 import { generateJobDescription } from '../controllers/admin/aiJobController.js';
+import {
+  extractAdminJobFromDocument,
+} from '../controllers/jobDocumentExtractController.js';
+import { uploadJobDescription } from '../middleware/jobDescriptionUpload.js';
 import { listImportResources, importData } from '../controllers/admin/adminImportController.js';
 import { importUpload } from '../middleware/importUpload.js';
 import { getGrowthDashboard } from '../controllers/growthDashboardController.js';
@@ -183,6 +187,18 @@ adminRouter.patch('/scraper/config', requirePermission(PERMISSIONS.SYSTEM_SETTIN
 adminRouter.get('/jobs', requirePermission(PERMISSIONS.CONTENT_JOBS, PERMISSIONS.MODERATE_JOBS), adminJobs.list);
 adminRouter.get('/jobs/:id', requirePermission(PERMISSIONS.CONTENT_JOBS, PERMISSIONS.MODERATE_JOBS), adminJobs.getOne);
 adminRouter.post('/jobs/generate', requirePermission(PERMISSIONS.CONTENT_JOBS), generateJobDescription);
+adminRouter.post(
+  '/jobs/extract-from-document',
+  requirePermission(PERMISSIONS.CONTENT_JOBS),
+  uploadLimiter,
+  (req, res, next) => {
+    uploadJobDescription(req, res, (err) => {
+      if (err) return res.status(400).json({ error: err.message || 'File upload failed', code: 'invalid_file_content' });
+      next();
+    });
+  },
+  extractAdminJobFromDocument
+);
 adminRouter.post('/jobs', requirePermission(PERMISSIONS.CONTENT_JOBS), adminJobs.create);
 adminRouter.post('/jobs/bulk', requirePermission(PERMISSIONS.CONTENT_JOBS), adminJobs.bulkAction);
 adminRouter.post('/jobs/:id/duplicate', requirePermission(PERMISSIONS.CONTENT_JOBS), adminJobs.duplicate);

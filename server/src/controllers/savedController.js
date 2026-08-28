@@ -13,6 +13,11 @@ import {
   projectPublicCmsAdmission,
   projectPublicInternship,
 } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
+import {
+  attachEmployerLogos,
+  collectEmployerIdsForLogoFallback,
+  fetchEmployerLogoMap,
+} from '../utils/employerLogoProjection.js';
 
 const COLLECTION_MAP = {
   jobs: { Model: Job, field: 'savedJobs' },
@@ -118,6 +123,9 @@ export const getSaved = asyncHandler(async (req, res) => {
     .populate('savedIntlScholarships')
     .lean();
   if (!user) return res.status(404).json({ error: 'User not found' });
+  const savedJobRows = (user.savedJobs || []).filter(Boolean);
+  const jobLogoMap = await fetchEmployerLogoMap(collectEmployerIdsForLogoFallback(savedJobRows));
+  const savedJobsWithLogos = attachEmployerLogos(savedJobRows, jobLogoMap);
   const identityOnly = (doc) => ({
     _id: doc?._id,
     title: doc?.title || doc?.name || '',
@@ -126,8 +134,7 @@ export const getSaved = asyncHandler(async (req, res) => {
     organization: doc?.organization || doc?.company,
   });
   res.json({
-    savedJobs: (user.savedJobs || [])
-      .filter(Boolean)
+    savedJobs: savedJobsWithLogos
       .map((j) => projectSavedRecord(j, projectPublicJobListItem)),
     savedScholarships: (user.savedScholarships || [])
       .filter(Boolean)

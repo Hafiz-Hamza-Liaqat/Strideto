@@ -17,6 +17,11 @@ import {
   findLocalizedById,
   isObjectIdParam,
 } from '../utils/localeQuery.js';
+import {
+  attachEmployerLogos,
+  collectEmployerIdsForLogoFallback,
+  fetchEmployerLogoMap,
+} from '../utils/employerLogoProjection.js';
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
@@ -181,8 +186,10 @@ export const getJobs = asyncHandler(async (req, res) => {
     Job.find(query).sort(buildJobSort(sort)).skip(skip).limit(limit).lean(),
     Job.countDocuments(query),
   ]);
+  const logoMap = await fetchEmployerLogoMap(collectEmployerIdsForLogoFallback(data));
+  const rowsWithLogos = attachEmployerLogos(data, logoMap);
   const items = [];
-  for (const row of data) {
+  for (const row of rowsWithLogos) {
     try {
       const item = projectPublicJobListItem(row);
       if (item && item._id) items.push(item);
@@ -205,8 +212,9 @@ export const getJobByIdOrSlug = asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Job not found' });
   }
   let employerVerification = null;
+  let employerLogoUrl = null;
   if (job.employerId) {
-    const emp = await Employer.findById(job.employerId).select('verificationLevel verified companyName slug').lean();
+    const emp = await Employer.findById(job.employerId).select('verificationLevel verified companyName slug logoUrl').lean();
     if (emp) {
       employerVerification = {
         verificationLevel: emp.verificationLevel,
@@ -214,6 +222,7 @@ export const getJobByIdOrSlug = asyncHandler(async (req, res) => {
         companyName: emp.companyName,
         slug: emp.slug,
       };
+      employerLogoUrl = emp.logoUrl || null;
     }
   }
   await Job.findByIdAndUpdate(job._id, { $inc: { views: 1 } });
@@ -222,5 +231,7 @@ export const getJobByIdOrSlug = asyncHandler(async (req, res) => {
   if (job.category) relatedFilter.category = job.category;
   else if (job.province) relatedFilter.province = job.province;
   const related = await Job.find(relatedFilter).sort({ createdAt: -1 }).limit(4).lean();
-  res.json(projectPublicJob(job, { related, employerVerification }));
+  const relatedLogoMap = await fetchEmployerLogoMap(collectEmployerIdsForLogoFallback(related));
+  const relatedWithLogos = attachEmployerLogos(related, relatedLogoMap);
+  res.json(projectPublicJob(job, { related: relatedWithLogos, employerVerification, employerLogoUrl }));
 });

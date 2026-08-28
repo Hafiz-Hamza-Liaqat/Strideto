@@ -9,8 +9,14 @@ import { mongoLocaleFilter } from '../../../../shared/localization/localeFallbac
 import { normalizeLocale } from '../../../../shared/localization/localeResolver.js';
 import { buildLocalizedSlugUrl } from '../../../../shared/localization/localeUtils.js';
 import { withFixtureExclusion } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
+import { resolvePublicJobLogoUrl } from '../../../../shared/publicDiscovery/projectPublicDiscovery.js';
+import {
+  attachEmployerLogos,
+  collectEmployerIdsForLogoFallback,
+  fetchEmployerLogoMap,
+} from '../../utils/employerLogoProjection.js';
 
-const JOB_PROJECTION = 'title slug company organization province category jobType deadline logoUrl remote isFeatured createdAt';
+const JOB_PROJECTION = 'title slug company organization province category jobType deadline logoUrl remote isFeatured createdAt source employerId';
 const SCHOLARSHIP_PROJECTION = 'title slug provider country level degreeLevel deadline logoUrl isFeatured amount';
 const ADMISSION_PROJECTION = 'program slug institution university province degree deadline logoUrl isFeatured';
 const UNIVERSITY_PROJECTION = 'name slug country province city type ranking logoUrl isFeatured description';
@@ -68,7 +74,9 @@ async function queryJobs(query, count) {
   if (query.remote) filter.remote = true;
 
   const sort = query.sort === 'deadline' ? { deadline: 1, createdAt: -1 } : { createdAt: -1 };
-  const items = await Job.find(filter).select(JOB_PROJECTION).sort(sort).limit(count).lean();
+  const rows = await Job.find(filter).select(JOB_PROJECTION).sort(sort).limit(count).lean();
+  const logoMap = await fetchEmployerLogoMap(collectEmployerIdsForLogoFallback(rows));
+  const items = attachEmployerLogos(rows, logoMap);
   return { items: items.map(transformJob), total: items.length };
 }
 
@@ -172,7 +180,7 @@ function transformJob(doc) {
     title: doc.title,
     subtitle: doc.company || doc.organization,
     description: '',
-    imageUrl: doc.logoUrl,
+    imageUrl: resolvePublicJobLogoUrl(doc, doc._employerLogoUrl),
     href: buildLocalizedSlugUrl('/jobs', doc.slug, loc),
     meta: [
       doc.province,

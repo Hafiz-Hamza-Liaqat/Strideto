@@ -20,6 +20,8 @@ import { AdminViewPublicLink, isAdminSlugPreviewReady } from '../../components/a
 import { formatJobPublicationStatus } from '@shared/cms/publicReadiness.js';
 import { AdminLocationFields } from '../../components/admin/AdminLocationFields';
 import { formatLocationDisplay } from '@shared/international/location.js';
+import { JobDescriptionUploadPanel } from '../../components/jobs/JobDescriptionUploadPanel';
+import { ADMIN_SUGGESTION_FIELD_MAP } from '../../components/jobs/jobDocumentSuggestionMerge';
 
 const EMPTY_JOB = {
   title: '',
@@ -352,6 +354,13 @@ export default function AdminContentJobs() {
                   ) : null}
                 </>
               ) : null}
+              <JobDescriptionUploadPanel
+                uploadFn={adminContentApi.extractJobFromDocument}
+                fieldMap={ADMIN_SUGGESTION_FIELD_MAP}
+                form={form}
+                onApply={(next) => setForm(next)}
+                className="mt-3"
+              />
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-[70vh] overflow-y-auto pr-1 mt-3">
                 <label className="sm:col-span-2">
                   <span className="text-xs text-gray-500">{t('admin:fieldTitle')} *</span>

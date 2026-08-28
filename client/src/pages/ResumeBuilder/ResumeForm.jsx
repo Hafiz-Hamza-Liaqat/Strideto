@@ -172,6 +172,7 @@ export function ResumeForm({ stepIndex, resume, onChange }) {
           value={p.profilePhotoUrl || ''}
           onChange={(v) => update('personalInfo.profilePhotoUrl', v)}
           allowUpload={false}
+          helperText="Use a direct public image URL (JPG, PNG, WebP or SVG), or choose an image from Media Library. Profile/webpage URLs cannot be used as images."
         />
       </div>
     );

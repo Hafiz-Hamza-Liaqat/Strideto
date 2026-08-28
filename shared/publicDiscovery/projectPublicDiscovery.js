@@ -75,6 +75,20 @@ function stripPrivateEvidence(sources) {
   }));
 }
 
+/**
+ * Public logo resolution for jobs.
+ * Employer-posted: explicit Job.logoUrl, else live Employer.logoUrl at read time.
+ * Admin-curated / external: Job.logoUrl only (no employer identity conflation).
+ */
+export function resolvePublicJobLogoUrl(job, employerLogoUrl) {
+  const explicit = publicHttpUrlOrNull(job?.logoUrl);
+  if (explicit) return explicit;
+  if (job?.source === 'employer' || job?.employerId) {
+    return publicHttpUrlOrNull(employerLogoUrl);
+  }
+  return null;
+}
+
 export function projectPublicJob(job, extras = {}) {
   if (!job) return null;
   const applyType = job.applyType === 'internal' ? 'internal' : 'external';
@@ -97,7 +111,7 @@ export function projectPublicJob(job, extras = {}) {
     applicationLink,
     applyEmail: applyType === 'external' && job.applyEmail ? String(job.applyEmail) : null,
     sourceUrl: publicHttpUrlOrNull(job.sourceUrl),
-    logoUrl: publicHttpUrlOrNull(job.logoUrl),
+    logoUrl: resolvePublicJobLogoUrl(job, extras.employerLogoUrl),
     openingsCount: openings.specified ? openings.count : null,
     openingsLabel: openings.phrase,
     workMode,
@@ -112,10 +126,11 @@ export function projectPublicJob(job, extras = {}) {
   };
 }
 
-export function projectPublicJobListItem(job) {
+export function projectPublicJobListItem(job, employerLogoUrl) {
   if (!job) return null;
   const applyType = job.applyType === 'internal' ? 'internal' : 'external';
   const openings = formatPublicOpenings(job.openingsCount);
+  const resolvedEmployerLogo = employerLogoUrl ?? job._employerLogoUrl;
   return {
     _id: job._id,
     title: job.title,
@@ -133,7 +148,7 @@ export function projectPublicJobListItem(job) {
     type: job.type,
     jobType: job.jobType,
     deadline: job.deadline,
-    logoUrl: publicHttpUrlOrNull(job.logoUrl),
+    logoUrl: resolvePublicJobLogoUrl(job, resolvedEmployerLogo),
     source: job.source,
     scrapedAt: job.source === 'scraper' ? job.scrapedAt : undefined,
     applyType,

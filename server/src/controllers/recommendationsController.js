@@ -12,6 +12,11 @@ import {
   projectPublicCmsScholarship,
   projectPublicCmsAdmission,
 } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
+import {
+  attachEmployerLogos,
+  collectEmployerIdsForLogoFallback,
+  fetchEmployerLogoMap,
+} from '../utils/employerLogoProjection.js';
 
 const RECOMMEND_LIMIT = 8;
 const CANDIDATE_CAP = 80;
@@ -92,7 +97,10 @@ export const getRecommendations = asyncHandler(async (req, res) => {
     Admission.find(LAUNCH_ACTIVE).sort({ createdAt: -1 }).limit(CANDIDATE_CAP).lean(),
   ]);
 
-  const jobs = allJobs
+  const jobLogoMap = await fetchEmployerLogoMap(collectEmployerIdsForLogoFallback(allJobs));
+  const jobsWithLogos = attachEmployerLogos(allJobs, jobLogoMap);
+
+  const jobs = jobsWithLogos
     .filter((j) => !excludeJobs.includes(j._id.toString()))
     .map((j) => ({ ...j, _score: scoreJob(j, scoringUser) }))
     .sort((a, b) => b._score - a._score)

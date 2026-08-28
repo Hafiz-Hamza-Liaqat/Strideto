@@ -16,6 +16,11 @@ export const adminContentApi = {
   listJobs: (params) => axiosInstance.get('/admin/jobs', { params }),
   getJob: (id) => axiosInstance.get(`/admin/jobs/${id}`),
   createJob: (body) => axiosInstance.post('/admin/jobs', body),
+  extractJobFromDocument: (formData) =>
+    axiosInstance.post('/admin/jobs/extract-from-document', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
+    }),
   updateJob: (id, body) => axiosInstance.put(`/admin/jobs/${id}`, body),
   deleteJob: (id) => axiosInstance.delete(`/admin/jobs/${id}`),
   duplicateJob: (id) => axiosInstance.post(`/admin/jobs/${id}/duplicate`),

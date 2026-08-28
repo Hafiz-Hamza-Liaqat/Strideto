@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { API_BASE_URL } from '../../constants';
 import { adminContentApi } from '../../services/adminContentApi';
 import { MediaAssetPicker } from '../media/MediaAssetPicker';
+import { isLikelyWebpageNotDirectImage } from '../../utils/imageUrlHints';
 
 /** API origin without /api suffix — used for /uploads paths. */
 export function getApiOrigin() {
@@ -66,7 +67,7 @@ export function isLikelyImageUrl(url) {
 
 const PREVIEW_TIMEOUT_MS = 12000;
 
-export function AdminImageUrlField({ label, value, onChange, placeholder, className = '', allowUpload = true, allowLibrary = true, compact = false, onAssetSelect }) {
+export function AdminImageUrlField({ label, value, onChange, placeholder, className = '', allowUpload = true, allowLibrary = true, compact = false, onAssetSelect, helperText }) {
   const [imgError, setImgError] = useState(false);
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
@@ -139,7 +140,10 @@ export function AdminImageUrlField({ label, value, onChange, placeholder, classN
     if (uploadError) return uploadError;
     if (uploading) return 'Uploading image…';
     if (!value?.trim()) return null;
-    if (!canPreview) return 'Enter a valid image URL (see accepted formats below).';
+    if (isLikelyWebpageNotDirectImage(value)) {
+      return 'This looks like a profile or webpage URL, not a direct image. Use a public image URL (JPG, PNG, WebP or SVG), or choose an image from Media Library.';
+    }
+    if (!canPreview) return helperText || 'Enter a valid image URL (see accepted formats below).';
     if (imgError) return 'Image could not be loaded — check the URL is public or upload a file instead.';
     return null;
   })();
@@ -243,7 +247,7 @@ export function AdminImageUrlField({ label, value, onChange, placeholder, classN
       </div>
       {!compact && (
         <p className="text-[11px] text-gray-500 dark:text-gray-400 mt-1 leading-snug">
-          Accepted: https://… · /uploads/… · Upload · or pick from Media Library
+          {helperText || 'Accepted: https://… · /uploads/… · Upload · or pick from Media Library'}
         </p>
       )}
     </div>

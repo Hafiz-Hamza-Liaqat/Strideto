@@ -7,6 +7,7 @@ import {
   forgotPasswordLimiter,
   refreshLimiter,
   verifyEmailLimiter,
+  uploadLimiter,
 } from '../middleware/rateLimit.js';
 import { requireTurnstileWhenEnabled } from '../middleware/turnstile.js';
 import { requireEmployerEmailVerified } from '../middleware/requireEmailVerified.js';
@@ -16,6 +17,8 @@ import * as employer from '../controllers/employerController.js';
 import * as employerTeam from '../controllers/employerTeamController.js';
 import * as employerUsage from '../controllers/employerUsageController.js';
 import { createJobCheckout } from '../controllers/paymentsController.js';
+import { extractEmployerJobFromDocument } from '../controllers/jobDocumentExtractController.js';
+import { uploadJobDescription } from '../middleware/jobDescriptionUpload.js';
 import { requireEmployerCapability } from '../services/employer/employerOrganizationService.js';
 import { EMPLOYER_CAPABILITIES as C } from '../../../shared/employer/team.js';
 
@@ -190,6 +193,20 @@ employerRouter.get(
   requireAuth,
   requireEmployerAuth,
   employer.getJobSelectorOptions
+);
+employerRouter.post(
+  '/employer/jobs/extract-from-document',
+  requireAuth,
+  requireEmployerAuth,
+  requireEmployerCapability(C.JOBS_WRITE),
+  uploadLimiter,
+  (req, res, next) => {
+    uploadJobDescription(req, res, (err) => {
+      if (err) return res.status(400).json({ error: err.message || 'File upload failed', code: 'invalid_file_content' });
+      next();
+    });
+  },
+  extractEmployerJobFromDocument
 );
 employerRouter.get(
   '/employer/jobs/:id',

@@ -21,6 +21,8 @@ import {
 import { CountrySelect } from '../../components/forms/CountrySelect';
 import { DateInput } from '../../components/forms/NativeTemporalInput';
 import { regionsForCountry } from '@shared/international/regions.js';
+import { JobDescriptionUploadPanel } from '../../components/jobs/JobDescriptionUploadPanel';
+import { EMPLOYER_SUGGESTION_FIELD_MAP } from '../../components/jobs/jobDocumentSuggestionMerge';
 
 const defaultForm = {
   jobTitle: '',
@@ -352,6 +354,13 @@ export default function EmployerPostJob() {
         noValidate
         aria-describedby={error ? formErrorId : undefined}
       >
+        <JobDescriptionUploadPanel
+          uploadFn={employerApi.extractJobFromDocument}
+          fieldMap={EMPLOYER_SUGGESTION_FIELD_MAP}
+          form={form}
+          onApply={(next) => setForm(next)}
+        />
+
         <div>
           <label htmlFor={FIELD_IDS.jobTitle} className={labelClass}>
             {t('employer:jobTitle')}

@@ -124,6 +124,11 @@ export const employerApi = {
   getJobOptions: () => employerAxios.get('/employer/jobs/selector'),
   getJob: (id) => employerAxios.get(`/employer/jobs/${id}`),
   createJob: (body) => employerAxios.post('/employer/jobs', body),
+  extractJobFromDocument: (formData) =>
+    employerAxios.post('/employer/jobs/extract-from-document', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
+    }),
   updateJob: (id, body) => employerAxios.patch(`/employer/jobs/${id}`, body),
   closeJob: (id) => employerAxios.post(`/employer/jobs/${id}/close`),
   reopenJob: (id) => employerAxios.post(`/employer/jobs/${id}/reopen`),
