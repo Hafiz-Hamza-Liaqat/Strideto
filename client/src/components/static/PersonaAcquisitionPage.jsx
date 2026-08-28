@@ -59,10 +59,13 @@ export function PersonaAcquisitionPage({
         description={description}
         canonical={canonical}
         jsonLd={combineSchemas(
-          breadcrumbSchema([
-            { name: 'Home', url: ROUTES.HOME },
-            { name: breadcrumbLabel, url: canonical },
-          ]),
+          breadcrumbSchema(
+            [
+              { name: 'Home', url: ROUTES.HOME },
+              { name: breadcrumbLabel, url: canonical },
+            ],
+            canonical
+          ),
           webPageSchema({ name: heading, description, url: canonical })
         )}
       />

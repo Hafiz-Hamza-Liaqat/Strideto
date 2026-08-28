@@ -185,12 +185,18 @@ export default function BlogPost() {
         ogImage={ogImage}
         ogImageAlt={heroAlt}
         jsonLd={combineSchemas(
-          blogPostingSchema({ ...post, author: authorLabel }, { readingMinutes: readingMin }),
-          breadcrumbSchema([
-            { name: t('blog:breadcrumbHome'), url: ROUTES.HOME },
-            { name: t('blog:breadcrumbBlog'), url: ROUTES.BLOG },
-            { name: post.title, url: `${ROUTES.BLOG}/${post.slug}` },
-          ]),
+          blogPostingSchema(
+            { ...post, author: authorLabel },
+            { readingMinutes: readingMin, canonicalUrl: buildCanonicalUrl(canonicalPath) }
+          ),
+          breadcrumbSchema(
+            [
+              { name: t('blog:breadcrumbHome'), url: ROUTES.HOME },
+              { name: t('blog:breadcrumbBlog'), url: ROUTES.BLOG },
+              { name: post.title, url: `${ROUTES.BLOG}/${post.slug}` },
+            ],
+            `${ROUTES.BLOG}/${post.slug}`
+          ),
         )}
       />
       <article className={`${showToc ? 'max-w-6xl' : 'max-w-4xl'} mx-auto px-4 py-8`}>

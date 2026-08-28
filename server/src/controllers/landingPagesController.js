@@ -1,7 +1,8 @@
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { sanitizeString } from '../utils/sanitize.js';
+import { resolvePublicSiteOrigin } from '../../../shared/seo/publicSiteOrigin.js';
 
-const SITE_URL = process.env.SITE_URL || 'https://strideto.com';
+const SITE_URL = resolvePublicSiteOrigin(process.env.SITE_URL || process.env.VITE_APP_URL || '');
 
 /**
  * Return SEO meta and schema for province/category landing pages.
@@ -39,11 +40,7 @@ export const getLandingPage = asyncHandler(async (req, res) => {
     name: title,
     description,
     url: canonical,
-    publisher: {
-      '@type': 'Organization',
-      name: 'Strideto',
-      url: SITE_URL,
-    },
+    publisher: { '@id': `${SITE_URL}/#organization` },
   };
 
   res.json({ meta, schema });

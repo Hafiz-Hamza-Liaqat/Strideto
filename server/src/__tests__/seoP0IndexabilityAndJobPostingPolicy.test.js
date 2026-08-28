@@ -60,6 +60,7 @@ const staticRobots = lf(read('client/public/robots.txt'));
 const robotsLines = (txt) => txt.split(String.fromCharCode(10));
 const seoController = read('server/src/controllers/seoController.js');
 const schemasSource = read('client/src/seo/schemas.js');
+const entityIdsSource = read('client/src/seo/entityIds.js');
 const jobDetailSource = read('client/src/pages/Jobs/JobDetail.jsx');
 const internshipDetailSource = read('client/src/pages/Internships/InternshipDetail.jsx');
 const jobsListSource = read('client/src/pages/Jobs/Jobs.jsx');
@@ -578,18 +579,29 @@ check(
 // logic under test is the real, unmodified source.
 // ---------------------------------------------------------------------------
 const fileUrl = (rel) => pathToFileURL(path.join(repo, rel)).href;
+const schemaConfigStub = [
+  `const SITE_URL = ${JSON.stringify(PRODUCTION_PUBLIC_ORIGIN)};`,
+  "const SITE_NAME = 'Strideto';",
+  "const DEFAULT_DESCRIPTION = 'test description';",
+  `const DEFAULT_OG_IMAGE = ${JSON.stringify(`${PRODUCTION_PUBLIC_ORIGIN}/og-image.png`)};`,
+  `export function buildCanonicalUrl(path = '/') {
+    if (!path) return SITE_URL;
+    if (path.startsWith('http')) return path.replace(/\\/$/, '') || path;
+    const normalized = path.startsWith('/') ? path : \`/\${path}\`;
+    if (normalized === '/') return SITE_URL;
+    return \`\${SITE_URL}\${normalized.replace(/\\/$/, '')}\`;
+  }`,
+  'export { SITE_URL, SITE_NAME, DEFAULT_DESCRIPTION, DEFAULT_OG_IMAGE };',
+].join('\n');
+const stripConfigImport = (source) =>
+  source.replace(/^import\s*\{[\s\S]*?\}\s*from\s*'\.\/config\.js';\n?/m, '');
+const entityIdsModuleSource = stripConfigImport(entityIdsSource);
+const schemasBundled = `${schemaConfigStub}\n${entityIdsModuleSource}\n${stripConfigImport(schemasSource)
+  .replace(/^import \{[^}]*\} from '\.\/entityIds\.js';\n/m, '')
+  .replace(/^export \{[\s\S]*?\} from '\.\/entityIds\.js';\n/m, '')}`;
 const schemasModule = await import(
   `data:text/javascript;base64,${Buffer.from(
-    schemasSource
-      .replace(
-        /^import \{[^}]*\} from '\.\/config\.js';$/m,
-        [
-          `const SITE_URL = ${JSON.stringify(PRODUCTION_PUBLIC_ORIGIN)};`,
-          "const SITE_NAME = 'Strideto';",
-          "const DEFAULT_DESCRIPTION = 'test description';",
-          `const DEFAULT_OG_IMAGE = ${JSON.stringify(`${PRODUCTION_PUBLIC_ORIGIN}/og-image.png`)};`,
-        ].join('\n')
-      )
+    schemasBundled
       .replace(/'\.\/sanitize\.js'/, `'${fileUrl('client/src/seo/sanitize.js')}'`)
       .replace(
         /'@shared\/social\/officialSocialLinks\.js'/,
