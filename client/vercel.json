@@ -5,6 +5,7 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "https://api.strideto.com/sitemap.xml" },
+    { "source": "/indexnow-key.txt", "destination": "https://api.strideto.com/indexnow-key.txt" },
     { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ],
   "headers": [

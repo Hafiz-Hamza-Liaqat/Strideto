@@ -28,6 +28,7 @@ import {
   recordChargedSubmission,
   loadEmployerPublishingUsage,
 } from '../services/employer/employerPublishingQuota.js';
+import { scheduleSeoChangeNotification } from '../services/seo/seoChangeNotificationService.js';
 import { UserNotification } from '../models/UserNotification.js';
 import * as verificationService from '../services/verificationService.js';
 
@@ -326,6 +327,7 @@ export const updateJob = asyncHandler(async (req, res) => {
   if (job.status === 'closed') {
     return res.status(400).json({ error: 'Closed jobs cannot be edited. Reopen the job first.' });
   }
+  const previous = job.toObject();
   const body = req.body;
 
   // Validate before any mutation of `job` — both possible destination-URL
@@ -476,6 +478,12 @@ export const updateJob = asyncHandler(async (req, res) => {
     job.approvalStatus = 'pending';
   }
   await job.save();
+  scheduleSeoChangeNotification({
+    entityType: 'job',
+    previous,
+    next: job,
+    action: 'save',
+  });
   res.json({ job, message: job.approvalStatus === 'pending' ? 'Changes saved. Job may require admin re-approval.' : undefined });
 });
 
@@ -486,8 +494,15 @@ export const closeJob = asyncHandler(async (req, res) => {
   const job = await Job.findOne({ _id: req.params.id, employerId });
   if (!job) return res.status(404).json({ error: 'Job not found' });
   if (job.status === 'closed') return res.status(400).json({ error: 'Job is already closed' });
+  const previous = job.toObject();
   job.status = 'closed';
   await job.save();
+  scheduleSeoChangeNotification({
+    entityType: 'job',
+    previous,
+    next: job,
+    action: 'save',
+  });
   res.json({ job });
 });
 
@@ -516,6 +531,7 @@ export const activateJob = asyncHandler(async (req, res) => {
   const job = await Job.findOne({ _id: req.params.id, employerId });
   if (!job) return res.status(404).json({ error: 'Job not found' });
   if (job.status === 'active') return res.status(400).json({ error: 'Job is already active' });
+  const previous = job.toObject();
 
   const { planId, paymentId } = req.body;
   const plan = planId ? await JobPlan.findById(planId) : null;
@@ -561,6 +577,13 @@ export const activateJob = asyncHandler(async (req, res) => {
   job.approvalStatus = 'pending';
   if (isFreeJob) recordChargedSubmission(job);
   await job.save();
+
+  scheduleSeoChangeNotification({
+    entityType: 'job',
+    previous,
+    next: job,
+    action: 'save',
+  });
 
   onJobSubmitted({
     jobId: job._id,

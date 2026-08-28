@@ -153,7 +153,7 @@ export const update = asyncHandler(async (req, res) => {
   const slugErr = await applyResolvedSlug('scholarship', doc, body, false);
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();
-  onContentSaved('scholarships', doc);
+  onContentSaved('scholarships', doc, { previous: before });
   await invalidateCaches();
   await logAudit({
     ...auditFromRequest(req),
@@ -271,6 +271,6 @@ export const remove = asyncHandler(async (req, res) => {
     targetLabel: doc.title,
   });
   await invalidateCaches();
-  onContentDeleted('scholarships', id);
+  onContentDeleted('scholarships', id, { previous: doc.toObject ? doc.toObject() : doc });
   res.status(204).send();
 });

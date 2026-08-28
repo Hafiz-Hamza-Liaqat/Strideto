@@ -9,6 +9,7 @@ import { applyResolvedSlug, slugErrorResponse } from '../../utils/adminSlugHelpe
 import { duplicateDoc } from '../../utils/adminBulkHelper.js';
 import { deriveCmsLaunchEligible, CMS_STATUS } from '../../../../shared/cms/launchEligible.js';
 import { normalizeCountryCode } from '../../../../shared/international/country.js';
+import { scheduleSeoChangeNotification } from '../../services/seo/seoChangeNotificationService.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -118,6 +119,11 @@ export const create = asyncHandler(async (req, res) => {
   const slugErr = await applyResolvedSlug('internship', doc, { ...body, _id: doc._id }, true);
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();
+  scheduleSeoChangeNotification({
+    entityType: 'internship',
+    next: doc,
+    action: 'save',
+  });
   await logAudit({ ...auditFromRequest(req), action: 'internship.create', targetType: 'internship', targetId: doc._id, targetLabel: doc.title });
   res.status(201).json(doc);
 });
@@ -127,12 +133,18 @@ export const update = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
   const doc = await Internship.findById(id);
   if (!doc) return res.status(404).json({ error: 'Internship not found' });
-  const before = { title: doc.title, status: doc.status, launchEligible: doc.launchEligible, isFixture: doc.isFixture };
+  const before = doc.toObject();
   applyBody(doc, req.body || {});
   syncInternshipLaunchEligible(doc, before);
   const slugErr = await applyResolvedSlug('internship', doc, { ...req.body, _id: doc._id }, false);
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();
+  scheduleSeoChangeNotification({
+    entityType: 'internship',
+    previous: before,
+    next: doc,
+    action: 'save',
+  });
   await logAudit({ ...auditFromRequest(req), action: 'internship.update', targetType: 'internship', targetId: id, targetLabel: doc.title, before, after: { title: doc.title, status: doc.status, launchEligible: doc.launchEligible } });
   res.json(doc);
 });
@@ -204,6 +216,11 @@ export const remove = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
   const doc = await Internship.findByIdAndDelete(id);
   if (!doc) return res.status(404).json({ error: 'Internship not found' });
+  scheduleSeoChangeNotification({
+    entityType: 'internship',
+    previous: doc.toObject ? doc.toObject() : doc,
+    action: 'delete',
+  });
   await logAudit({ ...auditFromRequest(req), action: 'internship.delete', targetType: 'internship', targetId: id, targetLabel: doc.title });
   res.status(204).send();
 });

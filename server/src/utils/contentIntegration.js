@@ -11,6 +11,7 @@ import { searchCacheInvalidatePrefix } from '../services/search/searchCache.js';
 import { analyticsCacheClear } from '../services/analytics/analyticsCache.js';
 import { findGlobalBlockUsage } from '../services/globalBlockUsageService.js';
 import { CmsPageLayout } from '../models/CmsPageLayout.js';
+import { scheduleSeoChangeNotification } from '../services/seo/seoChangeNotificationService.js';
 
 /** Workflow / admin resource key → search entity type */
 export const CONTENT_TO_SEARCH_ENTITY = {
@@ -88,6 +89,14 @@ export function onContentSaved(resource, doc, options = {}) {
   if (dynamicKey) invalidateDynamicContentForEntity(dynamicKey);
 
   invalidateRelatedCaches();
+
+  scheduleSeoChangeNotification({
+    resource,
+    previous: options.previous || null,
+    next: doc,
+    action: 'save',
+    context: options.seoContext,
+  });
 }
 
 /**
@@ -100,6 +109,15 @@ export function onContentDeleted(resource, entityId, options = {}) {
   const locale = options.locale || 'en';
   scheduleSearchIndexRemoval(toSearchEntityType(resource), entityId, locale);
   invalidateRelatedCaches();
+
+  if (options.previous) {
+    scheduleSeoChangeNotification({
+      resource,
+      previous: options.previous,
+      action: 'delete',
+      context: options.seoContext,
+    });
+  }
 }
 
 /**

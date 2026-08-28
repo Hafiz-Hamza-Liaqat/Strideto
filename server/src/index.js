@@ -17,6 +17,7 @@ import { registerCareerTimelineHandlers } from './services/career/careerEventHan
 import { registerCareerNotificationHandlers } from './services/career/careerNotificationBridge.js';
 import { registerCareerScoringHandlers } from './services/career/careerScoringBridge.js';
 import { getSitemap, getRobots } from './controllers/seoController.js';
+import { getIndexNowKeyFile } from './controllers/indexNowController.js';
 import { stripeWebhook } from './controllers/paymentsController.js';
 import { marketplaceWebhook } from './controllers/marketplacePaymentController.js';
 import { errorHandler } from './middleware/errorHandler.js';
@@ -87,6 +88,7 @@ app.use('/uploads', (_req, res, next) => {
   index: false,
 }));
 
+app.get('/indexnow-key.txt', getIndexNowKeyFile);
 app.get('/sitemap.xml', getSitemap);
 app.get('/robots.txt', getRobots);
 

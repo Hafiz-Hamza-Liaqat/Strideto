@@ -46,6 +46,7 @@ import {
 import { isStaffRole } from '../../config/rbac.js';
 import { assignLaunchEligibleOnAuthorityPublish } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 import { INSTITUTION_NOTIFICATION_TYPES } from '../../../../shared/institution/institutionPortal.js';
+import { scheduleSeoChangeNotification } from '../../services/seo/seoChangeNotificationService.js';
 
 const INSTITUTION_POPULATE = 'officialName slug countryCode city region status institutionType isFixture demoOnly';
 
@@ -285,6 +286,12 @@ export const adminCreateScholarship = asyncHandler(async (req, res) => {
     await audit(req, 'scholarship.publish', 'CanonicalScholarship', doc._id, { status: 'published' });
   }
 
+  scheduleSeoChangeNotification({
+    entityType: 'canonical-scholarship',
+    next: doc,
+    action: 'save',
+  });
+
   res.status(201).json({ data: doc });
 });
 
@@ -292,6 +299,7 @@ export const adminUpdateScholarship = asyncHandler(async (req, res) => {
   if (!requireAdmin(req, res)) return;
   const doc = await CanonicalScholarship.findById(req.params.id);
   if (!doc) return res.status(404).json({ error: 'Scholarship not found' });
+  const previous = doc.toObject();
 
   const body = req.body || {};
   const previousStatus = doc.status;
@@ -367,6 +375,13 @@ export const adminUpdateScholarship = asyncHandler(async (req, res) => {
   }
 
   await doc.save();
+
+  scheduleSeoChangeNotification({
+    entityType: 'canonical-scholarship',
+    previous,
+    next: doc,
+    action: 'save',
+  });
 
   const nextStatus = doc.status;
   if (!wasPublished && nextStatus === PUB_STATUSES.PUBLISHED) {

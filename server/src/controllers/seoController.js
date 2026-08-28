@@ -25,6 +25,10 @@ import {
 } from '../../../shared/seo/seoLandingRegistry.js';
 import { resolveSitemapLastmod, isSitemapEligiblePath } from '../../../shared/seo/sitemapPolicy.js';
 import {
+  resolveEntitySitemapLastmod,
+  SEO_ENTITY_TYPES,
+} from '../../../shared/seo/freshnessPolicy.js';
+import {
   isJobDetailPubliclyEligible,
   isCanonicalInstitutionDetailEligible,
   isCanonicalScholarshipDetailEligible,
@@ -53,13 +57,16 @@ function escapeXml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');
 }
 
-function formatLastmod(date) {
-  return resolveSitemapLastmod(date) || '';
+function formatLastmod(entityType, doc) {
+  return resolveEntitySitemapLastmod(entityType, doc) || '';
 }
 
-function urlEntry(base, path, { lastmod } = {}) {
+function urlEntry(base, path, { entityType, doc, lastmod } = {}) {
   const loc = `${base}${path}`.replace(/([^:]\/)\/+/g, '$1');
-  return { loc, lastmod: lastmod ? formatLastmod(lastmod) : undefined };
+  const resolved = entityType && doc
+    ? formatLastmod(entityType, doc)
+    : (lastmod ? resolveSitemapLastmod(lastmod) || '' : '');
+  return { loc, lastmod: resolved || undefined };
 }
 
 function hasSlug(doc) {
@@ -102,7 +109,7 @@ export const getSitemap = asyncHandler(async (_req, res) => {
     approvedOrgs,
     marketplacePosts,
   ] = await Promise.all([
-    Job.find(buildPublicJobFilter()).select('slug status approvalStatus publicationState updatedAt').limit(5000).lean(),
+    Job.find(buildPublicJobFilter()).select('slug status approvalStatus publicationState updatedAt publishedAt publicationUpdatedAt').limit(5000).lean(),
     Scholarship.find(withFixtureExclusion({ status: 'active', ...slugFilter })).select('slug updatedAt').limit(2000).lean(),
     Admission.find(withFixtureExclusion({ status: 'active', ...slugFilter })).select('slug updatedAt').limit(2000).lean(),
     Blog.find({ status: 'published', ...slugFilter }).select('slug updatedAt publishedAt').limit(2000).lean(),
@@ -172,13 +179,25 @@ export const getSitemap = asyncHandler(async (_req, res) => {
     institutionAcceptanceCounts.map((row) => [String(row._id), row.count])
   );
 
-  jobs.filter(isJobDetailPubliclyEligible).forEach((j) => addUrl(`/jobs/${j.slug}`, { lastmod: j.updatedAt }));
-  scholarships.filter(hasSlug).forEach((s) => addUrl(`/scholarships/${s.slug}`, { lastmod: s.updatedAt }));
-  admissions.filter(hasSlug).forEach((a) => addUrl(`/admissions/${a.slug}`, { lastmod: a.updatedAt }));
-  blogs.filter(hasSlug).forEach((b) => addUrl(`/blog/${b.slug}`, { lastmod: b.updatedAt || b.publishedAt }));
-  internships.filter(hasSlug).forEach((i) => addUrl(`/internships/${i.slug}`, { lastmod: i.updatedAt }));
+  jobs.filter(isJobDetailPubliclyEligible).forEach((j) =>
+    addUrl(`/jobs/${j.slug}`, { entityType: SEO_ENTITY_TYPES.JOB, doc: j })
+  );
+  scholarships.filter(hasSlug).forEach((s) =>
+    addUrl(`/scholarships/${s.slug}`, { entityType: SEO_ENTITY_TYPES.SCHOLARSHIP, doc: s })
+  );
+  admissions.filter(hasSlug).forEach((a) =>
+    addUrl(`/admissions/${a.slug}`, { entityType: SEO_ENTITY_TYPES.ADMISSION, doc: a })
+  );
+  blogs.filter(hasSlug).forEach((b) =>
+    addUrl(`/blog/${b.slug}`, { entityType: SEO_ENTITY_TYPES.BLOG, doc: b })
+  );
+  internships.filter(hasSlug).forEach((i) =>
+    addUrl(`/internships/${i.slug}`, { entityType: SEO_ENTITY_TYPES.INTERNSHIP, doc: i })
+  );
   exams.filter(hasSlug).forEach((e) => addUrl(`/exam-prep/${e.slug}`, { lastmod: e.updatedAt }));
-  intlScholarships.filter(isIntlScholarshipDetailEligible).forEach((s) => addUrl(`/intl-scholarships/${s.slug}`, { lastmod: s.updatedAt }));
+  intlScholarships.filter(isIntlScholarshipDetailEligible).forEach((s) =>
+    addUrl(`/intl-scholarships/${s.slug}`, { entityType: SEO_ENTITY_TYPES.INTL_SCHOLARSHIP, doc: s })
+  );
   institutions.filter(hasSlug).forEach((i) => addUrl(`/schools-and-colleges/${i.slug}`, { lastmod: i.updatedAt }));
   canonicalInstitutions
     .filter((i) =>
@@ -187,12 +206,18 @@ export const getSitemap = asyncHandler(async (_req, res) => {
         acceptedTestCount: acceptedTestCountByInstitutionId.get(String(i._id)) || 0,
       })
     )
-    .forEach((i) => addUrl(`/institutions/${i.slug}`, { lastmod: i.updatedAt }));
+    .forEach((i) =>
+      addUrl(`/institutions/${i.slug}`, { entityType: SEO_ENTITY_TYPES.CANONICAL_INSTITUTION, doc: i })
+    );
   canonicalScholarships.filter(isCanonicalScholarshipDetailEligible).forEach((s) =>
-    addUrl(`/scholarship-intelligence/${s.slug}`, { lastmod: s.updatedAt })
+    addUrl(`/scholarship-intelligence/${s.slug}`, { entityType: SEO_ENTITY_TYPES.CANONICAL_SCHOLARSHIP, doc: s })
   );
-  foreignStudies.filter(hasSlug).forEach((f) => addUrl(`/foreign-studies/${f.slug}`, { lastmod: f.updatedAt }));
-  programs.filter(isProgramDetailIndexable).forEach((p) => addUrl(`/program-explorer/${p.slug}`, { lastmod: p.updatedAt }));
+  foreignStudies.filter(hasSlug).forEach((f) =>
+    addUrl(`/foreign-studies/${f.slug}`, { entityType: SEO_ENTITY_TYPES.FOREIGN_STUDY, doc: f })
+  );
+  programs.filter(isProgramDetailIndexable).forEach((p) =>
+    addUrl(`/program-explorer/${p.slug}`, { entityType: SEO_ENTITY_TYPES.PROGRAM, doc: p })
+  );
   tests.filter(hasSlug).forEach((t) => addUrl(`/tests/${t.slug}`, { lastmod: t.updatedAt }));
   agentProfiles.filter(hasSlug).forEach((a) => addUrl(`/agents/${a.slug}`, { lastmod: a.updatedAt }));
   marketplacePosts.filter(hasSlug).forEach((p) => addUrl(`/agents/marketplace/${p.slug}`, { lastmod: p.updatedAt || p.publishedAt }));

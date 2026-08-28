@@ -279,7 +279,7 @@ export const update = asyncHandler(async (req, res) => {
   const slugErr = await applyResolvedSlug('job', doc, body, false);
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();
-  onContentSaved('jobs', doc);
+  onContentSaved('jobs', doc, { previous: before });
   await invalidateJobCaches();
   await logAudit({
     ...auditFromRequest(req),
@@ -505,7 +505,7 @@ export const approveJob = asyncHandler(async (req, res) => {
     }
   }
 
-  onContentSaved('jobs', doc);
+  onContentSaved('jobs', doc, { previous: existing });
   await logAudit({ ...auditFromRequest(req), action: 'job.approve', targetType: 'job', targetId: id, targetLabel: doc.title });
   await invalidateJobCaches();
   res.json(doc);
@@ -514,6 +514,8 @@ export const approveJob = asyncHandler(async (req, res) => {
 export const rejectJob = asyncHandler(async (req, res) => {
   const { id } = req.params;
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
+  const existing = await Job.findById(id).lean();
+  if (!existing) return res.status(404).json({ error: 'Job not found' });
   const doc = await Job.findByIdAndUpdate(id, { approvalStatus: 'rejected', launchEligible: false }, { new: true });
   if (!doc) return res.status(404).json({ error: 'Job not found' });
   await logAudit({
@@ -524,7 +526,7 @@ export const rejectJob = asyncHandler(async (req, res) => {
     targetLabel: doc.title,
     reason: req.body?.reason || '',
   });
-  onContentSaved('jobs', doc);
+  onContentSaved('jobs', doc, { previous: existing });
   await invalidateJobCaches();
   res.json(doc);
 });
@@ -542,7 +544,7 @@ export const remove = asyncHandler(async (req, res) => {
     targetLabel: doc.title,
     before: { title: doc.title },
   });
-  onContentDeleted('jobs', id);
+  onContentDeleted('jobs', id, { previous: doc.toObject ? doc.toObject() : doc });
   await invalidateJobCaches();
   res.status(204).send();
 });

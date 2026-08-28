@@ -144,7 +144,7 @@ export const update = asyncHandler(async (req, res) => {
   const slugErr = await applyResolvedSlug('admission', doc, body, false);
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();
-  onContentSaved('admissions', doc);
+  onContentSaved('admissions', doc, { previous: before });
   await logAudit({
     ...auditFromRequest(req),
     action: 'admission.update',
@@ -249,7 +249,7 @@ export const remove = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
   const doc = await Admission.findByIdAndDelete(id);
   if (!doc) return res.status(404).json({ error: 'Admission not found' });
-  onContentDeleted('admissions', id);
+  onContentDeleted('admissions', id, { previous: doc.toObject ? doc.toObject() : doc });
   await logAudit({
     ...auditFromRequest(req),
     action: 'admission.delete',

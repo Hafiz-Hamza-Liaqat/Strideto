@@ -155,13 +155,13 @@ export const update = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
   const doc = await Blog.findById(id);
   if (!doc) return res.status(404).json({ error: 'Blog not found' });
-  const before = { title: doc.title, status: doc.status };
+  const before = doc.toObject();
   applyBody(doc, req.body || {});
   const slugErr = await applyResolvedSlug('blog', doc, req.body || {}, false);
   if (slugErr) return slugErrorResponse(res, slugErr);
   const validationErr = await saveBlog(doc);
   if (validationErr) return res.status(validationErr.status).json(validationErr.body);
-  onContentSaved('blogs', doc);
+  onContentSaved('blogs', doc, { previous: before });
   await logAudit({ ...auditFromRequest(req), action: 'blog.update', targetType: 'blog', targetId: id, targetLabel: doc.title, before, after: { title: doc.title, status: doc.status } });
   res.json(doc);
 });
@@ -198,7 +198,7 @@ export const remove = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
   const doc = await Blog.findByIdAndDelete(id);
   if (!doc) return res.status(404).json({ error: 'Blog not found' });
-  onContentDeleted('blogs', id);
+  onContentDeleted('blogs', id, { previous: doc.toObject ? doc.toObject() : doc });
   await logAudit({ ...auditFromRequest(req), action: 'blog.delete', targetType: 'blog', targetId: id, targetLabel: doc.title });
   res.status(204).send();
 });

@@ -9,6 +9,7 @@ import { applyResolvedSlug, slugErrorResponse } from '../../utils/adminSlugHelpe
 import { runBulkAction, duplicateDoc } from '../../utils/adminBulkHelper.js';
 import { freeTextCountryRegex } from '../../../../shared/international/location.js';
 import { coerceCountryCode, countryDisplayName } from '../../../../shared/international/country.js';
+import { scheduleSeoChangeNotification } from '../../services/seo/seoChangeNotificationService.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -91,6 +92,7 @@ export const create = asyncHandler(async (req, res) => {
   const slugErr = await applyResolvedSlug('foreign-study', doc, body, true);
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();
+  scheduleSeoChangeNotification({ entityType: 'foreign-study', next: doc, action: 'save' });
   await logAudit({ ...auditFromRequest(req), action: 'foreign_study.create', targetType: 'foreign_study', targetId: doc._id, targetLabel: doc.country });
   res.status(201).json(doc);
 });
@@ -100,11 +102,17 @@ export const update = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
   const doc = await ForeignStudy.findById(id);
   if (!doc) return res.status(404).json({ error: 'Foreign study not found' });
-  const before = { country: doc.country, status: doc.status };
+  const before = doc.toObject();
   applyBody(doc, req.body || {});
   const slugErr = await applyResolvedSlug('foreign-study', doc, req.body || {}, false);
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();
+  scheduleSeoChangeNotification({
+    entityType: 'foreign-study',
+    previous: before,
+    next: doc,
+    action: 'save',
+  });
   await logAudit({ ...auditFromRequest(req), action: 'foreign_study.update', targetType: 'foreign_study', targetId: id, targetLabel: doc.country, before, after: { country: doc.country, status: doc.status } });
   res.json(doc);
 });
@@ -134,6 +142,11 @@ export const remove = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
   const doc = await ForeignStudy.findByIdAndDelete(id);
   if (!doc) return res.status(404).json({ error: 'Foreign study not found' });
+  scheduleSeoChangeNotification({
+    entityType: 'foreign-study',
+    previous: doc.toObject ? doc.toObject() : doc,
+    action: 'delete',
+  });
   await logAudit({ ...auditFromRequest(req), action: 'foreign_study.delete', targetType: 'foreign_study', targetId: id, targetLabel: doc.country });
   res.status(204).send();
 });

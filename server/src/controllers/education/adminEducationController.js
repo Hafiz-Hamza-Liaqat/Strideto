@@ -37,6 +37,7 @@ import {
 import { normalizeCountryCode } from '../../../../shared/international/country.js';
 import { assignLaunchEligibleOnAuthorityPublish } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 import { currentAcceptanceMongoFilter } from '../../../../shared/publicDiscovery/publicTruth.js';
+import { scheduleSeoChangeNotification } from '../../services/seo/seoChangeNotificationService.js';
 
 const INSTITUTION_POPULATE = 'officialName slug countryCode city region status institutionType';
 
@@ -702,6 +703,12 @@ export const adminCreateInstitution = asyncHandler(async (req, res) => {
       : undefined,
   });
 
+  scheduleSeoChangeNotification({
+    entityType: 'canonical-institution',
+    next: doc,
+    action: 'save',
+  });
+
   res.status(201).json(doc);
 });
 
@@ -747,6 +754,12 @@ export const adminUpdateInstitution = asyncHandler(async (req, res) => {
   // Catalog-only update — does NOT approve InstitutionClaim or OrganizationVerification.
   const doc = await CanonicalInstitution.findByIdAndUpdate(req.params.id, update, { new: true });
   if (!doc) return res.status(404).json({ error: 'Institution not found' });
+  scheduleSeoChangeNotification({
+    entityType: 'canonical-institution',
+    previous: existing,
+    next: doc,
+    action: 'save',
+  });
   res.json(doc);
 });
 
@@ -877,6 +890,12 @@ export const adminCreateProgram = asyncHandler(async (req, res) => {
     sources: sourcesResult.sources,
   });
 
+  scheduleSeoChangeNotification({
+    entityType: 'program',
+    next: doc,
+    action: 'save',
+  });
+
   res.status(201).json(doc);
 });
 
@@ -930,5 +949,11 @@ export const adminUpdateProgram = asyncHandler(async (req, res) => {
   const doc = await Program.findByIdAndUpdate(req.params.id, update, { new: true })
     .populate('institutionId', INSTITUTION_POPULATE);
   if (!doc) return res.status(404).json({ error: 'Program not found' });
+  scheduleSeoChangeNotification({
+    entityType: 'program',
+    previous: existing,
+    next: doc,
+    action: 'save',
+  });
   res.json(doc);
 });
