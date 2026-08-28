@@ -38,6 +38,12 @@ const CONTEXT_TYPE_LABELS = {
   journey: 'Journey',
   institution: 'Institution',
   comparison: 'Comparison',
+  jobs: 'Jobs',
+  internships: 'Internships',
+  applications: 'My Applications',
+  saved: 'Saved Items',
+  profile: 'My Profile',
+  planning: 'Planning',
 };
 
 const GROUNDING_LABELS = {
@@ -84,6 +90,7 @@ export default function CopilotPage() {
   const [contextType, setContextType] = useState(initialContext);
   const [entityRefs] = useState(initialEntityRefs);
   const [response, setResponse] = useState(null);
+  const [conversationRefs, setConversationRefs] = useState({});
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   const [expandedEvidence, setExpandedEvidence] = useState(false);
@@ -101,15 +108,17 @@ export default function CopilotPage() {
         question: q.slice(0, MAX_QUESTION),
         contextType: ctx || undefined,
         entityRefs: Object.keys(entityRefs).length > 0 ? entityRefs : undefined,
+        conversationRefs: Object.keys(conversationRefs).length > 0 ? conversationRefs : undefined,
         locale: navigator.language || 'en',
       });
       setResponse(data);
+      if (data.resultRefs) setConversationRefs(data.resultRefs);
     } catch (err) {
       setError(err.response?.data?.error || 'Unable to reach Strideto Copilot. Please try again.');
     } finally {
       setLoading(false);
     }
-  }, [question, contextType, entityRefs]);
+  }, [question, contextType, entityRefs, conversationRefs]);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -128,7 +137,7 @@ export default function CopilotPage() {
         <header style={styles.header}>
           <h1 style={styles.title}>Strideto Copilot</h1>
           <p style={styles.subtitle}>
-            Evidence-grounded answers about tests, programs, scholarships, eligibility, and your journey.
+            Ask Strideto Copilot about jobs, scholarships, programs, your profile, saved items, and next steps — grounded in platform data.
           </p>
         </header>
 
@@ -154,7 +163,7 @@ export default function CopilotPage() {
               id="copilot-question"
               value={question}
               onChange={(e) => setQuestion(e.target.value.slice(0, MAX_QUESTION))}
-              placeholder="Ask about tests, programs, scholarships, eligibility, or your journey…"
+              placeholder="Ask about jobs, scholarships, programs, your profile, or what to do next…"
               className="placeholder:text-[color:var(--semantic-placeholder)]"
               style={styles.textarea}
               rows={3}
@@ -209,6 +218,28 @@ export default function CopilotPage() {
                   {response.answerType === 'not_configured' ? 'Evidence Summary' : 'Answer'}
                 </div>
                 <p style={styles.answerText}>{response.answer}</p>
+              </div>
+            )}
+
+            {/* P1 structured blocks (opportunity cards, comparisons, plans) */}
+            {response.blocks?.length > 0 && (
+              <div style={styles.blocksSection}>
+                {response.blocks.map((block, i) => (
+                  <CopilotBlock key={i} block={block} />
+                ))}
+              </div>
+            )}
+
+            {/* Navigation actions from canonical routes */}
+            {response.navigationActions?.length > 0 && (
+              <div style={styles.navActions}>
+                {response.navigationActions.map((action, i) => (
+                  action.path ? (
+                    <Link key={i} to={action.path} style={styles.navActionLink}>
+                      {action.label} →
+                    </Link>
+                  ) : null
+                ))}
               </div>
             )}
 
@@ -423,13 +454,92 @@ function DisclaimerList({ disclaimers }) {
   );
 }
 
+function CopilotBlock({ block }) {
+  if (block.type === 'opportunity_list') {
+    return (
+      <div style={styles.blockBox}>
+        {block.intro && <p style={styles.blockIntro}>{block.intro}</p>}
+        <div style={styles.opportunityList}>
+          {(block.items || []).map((item, i) => (
+            <div key={item.id || i} style={styles.opportunityCard}>
+              <div style={styles.opportunityTitle}>{item.title}</div>
+              {item.secondary && <div style={styles.opportunitySecondary}>{item.secondary}</div>}
+              {item.location && <div style={styles.opportunityMeta}>{item.location}{item.workMode ? ` · ${item.workMode}` : ''}</div>}
+              {item.matchLabel && <div style={styles.matchLabel}>{item.matchLabel}</div>}
+              {item.reasons?.length > 0 && (
+                <ul style={styles.reasonList}>
+                  {item.reasons.map((r, j) => <li key={j}>{r}</li>)}
+                </ul>
+              )}
+              {item.gaps?.length > 0 && (
+                <ul style={styles.gapList}>
+                  {item.gaps.map((g, j) => <li key={j}>{g}</li>)}
+                </ul>
+              )}
+              {item.deadline && <div style={styles.opportunityMeta}>Deadline: {String(item.deadline).slice(0, 10)}</div>}
+              {item.canonicalLink?.path && (
+                <Link to={item.canonicalLink.path} style={styles.publicUrlLink}>
+                  {item.canonicalLink.label || 'View'}
+                </Link>
+              )}
+            </div>
+          ))}
+        </div>
+      </div>
+    );
+  }
+  if (block.type === 'comparison') {
+    return (
+      <div style={styles.blockBox}>
+        <div style={styles.blockIntro}>Comparison</div>
+        {(block.rows || []).map((row, i) => (
+          <div key={i} style={styles.comparisonRow}>
+            <strong>{row.title || row.name || row.id}</strong>
+            <pre style={styles.comparisonPre}>{JSON.stringify(row, null, 2)}</pre>
+          </div>
+        ))}
+      </div>
+    );
+  }
+  if (block.type === 'plan') {
+    return (
+      <div style={styles.blockBox}>
+        <div style={styles.blockIntro}>Suggested plan</div>
+        <ol style={styles.planList}>
+          {(block.items || []).map((item, i) => (
+            <li key={i}>{item.text}</li>
+          ))}
+        </ol>
+      </div>
+    );
+  }
+  if (block.type === 'profile_gap') {
+    return (
+      <div style={styles.blockBox}>
+        <p style={styles.blockIntro}>{block.text}</p>
+      </div>
+    );
+  }
+  if (block.type === 'write_unsupported') {
+    return (
+      <div style={styles.notConfiguredBox}>
+        {block.text}
+      </div>
+    );
+  }
+  if (block.text) {
+    return <p style={styles.answerText}>{block.text}</p>;
+  }
+  return null;
+}
+
 function SuggestedStarters({ onSelect }) {
   const starters = [
-    'Which test do I need for my target programs?',
-    'What programs fit my goals and profile?',
-    'What scholarships may I be eligible for?',
-    'What gaps exist in my profile?',
-    'What should I do next on my journey?',
+    'Find jobs that match my profile',
+    'Find scholarships I may qualify for',
+    'What do you know about my profile?',
+    'Compare saved opportunities',
+    'What should I do next?',
   ];
   return (
     <div style={styles.startersBox}>
@@ -506,4 +616,20 @@ const styles = {
   starterBtn: { minHeight: 44, textAlign: 'left', padding: '8px 12px', borderRadius: 8, border: '1px solid var(--semantic-border)', background: 'var(--semantic-elevated)', color: 'var(--semantic-text-primary)', fontSize: 14, cursor: 'pointer', fontFamily: 'inherit' },
   backLinks: { display: 'flex', flexWrap: 'wrap', gap: 16, marginTop: 8 },
   backLink: { fontSize: 13, color: 'var(--semantic-text-muted)', textDecoration: 'none' },
+  blocksSection: { marginTop: 16, marginBottom: 16 },
+  blockBox: { marginBottom: 16 },
+  blockIntro: { fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--semantic-text-secondary)' },
+  opportunityList: { display: 'flex', flexDirection: 'column', gap: 10 },
+  opportunityCard: { border: '1px solid var(--semantic-border)', borderRadius: 8, padding: '12px 14px', background: 'var(--semantic-elevated)' },
+  opportunityTitle: { fontWeight: 600, fontSize: 15 },
+  opportunitySecondary: { fontSize: 13, color: 'var(--semantic-text-secondary)', marginTop: 2 },
+  opportunityMeta: { fontSize: 12, color: 'var(--semantic-text-muted)', marginTop: 4 },
+  matchLabel: { fontSize: 12, fontWeight: 600, color: 'var(--semantic-success)', marginTop: 6 },
+  reasonList: { margin: '6px 0 0 16px', fontSize: 12, color: 'var(--semantic-text-secondary)' },
+  gapList: { margin: '4px 0 0 16px', fontSize: 12, color: 'var(--semantic-warning)' },
+  navActions: { display: 'flex', flexWrap: 'wrap', gap: 8, marginBottom: 16 },
+  navActionLink: { fontSize: 13, color: 'var(--semantic-primary)', textDecoration: 'none', padding: '6px 10px', border: '1px solid var(--semantic-border)', borderRadius: 6 },
+  comparisonRow: { marginBottom: 12, fontSize: 12 },
+  comparisonPre: { fontSize: 11, overflow: 'auto', maxHeight: 120, background: 'var(--semantic-secondary)', padding: 8, borderRadius: 6 },
+  planList: { margin: '8px 0 0 20px', fontSize: 14, lineHeight: 1.5 },
 };

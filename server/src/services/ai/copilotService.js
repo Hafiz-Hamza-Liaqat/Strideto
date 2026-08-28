@@ -38,6 +38,8 @@ import { loadStudentContextProjection, retrieveForIntent } from './copilotRetrie
 import { assembleEvidencePacket } from './copilotEvidencePacket.js';
 import { applyOutputPolicy } from './copilotGroundingValidator.js';
 import { logAudit } from '../auditService.js';
+import { executeCopilotP1, isP1PlatformIntent } from './copilotP1Orchestrator.js';
+import { sanitizeConversationRefs, validateIdList, sanitizeScholarshipRefs } from '../../../../shared/ai/copilotP1.js';
 
 // ── Intent classification ─────────────────────────────────────────────────────
 
@@ -51,6 +53,12 @@ const CONTEXT_TO_INTENT = Object.freeze({
   [COPILOT_CONTEXT_TYPES.INSTITUTION]: COPILOT_INTENT.INSTITUTION_QUESTION,
   [COPILOT_CONTEXT_TYPES.COMPARISON]: COPILOT_INTENT.COMPARISON,
   [COPILOT_CONTEXT_TYPES.GENERAL_GUIDANCE]: COPILOT_INTENT.GENERAL,
+  [COPILOT_CONTEXT_TYPES.JOBS]: COPILOT_INTENT.JOB_SEARCH,
+  [COPILOT_CONTEXT_TYPES.INTERNSHIPS]: COPILOT_INTENT.INTERNSHIP_SEARCH,
+  [COPILOT_CONTEXT_TYPES.APPLICATIONS]: COPILOT_INTENT.APPLICATION_STATUS,
+  [COPILOT_CONTEXT_TYPES.SAVED]: COPILOT_INTENT.SAVED_ITEMS,
+  [COPILOT_CONTEXT_TYPES.PROFILE]: COPILOT_INTENT.PROFILE_GAP,
+  [COPILOT_CONTEXT_TYPES.PLANNING]: COPILOT_INTENT.PLAN,
 });
 
 const QUESTION_KEYWORDS = Object.freeze({
@@ -63,6 +71,11 @@ const QUESTION_KEYWORDS = Object.freeze({
   [COPILOT_INTENT.INSTITUTION_QUESTION]: /\b(university|college|institution|school)\b/i,
   [COPILOT_INTENT.COMPARISON]: /\b(compare|vs|versus|difference|better|which)\b/i,
   [COPILOT_INTENT.PROFILE_GAP]: /\b(gap|missing|incomplete|improve|profile)\b/i,
+  [COPILOT_INTENT.JOB_SEARCH]: /\b(jobs?|career|employ|hire|react|typescript|frontend|backend|remote\s+work)\b/i,
+  [COPILOT_INTENT.INTERNSHIP_SEARCH]: /\binternships?\b/i,
+  [COPILOT_INTENT.APPLICATION_STATUS]: /\b(applied|applications?|pending|submitted|application\s+status)\b/i,
+  [COPILOT_INTENT.SAVED_ITEMS]: /\b(saved|bookmarks?|favorites?|saved\s+opportunities)\b/i,
+  [COPILOT_INTENT.PLAN]: /\b(plan|next\s+step|what\s+should\s+i\s+do|priorit)\b/i,
 });
 
 export function classifyIntent(question, contextType) {
@@ -105,6 +118,10 @@ function validateRequest(req) {
 
   if (req.history && (!Array.isArray(req.history) || req.history.length > COPILOT_BOUNDS.MAX_HISTORY_MESSAGES)) {
     errors.push(`history exceeds maximum of ${COPILOT_BOUNDS.MAX_HISTORY_MESSAGES} messages`);
+  }
+
+  if (req.conversationRefs && typeof req.conversationRefs !== 'object') {
+    errors.push('conversationRefs must be an object');
   }
 
   return errors;
@@ -152,9 +169,84 @@ export async function handleCopilotRequest(userId, request, actorMeta = {}) {
   const question = request.question.trim();
   const contextType = request.contextType ?? null;
   const entityRefs = sanitizeEntityRefs(request.entityRefs ?? {});
+  const conversationRefs = sanitizeConversationRefs(request.conversationRefs ?? {});
   const locale = request.locale ?? 'en';
 
   try {
+    // COPILOT-P1: Platform brain path for jobs, internships, saved, applications, planning
+    if (isP1PlatformIntent(question, contextType)) {
+      const p1Result = await executeCopilotP1(userId, {
+        question,
+        contextType,
+        entityRefs,
+        conversationRefs,
+        locale,
+      });
+
+      const providerStatus = CopilotModelProvider.getStatus();
+      let finalAnswer = p1Result;
+      if (providerStatus.providerState !== PROVIDER_STATES.NOT_CONFIGURED) {
+        const generated = await CopilotModelProvider.generateGroundedAnswer({
+          question,
+          contextType,
+          intent: p1Result.p1Intent,
+          evidenceItems: [],
+          studentContext: null,
+          locale,
+          p1Blocks: p1Result.blocks,
+        });
+        finalAnswer = { ...p1Result, ...generated, blocks: p1Result.blocks, resultRefs: p1Result.resultRefs };
+      }
+
+      const obs = {
+        retrievalCount: p1Result.toolResults?.length ?? 0,
+        evidenceCount: p1Result.blocks?.length ?? 0,
+        groundingStatus: finalAnswer.groundingStatus,
+        policyBlocked: false,
+        latencyMs: p1Result._observability?.latencyMs ?? Date.now() - startMs,
+        providerState: p1Result._observability?.providerState ?? PROVIDER_STATES.NOT_CONFIGURED,
+        p1Intent: p1Result.p1Intent,
+      };
+
+      await logAudit({
+        actor: { userId, role: actorMeta.role ?? 'user', email: actorMeta.email ?? '' },
+        action: 'copilot.request',
+        targetType: 'copilot_session',
+        targetId: requestId,
+        ip: actorMeta.ip ?? '',
+        status: 'success',
+        metadata: {
+          intent: p1Result.p1Intent,
+          contextType: contextType ?? 'none',
+          groundingStatus: finalAnswer.groundingStatus,
+          evidenceCount: obs.evidenceCount,
+          providerState: obs.providerState,
+          latencyMs: obs.latencyMs,
+          platformBrain: true,
+        },
+      }).catch(() => {});
+
+      return {
+        requestId,
+        answer: finalAnswer.answer,
+        answerType: finalAnswer.answerType,
+        groundingStatus: finalAnswer.groundingStatus,
+        evidence: [],
+        blocks: p1Result.blocks,
+        resultRefs: p1Result.resultRefs,
+        navigationActions: p1Result.navigationActions,
+        sourceWarnings: [],
+        conflicts: [],
+        disclaimers: p1Result.writeRequested
+          ? ['Copilot P1 is read-only. Application submission requires explicit future confirmation.']
+          : [],
+        suggestedFollowUps: buildP1FollowUps(p1Result.p1Intent),
+        generatedAt: new Date().toISOString(),
+        providerMeta: { providerState: obs.providerState, model: null },
+        _observability: obs,
+      };
+    }
+
     // 2. Load student profile projection (data minimization)
     const studentContext = await loadStudentContextProjection(userId).catch(() => null);
 
@@ -241,18 +333,36 @@ function sanitizeEntityRefs(refs) {
   return {
     testIds: toIdArray(refs.testIds, MAX),
     programIds: toIdArray(refs.programIds, MAX),
-    scholarshipIds: toIdArray(refs.scholarshipIds, MAX),
     institutionIds: toIdArray(refs.institutionIds, MAX),
+    jobIds: toIdArray(refs.jobIds, MAX),
+    internshipIds: toIdArray(refs.internshipIds, MAX),
+    scholarshipRefs: sanitizeScholarshipRefs(refs.scholarshipRefs, MAX),
     search: refs.search ? String(refs.search).slice(0, 200) : null,
     country: refs.country ? String(refs.country).slice(0, 100) : null,
     field: refs.field ? String(refs.field).slice(0, 100) : null,
     degreeLevel: refs.degreeLevel ? String(refs.degreeLevel).slice(0, 50) : null,
+    workMode: refs.workMode ? String(refs.workMode).slice(0, 20) : null,
   };
 }
 
+
+function buildP1FollowUps(intent) {
+  const map = {
+    job_search: ['Compare the first two', 'What gaps do I have for the top role?', 'Show my saved jobs'],
+    internship_search: ['Compare these internships', 'Show internships matching my skills'],
+    scholarship_search: ['Compare two scholarships', 'What should I prepare for applications?'],
+    program_search: ['Compare programs', 'Am I eligible for the first program?'],
+    saved_items: ['Compare saved jobs', 'What should I apply to next?'],
+    application_status: ['What deadlines are coming?', 'What should I do next?'],
+    plan: ['Find jobs matching my profile', 'Find scholarships for me'],
+    compare: ['Show more details on the first option', 'What are my profile gaps?'],
+    profile: ['Find jobs matching my profile', 'How can I improve my profile?'],
+  };
+  return (map[intent] || map.plan).slice(0, 3);
+}
+
 function toIdArray(value, max) {
-  if (!Array.isArray(value)) return [];
-  return value.slice(0, max).map((id) => String(id)).filter((id) => id.length > 0 && id.length < 50);
+  return validateIdList(value, max);
 }
 
 // ── Provider status ───────────────────────────────────────────────────────────

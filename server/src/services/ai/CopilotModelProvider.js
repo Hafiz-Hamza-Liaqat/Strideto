@@ -26,7 +26,11 @@ import { PROVIDER_STATES, GROUNDING_STATUS, ANSWER_TYPES } from '../../../../sha
  * configured_future is reserved for a real integration once approved.
  */
 function resolveProviderState() {
-  if (process.env.COPILOT_MOCK === 'true') return PROVIDER_STATES.MOCK_TEST;
+  // Explicit opt-in only; never enable mock synthesis in production.
+  if (process.env.COPILOT_MOCK === 'true') {
+    if (process.env.NODE_ENV === 'production') return PROVIDER_STATES.NOT_CONFIGURED;
+    return PROVIDER_STATES.MOCK_TEST;
+  }
   return PROVIDER_STATES.NOT_CONFIGURED;
 }
 

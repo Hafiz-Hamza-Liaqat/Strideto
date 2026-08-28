@@ -34,11 +34,12 @@ export async function submitCopilotRequest(req, res) {
       locale,
       conversationId,
       history,
+      conversationRefs,
     } = req.body ?? {};
 
     const result = await handleCopilotRequest(
       userId,
-      { question, contextType, entityRefs, locale, conversationId, history },
+      { question, contextType, entityRefs, locale, conversationId, history, conversationRefs },
       getActorMeta(req)
     );
 

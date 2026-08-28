@@ -276,11 +276,11 @@ export function assembleEvidencePacket(retrievalResult) {
   if (retrievalResult.studentContext) {
     const sc = retrievalResult.studentContext;
     const summary = [
-      sc.goals ? `Goals: ${String(sc.goals).slice(0, 100)}` : null,
-      sc.preferences?.destinations?.length ? `Destinations: ${sc.preferences.destinations.slice(0, 3).join(', ')}` : null,
-      sc.preferences?.degreeLevel ? `Degree: ${sc.preferences.degreeLevel}` : null,
-      sc.profileCompleteness !== null && sc.profileCompleteness !== undefined
-        ? `Profile completeness: ${sc.profileCompleteness}%` : null,
+      sc.displayName ? `Name: ${sc.displayName}` : null,
+      sc.skills?.length ? `Skills: ${sc.skills.slice(0, 5).join(', ')}` : null,
+      sc.workPreferences?.preferredCountries?.length ? `Work countries: ${sc.workPreferences.preferredCountries.slice(0, 3).join(', ')}` : null,
+      sc.studyPreferences?.fieldsOfStudy?.length ? `Study fields: ${sc.studyPreferences.fieldsOfStudy.slice(0, 3).join(', ')}` : null,
+      sc.profileCompleteness != null ? `Profile completeness: ${sc.profileCompleteness}%` : null,
     ].filter(Boolean).join('; ');
     if (summary) {
       items.push(buildEvidenceItem({

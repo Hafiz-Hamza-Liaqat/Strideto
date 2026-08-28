@@ -31,6 +31,13 @@ export const COPILOT_CONTEXT_TYPES = Object.freeze({
   JOURNEY: 'journey',
   INSTITUTION: 'institution',
   COMPARISON: 'comparison',
+  // COPILOT-P1 platform brain surfaces
+  JOBS: 'jobs',
+  INTERNSHIPS: 'internships',
+  APPLICATIONS: 'applications',
+  SAVED: 'saved',
+  PROFILE: 'profile',
+  PLANNING: 'planning',
 });
 
 const CONTEXT_TYPE_SET = new Set(Object.values(COPILOT_CONTEXT_TYPES));
@@ -52,6 +59,12 @@ export const COPILOT_INTENT = Object.freeze({
   COMPARISON: 'comparison',
   PROFILE_GAP: 'profile_gap',
   GENERAL: 'general',
+  // COPILOT-P1 intents
+  JOB_SEARCH: 'job_search',
+  INTERNSHIP_SEARCH: 'internship_search',
+  APPLICATION_STATUS: 'application_status',
+  SAVED_ITEMS: 'saved_items',
+  PLAN: 'plan',
 });
 
 const INTENT_SET = new Set(Object.values(COPILOT_INTENT));
@@ -109,6 +122,10 @@ export const EVIDENCE_ENTITY_TYPES = Object.freeze({
   GAP_ANALYSIS: 'gap_analysis',
   INSTITUTION_OFFICIAL: 'institution_official',
   FACT_PROVENANCE: 'fact_provenance',
+  JOB: 'job',
+  INTERNSHIP: 'internship',
+  APPLICATION: 'application',
+  SAVED_ITEM: 'saved_item',
 });
 
 // ── Source statement types (for attribution) ──────────────────────────────────

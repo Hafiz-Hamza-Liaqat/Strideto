@@ -18,7 +18,7 @@
  * Private messages / Agent notes: excluded.
  * Cross-user access: denied (userId must come from authenticated session).
  */
-import { TalentProfile } from '../../models/career/TalentProfile.js';
+import { loadStudentContextProjection } from './copilotUserContextBuilder.js';
 import { Test } from '../../models/education/Test.js';
 import { TestAcceptance } from '../../models/education/TestAcceptance.js';
 import { Program } from '../../models/education/Program.js';
@@ -41,61 +41,7 @@ const LIMIT = COPILOT_BOUNDS.MAX_RETRIEVAL_ENTITIES;
 
 // ── Student profile projection ────────────────────────────────────────────────
 
-/**
- * Load a safe, minimal profile projection for copilot context.
- *
- * Vault content: excluded.
- * Password/auth: excluded.
- * Passport/government ID: excluded.
- * Private file storage refs: excluded.
- * Raw contact details beyond what is needed: excluded.
- *
- * Only fields needed for eligibility/matching/journey are included.
- */
-export async function loadStudentContextProjection(userId) {
-  const profile = await TalentProfile.findOne({ userId }).lean();
-  if (!profile) return null;
-
-  return {
-    userId: String(profile.userId),
-    goals: profile.goals ?? null,
-    personalInfo: {
-      nationality: profile.personalInfo?.nationality ?? null,
-      country: profile.personalInfo?.country ?? null,
-      dateOfBirth: profile.personalInfo?.dateOfBirth ?? null,
-    },
-    education: (profile.education ?? []).map((e) => ({
-      level: e.level ?? null,
-      field: e.fieldOfStudy ?? null,
-      gpa: e.gpa ?? null,
-      gradingSystem: e.gradingSystem ?? null,
-      institution: e.institution ?? null,
-      country: e.country ?? null,
-      graduated: e.graduated ?? null,
-    })),
-    tests: (profile.testScores ?? []).map((t) => ({
-      testName: t.testName ?? null,
-      testId: t.testId ? String(t.testId) : null,
-      scores: t.scores ?? null,
-      dateTaken: t.dateTaken ?? null,
-    })),
-    experience: (profile.experience ?? []).map((ex) => ({
-      months: ex.months ?? null,
-      type: ex.type ?? null,
-    })),
-    skills: profile.skills ?? [],
-    preferences: {
-      destinations: profile.preferences?.destinations ?? [],
-      degreeLevel: profile.preferences?.degreeLevel ?? null,
-      studyMode: profile.preferences?.studyMode ?? null,
-      budget: profile.preferences?.budget ?? null,
-      fundingType: profile.preferences?.fundingType ?? null,
-      fields: profile.preferences?.fields ?? [],
-    },
-    profileCompleteness: profile.profileCompleteness ?? null,
-    createdAt: profile.createdAt ?? null,
-  };
-}
+export { loadStudentContextProjection };
 
 // ── Test retrieval ────────────────────────────────────────────────────────────
 
