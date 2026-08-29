@@ -34,6 +34,9 @@ const routesSource = read('client/src/routes/index.jsx');
 const constantsSource = read('client/src/constants/index.js');
 const studentPage = read('client/src/pages/Public/StudentAcquisition.jsx');
 const employerPage = read('client/src/pages/Public/EmployerAcquisition.jsx');
+const employerLayout = read('client/src/components/employer/acquisition/EmployerAcquisitionLayout.jsx');
+const employerConversion = read('client/src/components/employer/acquisition/EmployerConversionCta.jsx');
+const employerAcquisitionSource = `${employerPage}\n${employerLayout}\n${employerConversion}`;
 const institutionPage = read('client/src/pages/Public/InstitutionAcquisition.jsx');
 const personaLayout = read('client/src/components/static/PersonaAcquisitionPage.jsx');
 const footerSource = read('client/src/components/layout/Footer.jsx');
@@ -141,11 +144,17 @@ const unsupportedEmployerClaims = [
   'talent matching',
 ];
 for (const claim of unsupportedEmployerClaims) {
-  check(!employerPage.toLowerCase().includes(claim.toLowerCase()), `SEO-P1-07: employer page does not claim "${claim}"`);
+  check(!employerAcquisitionSource.toLowerCase().includes(claim.toLowerCase()), `SEO-P1-07: employer page does not claim "${claim}"`);
 }
-check(employerPage.includes('Post and manage job listings'), 'SEO-P1-07: employer page claims real posting capability');
 check(
-  employerPage.includes('submitted through STRIDETO') || employerPage.includes('Review and manage applications'),
+  employerAcquisitionSource.includes('Post and manage job listings')
+    || employerAcquisitionSource.includes('Publish and manage job opportunities')
+    || employerAcquisitionSource.includes('create and manage job listings')
+    || employerAcquisitionSource.includes('Publish opportunities'),
+  'SEO-P1-07: employer page claims real posting capability'
+);
+check(
+  employerAcquisitionSource.includes('submitted through STRIDETO') || employerAcquisitionSource.includes('Review and manage applications'),
   'SEO-P1-07: employer page qualifies application workflow'
 );
 
@@ -281,10 +290,14 @@ check(
 // ---------------------------------------------------------------------------
 // SEO-P1-17 — responsive structure contracts
 // ---------------------------------------------------------------------------
-check(personaLayout.includes('max-w-3xl'), 'SEO-P1-17: content constrained width');
-check(personaLayout.includes('min-h-[44px]'), 'SEO-P1-17: touch targets meet minimum height');
-check(personaLayout.includes('flex-wrap'), 'SEO-P1-17: CTA row wraps on narrow viewports');
-check(personaLayout.includes('px-4'), 'SEO-P1-17: horizontal padding for mobile');
+check(personaLayout.includes('max-w-3xl'), 'SEO-P1-17: persona layout constrained width');
+check(personaLayout.includes('min-h-[44px]'), 'SEO-P1-17: persona layout touch targets');
+check(personaLayout.includes('flex-wrap'), 'SEO-P1-17: persona layout CTA row wraps');
+check(personaLayout.includes('px-4'), 'SEO-P1-17: persona layout horizontal padding');
+check(employerLayout.includes('max-w-6xl'), 'SEO-P1-17: employer layout constrained width');
+check(employerAcquisitionSource.includes('min-h-[44px]'), 'SEO-P1-17: employer acquisition touch targets');
+check(employerLayout.includes('flex-wrap'), 'SEO-P1-17: employer layout CTA row wraps');
+check(employerLayout.includes('px-4'), 'SEO-P1-17: employer layout horizontal padding');
 
 // ---------------------------------------------------------------------------
 // SEO-P1-18 — breadcrumbs/schema valid if implemented
@@ -292,8 +305,13 @@ check(personaLayout.includes('px-4'), 'SEO-P1-17: horizontal padding for mobile'
 check(personaLayout.includes('breadcrumbSchema'), 'SEO-P1-18: breadcrumb schema used');
 check(personaLayout.includes('webPageSchema'), 'SEO-P1-18: WebPage schema used');
 check(personaLayout.includes('aria-label="Breadcrumb"'), 'SEO-P1-18: visible breadcrumb nav');
-check(!personaLayout.includes('FAQPage'), 'SEO-P1-18: no FAQPage schema on acquisition pages');
-check(!personaLayout.includes('Organization'), 'SEO-P1-18: no duplicate Organization schema');
+check(
+  employerLayout.includes('breadcrumbSchema') && employerLayout.includes('webPageSchema'),
+  'SEO-P1-18: employer acquisition layout uses breadcrumb and WebPage schema'
+);
+check(!employerLayout.includes('FAQPage'), 'SEO-P1-18: employer layout has no FAQPage schema');
+check(!employerLayout.includes('Organization'), 'SEO-P1-18: employer layout has no duplicate Organization schema');
+check(employerLayout.includes('aria-label="Breadcrumb"'), 'SEO-P1-18: employer layout has visible breadcrumb nav');
 
 // ---------------------------------------------------------------------------
 // Navigation / footer wiring

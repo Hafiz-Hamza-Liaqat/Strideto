@@ -104,9 +104,9 @@
     "subtitle": "Share a job, scholarship, or admission listing with our team."
   },
   "employerLogin": {
-    "seoDescription": "Sign in to manage your job posts."
+    "seoDescription": "Sign in to your employer workspace to publish opportunities and manage supported hiring activity."
   },
   "employerRegister": {
-    "seoDescription": "Create an employer account to post jobs."
+    "seoDescription": "Create an employer workspace to publish opportunities and manage supported hiring activity on STRIDETO."
   }
 }

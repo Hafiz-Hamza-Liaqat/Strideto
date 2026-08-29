@@ -42,6 +42,8 @@ const home = read('pages/Home/Home.jsx');
 const homeEn = read('i18n/locales/en/home.json');
 const workSection = read('components/home/HomeWorkWithStrideto.jsx');
 const employerPage = read('pages/Public/EmployerAcquisition.jsx');
+const employerLayout = read('components/employer/acquisition/EmployerAcquisitionLayout.jsx');
+const employerAcquisitionSource = `${employerPage}\n${employerLayout}`;
 const studentPage = read('pages/Public/StudentAcquisition.jsx');
 const accountMenu = read('components/layout/UserAccountMenu.jsx');
 const schemasSource = readRoot('client/src/seo/schemas.js');
@@ -70,16 +72,16 @@ check(!heroBlock.includes('ROUTES.RESUME_BUILDER'), 'MKT-P0B-04: Resume Builder 
 check(home.includes('buildYourResume') || homeEn.includes('buildYourResume'), 'MKT-P0B-04: resume string retained for lower sections');
 
 // MKT-P0B-05 — employer acquisition page routes signup to /employer/register
-check(employerPage.includes('ROUTES.EMPLOYER_REGISTER'), 'MKT-P0B-05: employer register route');
-check(employerPage.includes('Create Employer Account'), 'MKT-P0B-05: Create Employer Account label');
+check(employerAcquisitionSource.includes('ROUTES.EMPLOYER_REGISTER'), 'MKT-P0B-05: employer register route');
+check(employerAcquisitionSource.includes('Create Employer Account'), 'MKT-P0B-05: Create Employer Account label');
 
 // MKT-P0B-06 — employer copy qualifies applicant management correctly
 check(
-  employerPage.includes('submitted through STRIDETO') || employerPage.includes('submitted through Strideto'),
+  employerAcquisitionSource.includes('submitted through STRIDETO') || employerAcquisitionSource.includes('submitted through Strideto'),
   'MKT-P0B-06: applicant management qualified to STRIDETO submissions'
 );
 check(
-  employerPage.includes('External applications') || employerPage.includes('external link'),
+  employerPage.includes('External applications') || employerPage.includes('external link') || employerAcquisitionSource.includes('External application'),
   'MKT-P0B-06: external application path acknowledged'
 );
 
@@ -131,7 +133,7 @@ check(home.includes('minmax(0,') || home.includes('min-w-0'), 'MKT-P0B-13: hero 
 check(!/w-\[\d{3,}px\]/.test(home.split('HomeHeroVisual')[0]), 'MKT-P0B-13: no large fixed px widths in hero content');
 
 // MKT-P0B-14 — no unsupported trust/count/partner claims in public copy
-const publicCopyBundle = [homeEn, employerPage, studentPage, workSection, read('i18n/locales/en/footer.json')].join('\n');
+const publicCopyBundle = [homeEn, employerAcquisitionSource, studentPage, workSection, read('i18n/locales/en/footer.json')].join('\n');
 const forbiddenClaims = [
   'trusted by thousands',
   'verified talent',

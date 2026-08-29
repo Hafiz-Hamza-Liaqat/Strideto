@@ -73,6 +73,12 @@ export default function EmployerRegister() {
     <>
       <SeoHead title={t('employer:registerTitle')} description={t('forms:employerRegister.seoDescription')} noindex />
       <AuthCard title={t('employer:registrationHeading')} subtitle={t('employer:registrationSubtitle')}>
+            <p className="mb-4 text-sm">
+              <Link to={ROUTES.FOR_EMPLOYERS} className="text-primary font-medium hover:underline dark:text-mint">
+                {t('employer:registrationEmployerBenefitsLink')}
+              </Link>
+            </p>
+            <p className="mb-4 text-xs text-gray-500 dark:text-gray-400">{t('employer:registrationTrustNote')}</p>
             {error && (
               <div className="mb-4 p-3 rounded-lg bg-red-50 text-red-700 text-sm">{error}</div>
             )}

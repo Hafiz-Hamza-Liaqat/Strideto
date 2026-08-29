@@ -27,6 +27,7 @@ import {
   resolveHomepageSeoTitle,
   resolveHomepageMetaDescription,
 } from '../../utils/homepageCmsSafety';
+import { trackEmployerAcquisitionEvent, EMPLOYER_CTA_ACTIONS } from '../../components/employer/acquisition/employerAcquisitionAnalytics';
 
 const TRENDING_JOBS_LIMIT = 8;
 const SCHOLARSHIPS_LIMIT = 6;
@@ -368,6 +369,12 @@ export default function Home() {
                       <Link
                         to={ROUTES.FOR_EMPLOYERS}
                         data-cta="homepage-for-employers"
+                        onClick={() =>
+                          trackEmployerAcquisitionEvent(EMPLOYER_CTA_ACTIONS.HOMEPAGE_EMPLOYER_CTA, {
+                            ctaId: 'homepage-for-employers',
+                            placement: 'homepage-hero',
+                          })
+                        }
                         className="inline-flex min-h-[44px] w-full items-center justify-center rounded-xl border-2 border-white/70 bg-white/10 px-6 py-3 text-base font-semibold text-white backdrop-blur-sm btn-theme hover:bg-white/20 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-white focus-visible:ring-offset-2 focus-visible:ring-offset-primary sm:w-auto"
                       >
                         {t('home:forEmployersCta')}

@@ -93,10 +93,15 @@ export default function EmployerLogin() {
             {submitting ? t('common:signingIn') : t('common:signIn')}
           </button>
         </form>
+        <p className="mt-4 text-center text-sm">
+          <Link to={ROUTES.FOR_EMPLOYERS} className="text-primary hover:underline dark:text-mint">
+            {t('employer:registrationEmployerBenefitsLink')}
+          </Link>
+        </p>
         <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
           {t('employer:noEmployerAccount')}{' '}
           <Link to={ROUTES.EMPLOYER_REGISTER} className="text-primary font-medium hover:underline">
-            {t('common:register')}
+            Create Employer Account
           </Link>
         </p>
       </AuthCard>
