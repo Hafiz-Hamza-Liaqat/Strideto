@@ -1,5 +1,5 @@
-import { useState, useEffect, useId } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useState, useEffect, useId, useRef } from 'react';
+import { useNavigate, useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
 import { employerApi } from '../../services/employerService';
@@ -23,6 +23,14 @@ import { DateInput } from '../../components/forms/NativeTemporalInput';
 import { regionsForCountry } from '@shared/international/regions.js';
 import { JobDescriptionUploadPanel } from '../../components/jobs/JobDescriptionUploadPanel';
 import { EMPLOYER_SUGGESTION_FIELD_MAP, EMPLOYER_FORM_DEFAULTS } from '../../components/jobs/jobDocumentSuggestionMerge';
+import {
+  evaluateEmployerProfileCompleteness,
+} from '@shared/employer/employerActivationState.js';
+import {
+  trackEmployerActivationEvent,
+  EMPLOYER_ACTIVATION_ACTIONS,
+} from '../../components/employer/activation/employerActivationAnalytics';
+import { deriveEmployerActivationChecklist } from '@shared/employer/employerActivationState.js';
 
 const defaultForm = {
   jobTitle: '',
@@ -87,6 +95,15 @@ function FieldError({ id, message }) {
   );
 }
 
+function FormSection({ title, children }) {
+  return (
+    <section className="space-y-4 pt-2 border-t border-gray-100 dark:border-gray-700 first:border-t-0 first:pt-0">
+      <h2 className="text-sm font-semibold uppercase tracking-wide text-gray-700 dark:text-gray-300">{title}</h2>
+      {children}
+    </section>
+  );
+}
+
 export default function EmployerPostJob() {
   const { t } = useTranslation(['employer', 'common']);
   const navigate = useNavigate();
@@ -108,6 +125,10 @@ export default function EmployerPostJob() {
   const [editMeta, setEditMeta] = useState(null);
   const [touchedFields, setTouchedFields] = useState(() => new Set());
   const [initialFormSnapshot, setInitialFormSnapshot] = useState(defaultForm);
+  const [publishedJob, setPublishedJob] = useState(null);
+  const draftStartedTracked = useRef(false);
+  const jobPublishedTracked = useRef(false);
+  const activationCompletedTracked = useRef(false);
 
   useEffect(() => {
     if (!isEdit || !jobId) return;
@@ -150,6 +171,11 @@ export default function EmployerPostJob() {
 
   const handleChange = (e) => {
     const { name, value } = e.target;
+    if (name === 'applyMethod') {
+      trackEmployerActivationEvent(EMPLOYER_ACTIVATION_ACTIONS.APPLICATION_METHOD_SELECTED, {
+        method: value,
+      });
+    }
     setTouchedFields((prev) => new Set(prev).add(name));
     setForm((f) => {
       const next = { ...f, [name]: value };
@@ -218,6 +244,12 @@ export default function EmployerPostJob() {
       }
       const { data } = await employerApi.createJob(payload);
       setCreatedJob(data.job);
+      if (!draftStartedTracked.current) {
+        draftStartedTracked.current = true;
+        trackEmployerActivationEvent(EMPLOYER_ACTIVATION_ACTIONS.JOB_DRAFT_STARTED, {
+          source: 'post_job_form',
+        });
+      }
       setStep('plan');
     } catch (err) {
       const serverMsg = err.response?.data?.error || t('employer:failedCreateJob');
@@ -229,14 +261,53 @@ export default function EmployerPostJob() {
     }
   };
 
+  const finishPublishSuccess = (job, applyMethod) => {
+    setPublishedJob({ ...job, applyMethod });
+    setStep('success');
+    if (!jobPublishedTracked.current) {
+      jobPublishedTracked.current = true;
+      trackEmployerActivationEvent(EMPLOYER_ACTIVATION_ACTIONS.JOB_PUBLISHED, {
+        applyMethod: applyMethod || form.applyMethod,
+      });
+    }
+    const userId = employer?._id || employer?.employerId;
+    if (userId) {
+      const applyType = applyMethod === 'internal' ? 'internal' : 'external';
+      const publishedRecord = {
+        applyType,
+        status: 'active',
+        approvalStatus: 'pending',
+        ...(applyMethod === 'external_url' ? { applicationLink: form.applyLink } : {}),
+        ...(applyMethod === 'external_email' ? { applyEmail: form.applyEmail } : {}),
+      };
+      const activationAfterPublish = deriveEmployerActivationChecklist({
+        employer,
+        dashboard: {
+          totalJobs: 1,
+          pendingApprovalJobs: 1,
+          jobs: [publishedRecord],
+        },
+      });
+      if (activationAfterPublish.activationComplete && !activationCompletedTracked.current) {
+        activationCompletedTracked.current = true;
+        trackEmployerActivationEvent(EMPLOYER_ACTIVATION_ACTIONS.ACTIVATION_COMPLETED, {
+          trigger: 'publish_success',
+        });
+      }
+    }
+  };
+
   const handleActivate = async (planId, isFree = false) => {
     if (!createdJob) return;
+    trackEmployerActivationEvent(EMPLOYER_ACTIVATION_ACTIONS.PUBLISH_INTENT, {
+      planType: isFree || !planId ? 'free' : 'paid',
+    });
     setSubmitting(true);
     setError('');
     try {
       if (isFree || !planId) {
         await employerApi.activateJob(createdJob._id, { planId: planId || undefined });
-        navigate(ROUTES.EMPLOYER_JOBS);
+        finishPublishSuccess(createdJob, form.applyMethod);
         return;
       }
       const plan = plans.find((p) => p._id === planId);
@@ -248,13 +319,67 @@ export default function EmployerPostJob() {
         }
       }
       await employerApi.activateJob(createdJob._id, { planId });
-      navigate(ROUTES.EMPLOYER_JOBS);
+      finishPublishSuccess(createdJob, form.applyMethod);
     } catch (err) {
       setError(err.response?.data?.error || t('employer:failedActivate'));
     } finally {
       setSubmitting(false);
     }
   };
+
+  const profileReadiness = evaluateEmployerProfileCompleteness(employer);
+  const organizationVerificationReady =
+    employer?.verified === true && ['verified', 'trusted'].includes(employer?.verificationLevel);
+  const accountEmailVerified = employer?.emailVerified === true;
+  const publishBlocked =
+    !profileReadiness.complete || !organizationVerificationReady || !accountEmailVerified;
+
+  if (step === 'success' && publishedJob) {
+    const isInternal = publishedJob.applyMethod === 'internal';
+    return (
+      <>
+        <SeoHead title={t('employer:publishSuccessTitle')} description={t('employer:publishSuccessTitle')} noindex />
+        <div className="max-w-2xl rounded-xl border border-emerald-200 bg-emerald-50/80 dark:border-emerald-900/50 dark:bg-emerald-950/20 p-6 sm:p-8">
+          <div className="flex items-start gap-3">
+            <span
+              className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-emerald-600 text-white text-lg"
+              aria-hidden="true"
+            >
+              ✓
+            </span>
+            <div className="min-w-0">
+              <h1 className="text-2xl font-semibold text-gray-900 dark:text-white">{t('employer:publishSuccessTitle')}</h1>
+              <p className="mt-2 text-sm text-gray-700 dark:text-gray-300">
+                {isInternal ? t('employer:publishSuccessBodyInternal') : t('employer:publishSuccessBodyExternal')}
+              </p>
+            </div>
+          </div>
+          <div className="mt-6 flex flex-wrap gap-3">
+            <Link
+              to={ROUTES.EMPLOYER_JOBS}
+              className="inline-flex min-h-[44px] items-center rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-hover"
+            >
+              {t('employer:publishSuccessViewJob')}
+            </Link>
+            <Link
+              to={ROUTES.EMPLOYER_JOBS}
+              className="inline-flex min-h-[44px] items-center rounded-lg border border-gray-300 dark:border-gray-600 px-5 py-2.5 text-sm font-medium text-gray-900 dark:text-white"
+            >
+              {t('employer:publishSuccessManageJobs')}
+            </Link>
+            {isInternal ? (
+              <Link
+                to={ROUTES.EMPLOYER_APPLICATIONS}
+                className="inline-flex min-h-[44px] items-center px-2 py-2.5 text-sm font-medium text-primary hover:underline dark:text-mint"
+              >
+                {t('employer:publishSuccessReviewApplicants')}
+              </Link>
+            ) : null}
+          </div>
+        </div>
+      </>
+    );
+  }
 
   if (step === 'plan' && createdJob) {
     return (
@@ -273,6 +398,44 @@ export default function EmployerPostJob() {
             {error}
           </div>
         )}
+        <div
+          className={`mb-4 rounded-lg border p-4 text-sm ${
+            publishBlocked
+              ? 'border-amber-200 bg-amber-50 dark:border-amber-800 dark:bg-amber-950/30 text-amber-900 dark:text-amber-100'
+              : 'border-emerald-200 bg-emerald-50 dark:border-emerald-800 dark:bg-emerald-950/30 text-emerald-900 dark:text-emerald-100'
+          }`}
+          role="status"
+        >
+          <p className="font-medium">
+            {publishBlocked ? t('employer:publishReadinessBlocked') : t('employer:publishReadinessReady')}
+          </p>
+          <ul className="mt-2 list-disc list-inside space-y-1">
+            {!profileReadiness.complete ? (
+              <li>
+                {t('employer:publishReadinessProfile')}{' '}
+                <Link to={ROUTES.EMPLOYER_SETTINGS} className="underline font-medium">
+                  {t('employer:zeroJobsProfileCta')}
+                </Link>
+              </li>
+            ) : null}
+            {!organizationVerificationReady ? (
+              <li>
+                {t('employer:publishReadinessOrgVerification')}{' '}
+                <Link to={ROUTES.EMPLOYER_VERIFICATION} className="underline font-medium">
+                  {t('employer:navVerification')}
+                </Link>
+              </li>
+            ) : null}
+            {!accountEmailVerified ? (
+              <li>
+                {t('employer:publishReadinessEmailVerification')}{' '}
+                <Link to={ROUTES.EMPLOYER_DASHBOARD} className="underline font-medium">
+                  {t('employer:publishReadinessEmailAction')}
+                </Link>
+              </li>
+            ) : null}
+          </ul>
+        </div>
         <div className="grid gap-4 max-w-2xl w-full min-w-0">
           <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl p-5">
             <h3 className="font-semibold text-gray-900 dark:text-white">{t('employer:firstJobFree')}</h3>
@@ -370,6 +533,7 @@ export default function EmployerPostJob() {
           onApply={(next) => setForm(next)}
         />
 
+        <FormSection title={t('employer:formSectionRoleBasics')}>
         <div>
           <label htmlFor={FIELD_IDS.jobTitle} className={labelClass}>
             {t('employer:jobTitle')}
@@ -447,7 +611,9 @@ export default function EmployerPostJob() {
           </p>
           <FieldError id={`${FIELD_IDS.companyName}-error`} message={translateFieldError(fieldErrors.companyName)} />
         </div>
+        </FormSection>
 
+        <FormSection title={t('employer:formSectionLocation')}>
         <div>
           <label htmlFor={FIELD_IDS.location} className={labelClass}>
             {t('common:location')}
@@ -543,7 +709,9 @@ export default function EmployerPostJob() {
             <FieldError id={`${FIELD_IDS.city}-error`} message={translateFieldError(fieldErrors.city)} />
           </div>
         </div>
+        </FormSection>
 
+        <FormSection title={t('employer:formSectionRoleDetails')}>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
             <label htmlFor={FIELD_IDS.jobFamily} className={labelClass}>
@@ -780,7 +948,7 @@ export default function EmployerPostJob() {
             })}
           />
           <p id={`${FIELD_IDS.requirements}-help`} className={helpClass}>
-            {t('employer:requirementsHelp', { defaultValue: 'One requirement per line.' })}
+            {t('employer:requirementsHelpActivation')}
           </p>
           <FieldError id={`${FIELD_IDS.requirements}-error`} message={translateFieldError(fieldErrors.requirements)} />
         </div>
@@ -831,11 +999,13 @@ export default function EmployerPostJob() {
             placeholder={t('employer:descriptionPlaceholder')}
           />
           <p id={`${FIELD_IDS.jobDescription}-help`} className={helpClass}>
-            {t('employer:descriptionHelp')}
+            {t('employer:descriptionHelpActivation')}
           </p>
           <FieldError id={`${FIELD_IDS.jobDescription}-error`} message={translateFieldError(fieldErrors.jobDescription)} />
         </div>
+        </FormSection>
 
+        <FormSection title={t('employer:formSectionCompensation')}>
         <div>
           <label htmlFor={FIELD_IDS.applicationDeadline} className={labelClass}>
             {t('employer:applicationDeadline')}
@@ -859,6 +1029,7 @@ export default function EmployerPostJob() {
             message={translateFieldError(fieldErrors.applicationDeadline)}
           />
         </div>
+        </FormSection>
 
         {isEdit &&
           ((editMeta?.status === 'active' && editMeta?.approvalStatus === 'approved') || editMeta?.applyMethod === 'internal') && (
@@ -873,6 +1044,7 @@ export default function EmployerPostJob() {
           </div>
         )}
 
+        <FormSection title={t('employer:formSectionApplication')}>
         <fieldset className="space-y-4 border border-gray-200 dark:border-gray-600 rounded-lg p-4">
           <legend className="px-1 text-sm font-medium text-gray-900 dark:text-gray-100">
             {t('employer:applicationMethodLegend')}
@@ -976,7 +1148,9 @@ export default function EmployerPostJob() {
               </div>
             )}
           </fieldset>
+        </FormSection>
 
+        <FormSection title={t('employer:formSectionReview')}>
         <div className="pt-2 pb-16 sm:pb-2">
           <button
             type="submit"
@@ -989,6 +1163,7 @@ export default function EmployerPostJob() {
             {isEdit ? t('employer:saveJobChangesHelp') : t('employer:saveDraftHelp')}
           </p>
         </div>
+        </FormSection>
       </form>
     </>
   );

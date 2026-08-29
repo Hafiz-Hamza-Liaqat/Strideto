@@ -6,7 +6,6 @@ import { PasswordInput } from '../../components/forms/PasswordInput.jsx';
 import { useEmployerAuth } from '../../context/EmployerAuthContext';
 import { ROUTES } from '../../constants';
 import { LOGIN_REALMS, resolveLoginReturnPath } from '../../utils/loginReturn.js';
-import { isOnboardingComplete, markOnboardingPending } from '../../onboarding';
 import { AuthCard } from '../../layouts/AuthLayout.jsx';
 import { inputControlClassName } from '../../components/forms/controlClasses.js';
 
@@ -30,14 +29,8 @@ export default function EmployerLogin() {
     setCtxError?.(null);
     setSubmitting(true);
     try {
-      const emp = await login(email.trim().toLowerCase(), password);
-      const empId = emp?._id ? String(emp._id) : 'employer';
-      if (!isOnboardingComplete({ userId: empId })) {
-        markOnboardingPending();
-        navigate(ROUTES.HOME, { replace: true });
-      } else {
-        navigate(from, { replace: true });
-      }
+      await login(email.trim().toLowerCase(), password);
+      navigate(from, { replace: true });
     } catch (err) {
       setCtxError?.(
         err.response?.status === 429

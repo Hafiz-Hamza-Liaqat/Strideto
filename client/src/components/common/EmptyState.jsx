@@ -31,7 +31,7 @@ export function EmptyState({
       ) : null}
       {actionLabel && (actionTo || onAction) ? (
         actionTo ? (
-          <Link to={actionTo}>
+          <Link to={actionTo} onClick={onAction}>
             <Button variant="primary" type="button">{actionLabel}</Button>
           </Link>
         ) : (

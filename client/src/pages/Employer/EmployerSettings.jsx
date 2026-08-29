@@ -11,6 +11,11 @@ import { ConnectedAccountsPanel } from '../../components/account/ConnectedAccoun
 import { PasswordInput } from '../../components/forms/PasswordInput';
 import { PhoneInput } from '../../components/forms/PhoneInput';
 import { storedPhoneFromInput } from '@shared/international/phone.js';
+import { evaluateEmployerProfileCompleteness } from '@shared/employer/employerActivationState.js';
+import {
+  trackEmployerActivationEvent,
+  EMPLOYER_ACTIVATION_ACTIONS,
+} from '../../components/employer/activation/employerActivationAnalytics';
 
 const MIN_PASSWORD_LENGTH = 8;
 
@@ -138,10 +143,17 @@ export default function EmployerSettings() {
       setError('Enter a valid phone number. Letters are not accepted.');
       return;
     }
+    const profileBeforeSave = evaluateEmployerProfileCompleteness(employer);
     setSaving(true);
     try {
       await employerApi.updateProfile({ ...form, phone: stored.e164 });
-      await refreshEmployer();
+      const refreshed = await refreshEmployer();
+      const profileAfterSave = evaluateEmployerProfileCompleteness(refreshed || { ...employer, ...form });
+      if (!profileBeforeSave.complete && profileAfterSave.complete) {
+        trackEmployerActivationEvent(EMPLOYER_ACTIVATION_ACTIONS.PROFILE_COMPLETED, {
+          source: 'employer_settings',
+        });
+      }
       setSuccess(t('employer:settingsSaved'));
     } catch (err) {
       setError(err.response?.data?.error || t('employer:settingsSaveFailed'));

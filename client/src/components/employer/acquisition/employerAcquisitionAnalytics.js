@@ -4,12 +4,19 @@
  */
 import { trackPlatformEvent } from '../../../utils/platformAnalytics.js';
 import { shouldEmitEmployerPageView } from './employerPageViewBurst.js';
+import { shouldEmitEmployerCtaClick } from './employerCtaClickBurst.js';
 
 export {
   advanceEmployerPageViewClock,
   resetEmployerPageViewBurstState,
   shouldEmitEmployerPageView,
 } from './employerPageViewBurst.js';
+
+export {
+  advanceEmployerCtaClickClock,
+  resetEmployerCtaClickBurstState,
+  shouldEmitEmployerCtaClick,
+} from './employerCtaClickBurst.js';
 
 export const EMPLOYER_CTA_ACTIONS = {
   PAGE_VIEW: 'employer_page_view',
@@ -28,7 +35,6 @@ export const EMPLOYER_CTA_ACTIONS = {
 export function trackEmployerAcquisitionEvent(action, extra = {}) {
   if (action === EMPLOYER_CTA_ACTIONS.PAGE_VIEW) {
     const { navigationKey, ...safeExtra } = extra;
-    const path = safeExtra.path || (typeof window !== 'undefined' ? window.location.pathname : '');
     if (!shouldEmitEmployerPageView(navigationKey)) return;
 
     trackPlatformEvent({
@@ -41,6 +47,9 @@ export function trackEmployerAcquisitionEvent(action, extra = {}) {
     });
     return;
   }
+
+  const clickKey = extra.ctaId ? `${action}:${extra.ctaId}` : action;
+  if (!shouldEmitEmployerCtaClick(clickKey)) return;
 
   trackPlatformEvent({
     eventType: 'cta_click',

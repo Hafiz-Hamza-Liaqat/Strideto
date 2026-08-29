@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
 import { employerApi, employerAxios } from '../../services/employerService';
@@ -10,6 +10,13 @@ import { PortalWelcomeBanner } from '../../components/welcome/PortalWelcomeBanne
 import { MilestoneDelight } from '../../components/welcome/MilestoneDelight';
 import { AnnouncementFeed } from '../../components/announcements/AnnouncementFeed';
 import { useEmployerAuth } from '../../context/EmployerAuthContext';
+import { EmployerActivationChecklist } from '../../components/employer/activation/EmployerActivationChecklist';
+import { deriveEmployerActivationChecklist } from '@shared/employer/employerActivationState.js';
+import {
+  trackEmployerOnboardingView,
+  trackEmployerActivationEvent,
+  EMPLOYER_ACTIVATION_ACTIONS,
+} from '../../components/employer/activation/employerActivationAnalytics';
 
 const employerAnnouncementsApi = createAnnouncementsApi(employerAxios);
 
@@ -28,6 +35,7 @@ const Card = ({ title, value, sub, to }) => {
 export default function EmployerDashboard() {
   const { t } = useTranslation(['employer', 'common']);
   const { employer } = useEmployerAuth();
+  const location = useLocation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [loadError, setLoadError] = useState(false);
@@ -37,11 +45,6 @@ export default function EmployerDashboard() {
   useEffect(() => {
     mountedRef.current = true;
 
-    // A single in-flight guard both prevents duplicate simultaneous requests
-    // (visibility + focus firing together) and, because only one request can
-    // ever be pending at a time, makes a stale response overwriting a newer
-    // one structurally impossible — there is never a second request for an
-    // earlier one to race against.
     const loadDashboard = ({ background = false } = {}) => {
       if (document.hidden) return;
       if (inFlightRef.current) return;
@@ -58,8 +61,6 @@ export default function EmployerDashboard() {
         .catch(() => {
           if (!mountedRef.current) return;
           if (!background) {
-            // Initial load has no prior data to protect — fall back to the
-            // existing safe zeroed state and surface the error banner.
             setLoadError(true);
             setData({
               activeJobs: 0,
@@ -68,10 +69,9 @@ export default function EmployerDashboard() {
               shortlistedCandidates: 0,
               jobs: [],
               conversionRateLabel: 'n/a',
+              totalJobs: 0,
             });
           }
-          // Background refresh failure: keep whatever metrics are already
-          // rendered rather than clearing them to zero, and don't retry.
         })
         .finally(() => {
           inFlightRef.current = false;
@@ -95,6 +95,14 @@ export default function EmployerDashboard() {
       window.removeEventListener('focus', handleFocus);
     };
   }, []);
+
+  const activationState = deriveEmployerActivationChecklist({ employer, dashboard: data });
+  const hasJobs = (data?.totalJobs || data?.jobs?.length || 0) > 0;
+
+  useEffect(() => {
+    if (loading || !data) return;
+    trackEmployerOnboardingView(location.key);
+  }, [loading, data, location.key]);
 
   if (loading) {
     return (
@@ -124,25 +132,25 @@ export default function EmployerDashboard() {
         body="Your organization verification is approved. This congratulations appears once."
       />
       <AnnouncementFeed title="Employer announcements" className="mb-6" api={employerAnnouncementsApi} />
-      <section className="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4">
-        <h2 className="text-sm font-semibold text-gray-900 dark:text-white">Getting started</h2>
-        <ul className="mt-2 space-y-1 text-sm">
-          {[
-            { done: Boolean(employer?.companyName), label: 'Complete organization', to: ROUTES.EMPLOYER_SETTINGS },
-            { done: data?.verified === true || data?.verificationStatus === 'approved', label: 'Verify organization', to: ROUTES.EMPLOYER_VERIFICATION },
-            { done: (data?.jobs?.length || data?.activeJobs || 0) > 0, label: 'Create a draft job', to: ROUTES.EMPLOYER_POST_JOB },
-            { done: false, label: 'Review Free Beta quota', to: ROUTES.EMPLOYER_PLANS_USAGE },
-            { done: (data?.activeJobs || 0) > 0, label: 'Submit a job for review', to: ROUTES.EMPLOYER_JOBS },
-            { done: (data?.totalApplications || 0) > 0, label: 'Review applicants', to: ROUTES.EMPLOYER_APPLICATIONS },
-          ].map((item) => (
-            <li key={item.label}>
-              <Link to={item.to} className="text-primary hover:underline">
-                {item.done ? '✓' : '○'} {item.label}
-              </Link>
-            </li>
-          ))}
-        </ul>
-      </section>
+
+      {!activationState.activationComplete ? (
+        <EmployerActivationChecklist
+          employer={employer}
+          dashboard={data}
+          className="mb-6"
+          onProfileIntent={() =>
+            trackEmployerActivationEvent(EMPLOYER_ACTIVATION_ACTIONS.PROFILE_COMPLETION_INTENT, {
+              source: 'activation_checklist',
+            })
+          }
+          onFirstJobIntent={() =>
+            trackEmployerActivationEvent(EMPLOYER_ACTIVATION_ACTIONS.FIRST_JOB_INTENT, {
+              source: 'activation_checklist',
+            })
+          }
+        />
+      ) : null}
+
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white">{t('employer:dashboardHeading')}</h1>
         <VerificationBadge level={data?.verificationLevel} verified={data?.verified} />
@@ -152,6 +160,53 @@ export default function EmployerDashboard() {
           {t('employer:dashboardLoadFailed')}
         </p>
       ) : null}
+
+      {!hasJobs ? (
+        <section
+          className="mb-6 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-6 sm:p-8"
+          aria-labelledby="employer-zero-jobs-heading"
+        >
+          <h2 id="employer-zero-jobs-heading" className="text-xl font-semibold text-gray-900 dark:text-white">
+            {t('employer:zeroJobsHeadline')}
+          </h2>
+          <p className="mt-2 text-sm text-gray-600 dark:text-gray-300 max-w-2xl">
+            {t('employer:zeroJobsBody')}
+          </p>
+          <div className="mt-5 flex flex-wrap gap-3">
+            <Link
+              to={ROUTES.EMPLOYER_POST_JOB}
+              onClick={() =>
+                trackEmployerActivationEvent(EMPLOYER_ACTIVATION_ACTIONS.FIRST_JOB_INTENT, {
+                  source: 'zero_jobs_empty_state',
+                })
+              }
+              className="inline-flex min-h-[44px] items-center rounded-lg bg-primary px-5 py-2.5 text-sm font-semibold text-white hover:bg-primary-hover"
+            >
+              {t('employer:zeroJobsPrimaryCta')}
+            </Link>
+            {!activationState.profile.complete ? (
+              <Link
+                to={ROUTES.EMPLOYER_SETTINGS}
+                onClick={() =>
+                  trackEmployerActivationEvent(EMPLOYER_ACTIVATION_ACTIONS.PROFILE_COMPLETION_INTENT, {
+                    source: 'zero_jobs_empty_state',
+                  })
+                }
+                className="inline-flex min-h-[44px] items-center rounded-lg border border-gray-300 dark:border-gray-600 px-5 py-2.5 text-sm font-medium text-gray-900 dark:text-white hover:bg-gray-50 dark:hover:bg-gray-800"
+              >
+                {t('employer:zeroJobsProfileCta')}
+              </Link>
+            ) : null}
+            <Link
+              to={ROUTES.FOR_EMPLOYERS}
+              className="inline-flex min-h-[44px] items-center px-2 py-2.5 text-sm font-medium text-primary hover:underline dark:text-mint"
+            >
+              {t('employer:activationLearnApplications')}
+            </Link>
+          </div>
+        </section>
+      ) : null}
+
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
         <Card title={t('employer:activeJobsCard')} value={data?.activeJobs ?? 0} sub={t('employer:activeJobsHint')} to={ROUTES.EMPLOYER_JOBS} />
         <Card
@@ -193,7 +248,15 @@ export default function EmployerDashboard() {
           {(data?.jobs || []).length === 0 ? (
             <div className="p-8 text-center text-slate-600 dark:text-gray-300">
               {t('employer:noJobsYet')}{' '}
-              <Link to={ROUTES.EMPLOYER_POST_JOB} className="text-primary hover:underline font-medium">
+              <Link
+                to={ROUTES.EMPLOYER_POST_JOB}
+                onClick={() =>
+                  trackEmployerActivationEvent(EMPLOYER_ACTIVATION_ACTIONS.FIRST_JOB_INTENT, {
+                    source: 'recent_jobs_empty',
+                  })
+                }
+                className="text-primary hover:underline font-medium"
+              >
                 {t('employer:postFirstJob')}
               </Link>
             </div>

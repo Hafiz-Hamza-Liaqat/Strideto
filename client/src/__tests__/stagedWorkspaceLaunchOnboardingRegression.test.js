@@ -66,14 +66,18 @@ check(
 
 const employerLogin = read('pages/Employer/EmployerLogin.jsx');
 check(
-  employerLogin.includes('onboarding') || employerLogin.includes('portalWelcome') || employerLogin.includes('mark'),
-  'employer login still participates in onboarding/welcome flow'
+  employerLogin.includes('ROUTES.EMPLOYER_DASHBOARD') || employerLogin.includes('navigate(from'),
+  'employer login routes to employer workspace after sign-in'
+);
+check(
+  !employerLogin.includes('markOnboardingPending') || !employerLogin.includes('ROUTES.HOME'),
+  'employer login does not redirect to student homepage onboarding'
 );
 
 const employerDashboard = read('pages/Employer/EmployerDashboard.jsx');
 check(
-  employerDashboard.includes('PortalWelcomeBanner') || employerDashboard.includes('welcome'),
-  'employer dashboard welcome/tour surface retained'
+  employerDashboard.includes('PortalWelcomeBanner') || employerDashboard.includes('EmployerActivationChecklist'),
+  'employer dashboard welcome/activation surface retained'
 );
 
 const postJob = read('pages/Employer/EmployerPostJob.jsx');

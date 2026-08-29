@@ -6,6 +6,10 @@ import { employerApi } from '../../services/employerService';
 import { ROUTES } from '../../constants';
 import { EmptyState } from '../../components/common/EmptyState';
 import { formatOpeningsCount } from '@shared/employer/openingsCount.js';
+import {
+  trackEmployerActivationEvent,
+  EMPLOYER_ACTIVATION_ACTIONS,
+} from '../../components/employer/activation/employerActivationAnalytics';
 
 const STATUS_FILTERS = ['', 'draft', 'active', 'closed'];
 const REVIEW_FILTERS = ['pending'];
@@ -162,6 +166,11 @@ export default function EmployerJobs() {
         </div>
         <Link
           to={ROUTES.EMPLOYER_POST_JOB}
+          onClick={() =>
+            trackEmployerActivationEvent(EMPLOYER_ACTIVATION_ACTIONS.FIRST_JOB_INTENT, {
+              source: 'jobs_header',
+            })
+          }
           className="px-4 py-2.5 bg-primary hover:opacity-90 text-white text-sm font-medium rounded-lg min-h-[44px] inline-flex items-center shrink-0"
         >
           {t('employer:postNewJob')}
@@ -208,11 +217,16 @@ export default function EmployerJobs() {
           <div className="p-8 text-center text-slate-600 dark:text-gray-300">{t('common:loading')}</div>
         ) : jobs.length === 0 ? (
           <EmptyState
-            icon="🏢"
-            title={t('employer:postFirstJob')}
-            description={t('employer:noJobsYet')}
-            actionLabel={t('employer:postAJob')}
+            icon="briefcase"
+            title={t('employer:zeroJobsHeadline')}
+            description={t('employer:zeroJobsBody')}
+            actionLabel={t('employer:zeroJobsPrimaryCta')}
             actionTo={ROUTES.EMPLOYER_POST_JOB}
+            onAction={() =>
+              trackEmployerActivationEvent(EMPLOYER_ACTIVATION_ACTIONS.FIRST_JOB_INTENT, {
+                source: 'jobs_empty_state',
+              })
+            }
           />
         ) : (
           <>

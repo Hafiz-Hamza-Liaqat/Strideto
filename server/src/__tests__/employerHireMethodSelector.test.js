@@ -317,25 +317,25 @@ check(!/req\.body\.employerId|req\.query\.employerId/.test(createFn), 'createJob
   );
 }
 
-// 2/3. Internal copy mentions in-Strideto applications and Employer pipeline/dashboard visibility
+// 2/3. Internal copy — MKT-P2 truthful STRIDETO-submitted applications (workspace review, not full ATS)
 {
   const help = employerLocaleEn.applyMethodInternalHelp;
-  check(/inside Strideto/i.test(help), '2. Internal copy states candidates apply inside Strideto');
-  check(/Employer Applications/.test(help) && /Hiring Intelligence/.test(help), '3. Internal copy mentions both Employer Applications and Hiring Intelligence visibility');
+  check(/submit through STRIDETO/i.test(help), '2. Internal copy states candidates submit through STRIDETO');
+  check(/employer workspace/i.test(help), '3. Internal copy mentions employer workspace review');
 }
 
-// 4/5. External URL copy explains candidates leave Strideto and submissions are not tracked
+// 4/5. External URL copy explains external destination and not tracked in STRIDETO
 {
   const help = employerLocaleEn.applyMethodExternalUrlHelp;
-  check(/leave Strideto/i.test(help), '4. External URL copy states candidates leave Strideto');
-  check(/not tracked/i.test(help), '5. External URL copy states applications/conversion are shown as not tracked');
+  check(/external/i.test(help), '4. External URL copy references external application');
+  check(/not tracked or managed inside STRIDETO/i.test(help), '5. External URL copy states applications are not tracked in STRIDETO');
 }
 
-// 6/7. Email copy states applications are handled by email and are not tracked
+// 6/7. Email copy states applications are handled externally and are not tracked
 {
   const help = employerLocaleEn.applyMethodExternalEmailHelp;
-  check(/emailing you directly/i.test(help), '6. Email copy states candidates apply by emailing the Employer directly');
-  check(/won't appear in your Employer pipeline/i.test(help), "7. Email copy states submissions won't appear in the Employer pipeline (not tracked)");
+  check(/email/i.test(help), '6. Email copy references email application');
+  check(/not tracked or managed inside STRIDETO/i.test(help), '7. Email copy states submissions are not tracked in STRIDETO');
   check(!/delivery/i.test(help) && !/confirm.*sent/i.test(help), 'Email copy does not claim email delivery is tracked/confirmed');
 }
 

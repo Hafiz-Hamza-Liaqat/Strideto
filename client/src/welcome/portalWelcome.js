@@ -57,8 +57,8 @@ export const PORTAL_ONBOARDING_ACTIONS = {
   },
   employer: {
     title: 'Welcome to your employer workspace',
-    body: 'Post a job draft or complete verification to unlock submissions for review.',
-    ctaLabel: 'Post a job',
+    body: 'Publish opportunities, choose how candidates apply, and manage STRIDETO-submitted applicants from this workspace.',
+    ctaLabel: 'Create your first job',
     ctaPathKey: 'postJob',
   },
   agent: {

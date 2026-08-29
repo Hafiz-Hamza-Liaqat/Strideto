@@ -29,6 +29,16 @@ import {
 } from '../../utils/homepageCmsSafety';
 import { trackEmployerAcquisitionEvent, EMPLOYER_CTA_ACTIONS } from '../../components/employer/acquisition/employerAcquisitionAnalytics';
 
+function trackHomepageEmployerCtaFromUrl(url, placement) {
+  const path = String(url || '').split('?')[0];
+  if (path === ROUTES.FOR_EMPLOYERS || path === ROUTES.EMPLOYER_REGISTER || path === ROUTES.EMPLOYER_POST_JOB) {
+    trackEmployerAcquisitionEvent(EMPLOYER_CTA_ACTIONS.HOMEPAGE_EMPLOYER_CTA, {
+      ctaId: `homepage-cms-${placement}`,
+      placement,
+    });
+  }
+}
+
 const TRENDING_JOBS_LIMIT = 8;
 const SCHOLARSHIPS_LIMIT = 6;
 const ADMISSIONS_LIMIT = 6;
@@ -350,6 +360,7 @@ export default function Home() {
                           <Link
                             key={i}
                             to={cta.url || ROUTES.JOBS}
+                            onClick={() => trackHomepageEmployerCtaFromUrl(cta.url, 'homepage-hero-cms')}
                             className="inline-flex min-h-[44px] items-center rounded-xl border border-white/30 bg-white/20 px-5 py-2.5 font-medium text-white btn-theme hover:bg-white/30"
                           >
                             {cta.label}
