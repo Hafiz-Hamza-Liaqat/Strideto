@@ -226,5 +226,19 @@
     "submitting": "Creating…",
     "success": "Application tracked",
     "error": "Could not create application"
-  }
+  },
+  "communicationSectionTitle": "Messages & interview",
+  "communicationEmptyCandidate": "No messages yet. Messages from the employer about this application will appear here.",
+  "communicationEmployerContext": "Messages about your application to {{company}}.",
+  "communicationInterviewHeading": "Interview invitation",
+  "communicationAcceptInterview": "Accept interview",
+  "communicationDeclineInterview": "Decline interview",
+  "communicationDeclineHint": "Declining does not withdraw your application. The employer will decide next steps separately.",
+  "communicationReplyLabel": "Reply to employer",
+  "communicationSendReply": "Send reply",
+  "communicationMessageSent": "Message sent in STRIDETO.",
+  "communicationSendFailed": "Could not send message. Your draft is preserved.",
+  "communicationLoadFailed": "Could not load messages.",
+  "communicationInterviewResponseFailed": "Could not update interview response.",
+  "loading": "Loading…"
 }

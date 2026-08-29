@@ -26,6 +26,10 @@ function toPlain(doc) {
 
 function projectStudentApplication(application) {
   const plain = toPlain(application);
+  // MKT-P4 / PRIV-02: employer hiring notes must never surface on the candidate read API.
+  if (Array.isArray(plain.notes)) {
+    plain.notes = plain.notes.filter((note) => note?.visibility !== 'employer_scoped');
+  }
   const machineTransitions = ApplicationStageMachineService.getAllowedTransitions(
     plain.stageTemplateId,
     plain.pipelineStage

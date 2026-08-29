@@ -19,6 +19,11 @@ export const applicationsApi = {
   addContact: (id, body) => axiosInstance.post(`/applications/${id}/contacts`, body),
   removeContact: (id, contactId) => axiosInstance.delete(`/applications/${id}/contacts/${contactId}`),
   upsertInterview: (id, body) => axiosInstance.put(`/applications/${id}/interview`, body),
+  listCommunication: (id, params) => axiosInstance.get(`/applications/${id}/communication`, { params }),
+  sendCommunicationMessage: (id, body) =>
+    axiosInstance.post(`/applications/${id}/communication/messages`, body),
+  respondInterviewInvitation: (id, invitationId, body) =>
+    axiosInstance.post(`/applications/${id}/communication/interview-invitations/${invitationId}/respond`, body),
 };
 
 /** Internal Institution admissions (Phase 6). User realm only. */

@@ -390,6 +390,25 @@ const TEMPLATES = {
       text: `نئی درخواست`,
     }),
   },
+  applicationCommunication: {
+    en: ({ name, jobTitle, signInUrl }) => ({
+      subject: `${BRAND} – New message about your application`,
+      html: layout({
+        title: 'Application update',
+        bodyHtml: `<p>Hi ${name || 'there'},</p><p>You have a new message regarding your application for <strong>${jobTitle || 'a role'}</strong> on STRIDETO.</p><p>Sign in to view the message in your application workspace.</p>${signInUrl ? btn(signInUrl, 'View application') : ''}`,
+      }),
+      text: `You have a new message about your STRIDETO application${jobTitle ? ` for ${jobTitle}` : ''}.`,
+    }),
+    ur: ({ name, jobTitle, signInUrl }) => ({
+      subject: `${BRAND} – آپ کی درخواست کے بارے میں نیا پیغام`,
+      html: layout({
+        lang: 'ur',
+        title: 'درخواست اپ ڈیٹ',
+        bodyHtml: `<p>${name || ''}،</p><p>آپ کی <strong>${jobTitle || 'درخواست'}</strong> کے بارے میں STRIDETO پر نیا پیغام ہے۔</p>${signInUrl ? btn(signInUrl, 'درخواست دیکھیں') : ''}`,
+      }),
+      text: `STRIDETO درخواست کے بارے میں نیا پیغام`,
+    }),
+  },
   offerLetter: {
     en: ({ name, jobTitle }) => ({
       subject: `${BRAND} – Offer for ${jobTitle}`,

@@ -21,6 +21,8 @@ import { extractEmployerJobFromDocument } from '../controllers/jobDocumentExtrac
 import { uploadJobDescription } from '../middleware/jobDescriptionUpload.js';
 import { requireEmployerCapability } from '../services/employer/employerOrganizationService.js';
 import { EMPLOYER_CAPABILITIES as C } from '../../../shared/employer/team.js';
+import { applicationCommunicationLimiter } from '../middleware/rateLimit.js';
+import * as applicationCommunication from '../controllers/applicationCommunicationController.js';
 
 export const employerRouter = Router();
 
@@ -287,4 +289,35 @@ employerRouter.patch(
   requireEmployerAuth,
   requireEmployerCapability(C.APPLICATIONS_WRITE),
   employer.updateApplicationStatus
+);
+employerRouter.get(
+  '/employer/applications/:id/communication',
+  requireAuth,
+  requireEmployerAuth,
+  requireEmployerCapability(C.APPLICATIONS_READ),
+  applicationCommunication.employerListCommunication
+);
+employerRouter.post(
+  '/employer/applications/:id/communication/messages',
+  requireAuth,
+  requireEmployerAuth,
+  requireEmployerCapability(C.APPLICATIONS_WRITE),
+  applicationCommunicationLimiter,
+  applicationCommunication.employerSendMessage
+);
+employerRouter.post(
+  '/employer/applications/:id/communication/interview-invitations',
+  requireAuth,
+  requireEmployerAuth,
+  requireEmployerCapability(C.INTERVIEWS_WRITE),
+  applicationCommunicationLimiter,
+  applicationCommunication.employerCreateInterviewInvitation
+);
+employerRouter.post(
+  '/employer/applications/:id/communication/interview-invitations/:invitationId/cancel',
+  requireAuth,
+  requireEmployerAuth,
+  requireEmployerCapability(C.INTERVIEWS_WRITE),
+  applicationCommunicationLimiter,
+  applicationCommunication.employerCancelInterviewInvitation
 );

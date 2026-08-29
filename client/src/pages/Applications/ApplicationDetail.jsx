@@ -13,6 +13,7 @@ import { DocumentAttachPanel } from '../../components/applications/DocumentAttac
 import { ContactsPanel } from '../../components/applications/ContactsPanel';
 import { InterviewPanel } from '../../components/applications/InterviewPanel';
 import { ApplicationEditPanel } from '../../components/applications/ApplicationEditPanel';
+import { CandidateApplicationCommunication } from '../../components/applications/ApplicationCommunicationPanel';
 import { ActivityFeed } from '../../components/timeline/ActivityFeed';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { isOpportunityApplicationEnabled } from '../../config/careerFeatureFlags';
@@ -296,6 +297,21 @@ export default function ApplicationDetail() {
             }}
           />
         </Section>
+
+        {application.legacyApplicationId ? (
+          <Section title={t('applications:communicationSectionTitle')} id="communication-heading">
+            <CandidateApplicationCommunication
+              opportunityApplicationId={id}
+              companyName={application.opportunityRef?.title || application.employerName || ''}
+              communicationApi={{
+                list: (oaId, params) => applicationsApi.listCommunication(oaId, params),
+                sendMessage: (oaId, body) => applicationsApi.sendCommunicationMessage(oaId, body),
+                respondInterviewInvitation: (oaId, invitationId, body) =>
+                  applicationsApi.respondInterviewInvitation(oaId, invitationId, body),
+              }}
+            />
+          </Section>
+        ) : null}
 
         <Section title={t('applications:detail.notesTitle')} id="notes-heading">
           {(application.notes || []).length === 0 ? (

@@ -137,6 +137,16 @@ export const employerApi = {
   createCheckout: (id, body) => employerAxios.post(`/employer/jobs/${id}/checkout`, body),
   getJobApplications: (jobId) => employerAxios.get(`/employer/jobs/${jobId}/applications`),
   getApplication: (applicationId) => employerAxios.get(`/employer/applications/${applicationId}`),
+  listApplicationCommunication: (applicationId, params) =>
+    employerAxios.get(`/employer/applications/${applicationId}/communication`, { params }),
+  sendApplicationMessage: (applicationId, body) =>
+    employerAxios.post(`/employer/applications/${applicationId}/communication/messages`, body),
+  createApplicationInterviewInvitation: (applicationId, body) =>
+    employerAxios.post(`/employer/applications/${applicationId}/communication/interview-invitations`, body),
+  cancelApplicationInterviewInvitation: (applicationId, invitationId) =>
+    employerAxios.post(
+      `/employer/applications/${applicationId}/communication/interview-invitations/${invitationId}/cancel`
+    ),
   fetchApplicationResume: (applicationId) =>
     employerAxios.get(`/employer/applications/${applicationId}/resume`, { responseType: 'blob' }),
   updateApplicationStatus: (applicationId, status) =>

@@ -198,6 +198,13 @@ export const gbsCaseDocumentWriteLimiter = limiter('gbs-case-document-write', {
   message: { error: 'Too many Case document updates. Please wait.' },
 });
 
+/** MKT-P4 — employer/candidate application communication mutations */
+export const applicationCommunicationLimiter = limiter('application-communication', {
+  windowMs: 15 * 60 * 1000,
+  max: isDev ? 120 : 40,
+  message: { error: 'Too many communication requests. Please wait a moment.' },
+});
+
 export const gbsCaseDocumentUploadLimiter = limiter('gbs-case-document-upload', {
   windowMs: 15 * 60 * 1000,
   max: isDev ? 40 : 10,

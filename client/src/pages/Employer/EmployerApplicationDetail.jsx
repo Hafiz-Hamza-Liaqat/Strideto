@@ -15,6 +15,7 @@ import {
   EMPLOYER_APPLICANT_ACTIONS,
 } from '../../components/employer/applicant/employerApplicantAnalytics';
 import { openEmployerApplicationResume } from '../../utils/employerApplicationResume';
+import { EmployerApplicationCommunication } from '../../components/applications/ApplicationCommunicationPanel';
 
 function applicationDetailPath(id) {
   return `${ROUTES.EMPLOYER_APPLICATIONS}/${id}`;
@@ -257,6 +258,24 @@ export default function EmployerApplicationDetail() {
               </div>
             </section>
           ) : null}
+
+          <section
+            aria-labelledby="communication-heading"
+            className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5"
+          >
+            <h2 id="communication-heading" className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-4">
+              {t('employer:communicationSectionTitle')}
+            </h2>
+            <EmployerApplicationCommunication
+              applicationId={application._id}
+              communicationApi={{
+                list: (appId, params) => employerApi.listApplicationCommunication(appId, params),
+                sendMessage: (appId, body) => employerApi.sendApplicationMessage(appId, body),
+                createInterviewInvitation: (appId, body) =>
+                  employerApi.createApplicationInterviewInvitation(appId, body),
+              }}
+            />
+          </section>
 
           <p className="text-xs text-slate-500">{t('employer:applicantPrivacyHint')}</p>
         </div>

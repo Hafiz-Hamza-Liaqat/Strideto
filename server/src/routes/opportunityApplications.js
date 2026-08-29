@@ -20,6 +20,8 @@ import {
   upsertApplicationInterview,
   requireOpportunityApplicationEnabled,
 } from '../controllers/career/opportunityApplicationController.js';
+import * as applicationCommunication from '../controllers/applicationCommunicationController.js';
+import { applicationCommunicationLimiter } from '../middleware/rateLimit.js';
 
 export const opportunityApplicationsRouter = Router();
 
@@ -42,3 +44,20 @@ opportunityApplicationsRouter.delete('/applications/:id/reminders/:reminderId', 
 opportunityApplicationsRouter.post('/applications/:id/contacts', ...appAuth, addApplicationContact);
 opportunityApplicationsRouter.delete('/applications/:id/contacts/:contactId', ...appAuth, removeApplicationContact);
 opportunityApplicationsRouter.put('/applications/:id/interview', ...appAuth, upsertApplicationInterview);
+opportunityApplicationsRouter.get(
+  '/applications/:id/communication',
+  ...appAuth,
+  applicationCommunication.candidateListCommunication
+);
+opportunityApplicationsRouter.post(
+  '/applications/:id/communication/messages',
+  ...appAuth,
+  applicationCommunicationLimiter,
+  applicationCommunication.candidateSendMessage
+);
+opportunityApplicationsRouter.post(
+  '/applications/:id/communication/interview-invitations/:invitationId/respond',
+  ...appAuth,
+  applicationCommunicationLimiter,
+  applicationCommunication.candidateRespondInterviewInvitation
+);
