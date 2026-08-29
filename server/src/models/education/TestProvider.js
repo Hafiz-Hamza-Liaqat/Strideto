@@ -35,7 +35,6 @@ const testProviderSchema = new mongoose.Schema(
       type: String,
       enum: ['active', 'archived'],
       default: 'active',
-      index: true,
     },
   },
   { timestamps: true }

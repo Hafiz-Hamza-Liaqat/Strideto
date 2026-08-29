@@ -45,7 +45,6 @@ const countryEducationSchema = new mongoose.Schema(
       type: String,
       enum: Object.values(PUB_STATUSES),
       default: PUB_STATUSES.DRAFT,
-      index: true,
     },
   },
   { timestamps: true }

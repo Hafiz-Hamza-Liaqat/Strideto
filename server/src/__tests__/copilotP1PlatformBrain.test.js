@@ -50,7 +50,6 @@ const {
   validateIdList,
   validateSearchString,
   rejectClientUserId,
-  SCHOLARSHIP_SYSTEM,
   sanitizeConversationRefs,
   sanitizeScholarshipRefs,
   conversationRefsHasDisallowedKeys,

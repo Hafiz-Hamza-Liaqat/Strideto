@@ -41,11 +41,13 @@ The app stores jobs, users, resumes, and everything else in **MongoDB**. You mus
 2. **Create a project** → **Build a database** → choose **FREE** (M0).
 3. **Create database user:** Database Access → Add New User → set username and password → Create User.
 4. **Allow network access:** Network Access → Add IP Address → “Allow access from anywhere” (0.0.0.0/0) for testing.
-5. **Get connection string:** Databases → Connect → “Connect your application” → copy the URI shown by Atlas.
-6. **Edit the URI:** Add the database name at the end (`/strideto`) and replace the placeholder password with your database user's password.
-   Set this full connection string as your **MONGO_URI** environment variable.
+5. **Get the connection string from Atlas:** Databases → **Connect** → **Drivers** (or “Connect your application”) → copy the connection string Atlas generates for your cluster.
+6. **Configure locally (never in git):**
+   - Paste the Atlas string into `server/.env` (or your host’s environment settings) as **`MONGO_URI`**.
+   - On your machine only, replace Atlas’s built-in placeholders with your database user and password, and ensure the database name ends with `/strideto` (or your chosen DB name).
+   - For production (e.g. Render), set the same completed value as the **`MONGO_URI`** environment variable in the hosting dashboard.
 
-   > **Security:** Never commit database credentials to source control. Set `MONGO_URI` only in your local `.env` file (which is git-ignored) or in your deployment environment's secret store (e.g. Render “Secret File” or “Environment” settings, Vercel environment variables).
+   > **Security:** Never commit `MONGO_URI` or any database credentials to source control. Keep them only in git-ignored local `.env` files or your deployment provider’s secret store (e.g. Render Environment, Vercel Environment Variables).
 
 ---
 
@@ -78,7 +80,7 @@ SITE_URL=http://localhost:5173
 
 | Variable           | What to put                                                                                                                            |
 | ------------------ | -------------------------------------------------------------------------------------------------------------------------------------- |
-| **MONGO_URI**      | Your MongoDB URL from Part 1 (local: `mongodb://localhost:27017/strideto` or Atlas URI from above).                                    |
+| **MONGO_URI**      | Your MongoDB URL from Part 1 (local: `mongodb://localhost:27017/strideto`, or the Atlas connection string you configured in `server/.env` / hosting env — never committed). |
 | **JWT_SECRET**     | Any long random string (e.g. 32+ characters). Example: `mySuperSecretKeyForStrideto2024!@#` – in production use a strong random value. |
 | **REFRESH_SECRET** | A second strong random string that must differ from `JWT_SECRET`.                                                                      |
 | **REDIS_URL**      | The Redis connection URL used by session issuance and access-token denylisting.                                                        |

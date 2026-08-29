@@ -34,6 +34,4 @@ const alertPreferenceSchema = new mongoose.Schema(
   { timestamps: true }
 );
 
-alertPreferenceSchema.index({ userId: 1 });
-
 export const AlertPreference = mongoose.model('AlertPreference', alertPreferenceSchema);
