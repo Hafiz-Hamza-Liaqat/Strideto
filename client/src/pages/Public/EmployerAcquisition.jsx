@@ -7,42 +7,44 @@ export default function EmployerAcquisition() {
 
   return (
     <PersonaAcquisitionPage
-      title="Post Jobs & Connect With Candidates | Strideto"
-      description="Use the Strideto employer workspace to post jobs, manage listings, review applications, and reach candidates through public job discovery on Strideto."
+      title="Reach Emerging Talent & Manage Hiring | Strideto"
+      description="Post jobs, choose how candidates apply, and review applicants submitted through STRIDETO — while your listings appear in public job discovery."
       canonical={ROUTES.FOR_EMPLOYERS}
       breadcrumbLabel="Employers"
-      heading="Hire through the Strideto employer workspace"
-      intro="Strideto gives employers a dedicated workspace to publish job openings, manage applications, and maintain an organization profile — while candidates discover your roles through Strideto's public jobs directory."
+      heading="Reach emerging talent and manage hiring in one workspace"
+      intro="Post jobs, choose how candidates apply, and review applicants submitted through STRIDETO — while your listings appear in public job discovery."
       workspaceAvailable={workspaceOpen}
+      steps={[
+        { title: 'Create employer profile', body: 'Register and set up your organization profile in the employer workspace.' },
+        { title: 'Publish an opportunity', body: 'Post structured job listings and choose whether candidates apply on STRIDETO or via an external link.' },
+        { title: 'Reach candidates through public discovery', body: 'Approved listings appear in STRIDETO job search where students and job seekers browse opportunities.' },
+        { title: 'Review STRIDETO-submitted applications where supported', body: 'Manage applicants who apply through STRIDETO. External applications are completed on the employer’s own site.' },
+      ]}
       sections={[
         {
           title: 'What employers can do today',
           items: [
             'Create an employer account and access the employer workspace.',
             'Post and manage job listings with structured job details.',
-            'Choose how candidates apply — through Strideto or an external application link.',
-            'Review and manage applications submitted through supported flows.',
-            'Maintain your organization profile for hiring on Strideto.',
+            'Choose how candidates apply — through STRIDETO or an external application link.',
+            'Review and manage applications submitted through STRIDETO where supported.',
+            'Maintain your organization profile for hiring on STRIDETO.',
             'Reach candidates browsing the public jobs directory.',
           ],
         },
         {
-          title: 'How Strideto works for employers',
-          body: 'Register for an employer account, complete your organization profile, and publish your first job. Approved listings appear in Strideto job search where students and job seekers can discover and apply. You manage postings and applications from your employer dashboard.',
-        },
-        {
           title: 'Who this is for',
-          body: 'Companies, startups, NGOs, and hiring teams who want to post openings and connect with candidates through Strideto. Whether you hire occasionally or run an ongoing recruitment process, the employer workspace supports structured job posting and application management.',
+          body: 'Companies, startups, NGOs, and hiring teams who want to post openings and connect with candidates through STRIDETO. Whether you hire occasionally or run an ongoing recruitment process, the employer workspace supports structured job posting and applicant management where applications are submitted through STRIDETO.',
         },
       ]}
       resourceLinks={[
-        { to: ROUTES.JOBS, label: 'Browse public jobs directory', note: 'See how candidates discover listings.' },
+        { to: ROUTES.JOBS, label: 'Browse jobs as candidates see them', note: 'See how candidates discover listings.' },
       ]}
       primaryCtas={
         workspaceOpen
           ? [
-              { to: ROUTES.EMPLOYER_REGISTER, label: 'Employer sign up' },
-              { to: ROUTES.EMPLOYER_POST_JOB, label: 'Post a job' },
+              { to: ROUTES.EMPLOYER_REGISTER, label: 'Create Employer Account' },
+              { to: ROUTES.EMPLOYER_POST_JOB, label: 'Post a Job' },
             ]
           : []
       }

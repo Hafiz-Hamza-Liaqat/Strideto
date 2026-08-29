@@ -11,7 +11,7 @@ export const ORGANIZATION_PUBLIC_NAME = 'Strideto';
 export const ORGANIZATION_PUBLIC_URL = PRODUCTION_PUBLIC_ORIGIN;
 
 export const ORGANIZATION_PUBLIC_DESCRIPTION =
-  'Discover jobs, scholarships, admissions, internships, and career resources—all in one place. Every step toward success with Strideto.';
+  'STRIDETO connects students and early-career talent with jobs, internships, scholarships, and career resources while giving employers a dedicated workspace to publish opportunities and manage supported hiring workflows.';
 
 export const ORGANIZATION_LOGO_PATH = '/branding/logo-symbol.svg';
 

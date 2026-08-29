@@ -74,15 +74,15 @@ check(
 // SEO-P1-03 — Student unique title/description/H1
 // ---------------------------------------------------------------------------
 check(
-  studentPage.includes('Career, Internship & Study Opportunities for Students | Strideto'),
+  studentPage.includes('Jobs, Internships & Scholarships for Students | Strideto'),
   'SEO-P1-03: student page has distinct title'
 );
 check(
-  studentPage.includes('Discover jobs, internships, scholarships'),
+  studentPage.includes('Browse opportunities for free'),
   'SEO-P1-03: student page has unique meta description'
 );
 check(
-  studentPage.includes('heading="Career and education opportunities for students"'),
+  studentPage.includes('heading="Discover your next job, internship, or scholarship"'),
   'SEO-P1-03: student page has distinct H1'
 );
 check(
@@ -144,7 +144,10 @@ for (const claim of unsupportedEmployerClaims) {
   check(!employerPage.toLowerCase().includes(claim.toLowerCase()), `SEO-P1-07: employer page does not claim "${claim}"`);
 }
 check(employerPage.includes('Post and manage job listings'), 'SEO-P1-07: employer page claims real posting capability');
-check(employerPage.includes('Review and manage applications'), 'SEO-P1-07: employer page claims real application workflow');
+check(
+  employerPage.includes('submitted through STRIDETO') || employerPage.includes('Review and manage applications'),
+  'SEO-P1-07: employer page qualifies application workflow'
+);
 
 // ---------------------------------------------------------------------------
 // SEO-P1-08 — Institution acquisition truthfully shows gated status

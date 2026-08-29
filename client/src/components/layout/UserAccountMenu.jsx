@@ -371,6 +371,9 @@ export function UserAccountMenu() {
                 <MenuLink to={ROUTES.EMPLOYER_LOGIN} onClose={close}>
                   {t('navbar:employerLogin', { defaultValue: 'Employer login' })}
                 </MenuLink>
+                <MenuLink to={ROUTES.EMPLOYER_REGISTER} onClose={close} className="font-medium">
+                  {t('navbar:employerRegister', { defaultValue: 'Create Employer Account' })}
+                </MenuLink>
               </>
             )}
 

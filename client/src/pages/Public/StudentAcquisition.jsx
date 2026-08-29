@@ -4,17 +4,17 @@ import { ROUTES } from '../../constants';
 export default function StudentAcquisition() {
   return (
     <PersonaAcquisitionPage
-      title="Career, Internship & Study Opportunities for Students | Strideto"
-      description="Discover jobs, internships, scholarships, admissions, study abroad guidance, and career tools on Strideto. Create a free student account to save opportunities and build your resume."
+      title="Jobs, Internships & Scholarships for Students | Strideto"
+      description="Browse opportunities for free. Create an account to save listings, build your resume, and apply through STRIDETO where supported."
       canonical={ROUTES.FOR_STUDENTS}
       breadcrumbLabel="Students"
-      heading="Career and education opportunities for students"
-      intro="Strideto helps students explore real career and education opportunities in one place — from job and internship listings to scholarships, admissions, international study resources, and practical career preparation tools."
+      heading="Discover your next job, internship, or scholarship"
+      intro="Browse opportunities for free. Create an account to save listings, build your resume, and apply through STRIDETO where supported."
       sections={[
         {
           title: 'What you can do on Strideto',
           items: [
-            'Browse jobs and internships from employers and curated listings.',
+            'Browse jobs and internships from employers and source-backed listings.',
             'Search scholarships and admissions opportunities with clear eligibility details.',
             'Explore international study programs and country-specific guidance.',
             'Discover universities, colleges, and programs through public institution directories.',
@@ -33,9 +33,8 @@ export default function StudentAcquisition() {
         },
       ]}
       resourceLinks={[
-        { to: ROUTES.JOBS, label: 'Explore jobs' },
         { to: ROUTES.INTERNSHIPS, label: 'Find internships' },
-        { to: ROUTES.SCHOLARSHIPS, label: 'Browse scholarships' },
+        { to: ROUTES.SCHOLARSHIPS, label: 'Find scholarships' },
         { to: ROUTES.ADMISSIONS, label: 'View admissions' },
         { to: ROUTES.FOREIGN_STUDIES, label: 'Explore study abroad' },
         { to: ROUTES.INTL_SCHOLARSHIPS, label: 'International scholarships' },
@@ -46,12 +45,12 @@ export default function StudentAcquisition() {
         { to: ROUTES.BLOG, label: 'Career blog' },
       ]}
       primaryCtas={[
-        { to: ROUTES.JOBS, label: 'Explore jobs' },
-        { to: ROUTES.REGISTER, label: 'Create account' },
+        { to: ROUTES.JOBS, label: 'Explore Opportunities' },
+        { to: ROUTES.REGISTER, label: 'Create Account' },
       ]}
       secondaryCtas={[
-        { to: ROUTES.INTERNSHIPS, label: 'Find internships' },
-        { to: ROUTES.RESUME_BUILDER, label: 'Build your resume' },
+        { to: ROUTES.INTERNSHIPS, label: 'Find Internships' },
+        { to: ROUTES.SCHOLARSHIPS, label: 'Find Scholarships' },
       ]}
     />
   );

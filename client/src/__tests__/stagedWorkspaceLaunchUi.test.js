@@ -135,8 +135,12 @@ for (const persona of ['default', 'student', 'job_seeker', 'professional', 'empl
 
 check(workSection.includes('Available Now'), 'HOME-LAUNCH-04: Employer Available Now badge');
 check(
-  workSection.includes('ROUTES.EMPLOYER_DASHBOARD') && workSection.includes('Employer Dashboard'),
-  'HOME-LAUNCH-05: Employer Dashboard CTA'
+  workSection.includes('ROUTES.FOR_EMPLOYERS') && workSection.includes('Learn About Employer Workspace'),
+  'HOME-LAUNCH-05: Employer acquisition CTA (not dashboard)'
+);
+check(
+  workSection.includes('ROUTES.EMPLOYER_REGISTER') && workSection.includes('Create Employer Account'),
+  'HOME-LAUNCH-05b: Employer registration CTA'
 );
 check(
   workSection.includes('ROUTES.EMPLOYER_POST_JOB') && workSection.includes('Post a Job'),
@@ -177,8 +181,8 @@ check(
 );
 check(
   workSection.includes('isEmployerWorkspaceLaunched') &&
-    workSection.includes('ROUTES.EMPLOYER_DASHBOARD'),
-  'HOME-UNLOCK-05: Employer remains active with dashboard CTA'
+    workSection.includes('ROUTES.FOR_EMPLOYERS'),
+  'HOME-UNLOCK-05: Employer remains active with public acquisition CTA'
 );
 
 const footer = read('components/layout/Footer.jsx');

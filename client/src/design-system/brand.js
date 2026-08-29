@@ -2,9 +2,11 @@
  * Strideto brand constants — single source for name, tagline, mission, asset paths.
  */
 export const BRAND_NAME = 'Strideto';
-export const BRAND_TAGLINE = 'Every Step Toward Success.';
+export const BRAND_TAGLINE = 'Opportunities for talent. Better hiring for employers.';
+export const BRAND_POSITIONING =
+  'STRIDETO connects students and early-career talent with jobs, internships, scholarships, and career resources while giving employers a dedicated workspace to publish opportunities and manage supported hiring workflows.';
 export const BRAND_MISSION =
-  'Help students and professionals discover jobs, scholarships, admissions, internships, career guidance, and opportunities through one modern platform.';
+  'Help students and early-career talent discover jobs, internships, scholarships, and career resources — and help employers publish opportunities and manage hiring through the STRIDETO employer workspace.';
 export const BRAND_DOMAIN = 'strideto.com';
 /** Canonical public origin — apex 308-redirects to www in production (SEO-P0A). */
 export const BRAND_SITE_URL = 'https://www.strideto.com';
@@ -41,6 +43,7 @@ export const BRAND_PERSONALITY = [
 export default {
   BRAND_NAME,
   BRAND_TAGLINE,
+  BRAND_POSITIONING,
   BRAND_MISSION,
   BRAND_DOMAIN,
   BRAND_SITE_URL,

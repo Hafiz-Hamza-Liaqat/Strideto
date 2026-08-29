@@ -163,20 +163,15 @@ export async function seedCmsSiteContent() {
       {
         status: 'draft',
         hero: {
-          headline: 'Find jobs, scholarships, admissions, and career resources worldwide',
-          subheadline: 'Discover jobs, scholarships, admissions, internships, and study opportunities — all in one place.',
+          headline: 'Opportunities for talent. Better hiring for employers.',
+          subheadline:
+            'Discover jobs, internships, scholarships, and career resources — or publish opportunities and manage hiring through the STRIDETO employer workspace.',
           ctas: [
-            { label: 'Jobs', url: '/jobs', style: 'secondary' },
-            { label: 'Scholarships', url: '/scholarships', style: 'secondary' },
-            { label: 'Admissions', url: '/admissions', style: 'secondary' },
-            { label: 'Internships', url: '/internships', style: 'secondary' },
+            { label: 'Explore Opportunities', url: '/jobs', style: 'primary' },
+            { label: 'For Employers', url: '/employers', style: 'secondary' },
           ],
         },
-        stats: [
-          { label: 'Jobs', value: '1000+', icon: 'briefcase' },
-          { label: 'Scholarships', value: '500+', icon: 'graduation-cap' },
-          { label: 'Admissions', value: '200+', icon: 'university' },
-        ],
+        stats: [],
         sections: {
           featuredJobs: { enabled: true, title: 'Trending Jobs', limit: 8 },
           featuredScholarships: { enabled: true, title: 'Latest Scholarships', limit: 6 },
