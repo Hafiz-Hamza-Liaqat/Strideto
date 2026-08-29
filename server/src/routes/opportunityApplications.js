@@ -21,6 +21,7 @@ import {
   requireOpportunityApplicationEnabled,
 } from '../controllers/career/opportunityApplicationController.js';
 import * as applicationCommunication from '../controllers/applicationCommunicationController.js';
+import * as applicationOffer from '../controllers/applicationOfferController.js';
 import { applicationCommunicationLimiter } from '../middleware/rateLimit.js';
 
 export const opportunityApplicationsRouter = Router();
@@ -60,4 +61,10 @@ opportunityApplicationsRouter.post(
   ...appAuth,
   applicationCommunicationLimiter,
   applicationCommunication.candidateRespondInterviewInvitation
+);
+opportunityApplicationsRouter.post(
+  '/applications/:id/offers/:offerId/respond',
+  ...appAuth,
+  applicationCommunicationLimiter,
+  applicationOffer.candidateRespondOffer
 );

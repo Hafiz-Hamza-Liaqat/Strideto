@@ -16,6 +16,7 @@ import {
 } from '../../components/employer/applicant/employerApplicantAnalytics';
 import { openEmployerApplicationResume } from '../../utils/employerApplicationResume';
 import { EmployerApplicationCommunication } from '../../components/applications/ApplicationCommunicationPanel';
+import { EmployerApplicationOfferSection } from '../../components/applications/ApplicationOfferPanel';
 
 function applicationDetailPath(id) {
   return `${ROUTES.EMPLOYER_APPLICATIONS}/${id}`;
@@ -258,6 +259,23 @@ export default function EmployerApplicationDetail() {
               </div>
             </section>
           ) : null}
+
+          <section
+            aria-labelledby="offer-heading"
+            className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-5"
+          >
+            <h2 id="offer-heading" className="text-sm font-semibold uppercase tracking-wide text-slate-500 mb-4">
+              {t('employer:offerSectionTitle')}
+            </h2>
+            <EmployerApplicationOfferSection
+              applicationId={application._id}
+              offerApi={{
+                list: (appId) => employerApi.listApplicationOffers(appId),
+                send: (appId, body) => employerApi.sendApplicationOffer(appId, body),
+                withdraw: (appId, offerId) => employerApi.withdrawApplicationOffer(appId, offerId),
+              }}
+            />
+          </section>
 
           <section
             aria-labelledby="communication-heading"

@@ -23,6 +23,7 @@ import { requireEmployerCapability } from '../services/employer/employerOrganiza
 import { EMPLOYER_CAPABILITIES as C } from '../../../shared/employer/team.js';
 import { applicationCommunicationLimiter } from '../middleware/rateLimit.js';
 import * as applicationCommunication from '../controllers/applicationCommunicationController.js';
+import * as applicationOffer from '../controllers/applicationOfferController.js';
 
 export const employerRouter = Router();
 
@@ -320,4 +321,27 @@ employerRouter.post(
   requireEmployerCapability(C.INTERVIEWS_WRITE),
   applicationCommunicationLimiter,
   applicationCommunication.employerCancelInterviewInvitation
+);
+employerRouter.get(
+  '/employer/applications/:id/offers',
+  requireAuth,
+  requireEmployerAuth,
+  requireEmployerCapability(C.APPLICATIONS_READ),
+  applicationOffer.employerListOffers
+);
+employerRouter.post(
+  '/employer/applications/:id/offers',
+  requireAuth,
+  requireEmployerAuth,
+  requireEmployerCapability(C.APPLICATIONS_WRITE),
+  applicationCommunicationLimiter,
+  applicationOffer.employerSendOffer
+);
+employerRouter.post(
+  '/employer/applications/:id/offers/:offerId/withdraw',
+  requireAuth,
+  requireEmployerAuth,
+  requireEmployerCapability(C.APPLICATIONS_WRITE),
+  applicationCommunicationLimiter,
+  applicationOffer.employerWithdrawOffer
 );

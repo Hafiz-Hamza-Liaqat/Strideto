@@ -38,6 +38,11 @@ const applicationMessageSchema = new mongoose.Schema(
       ref: 'ApplicationInterviewInvitation',
       default: null,
     },
+    applicationOfferId: {
+      type: mongoose.Schema.Types.ObjectId,
+      ref: 'ApplicationOffer',
+      default: null,
+    },
     clientMessageId: {
       type: String,
       trim: true,

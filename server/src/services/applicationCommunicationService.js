@@ -6,6 +6,7 @@ import mongoose from 'mongoose';
 import { Application } from '../models/Application.js';
 import { ApplicationMessage } from '../models/ApplicationMessage.js';
 import { ApplicationInterviewInvitation } from '../models/ApplicationInterviewInvitation.js';
+import { ApplicationOffer } from '../models/ApplicationOffer.js';
 import { OpportunityApplicationRepository } from '../repositories/career/OpportunityApplicationRepository.js';
 import { resolveJobApplyType } from './employerApplicationCounts.js';
 import { syncOpportunityApplicationFromLegacyStatus } from './employerOpportunityApplicationSync.js';
@@ -27,6 +28,8 @@ import { createUserNotificationOnce } from './notificationService.js';
 import { logAudit } from './auditService.js';
 import { emitCareerEvent } from './career/CareerEventBus.js';
 import { canTransition } from '../../../shared/career/applicationStageMachine.js';
+import { serializeOffer } from '../utils/applicationOfferView.js';
+import { persistExpiredSentOffers } from '../utils/applicationOfferLifecycle.js';
 
 const ZONE_LESS_DATE_TIME = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?$/;
 
@@ -125,6 +128,7 @@ function serializeMessage(doc) {
     messageType: doc.messageType,
     body: doc.body,
     interviewInvitationId: doc.interviewInvitationId || null,
+    applicationOfferId: doc.applicationOfferId || null,
     createdAt: doc.createdAt,
   };
 }
@@ -156,7 +160,9 @@ export async function listCommunication(applicationId, { page = 1, limit = APPLI
   const safePage = Math.max(1, Number(page) || 1);
   const skip = (safePage - 1) * safeLimit;
 
-  const [messages, total, activeInvitation] = await Promise.all([
+  await persistExpiredSentOffers(applicationId);
+
+  const [messages, total, activeInvitation, activeOffer] = await Promise.all([
     ApplicationMessage.find({ applicationId })
       .sort({ createdAt: 1, _id: 1 })
       .skip(skip)
@@ -170,15 +176,28 @@ export async function listCommunication(applicationId, { page = 1, limit = APPLI
     })
       .sort({ createdAt: -1 })
       .lean(),
+    ApplicationOffer.findOne({
+      applicationId,
+      status: { $in: ['sent', 'accepted', 'declined'] },
+      supersededBy: null,
+    })
+      .sort({ createdAt: -1 })
+      .lean(),
   ]);
 
   const invitationIds = messages
     .map((m) => m.interviewInvitationId)
     .filter(Boolean);
+  const offerIds = messages.map((m) => m.applicationOfferId).filter(Boolean);
   const invitationsById = new Map();
+  const offersById = new Map();
   if (invitationIds.length) {
     const rows = await ApplicationInterviewInvitation.find({ _id: { $in: invitationIds } }).lean();
     for (const row of rows) invitationsById.set(String(row._id), serializeInvitation(row));
+  }
+  if (offerIds.length) {
+    const rows = await ApplicationOffer.find({ _id: { $in: offerIds } }).lean();
+    for (const row of rows) offersById.set(String(row._id), serializeOffer(row));
   }
 
   return {
@@ -187,8 +206,12 @@ export async function listCommunication(applicationId, { page = 1, limit = APPLI
       interviewInvitation: m.interviewInvitationId
         ? invitationsById.get(String(m.interviewInvitationId)) || null
         : null,
+      applicationOffer: m.applicationOfferId
+        ? offersById.get(String(m.applicationOfferId)) || null
+        : null,
     })),
     activeInterviewInvitation: serializeInvitation(activeInvitation),
+    activeOffer: serializeOffer(activeOffer),
     pagination: {
       page: safePage,
       limit: safeLimit,

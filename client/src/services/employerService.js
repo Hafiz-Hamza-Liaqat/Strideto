@@ -147,6 +147,12 @@ export const employerApi = {
     employerAxios.post(
       `/employer/applications/${applicationId}/communication/interview-invitations/${invitationId}/cancel`
     ),
+  listApplicationOffers: (applicationId) =>
+    employerAxios.get(`/employer/applications/${applicationId}/offers`),
+  sendApplicationOffer: (applicationId, body) =>
+    employerAxios.post(`/employer/applications/${applicationId}/offers`, body),
+  withdrawApplicationOffer: (applicationId, offerId) =>
+    employerAxios.post(`/employer/applications/${applicationId}/offers/${offerId}/withdraw`),
   fetchApplicationResume: (applicationId) =>
     employerAxios.get(`/employer/applications/${applicationId}/resume`, { responseType: 'blob' }),
   updateApplicationStatus: (applicationId, status) =>

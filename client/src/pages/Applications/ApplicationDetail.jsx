@@ -14,6 +14,7 @@ import { ContactsPanel } from '../../components/applications/ContactsPanel';
 import { InterviewPanel } from '../../components/applications/InterviewPanel';
 import { ApplicationEditPanel } from '../../components/applications/ApplicationEditPanel';
 import { CandidateApplicationCommunication } from '../../components/applications/ApplicationCommunicationPanel';
+import { CandidateApplicationOfferSection } from '../../components/applications/ApplicationOfferPanel';
 import { ActivityFeed } from '../../components/timeline/ActivityFeed';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { isOpportunityApplicationEnabled } from '../../config/careerFeatureFlags';
@@ -92,6 +93,15 @@ export default function ApplicationDetail() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [archiving, setArchiving] = useState(false);
+  const [activeOffer, setActiveOffer] = useState(null);
+
+  const loadOffer = useCallback(() => {
+    if (!id) return Promise.resolve();
+    return applicationsApi.listCommunication(id).then(({ data }) => {
+      const payload = data.data || data;
+      setActiveOffer(payload.activeOffer || null);
+    });
+  }, [id]);
 
   const load = useCallback(() => {
     if (!isOpportunityApplicationEnabled() || !id) return Promise.resolve();
@@ -106,9 +116,10 @@ export default function ApplicationDetail() {
       return;
     }
     load()
+      .then(() => loadOffer())
       .catch((err) => setError(err.response?.data?.error || t('applications:loadError')))
       .finally(() => setLoading(false));
-  }, [id, t, load]);
+  }, [id, t, load, loadOffer]);
 
   async function afterMutation(promise) {
     await promise;
@@ -297,6 +308,20 @@ export default function ApplicationDetail() {
             }}
           />
         </Section>
+
+        {application.legacyApplicationId && activeOffer ? (
+          <Section title={t('applications:offerSectionTitle')} id="offer-heading">
+            <CandidateApplicationOfferSection
+              opportunityApplicationId={id}
+              activeOffer={activeOffer}
+              companyName={application.opportunityRef?.title || application.employerName || ''}
+              offerApi={{
+                respond: (oaId, offerId, body) => applicationsApi.respondApplicationOffer(oaId, offerId, body),
+              }}
+              onResponded={loadOffer}
+            />
+          </Section>
+        ) : null}
 
         {application.legacyApplicationId ? (
           <Section title={t('applications:communicationSectionTitle')} id="communication-heading">

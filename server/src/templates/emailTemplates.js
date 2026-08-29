@@ -421,6 +421,25 @@ const TEMPLATES = {
       text: `پیشکش: ${jobTitle}`,
     }),
   },
+  applicationOffer: {
+    en: ({ name, jobTitle, signInUrl }) => ({
+      subject: `${BRAND} – Offer for your application`,
+      html: layout({
+        title: 'Application offer',
+        bodyHtml: `<p>Hi ${name || 'there'},</p><p>You have received an offer for <strong>${jobTitle || 'your application'}</strong> on STRIDETO.</p>${signInUrl ? btn(signInUrl, 'View application') : ''}`,
+      }),
+      text: `You have received an offer for ${jobTitle || 'your application'} on STRIDETO.`,
+    }),
+    ur: ({ name, jobTitle, signInUrl }) => ({
+      subject: `${BRAND} – آپ کی درخواست کے لیے پیشکش`,
+      html: layout({
+        lang: 'ur',
+        title: 'درخواست کی پیشکش',
+        bodyHtml: `<p>${name || ''}،</p><p>آپ کو STRIDETO پر <strong>${jobTitle || 'اپنی درخواست'}</strong> کے لیے پیشکش موصول ہوئی ہے۔</p>${signInUrl ? btn(signInUrl, 'درخواست دیکھیں') : ''}`,
+      }),
+      text: `STRIDETO پر آپ کی درخواست کے لیے پیشکش موصول ہوئی۔`,
+    }),
+  },
   supportTicketUpdate: {
     en: ({ name, ticketNumber, subject }) => ({
       subject: `${BRAND} – Ticket ${ticketNumber} updated`,

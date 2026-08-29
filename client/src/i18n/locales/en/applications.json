@@ -240,5 +240,17 @@
   "communicationSendFailed": "Could not send message. Your draft is preserved.",
   "communicationLoadFailed": "Could not load messages.",
   "communicationInterviewResponseFailed": "Could not update interview response.",
-  "loading": "Loading…"
+  "loading": "Loading…",
+  "offerSectionTitle": "Offer",
+  "offerAcceptAction": "Accept offer",
+  "offerDeclineAction": "Decline offer",
+  "offerAccepted": "Offer accepted in STRIDETO.",
+  "offerDeclined": "Offer declined in STRIDETO.",
+  "offerResponseFailed": "Could not update offer response.",
+  "offerLegalHint": "Accepting or declining here records your response in STRIDETO only. It is not signing an employment contract.",
+  "offerAcceptConfirmTitle": "Accept this offer?",
+  "offerAcceptConfirmBody": "You are accepting this offer in STRIDETO. The employer may follow up with next steps separately.",
+  "offerDeclineConfirmTitle": "Decline this offer?",
+  "offerDeclineConfirmBody": "You are declining this offer in STRIDETO. Your application is not automatically rejected.",
+  "cancel": "Cancel"
 }

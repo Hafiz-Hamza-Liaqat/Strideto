@@ -24,6 +24,8 @@ export const applicationsApi = {
     axiosInstance.post(`/applications/${id}/communication/messages`, body),
   respondInterviewInvitation: (id, invitationId, body) =>
     axiosInstance.post(`/applications/${id}/communication/interview-invitations/${invitationId}/respond`, body),
+  respondApplicationOffer: (id, offerId, body) =>
+    axiosInstance.post(`/applications/${id}/offers/${offerId}/respond`, body),
 };
 
 /** Internal Institution admissions (Phase 6). User realm only. */
