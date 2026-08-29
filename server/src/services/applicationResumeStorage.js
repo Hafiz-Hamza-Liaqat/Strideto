@@ -16,10 +16,21 @@ export const PRIVATE_APPLICATION_RESUME_DIR = path.resolve(__dirname, '../../pri
 
 let cloudinary = null;
 
+/** @returns {boolean} All Cloudinary credentials required for private application resume storage. */
+export function isApplicationResumeCloudinaryConfigured() {
+  const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } = process.env;
+  return !!(CLOUDINARY_CLOUD_NAME && CLOUDINARY_API_KEY && CLOUDINARY_API_SECRET);
+}
+
+/** Test-only: reset cached Cloudinary client after env changes. */
+export function __resetApplicationResumeCloudinaryCacheForTests() {
+  cloudinary = null;
+}
+
 async function getCloudinary() {
   if (cloudinary) return cloudinary;
+  if (!isApplicationResumeCloudinaryConfigured()) return null;
   const { CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, CLOUDINARY_API_SECRET } = process.env;
-  if (!CLOUDINARY_CLOUD_NAME || !CLOUDINARY_API_KEY || !CLOUDINARY_API_SECRET) return null;
   const mod = await import('cloudinary');
   const v2 = mod.v2 || mod.default?.v2;
   v2.config({
@@ -104,6 +115,14 @@ export async function uploadApplicationResumeFile({ buffer, originalname, mimety
       resumeURL: `${PRIVATE_CLOUDINARY_PREFIX}${result.public_id}`,
       resumeSource: 'upload',
     };
+  }
+
+  if (process.env.NODE_ENV === 'production') {
+    const err = new Error(
+      'Application resume storage is not configured. Set CLOUDINARY_CLOUD_NAME, CLOUDINARY_API_KEY, and CLOUDINARY_API_SECRET in production.'
+    );
+    err.code = 'APPLICATION_RESUME_STORAGE_NOT_CONFIGURED';
+    throw err;
   }
 
   await fs.mkdir(PRIVATE_APPLICATION_RESUME_DIR, { recursive: true });
