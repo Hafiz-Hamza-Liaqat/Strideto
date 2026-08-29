@@ -50,6 +50,7 @@ yarn-error.log*
 *.bak
 backups/
 server/uploads/
+server/private-storage/
 
 # IDE / OS
 .idea/

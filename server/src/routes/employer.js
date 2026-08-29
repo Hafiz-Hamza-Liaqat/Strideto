@@ -269,6 +269,18 @@ employerRouter.get(
   requireEmployerAuth,
   employer.getJobAnalytics
 );
+employerRouter.get(
+  '/employer/applications/:id',
+  requireAuth,
+  requireEmployerAuth,
+  employer.getApplicationDetail
+);
+employerRouter.get(
+  '/employer/applications/:id/resume',
+  requireAuth,
+  requireEmployerAuth,
+  employer.getApplicationResume
+);
 employerRouter.patch(
   '/employer/applications/:id',
   requireAuth,

@@ -3,7 +3,7 @@ import { Job } from '../models/Job.js';
 import { User } from '../models/User.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { awardBadge } from './badgesController.js';
-import { uploadFile } from '../services/storageService.js';
+import { uploadApplicationResumeFile } from '../services/applicationResumeStorage.js';
 import { validateResumeBuffer } from '../utils/fileValidation.js';
 import { stripAllHtml } from '../utils/htmlSanitize.js';
 import { onJobApplication } from '../services/automationService.js';
@@ -22,14 +22,13 @@ export const applyToJob = asyncHandler(async (req, res) => {
 
   if (req.file?.buffer) {
     await validateResumeBuffer(req.file.buffer, req.file.mimetype);
-    const uploaded = await uploadFile({
+    const uploaded = await uploadApplicationResumeFile({
       buffer: req.file.buffer,
       originalname: req.file.originalname,
       mimetype: req.file.mimetype,
-      folder: 'applications',
     });
-    resumeURL = uploaded.url;
-    resumeSource = 'upload';
+    resumeURL = uploaded.resumeURL;
+    resumeSource = uploaded.resumeSource;
   } else {
     const useProfileResume = req.body?.useProfileResume !== '0' && req.body?.useProfileResume !== false;
     const resolved = await TalentProfileReadService.resolveResumeUrlForApply(userId, {

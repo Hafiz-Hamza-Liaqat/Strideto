@@ -62,6 +62,7 @@ export const ROUTES = {
   EMPLOYER_POST_JOB: '/employer/jobs/new',
   EMPLOYER_EDIT_JOB: '/employer/jobs/:jobId/edit',
   EMPLOYER_APPLICATIONS: '/employer/applications',
+  EMPLOYER_APPLICATION_DETAIL: '/employer/applications/:applicationId',
   EMPLOYER_ANALYTICS: '/employer/analytics',
   EMPLOYER_SETTINGS: '/employer/settings',
   EMPLOYER_NOTIFICATIONS: '/employer/notifications',

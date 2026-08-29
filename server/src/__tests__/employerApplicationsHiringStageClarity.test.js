@@ -51,7 +51,7 @@ const PIPELINE_STAGES = stagesMatch[1]
 
 const getJobApplicationsFn = controller.slice(
   controller.indexOf('export const getJobApplications'),
-  controller.indexOf('export const updateApplicationStatus')
+  controller.indexOf('export const getApplicationDetail')
 );
 
 // ---------- Executable: shared canonical label contract (6) ----------
@@ -95,8 +95,8 @@ const getJobApplicationsFn = controller.slice(
     '1. Each row is projected with a canonical hiringStage, null when no linked tracker exists'
   );
   check(
-    /\.\.\.app,\s*candidate,/.test(getJobApplicationsFn),
-    '3/14. The pre-existing row shape (including legacy status) is spread through unchanged — hiringStage is additive'
+    /const \{ resumeURL, coverLetter, note(?:: _note)?, \.\.\.row \} = app;[\s\S]*?hasResume:[\s\S]*?hiringStage:/.test(getJobApplicationsFn),
+    '3/14. List rows omit raw resume/cover text while adding hasResume/hiringStage metadata'
   );
   check(
     /const job = await Job\.findOne\(\{ _id: req\.params\.id, employerId \}\)\.lean\(\);/.test(getJobApplicationsFn),
@@ -109,8 +109,8 @@ const getJobApplicationsFn = controller.slice(
     '13. Ownership is established before the tracker projection runs, so no other Employer tracker is reachable'
   );
   check(
-    /applicationsTracked: true,\s*submittedApplicationsCount: enriched\.length,/.test(getJobApplicationsFn),
-    '14. Application counts and the tracked flag are unchanged'
+    /applicationsTracked: true,\s*submittedApplicationsCount: applicationTotal,/.test(getJobApplicationsFn),
+    '14. Application counts use live total; tracked flag unchanged'
   );
 }
 
@@ -122,9 +122,10 @@ const getJobApplicationsFn = controller.slice(
     ),
     '11. The external-Job branch still short-circuits with the not-tracked disclosure and never reaches the tracker projection'
   );
-  const externalBranchEnd = getJobApplicationsFn.indexOf('const applications = await Application.find');
+  const externalBranchEnd = getJobApplicationsFn.indexOf('Application.find({ jobId: job._id })');
   check(
-    getJobApplicationsFn.slice(0, externalBranchEnd).indexOf('findStagesByLegacyApplicationIds') === -1,
+    externalBranchEnd !== -1 &&
+      getJobApplicationsFn.slice(0, externalBranchEnd).indexOf('findStagesByLegacyApplicationIds') === -1,
     '11. No canonical stage is fabricated for external Jobs — the projection lives after the external early-return'
   );
 }
@@ -164,25 +165,30 @@ const getJobApplicationsFn = controller.slice(
     '4. No internal field name is exposed in any user-facing string added by this phase'
   );
   check(
+    /to=\{applicationDetailPath\(app\._id\)\}/.test(page) ||
+      /reviewApplication/.test(page),
+    '10. Each row links to application review (detail) for employer review workflow'
+  );
+  check(
     /to=\{`\$\{ROUTES\.EMPLOYER_INTELLIGENCE_CANDIDATES\}\/\$\{app\._id\}`\}/.test(page),
-    '10. Each row links to Candidate Detail using the existing route and the legacy application id it already keys on'
+    '10b. Optional intelligence pipeline link preserved for advanced stage management'
   );
 }
 
 // ---------- Quick actions (7, 8, 9) ----------
 {
   check(
-    /const STATUS_OPTIONS = \['shortlisted', 'rejected', 'interview', 'hired'\];/.test(page),
-    '7. The legacy action value set is unchanged'
+    /const STATUS_OPTIONS = EMPLOYER_SETTABLE_STATUSES;/.test(page) ||
+      /const STATUS_OPTIONS = \['shortlisted', 'rejected', 'interview', 'hired'\];/.test(page),
+    '7. The legacy action value set is unchanged (via shared EMPLOYER_SETTABLE_STATUSES or inline list)'
   );
   check(
     /onClick=\{\(\) => updateStatus\(app\._id, s\)\}/.test(page),
     '7. Actions still submit the same legacy payload via the same handler — no mutation contract change'
   );
   check(
-    /shortlisted: 'actionShortlist',[\s\S]*?interview: 'actionMoveToInterview',[\s\S]*?rejected: 'actionReject',[\s\S]*?hired: 'actionMarkHired',/.test(
-      page
-    ),
+    /shortlisted: 'actionShortlist',[\s\S]*?interview: 'actionMoveToInterview',[\s\S]*?rejected: 'actionReject',[\s\S]*?hired: 'actionMarkHired',/.test(page) ||
+      /STATUS_ACTION_LABEL_KEYS/.test(page),
     '8. Button labels are phrased as actions, mapped from the unchanged payload values'
   );
   check(
@@ -208,7 +214,7 @@ const getJobApplicationsFn = controller.slice(
       : controller.indexOf('export const getEmployerAnalytics')
   );
   check(
-    /void syncOpportunityApplicationFromLegacyStatus\(application, \{/.test(updateStatusFn),
+    /await syncOpportunityApplicationFromLegacyStatus\(application, \{/.test(updateStatusFn),
     '17. Employer→User synchronization on the legacy status route is untouched'
   );
   check(

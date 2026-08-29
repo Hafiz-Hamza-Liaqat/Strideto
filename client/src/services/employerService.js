@@ -136,6 +136,9 @@ export const employerApi = {
   activateJob: (id, body) => employerAxios.post(`/employer/jobs/${id}/activate`, body),
   createCheckout: (id, body) => employerAxios.post(`/employer/jobs/${id}/checkout`, body),
   getJobApplications: (jobId) => employerAxios.get(`/employer/jobs/${jobId}/applications`),
+  getApplication: (applicationId) => employerAxios.get(`/employer/applications/${applicationId}`),
+  fetchApplicationResume: (applicationId) =>
+    employerAxios.get(`/employer/applications/${applicationId}/resume`, { responseType: 'blob' }),
   updateApplicationStatus: (applicationId, status) =>
     employerAxios.patch(`/employer/applications/${applicationId}`, { status }),
   jobAnalytics: (jobId) => employerAxios.get(`/employer/analytics/${jobId}`),

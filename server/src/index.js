@@ -79,9 +79,13 @@ app.use((req, res, next) => {
 });
 app.use('/api', apiLimiter);
 
-app.use('/uploads', (_req, res, next) => {
+app.use('/uploads', (req, res, next) => {
   res.setHeader('X-Content-Type-Options', 'nosniff');
   res.setHeader('Cross-Origin-Resource-Policy', 'cross-origin');
+  // Application resumes are stored under server/private-storage (not mounted here).
+  if (/^\/private(?:\/|$)/i.test(req.path)) {
+    return res.status(404).end();
+  }
   next();
 }, express.static(path.join(__dirname, '../uploads'), {
   dotfiles: 'deny',

@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { createReadStream } from 'fs';
 import { Job } from '../models/Job.js';
 import { Application } from '../models/Application.js';
 import { onApplicationStatusChange, onJobSubmitted } from '../services/automationService.js';
@@ -14,6 +15,8 @@ import { enrichEmployerJobsWithApplicationCounts, resolveJobApplyType } from '..
 import { validateApplicationLink, validateApplyEmail } from '../utils/jobApplicationDestination.js';
 import { computeEmployerDashboardMetrics } from '../services/employerDashboardMetrics.js';
 import { syncOpportunityApplicationFromLegacyStatus } from '../services/employerOpportunityApplicationSync.js';
+import { resolveEmployerApplicationResumeAccess } from '../services/applicationResumeStorage.js';
+import { mapLegacyApplicationStatus } from '../../../shared/career/migrationMap.js';
 import { OpportunityApplicationRepository } from '../repositories/career/OpportunityApplicationRepository.js';
 import { buildEmployerProfileUpdates } from '../utils/employerProfileValidation.js';
 import { isSameStatusNoOp } from '../utils/applicationStatusTransition.js';
@@ -650,8 +653,11 @@ export const getJobApplications = asyncHandler(async (req, res) => {
   );
   const enriched = applications.map((app) => {
       const userId = app.userId?._id || app.userId;
+      const { resumeURL, coverLetter, note: _note, ...row } = app;
       return {
-        ...app,
+        ...row,
+        hasResume: Boolean(resumeURL),
+        hasCoverLetter: Boolean(coverLetter?.trim()),
         candidate: userId ? candidateByUserId.get(String(userId)) || null : null,
         hiringStage: stageByLegacyId.get(String(app._id)) || null,
       };
@@ -668,6 +674,105 @@ export const getJobApplications = asyncHandler(async (req, res) => {
   });
 });
 
+/** GET /employer/applications/:id - Single application for employer review */
+export const getApplicationDetail = asyncHandler(async (req, res) => {
+  if (invalidObjectId(req.params.id)) return res.status(404).json({ error: 'Application not found' });
+  const employerId = scopeEmployerId(req);
+  const application = await Application.findById(req.params.id)
+    .populate('userId', 'name email')
+    .populate('jobId')
+    .lean();
+  if (!application?.jobId || application.jobId.employerId?.toString() !== String(employerId)) {
+    return res.status(404).json({ error: 'Application not found' });
+  }
+
+  const job = application.jobId;
+  const applyType = resolveJobApplyType(job);
+  if (applyType === 'external') {
+    return res.status(404).json({ error: 'Application not found' });
+  }
+
+  const stageRows = await OpportunityApplicationRepository.findStagesByLegacyApplicationIds([application._id]);
+  const hiringStage = stageRows[0]?.pipelineStage || null;
+
+  const userId = application.userId?._id || application.userId;
+  const candidateByUserId = userId
+    ? await TalentProfileReadService.getCandidateCardsForUsers([userId])
+    : new Map();
+  const candidate = userId ? candidateByUserId.get(String(userId)) || null : null;
+
+  const jobMeta = {
+    _id: job._id,
+    title: job.title,
+    applyType,
+    status: job.status,
+    approvalStatus: job.approvalStatus,
+  };
+
+  res.json({
+    data: {
+      _id: application._id,
+      status: application.status,
+      hiringStage,
+      appliedDate: application.appliedDate,
+      createdAt: application.createdAt,
+      coverLetter: application.coverLetter || null,
+      note: application.note || null,
+      resumeSource: application.resumeSource || 'none',
+      hasResume: Boolean(application.resumeURL),
+      hasCoverLetter: Boolean(application.coverLetter?.trim()),
+      skillSnapshot: application.skillSnapshot || null,
+      userId: application.userId,
+      candidate,
+      jobId: job._id,
+    },
+    job: jobMeta,
+    applicationsTracked: true,
+  });
+});
+
+/** GET /employer/applications/:id/resume — Authorized resume access (no raw URL in JSON) */
+export const getApplicationResume = asyncHandler(async (req, res) => {
+  if (invalidObjectId(req.params.id)) return res.status(404).json({ error: 'Application not found' });
+  const employerId = scopeEmployerId(req);
+  const application = await Application.findById(req.params.id).populate('jobId');
+  if (!application || application.jobId?.employerId?.toString() !== String(employerId)) {
+    return res.status(404).json({ error: 'Application not found' });
+  }
+  if (resolveJobApplyType(application.jobId) === 'external') {
+    return res.status(404).json({ error: 'Application not found' });
+  }
+
+  const access = await resolveEmployerApplicationResumeAccess(application);
+  if (!access.ok) {
+    return res.status(404).json({ error: 'No resume was submitted with this application' });
+  }
+
+  if (access.mode === 'local_stream') {
+    res.setHeader('Content-Type', access.contentType);
+    res.setHeader('Content-Disposition', 'inline; filename="resume"');
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    createReadStream(access.filepath).pipe(res);
+    return;
+  }
+
+  if (access.mode === 'remote_stream') {
+    const upstream = await fetch(access.url);
+    if (!upstream.ok) {
+      return res.status(404).json({ error: 'No resume was submitted with this application' });
+    }
+    const buffer = Buffer.from(await upstream.arrayBuffer());
+    res.setHeader('Content-Type', access.contentType || upstream.headers.get('content-type') || 'application/octet-stream');
+    res.setHeader('Content-Disposition', 'inline; filename="resume"');
+    res.setHeader('Cache-Control', 'private, no-store');
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    return res.send(buffer);
+  }
+
+  return res.status(404).json({ error: 'No resume was submitted with this application' });
+});
+
 /** PATCH /employer/applications/:id - Update application status (shortlist, reject, interview, hired) */
 export const updateApplicationStatus = asyncHandler(async (req, res) => {
   if (invalidObjectId(req.params.id)) return res.status(404).json({ error: 'Application not found' });
@@ -676,6 +781,15 @@ export const updateApplicationStatus = asyncHandler(async (req, res) => {
   if (!application || application.jobId?.employerId?.toString() !== String(employerId)) {
     return res.status(404).json({ error: 'Application not found' });
   }
+
+  const ALLOWED_BODY_KEYS = new Set(['status']);
+  const unexpectedKeys = Object.keys(req.body || {}).filter(
+    (key) => req.body[key] !== undefined && !ALLOWED_BODY_KEYS.has(key)
+  );
+  if (unexpectedKeys.length > 0) {
+    return res.status(400).json({ error: 'Only application status may be updated' });
+  }
+
   const { status } = req.body;
   const allowed = ['shortlisted', 'rejected', 'interview', 'hired'];
   if (!status || !allowed.includes(status)) {
@@ -695,11 +809,17 @@ export const updateApplicationStatus = asyncHandler(async (req, res) => {
   application.status = status;
   await application.save();
 
-  void syncOpportunityApplicationFromLegacyStatus(application, {
+  const syncResult = await syncOpportunityApplicationFromLegacyStatus(application, {
     employerId,
     previousStatus,
     newStatus: status,
   });
+
+  const stageRows = await OpportunityApplicationRepository.findStagesByLegacyApplicationIds([
+    application._id,
+  ]);
+  const hiringStage =
+    stageRows[0]?.pipelineStage || mapLegacyApplicationStatus(status);
 
   onApplicationStatusChange({
     applicationId: application._id,
@@ -709,7 +829,12 @@ export const updateApplicationStatus = asyncHandler(async (req, res) => {
     interviewWhen: req.body?.interviewWhen,
     interviewLink: req.body?.interviewLink,
   }).catch(() => {});
-  res.json({ application });
+
+  res.json({
+    application,
+    hiringStage,
+    syncOk: syncResult.ok,
+  });
 });
 
 /** GET /employer/analytics/:jobId - Analytics for one job */
