@@ -34,7 +34,11 @@ export function StageTimeline({ history = [], className = '' }) {
             {formatApplicationDate(entry.at, i18n.language, { time: true })}
           </time>
           {entry.reason && (
-            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">{entry.reason}</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mt-1">
+              {t(`applications:stageHistoryReasons.${entry.reason}`, {
+                defaultValue: entry.reason,
+              })}
+            </p>
           )}
         </li>
       ))}

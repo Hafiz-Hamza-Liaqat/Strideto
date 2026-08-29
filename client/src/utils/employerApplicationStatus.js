@@ -21,3 +21,10 @@ export const STATUS_ACTION_LABEL_KEYS = {
 
 /** Statuses that notify the candidate when changed (server onApplicationStatusChange). */
 export const CANDIDATE_NOTIFIED_STATUSES = new Set(['shortlisted', 'rejected', 'interview', 'hired']);
+
+export {
+  isReconsiderationTransition,
+  isHiredReopenTransition,
+  requiresEmployerStatusConfirmation,
+  isClosedLegacyStatus,
+} from '@shared/employer/applicationStatusTransition.js';

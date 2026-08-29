@@ -203,7 +203,7 @@ export function interviewInvitationDedupKey(applicationId, appointment = {}) {
   return `email:interview:${applicationId}:${iso}:${digest}`;
 }
 
-export async function onApplicationStatusChange({ applicationId, userId, status, jobTitle, interviewWhen, interviewLink, interviewMode, interviewLocation, interviewTimeZone, notify = true }) {
+export async function onApplicationStatusChange({ applicationId, userId, status, previousStatus, jobTitle, interviewWhen, interviewLink, interviewMode, interviewLocation, interviewTimeZone, notify = true, reconsidered = false, historySequence = null }) {
   // PF-EMP-INT-B1: an appointment exists only when a real datetime was supplied.
   // Reaching the interview stage is not the same as having an interview booked,
   // so invitation wording is reserved for the case where one actually is.
@@ -217,25 +217,53 @@ export async function onApplicationStatusChange({ applicationId, userId, status,
   // true, so the legacy Applications PATCH path and every existing caller behave
   // byte-identically.
   if (notify) {
+    const statusLabels = {
+      shortlisted: 'Screening',
+      rejected: 'Not selected',
+      interview: 'Interview',
+      hired: 'Hired',
+    };
+    const statusLabel = statusLabels[status] || status;
+
     const titles = {
-      shortlisted: `Shortlisted for ${jobTitle}`,
+      shortlisted: reconsidered ? `Application reconsidered: ${jobTitle}` : `Shortlisted for ${jobTitle}`,
       rejected: `Update on ${jobTitle}`,
       interview: hasAppointment
         ? `Interview invitation: ${jobTitle}`
-        : `Moved to interview stage: ${jobTitle}`,
+        : reconsidered
+          ? `Application reconsidered: ${jobTitle}`
+          : `Moved to interview stage: ${jobTitle}`,
       hired: `Offer for ${jobTitle}`,
     };
 
+    const bodies = {
+      shortlisted: reconsidered
+        ? `An employer has reconsidered your application. Your status is now: ${statusLabel}.`
+        : `Your application status is now: ${statusLabel}.`,
+      rejected: `Your application status is now: ${statusLabel}.`,
+      interview: reconsidered
+        ? `An employer has reconsidered your application. Your status is now: ${statusLabel}.`
+        : `Your application status is now: ${statusLabel}.`,
+      hired: `Your application status is now: ${statusLabel}.`,
+    };
+
+    const dedupSuffix =
+      historySequence != null
+        ? String(historySequence)
+        : previousStatus
+          ? `${previousStatus}->${status}`
+          : status;
+
     await queueNotification({
-      dedupKey: `application:status:${applicationId}:${status}`,
+      dedupKey: `application:status:${applicationId}:${dedupSuffix}`,
       recipientType: 'user',
       userId,
       category: status === 'interview' ? 'interview' : 'application',
-      type: `application.${status}`,
+      type: reconsidered ? 'application.reconsidered' : `application.${status}`,
       title: titles[status] || `Application update: ${jobTitle}`,
-      body: `Your application status is now: ${status}.`,
+      body: bodies[status] || `Your application status is now: ${statusLabel}.`,
       link: '/dashboard',
-      metadata: { applicationId, status },
+      metadata: { applicationId, status, previousStatus: previousStatus || null, reconsidered: !!reconsidered },
     });
 
     // PF-EMP-INT-B1: only invite to an interview that actually has a time. A bare

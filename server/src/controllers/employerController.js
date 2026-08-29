@@ -19,7 +19,16 @@ import { resolveEmployerApplicationResumeAccess } from '../services/applicationR
 import { mapLegacyApplicationStatus } from '../../../shared/career/migrationMap.js';
 import { OpportunityApplicationRepository } from '../repositories/career/OpportunityApplicationRepository.js';
 import { buildEmployerProfileUpdates } from '../utils/employerProfileValidation.js';
-import { isSameStatusNoOp } from '../utils/applicationStatusTransition.js';
+import {
+  isSameStatusNoOp,
+  canTransitionApplicationStatus,
+  isReconsiderationTransition,
+  isHiredReopenTransition,
+  resolveEmployerStatusSyncReason,
+  HIRING_REOPEN_REQUIRED_CODE,
+} from '../utils/applicationStatusTransition.js';
+import { logAudit } from '../services/auditService.js';
+import { OpportunityApplication } from '../models/career/OpportunityApplication.js';
 import { parseOpeningsCount } from '../../../shared/employer/openingsCount.js';
 import { normalizeCountryCode } from '../../../shared/international/country.js';
 import { normalizeCurrency } from '../../../shared/international/currency.js';
@@ -692,8 +701,18 @@ export const getApplicationDetail = asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Application not found' });
   }
 
-  const stageRows = await OpportunityApplicationRepository.findStagesByLegacyApplicationIds([application._id]);
-  const hiringStage = stageRows[0]?.pipelineStage || null;
+  const oaDoc = await OpportunityApplication.findOne({ legacyApplicationId: application._id })
+    .select('pipelineStage stageHistory')
+    .lean();
+  const hiringStage = oaDoc?.pipelineStage || null;
+  const stageHistory = (oaDoc?.stageHistory || []).map((entry) => ({
+    _id: entry._id,
+    fromStage: entry.fromStage,
+    toStage: entry.toStage,
+    at: entry.at,
+    reason: entry.reason || '',
+    byActorType: entry.byActorType,
+  }));
 
   const userId = application.userId?._id || application.userId;
   const candidateByUserId = userId
@@ -725,6 +744,7 @@ export const getApplicationDetail = asyncHandler(async (req, res) => {
       userId: application.userId,
       candidate,
       jobId: job._id,
+      stageHistory,
     },
     job: jobMeta,
     applicationsTracked: true,
@@ -782,7 +802,7 @@ export const updateApplicationStatus = asyncHandler(async (req, res) => {
     return res.status(404).json({ error: 'Application not found' });
   }
 
-  const ALLOWED_BODY_KEYS = new Set(['status']);
+  const ALLOWED_BODY_KEYS = new Set(['status', 'confirmReopen']);
   const unexpectedKeys = Object.keys(req.body || {}).filter(
     (key) => req.body[key] !== undefined && !ALLOWED_BODY_KEYS.has(key)
   );
@@ -791,11 +811,23 @@ export const updateApplicationStatus = asyncHandler(async (req, res) => {
   }
 
   const { status } = req.body;
+  const confirmReopen = req.body?.confirmReopen === true;
   const allowed = ['shortlisted', 'rejected', 'interview', 'hired'];
   if (!status || !allowed.includes(status)) {
     return res.status(400).json({ error: 'Invalid status. Use: ' + allowed.join(', ') });
   }
   const previousStatus = application.status;
+
+  if (isHiredReopenTransition(previousStatus, status) && !confirmReopen) {
+    return res.status(400).json({
+      error: 'Reopening a hired application requires confirmReopen: true',
+      code: HIRING_REOPEN_REQUIRED_CODE,
+    });
+  }
+
+  if (!canTransitionApplicationStatus(previousStatus, status, { confirmReopen })) {
+    return res.status(400).json({ error: 'Invalid status transition' });
+  }
 
   // Same-status idempotency: a repeated update to the status the application is
   // already in must be a server-side no-op — no write, no tracker sync, no
@@ -805,6 +837,14 @@ export const updateApplicationStatus = asyncHandler(async (req, res) => {
     return res.json({ application, unchanged: true });
   }
 
+  const oaBefore = await OpportunityApplication.findOne({ legacyApplicationId: application._id })
+    .select('stageHistory')
+    .lean();
+  const historySequence = (oaBefore?.stageHistory?.length || 0) + 1;
+  const syncReason = resolveEmployerStatusSyncReason(previousStatus, status);
+  const reconsidered = isReconsiderationTransition(previousStatus, status);
+  const reopened = isHiredReopenTransition(previousStatus, status);
+
   // Keep user OpportunityApplication tracker in sync when dual-write exists (best-effort)
   application.status = status;
   await application.save();
@@ -813,27 +853,61 @@ export const updateApplicationStatus = asyncHandler(async (req, res) => {
     employerId,
     previousStatus,
     newStatus: status,
+    reason: syncReason,
+    metadata: reconsidered ? { reconsidered: true } : reopened ? { reopened: true } : {},
   });
 
-  const stageRows = await OpportunityApplicationRepository.findStagesByLegacyApplicationIds([
-    application._id,
-  ]);
-  const hiringStage =
-    stageRows[0]?.pipelineStage || mapLegacyApplicationStatus(status);
+  const oaAfter = await OpportunityApplication.findOne({ legacyApplicationId: application._id })
+    .select('pipelineStage stageHistory')
+    .lean();
+  const hiringStage = oaAfter?.pipelineStage || mapLegacyApplicationStatus(status);
+  const stageHistory = (oaAfter?.stageHistory || []).map((entry) => ({
+    _id: entry._id,
+    fromStage: entry.fromStage,
+    toStage: entry.toStage,
+    at: entry.at,
+    reason: entry.reason || '',
+    byActorType: entry.byActorType,
+  }));
+
+  const auditIp =
+    req.headers?.['x-forwarded-for']?.split(',')[0]?.trim() || req.socket?.remoteAddress || '';
+  await logAudit({
+    actor: { employerId, role: 'employer' },
+    action: reconsidered
+      ? 'application.reconsidered'
+      : reopened
+        ? 'application.reopened'
+        : 'application.status_updated',
+    targetType: 'application',
+    targetId: application._id,
+    ip: auditIp,
+    metadata: {
+      fromStatus: previousStatus,
+      toStatus: status,
+      historySequence,
+    },
+  });
 
   onApplicationStatusChange({
     applicationId: application._id,
     userId: application.userId,
     status,
+    previousStatus,
     jobTitle: application.jobId?.title || 'Job',
     interviewWhen: req.body?.interviewWhen,
     interviewLink: req.body?.interviewLink,
+    reconsidered,
+    historySequence,
   }).catch(() => {});
 
   res.json({
     application,
     hiringStage,
+    stageHistory,
     syncOk: syncResult.ok,
+    reconsidered,
+    reopened,
   });
 });
 

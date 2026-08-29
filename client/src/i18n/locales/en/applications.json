@@ -183,6 +183,11 @@
     "archive": "Archive application",
     "archiveError": "Could not archive application"
   },
+  "stageHistoryReasons": {
+    "employer_reconsideration": "Applicant reconsidered",
+    "employer_reopen": "Application reopened",
+    "employer_status_update": "Status updated by employer"
+  },
   "detail": {
     "currentStage": "Current stage",
     "appliedAt": "Applied on",

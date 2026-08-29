@@ -9,7 +9,11 @@ import {
   EMPLOYER_SETTABLE_STATUSES,
   STATUS_ACTION_LABEL_KEYS,
   LEGACY_STATUS_LABEL_KEYS,
+  requiresEmployerStatusConfirmation,
+  isReconsiderationTransition,
+  isHiredReopenTransition,
 } from '../../utils/employerApplicationStatus';
+import { StageTimeline } from '../../components/applications/StageTimeline';
 import {
   trackEmployerApplicantEvent,
   EMPLOYER_APPLICANT_ACTIONS,
@@ -33,6 +37,7 @@ export default function EmployerApplicationDetail() {
   const [statusSuccess, setStatusSuccess] = useState('');
   const [resumeError, setResumeError] = useState('');
   const [pendingStatus, setPendingStatus] = useState(null);
+  const [pendingConfirmKind, setPendingConfirmKind] = useState(null);
   const [statusUpdating, setStatusUpdating] = useState(false);
   const openedRef = useRef(false);
 
@@ -78,7 +83,10 @@ export default function EmployerApplicationDetail() {
   useEffect(() => {
     if (!pendingStatus) return undefined;
     const onKey = (e) => {
-      if (e.key === 'Escape') setPendingStatus(null);
+      if (e.key === 'Escape') {
+        setPendingStatus(null);
+        setPendingConfirmKind(null);
+      }
     };
     document.addEventListener('keydown', onKey);
     return () => document.removeEventListener('keydown', onKey);
@@ -100,24 +108,40 @@ export default function EmployerApplicationDetail() {
       statusTo: status,
     });
     try {
-      const { data } = await employerApi.updateApplicationStatus(application._id, status);
+      const needsReopenConfirm = isHiredReopenTransition(previousStatus, status);
+      const { data } = await employerApi.updateApplicationStatus(application._id, status, {
+        confirmReopen: needsReopenConfirm,
+      });
       const nextStatus = data.application?.status || status;
       const nextStage = data.hiringStage ?? application.hiringStage;
+      const nextHistory = data.stageHistory ?? application.stageHistory;
       setApplication((prev) =>
-        prev ? { ...prev, status: nextStatus, hiringStage: nextStage } : prev
+        prev
+          ? {
+              ...prev,
+              status: nextStatus,
+              hiringStage: nextStage,
+              stageHistory: nextHistory,
+            }
+          : prev
       );
       setStatusSuccess(t('employer:statusUpdateSuccess'));
-      trackEmployerApplicantEvent(EMPLOYER_APPLICANT_ACTIONS.STATUS_UPDATED, {
-        surface: 'application_detail',
-        statusFrom: previousStatus,
-        statusTo: nextStatus,
-      });
+      const reconsidered = Boolean(data.reconsidered) || isReconsiderationTransition(previousStatus, nextStatus);
+      trackEmployerApplicantEvent(
+        reconsidered ? EMPLOYER_APPLICANT_ACTIONS.APPLICATION_RECONSIDERED : EMPLOYER_APPLICANT_ACTIONS.STATUS_UPDATED,
+        {
+          surface: 'application_detail',
+          statusFrom: previousStatus,
+          statusTo: nextStatus,
+        }
+      );
       loadDetail();
     } catch (err) {
       setStatusError(err.response?.data?.error || t('employer:statusUpdateFailed'));
     } finally {
       setStatusUpdating(false);
       setPendingStatus(null);
+      setPendingConfirmKind(null);
     }
   };
 
@@ -125,6 +149,14 @@ export default function EmployerApplicationDetail() {
     if (application?.status === status) return;
     if (status === 'rejected') {
       setPendingStatus(status);
+      setPendingConfirmKind('reject');
+      return;
+    }
+    if (requiresEmployerStatusConfirmation(application.status, status)) {
+      setPendingStatus(status);
+      setPendingConfirmKind(
+        isHiredReopenTransition(application.status, status) ? 'reopen' : 'reconsider'
+      );
       return;
     }
     performStatusUpdate(status);
@@ -337,20 +369,39 @@ export default function EmployerApplicationDetail() {
             <div>
               <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">{t('employer:updateStatus')}</p>
               <div className="flex flex-col gap-2">
-                {EMPLOYER_SETTABLE_STATUSES.map((s) => (
-                  <button
-                    key={s}
-                    type="button"
-                    disabled={application.status === s || statusUpdating}
-                    onClick={() => requestStatusUpdate(s)}
-                    className="w-full px-3 py-2 text-sm rounded-lg min-h-[44px] border border-gray-200 dark:border-gray-600 text-slate-700 dark:text-gray-200 hover:bg-slate-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
-                  >
-                    {t(`employer:${STATUS_ACTION_LABEL_KEYS[s]}`)}
-                  </button>
-                ))}
+                {EMPLOYER_SETTABLE_STATUSES.map((s) => {
+                  const needsReconsiderConfirm =
+                    application.status !== s &&
+                    isReconsiderationTransition(application.status, s);
+                  const labelKey = needsReconsiderConfirm
+                    ? 'actionReconsiderApplicant'
+                    : STATUS_ACTION_LABEL_KEYS[s];
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      disabled={application.status === s || statusUpdating}
+                      onClick={() => requestStatusUpdate(s)}
+                      className="w-full px-3 py-2 text-sm rounded-lg min-h-[44px] border border-gray-200 dark:border-gray-600 text-slate-700 dark:text-gray-200 hover:bg-slate-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed"
+                    >
+                      {t(`employer:${labelKey}`, {
+                        defaultValue: t(`employer:${STATUS_ACTION_LABEL_KEYS[s]}`),
+                      })}
+                    </button>
+                  );
+                })}
               </div>
               <p className="text-xs text-slate-500 mt-2">{t('employer:statusChangeNotifyHint')}</p>
             </div>
+
+            {application.stageHistory?.length ? (
+              <div>
+                <p className="text-xs uppercase tracking-wide text-slate-500 mb-2">
+                  {t('employer:applicationStatusHistory')}
+                </p>
+                <StageTimeline history={application.stageHistory} />
+              </div>
+            ) : null}
 
             <Link
               to={`${ROUTES.EMPLOYER_INTELLIGENCE_CANDIDATES}/${application._id}`}
@@ -362,7 +413,7 @@ export default function EmployerApplicationDetail() {
         </aside>
       </div>
 
-      {pendingStatus === 'rejected' ? (
+      {pendingStatus && pendingConfirmKind === 'reject' ? (
         <div
           className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
           role="dialog"
@@ -379,7 +430,10 @@ export default function EmployerApplicationDetail() {
             <div className="flex flex-wrap gap-3 mt-6 justify-end">
               <button
                 type="button"
-                onClick={() => setPendingStatus(null)}
+                onClick={() => {
+                  setPendingStatus(null);
+                  setPendingConfirmKind(null);
+                }}
                 className="px-4 py-2 min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 text-sm"
               >
                 {t('common:cancel')}
@@ -391,6 +445,82 @@ export default function EmployerApplicationDetail() {
                 className="px-4 py-2 min-h-[44px] rounded-lg bg-red-600 text-white text-sm font-medium hover:bg-red-700 disabled:opacity-50"
               >
                 {t('employer:actionReject')}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {pendingStatus && pendingConfirmKind === 'reconsider' ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reconsider-dialog-title"
+        >
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 max-w-md w-full shadow-xl">
+            <h2 id="reconsider-dialog-title" className="text-lg font-semibold text-gray-900 dark:text-white">
+              {t('employer:confirmReconsiderTitle')}
+            </h2>
+            <p className="text-sm text-slate-600 dark:text-gray-300 mt-2">
+              {t('employer:confirmReconsiderBody')}
+            </p>
+            <div className="flex flex-wrap gap-3 mt-6 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingStatus(null);
+                  setPendingConfirmKind(null);
+                }}
+                className="px-4 py-2 min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 text-sm"
+              >
+                {t('common:cancel')}
+              </button>
+              <button
+                type="button"
+                disabled={statusUpdating}
+                onClick={() => performStatusUpdate(pendingStatus)}
+                className="px-4 py-2 min-h-[44px] rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
+              >
+                {t('employer:actionReconsiderApplicant')}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+
+      {pendingStatus && pendingConfirmKind === 'reopen' ? (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40"
+          role="dialog"
+          aria-modal="true"
+          aria-labelledby="reopen-dialog-title"
+        >
+          <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 p-6 max-w-md w-full shadow-xl">
+            <h2 id="reopen-dialog-title" className="text-lg font-semibold text-gray-900 dark:text-white">
+              {t('employer:confirmReopenTitle')}
+            </h2>
+            <p className="text-sm text-slate-600 dark:text-gray-300 mt-2">
+              {t('employer:confirmReopenBody')}
+            </p>
+            <div className="flex flex-wrap gap-3 mt-6 justify-end">
+              <button
+                type="button"
+                onClick={() => {
+                  setPendingStatus(null);
+                  setPendingConfirmKind(null);
+                }}
+                className="px-4 py-2 min-h-[44px] rounded-lg border border-gray-300 dark:border-gray-600 text-sm"
+              >
+                {t('common:cancel')}
+              </button>
+              <button
+                type="button"
+                disabled={statusUpdating}
+                onClick={() => performStatusUpdate(pendingStatus)}
+                className="px-4 py-2 min-h-[44px] rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-50"
+              >
+                {t('employer:actionReopenApplication')}
               </button>
             </div>
           </div>

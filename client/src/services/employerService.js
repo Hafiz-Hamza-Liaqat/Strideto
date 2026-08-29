@@ -155,8 +155,11 @@ export const employerApi = {
     employerAxios.post(`/employer/applications/${applicationId}/offers/${offerId}/withdraw`),
   fetchApplicationResume: (applicationId) =>
     employerAxios.get(`/employer/applications/${applicationId}/resume`, { responseType: 'blob' }),
-  updateApplicationStatus: (applicationId, status) =>
-    employerAxios.patch(`/employer/applications/${applicationId}`, { status }),
+  updateApplicationStatus: (applicationId, status, { confirmReopen = false } = {}) =>
+    employerAxios.patch(`/employer/applications/${applicationId}`, {
+      status,
+      ...(confirmReopen ? { confirmReopen: true } : {}),
+    }),
   jobAnalytics: (jobId) => employerAxios.get(`/employer/analytics/${jobId}`),
   intelligenceDashboard: () => employerAxios.get('/employer/intelligence/dashboard'),
   intelligenceCandidates: (params) => employerAxios.get('/employer/intelligence/candidates', { params }),

@@ -12,6 +12,7 @@ export async function syncOpportunityApplicationFromLegacyStatus(application, {
   previousStatus,
   newStatus,
   reason = 'employer_status_update',
+  metadata = {},
 } = {}) {
   if (!application?._id) {
     return { ok: false, error: 'missing_application' };
@@ -31,6 +32,11 @@ export async function syncOpportunityApplicationFromLegacyStatus(application, {
             byActorType: 'employer',
             byActorId: employerId,
             reason,
+            metadata: {
+              legacyFromStatus: previousStatus,
+              legacyToStatus: newStatus,
+              ...metadata,
+            },
           },
         },
       }

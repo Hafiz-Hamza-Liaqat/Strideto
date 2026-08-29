@@ -9,6 +9,7 @@ export const EMPLOYER_APPLICANT_ACTIONS = {
   APPLICATION_OPENED: 'employer_application_opened',
   STATUS_INTENT: 'employer_application_status_intent',
   STATUS_UPDATED: 'employer_application_status_updated',
+  APPLICATION_RECONSIDERED: 'employer_application_reconsidered',
   RESUME_OPEN_INTENT: 'employer_resume_open_intent',
   EMPTY_STATE_VIEW: 'employer_applicant_empty_state_view',
 };

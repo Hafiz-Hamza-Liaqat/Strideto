@@ -59,8 +59,8 @@ check(getDetailFn.includes('coverLetter'), 'MKT-P3-06: detail returns coverLette
 check(getDetailFn.includes('hasResume: Boolean(application.resumeURL)'), 'MKT-P3-07: hasResume boolean');
 
 check(
-  /const ALLOWED_BODY_KEYS = new Set\(\['status'\]\)/.test(updateFn),
-  'MKT-P3-17: PATCH whitelists status only'
+  /const ALLOWED_BODY_KEYS = new Set\(\['status', 'confirmReopen'\]\)/.test(updateFn),
+  'MKT-P3-17: PATCH whitelists status and optional confirmReopen'
 );
 check(
   /Only application status may be updated/.test(updateFn),
