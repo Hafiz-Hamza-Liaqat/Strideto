@@ -7,7 +7,7 @@ import { spawnSync } from 'node:child_process';
 import fs from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { PRIVATE_CLOUDINARY_PREFIX, PRIVATE_LOCAL_PREFIX } from '../../../shared/application/resumeStorageDescriptor.js';
+import { PRIVATE_LOCAL_PREFIX } from '../../../shared/application/resumeStorageDescriptor.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const storageSourcePath = path.resolve(here, '../services/applicationResumeStorage.js');

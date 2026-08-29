@@ -143,7 +143,6 @@ export async function uploadApplicationResumeFile({ buffer, originalname, mimety
 export async function resolveEmployerApplicationResumeAccess(application) {
   const resumeURL = application?.resumeURL;
   const kind = classifyResumeStorage(resumeURL);
-  const legacyPublicRisk = kind.startsWith('legacy_');
 
   if (kind === RESUME_STORAGE_KIND.MISSING) {
     return { ok: false, reason: 'no_resume', storageKind: kind };
