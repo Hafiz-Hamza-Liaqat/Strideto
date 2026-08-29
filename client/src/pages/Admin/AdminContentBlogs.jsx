@@ -18,7 +18,9 @@ import { ROUTES } from '../../constants';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
 import { listBlogCategoryOptions } from '@shared/blog/taxonomy.js';
 import { formatBlogPublicationStatus } from '@shared/cms/publicReadiness.js';
-import { resolveBlogReadingMinutes } from '@shared/blog/readingTime.js';
+import { resolveBlogReadingMinutes, estimateReadingMinutes } from '@shared/blog/readingTime.js';
+import { applyContentAutofillPatch, buildBlogAutofillPatch } from '@shared/cms/contentAutofill.js';
+import { AdminContentAutofillBar } from '../../components/admin/AdminContentAutofillBar';
 
 const BLOG_CATEGORIES = listBlogCategoryOptions();
 
@@ -46,6 +48,17 @@ export default function AdminContentBlogs() {
     () => resolveBlogReadingMinutes({ content: form.content, excerpt: form.excerpt, readingTime: form.readingTime }),
     [form.content, form.excerpt, form.readingTime],
   );
+
+  const runAutofill = () => {
+    const patch = buildBlogAutofillPatch(form, (content) => estimateReadingMinutes(content));
+    return applyContentAutofillPatch(form, patch);
+  };
+
+  const handleAutofill = () => {
+    const { form: next, applied } = runAutofill();
+    if (applied > 0) setForm(next);
+    return { applied };
+  };
 
   const openCreate = () => { setEditingId(null); setForm(EMPTY); setFormOpen(true); };
 
@@ -177,6 +190,11 @@ export default function AdminContentBlogs() {
                   onOpenTranslation={(doc) => openEdit(doc._id)}
                 />
               ) : null}
+              <AdminContentAutofillBar
+                onAutofill={handleAutofill}
+                disabled={!form.title?.trim()}
+                className="mt-3"
+              />
               <div className="grid gap-3 max-h-[70vh] overflow-y-auto mt-3">
                 <input className={adminFieldClass} placeholder={t('admin:fieldTitle')} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
                 <AdminSelectBare value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })}>

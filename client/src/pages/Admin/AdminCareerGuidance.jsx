@@ -14,6 +14,8 @@ import { AdminViewPublicLink, isAdminSlugPreviewReady } from '../../components/a
 import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
+import { applyContentAutofillPatch, buildCareerArticleAutofillPatch } from '@shared/cms/contentAutofill.js';
+import { AdminContentAutofillBar } from '../../components/admin/AdminContentAutofillBar';
 
 const EMPTY = {
   title: '',
@@ -43,6 +45,13 @@ export default function AdminCareerGuidance() {
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(null);
+
+  const handleAutofill = () => {
+    const patch = buildCareerArticleAutofillPatch(form);
+    const { form: next, applied } = applyContentAutofillPatch(form, patch);
+    if (applied > 0) setForm(next);
+    return { applied };
+  };
 
   const openCreate = () => { setEditingId(null); setForm(EMPTY); setFormOpen(true); };
 
@@ -170,6 +179,11 @@ export default function AdminCareerGuidance() {
             <EscapeWhen active onEscape={() => setFormOpen(false)} />
             <div className="max-w-2xl mx-auto my-4 rounded-xl bg-white dark:bg-gray-900 p-6 border border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-bold mb-4">{editingId ? t('admin:editCareerArticle') : t('admin:addCareerArticle')}</h3>
+              <AdminContentAutofillBar
+                onAutofill={handleAutofill}
+                disabled={!form.title?.trim()}
+                className="mb-3"
+              />
               <div className="grid gap-3 max-h-[70vh] overflow-y-auto">
                 <input className={adminFieldClass} placeholder={t('admin:fieldTitle')} value={form.title} onChange={(e) => setForm({ ...form, title: e.target.value })} />
                 <input className={adminFieldClass} placeholder={t('admin:fieldCategory')} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
