@@ -34,8 +34,8 @@ function read(rel) {
 
 {
   const issue = read('server/src/services/auth/realmEmailVerification.js');
-  check(/sensitiveTransactionalDeliveryMode/.test(issue), 'C. B2B verification uses SMTP transactional mode');
-  check(/isSmtpConfigured\(\) \? 'accepted' : 'unavailable'/.test(issue), 'D. verification send does not require worker heartbeat');
+  check(/verificationDeliveryMode/.test(issue), 'C. B2B verification uses dedicated verification delivery mode');
+  check(/isVerificationMailReady/.test(issue), 'D. verification send uses verification SMTP readiness gate');
   check(/hashVerificationToken/.test(issue) && /applyVerificationTokenFields/.test(issue), 'C. tokens hashed at rest');
   check(/VERIFY_TOKEN_TTL_MS/.test(issue), 'C. verification expires');
   check(/canReissueVerification/.test(issue) && /REISSUE_COOLDOWN_MS/.test(issue), 'E. resend/reissue is cooldown-bounded');
@@ -55,8 +55,15 @@ function read(rel) {
 }
 
 {
+  const { verificationDeliveryMode } = await import('../services/auth/realmEmailVerification.js');
+  const { isVerificationMailReady } = await import('../services/emailService.js');
+  const vmode = await verificationDeliveryMode();
+  check(vmode === (isVerificationMailReady() ? 'accepted' : 'unavailable'), 'D. verification mode matches verification SMTP readiness only');
+}
+
+{
   const mode = await sensitiveTransactionalDeliveryMode();
-  check(mode === (isSmtpConfigured() ? 'accepted' : 'unavailable'), 'D. transactional mode matches SMTP configuration only');
+  check(mode === (isSmtpConfigured() ? 'accepted' : 'unavailable'), 'D. password-reset transactional mode matches default SMTP configuration only');
 }
 
 {

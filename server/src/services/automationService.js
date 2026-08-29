@@ -4,7 +4,7 @@ import { Job } from '../models/Job.js';
 import { Employer } from '../models/Employer.js';
 import { notifyStaff } from './notificationService.js';
 import { enqueueJob } from './jobQueueService.js';
-import { isSmtpConfigured, sendTemplatedEmail, sendEmail } from './emailService.js';
+import { isSmtpConfigured, isVerificationMailReady, sendTemplatedEmail, sendEmail } from './emailService.js';
 import { formatAppointmentTime } from '../utils/appointmentTime.js';
 
 /** Templates that embed one-time secrets in `vars.url` — never persist raw URLs in BackgroundJob. */
@@ -14,6 +14,9 @@ export async function queueEmail({ to, templateKey, lang, vars, dedupKey, subjec
   if (!to) return { enqueued: false };
 
   if (templateKey && SENSITIVE_EMAIL_TEMPLATES.has(templateKey)) {
+    const smtpConfigured = templateKey === 'emailVerification'
+      ? isVerificationMailReady()
+      : isSmtpConfigured();
     try {
       const result = await sendTemplatedEmail(to, templateKey, lang || 'en', vars || {});
       return {
@@ -21,7 +24,7 @@ export async function queueEmail({ to, templateKey, lang, vars, dedupKey, subjec
         sentDirect: true,
         sent: !!result?.sent,
         placeholder: !!result?.placeholder,
-        smtpConfigured: isSmtpConfigured(),
+        smtpConfigured,
       };
     } catch (err) {
       return {
@@ -29,7 +32,7 @@ export async function queueEmail({ to, templateKey, lang, vars, dedupKey, subjec
         sentDirect: true,
         sent: false,
         error: err?.message || 'send_failed',
-        smtpConfigured: isSmtpConfigured(),
+        smtpConfigured,
       };
     }
   }

@@ -11,7 +11,7 @@ import {
   VERIFY_TOKEN_TTL_MS,
 } from '../../utils/emailVerification.js';
 import { queueEmail } from '../automationService.js';
-import { isSmtpConfigured } from '../emailService.js';
+import { isVerificationMailReady } from '../emailService.js';
 import { resolveEmailDeliveryState } from '../emailDeliveryState.js';
 import { logger } from '../../utils/logger.js';
 import {
@@ -46,20 +46,28 @@ export async function authDeliveryMode() {
 }
 
 /**
- * Verification and password-reset send in-process via SMTP/Mailpit.
+ * User email verification delivery (registration + resend) — dedicated verification SMTP only.
+ */
+export async function verificationDeliveryMode() {
+  return isVerificationMailReady() ? 'accepted' : 'unavailable';
+}
+
+/**
+ * Password-reset and other sensitive non-verification mail — default transactional SMTP.
  * They must not wait for a worker heartbeat.
  */
 export async function sensitiveTransactionalDeliveryMode() {
+  const { isSmtpConfigured } = await import('../emailService.js');
   return isSmtpConfigured() ? 'accepted' : 'unavailable';
 }
 
 export async function genericRegistrationResponse() {
-  const emailMode = await sensitiveTransactionalDeliveryMode();
+  const emailMode = await verificationDeliveryMode();
   return registrationAcceptedPayload(emailMode, Math.round(VERIFY_TOKEN_TTL_MS / 60000));
 }
 
 export async function genericRecoveryResponse() {
-  const emailMode = await sensitiveTransactionalDeliveryMode();
+  const emailMode = await verificationDeliveryMode();
   return recoveryAcceptedPayload(emailMode);
 }
 
@@ -85,7 +93,7 @@ function logAuthOutcome({ realm, outcome, delivery, accountId, requestId }) {
 export async function issueRealmVerification(account, realm, name) {
   const rawToken = applyVerificationTokenFields(account);
   await account.save({ validateBeforeSave: false });
-  const emailMode = await sensitiveTransactionalDeliveryMode();
+  const emailMode = await verificationDeliveryMode();
   let delivery = 'DELIVERY_NOT_CONFIGURED';
   if (emailMode === 'accepted') {
     const result = await queueEmail({
@@ -125,7 +133,7 @@ export async function reissueUnverifiedIfAllowed(account, realm, name) {
       outcome: 'CHALLENGE_RATE_LIMITED',
       accountId: account?._id,
     });
-    return { reissued: false, emailMode: await sensitiveTransactionalDeliveryMode() };
+    return { reissued: false, emailMode: await verificationDeliveryMode() };
   }
   const result = await issueRealmVerification(account, realm, name);
   logAuthOutcome({
