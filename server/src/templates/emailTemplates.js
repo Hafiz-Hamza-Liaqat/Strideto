@@ -48,6 +48,54 @@ function btn(href, label) {
   return `<p style="margin:24px 0;"><a href="${safeHref}" style="display:inline-block;background:${PRIMARY};color:#ffffff;text-decoration:none;padding:12px 24px;border-radius:8px;font-weight:600;">${escapeHtml(label)}</a></p>`;
 }
 
+/** Polished layout used only by account email-verification messages. */
+function verificationLayout({ title, bodyHtml, lang = 'en', footerText }) {
+  const dir = lang === 'ur' ? 'rtl' : 'ltr';
+  const font = lang === 'ur' ? "'Noto Nastaliq Urdu', 'Segoe UI', Tahoma, sans-serif" : "'Inter', 'Segoe UI', Roboto, Helvetica, Arial, sans-serif";
+  const logoUrl = `${SITE.replace(/\/$/, '')}/branding/logo-symbol.svg`;
+  return `<!DOCTYPE html>
+<html lang="${lang}" dir="${dir}">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>${escapeHtml(title)}</title>
+</head>
+<body style="margin:0;padding:0;background:#f5f7fb;font-family:${font};">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f5f7fb;padding:32px 16px;">
+<tr><td align="center">
+<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:10px;border:1px solid #E2E8F0;box-shadow:0 1px 3px rgba(15,23,42,0.08);">
+<tr><td style="background:#ffffff;padding:32px 28px 20px;text-align:center;border-bottom:1px solid #E2E8F0;">
+<img src="${logoUrl}" width="52" height="52" alt="${BRAND} logo" style="display:block;margin:0 auto 14px;border:0;"/>
+<div style="font-family:Manrope,Inter,Segoe UI,sans-serif;font-size:24px;font-weight:700;color:#0F172A;letter-spacing:-0.02em;">${BRAND}</div>
+<div style="margin-top:8px;font-size:14px;line-height:1.5;color:#64748B;">${TAGLINE}</div>
+</td></tr>
+<tr><td style="padding:32px 28px;color:#1e293b;font-size:16px;line-height:1.65;">${bodyHtml}</td></tr>
+<tr><td style="padding:18px 28px 28px;border-top:1px solid #E2E8F0;color:#64748B;font-size:12px;line-height:1.5;">
+${footerText || (lang === 'ur' ? 'یہ ای میل Strideto کی طرف سے بھیجی گئی ہے۔' : 'This email was sent by Strideto.')}
+</td></tr>
+</table>
+</td></tr>
+</table>
+</body>
+</html>`;
+}
+
+/** Table-safe primary button for verification emails (Outlook-friendly). */
+function verificationBtn(href, label) {
+  const safeHref = escapeHtml(href);
+  const safeLabel = escapeHtml(label);
+  return `<table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:28px auto;">
+<tr><td align="center" bgcolor="${PRIMARY}" style="border-radius:8px;background-color:${PRIMARY};">
+<a href="${safeHref}" style="display:inline-block;padding:14px 32px;font-size:16px;font-weight:600;color:#ffffff;text-decoration:none;border-radius:8px;mso-padding-alt:0;">${safeLabel}</a>
+</td></tr>
+</table>`;
+}
+
+function verificationUrlFallback(url) {
+  const safeUrl = escapeHtml(url);
+  return `<p style="margin:20px 0 0;color:#64748B;font-size:13px;line-height:1.6;">If the button does not work, copy and paste this link into your browser:<br/><a href="${safeUrl}" style="color:${PRIMARY};word-break:break-all;">${safeUrl}</a></p>`;
+}
+
 /** Interview methods the appointment subdocument supports, in the candidate's language. */
 const INTERVIEW_MODE_LABELS = {
   en: { video: 'Video call', phone: 'Phone call', in_person: 'In person', other: 'Other' },
@@ -95,9 +143,9 @@ const TEMPLATES = {
       const mins = Number(expiresMinutes) || 30;
       return {
         subject: `${BRAND} – Verify your email`,
-        html: layout({
+        html: verificationLayout({
           title: 'Verify email',
-          bodyHtml: `<p>Hi ${safeName},</p><p>Please verify your email address to finish creating your ${BRAND} account.</p>${btn(url, 'Verify email')}<p style="color:#64748B;font-size:13px;">This link expires in ${mins} minutes and can be used once.</p><p style="color:#64748B;font-size:13px;">If you did not create an account, you can ignore this email.</p>`,
+          bodyHtml: `<p style="margin:0 0 16px;">Hi ${safeName},</p><p style="margin:0 0 8px;">Please verify your email address to finish creating your ${BRAND} account.</p>${verificationBtn(url, 'Verify email')}${verificationUrlFallback(url)}<p style="margin:20px 0 0;color:#64748B;font-size:13px;line-height:1.5;">This link expires in ${mins} minutes and can be used once.</p><p style="margin:8px 0 0;color:#64748B;font-size:13px;line-height:1.5;">If you did not create an account, you can ignore this email.</p>`,
         }),
         text: `Verify your email (expires in ${mins} minutes): ${url}\n\nIf you did not create an account, ignore this email.`,
       };
@@ -107,10 +155,11 @@ const TEMPLATES = {
       const mins = Number(expiresMinutes) || 30;
       return {
         subject: `${BRAND} – ای میل کی تصدیق`,
-        html: layout({
+        html: verificationLayout({
           lang: 'ur',
           title: 'تصدیق',
-          bodyHtml: `<p>${safeName}، براہ کرم اپنی ای میل کی تصدیق کریں:</p>${btn(url, 'تصدیق کریں')}<p style="font-size:13px;color:#64748B;">یہ لنک ${mins} منٹ میں ختم ہو جائے گا۔</p>`,
+          bodyHtml: `<p style="margin:0 0 16px;">${safeName}، براہ کرم اپنی ای میل کی تصدیق کریں:</p>${verificationBtn(url, 'تصدیق کریں')}<p style="margin:20px 0 0;font-size:13px;color:#64748B;line-height:1.5;">یہ لنک ${mins} منٹ میں ختم ہو جائے گا۔</p><p style="margin:8px 0 0;font-size:13px;color:#64748B;line-height:1.5;"><a href="${escapeHtml(url)}" style="color:${PRIMARY};word-break:break-all;">${escapeHtml(url)}</a></p>`,
+          footerText: 'یہ ای میل Strideto کی طرف سے بھیجی گئی ہے۔',
         }),
         text: `تصدیق لنک: ${url}`,
       };
