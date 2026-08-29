@@ -180,8 +180,9 @@ export async function seedCmsSiteContent() {
           partners: { enabled: false, title: 'Our Partners', logos: [] },
           newsletter: { enabled: true, title: 'Get Daily Job & Scholarship Alerts', subtitle: 'Subscribe and we\'ll send you the latest opportunities.' },
         },
-        seoTitle: 'Strideto – Jobs, Scholarships, Admissions & Career Platform',
-        metaDescription: 'Discover jobs, scholarships, admissions, internships, and career resources worldwide.',
+        seoTitle: 'Jobs, Internships, Scholarships & Hiring | STRIDETO',
+        metaDescription:
+          'Discover jobs, internships, scholarships, and career resources, or publish opportunities and manage supported hiring workflows with STRIDETO.',
       }
     );
     stats.homepage[homepageResult] += 1;
@@ -233,13 +234,12 @@ export async function seedCmsSiteContent() {
 }
 
 const DEFAULT_HERO = {
-  headline: 'Find jobs, scholarships, admissions, and career resources worldwide',
-  subheadline: 'Discover jobs, scholarships, admissions, internships, and study opportunities — all in one place.',
+  headline: 'Opportunities for talent. Better hiring for employers.',
+  subheadline:
+    'Discover jobs, internships, scholarships, and career resources — or publish opportunities and manage hiring through the STRIDETO employer workspace.',
   ctas: [
-    { label: 'Jobs', url: '/jobs', style: 'secondary' },
-    { label: 'Scholarships', url: '/scholarships', style: 'secondary' },
-    { label: 'Admissions', url: '/admissions', style: 'secondary' },
-    { label: 'Internships', url: '/internships', style: 'secondary' },
+    { label: 'Explore Opportunities', url: '/jobs', style: 'primary' },
+    { label: 'For Employers', url: '/employers', style: 'secondary' },
   ],
 };
 

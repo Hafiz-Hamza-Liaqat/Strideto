@@ -8,9 +8,9 @@ import { PRIVATE_SEO_PREFIXES, isPrivateSeoPath } from '@shared/seo/robotsPolicy
 export const SITE_URL = resolvePublicSiteOrigin(import.meta.env.VITE_APP_URL || BRAND_SITE_URL);
 export const SITE_NAME = BRAND_NAME;
 export const SITE_TAGLINE = BRAND_TAGLINE;
-export const DEFAULT_TITLE = `${SITE_NAME} | Jobs, Scholarships, Admissions & Career Platform`;
+export const DEFAULT_TITLE = 'Jobs, Internships, Scholarships & Hiring | STRIDETO';
 export const DEFAULT_DESCRIPTION =
-  'Discover jobs, internships, scholarships, and career resources — or publish opportunities and manage hiring through the STRIDETO employer workspace.';
+  'Discover jobs, internships, scholarships, and career resources, or publish opportunities and manage supported hiring workflows with STRIDETO.';
 export const DEFAULT_KEYWORDS =
   'jobs, scholarships, admissions, internships, career guidance, resume builder, universities, students, education portal, career opportunities, Strideto';
 export const DEFAULT_OG_IMAGE = `${SITE_URL}/og-image.png`;

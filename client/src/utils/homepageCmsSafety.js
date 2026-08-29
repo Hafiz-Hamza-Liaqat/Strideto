@@ -27,6 +27,26 @@ const LEGACY_HERO_SUBHEADLINES = new Set(
     'Discover jobs, scholarships, admissions, internships, and career resources worldwide - all in one place.',
     'Discover jobs, scholarships, admissions, internships, and study opportunities — all in one place.',
     'Discover jobs, scholarships, admissions, internships, and study opportunities - all in one place.',
+    'Find jobs, scholarships, admissions, and study abroad opportunities — all in one place. Only on Strideto.com',
+    'Find jobs, scholarships, admissions, and study abroad opportunities - all in one place. Only on Strideto.com',
+  ].map(normalizeCopy)
+);
+
+/** Legacy homepage SEO titles — Pakistan-scoped global brand metadata from old CMS publish. */
+const LEGACY_HOMEPAGE_SEO_TITLES = new Set(
+  [
+    'Strideto – Jobs & Education Portal Pakistan',
+    'Strideto - Jobs & Education Portal Pakistan',
+    'Strideto | Jobs & Education Portal Pakistan',
+    'Strideto – Jobs, Scholarships, Admissions & Career Platform',
+  ].map(normalizeCopy)
+);
+
+/** Legacy homepage meta descriptions from old CMS seed/publish defaults. */
+const LEGACY_HOMEPAGE_META_DESCRIPTIONS = new Set(
+  [
+    "Pakistan's job and education portal. Find jobs, scholarships, admissions, internships, and study abroad opportunities. Avai the Opportunities",
+    'Discover jobs, scholarships, university admissions, internships, career guidance, resume builder, and education opportunities worldwide.',
   ].map(normalizeCopy)
 );
 
@@ -62,6 +82,32 @@ export function resolveHomepageHeroHeadline(cmsHeadline, fallback) {
 export function resolveHomepageHeroSubheadline(cmsSubheadline, fallback) {
   if (!cmsSubheadline || isLegacyHomepageHeroSubheadline(cmsSubheadline)) return fallback;
   return cmsSubheadline;
+}
+
+export function isLegacyHomepageSeoTitle(text) {
+  if (!text) return false;
+  const normalized = normalizeCopy(text);
+  if (LEGACY_HOMEPAGE_SEO_TITLES.has(normalized)) return true;
+  return /jobs (&|and) education portal pakistan/.test(normalized);
+}
+
+export function isLegacyHomepageMetaDescription(text) {
+  if (!text) return false;
+  const normalized = normalizeCopy(text);
+  if (LEGACY_HOMEPAGE_META_DESCRIPTIONS.has(normalized)) return true;
+  if (/avai the opportunities/.test(normalized)) return true;
+  if (/pakistan's job and education portal/.test(normalized)) return true;
+  return false;
+}
+
+export function resolveHomepageSeoTitle(cmsTitle, fallback) {
+  if (!cmsTitle || isLegacyHomepageSeoTitle(cmsTitle)) return fallback;
+  return cmsTitle;
+}
+
+export function resolveHomepageMetaDescription(cmsDesc, fallback) {
+  if (!cmsDesc || isLegacyHomepageMetaDescription(cmsDesc)) return fallback;
+  return cmsDesc;
 }
 
 export function resolveHomepageHeroCtas(cmsCtas) {

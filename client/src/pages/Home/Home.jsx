@@ -3,7 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
 import { breadcrumbSchema, combineSchemas, webPageSchema } from '../../seo/schemas';
-import { DEFAULT_DESCRIPTION, DEFAULT_KEYWORDS } from '../../seo/config';
+import { DEFAULT_KEYWORDS } from '../../seo/config';
 import { ROUTES } from '../../constants';
 import { GlobalSearch } from '../../components/search/GlobalSearch';
 import { trendingApi, jobsApi, scholarshipsApi, admissionsApi, savedApi, recommendationsApi, blogsApi, monetizationApi } from '../../services/listingsService';
@@ -19,7 +19,14 @@ import {
 import { HomePersonalizedBody } from '../../components/home/HomePersonalizedBody';
 import { HomeHeroSkeleton } from '../../components/home/HomeHeroSkeleton';
 import { HomeHeroVisual } from '../../components/home/HomeHeroVisual';
-import { filterSafeHomepageStats, resolveHomepageHeroCtas, resolveHomepageHeroHeadline, resolveHomepageHeroSubheadline } from '../../utils/homepageCmsSafety';
+import {
+  filterSafeHomepageStats,
+  resolveHomepageHeroCtas,
+  resolveHomepageHeroHeadline,
+  resolveHomepageHeroSubheadline,
+  resolveHomepageSeoTitle,
+  resolveHomepageMetaDescription,
+} from '../../utils/homepageCmsSafety';
 
 const TRENDING_JOBS_LIMIT = 8;
 const SCHOLARSHIPS_LIMIT = 6;
@@ -210,8 +217,11 @@ export default function Home() {
     homepage?.hero?.subheadline && !pakistanScoped(homepage.hero.subheadline) ? homepage.hero.subheadline : null,
     t('home:heroSub')
   );
-  const pageSeoTitle = homepage?.seoTitle || t('home:seoTitle');
-  const pageSeoDesc = homepage?.metaDescription || DEFAULT_DESCRIPTION;
+  const pageSeoTitle = resolveHomepageSeoTitle(homepage?.seoTitle, t('home:seoTitle'));
+  const pageSeoDesc = resolveHomepageMetaDescription(
+    homepage?.metaDescription,
+    t('home:seoDescription')
+  );
   const heroBg = homepage?.hero?.backgroundImageUrl;
   const cmsStatsRaw = homepage?.stats?.length ? homepage.stats : null;
   const cmsStats = filterSafeHomepageStats(cmsStatsRaw);
