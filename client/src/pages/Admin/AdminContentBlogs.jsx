@@ -21,6 +21,8 @@ import { formatBlogPublicationStatus } from '@shared/cms/publicReadiness.js';
 import { resolveBlogReadingMinutes, estimateReadingMinutes } from '@shared/blog/readingTime.js';
 import { applyContentAutofillPatch, buildBlogAutofillPatch } from '@shared/cms/contentAutofill.js';
 import { AdminContentAutofillBar } from '../../components/admin/AdminContentAutofillBar';
+import { CmsDocumentUploadPanel } from '../../components/admin/CmsDocumentUploadPanel';
+import { BLOG_FORM_DEFAULTS } from '../../components/admin/cmsDocumentSuggestionMerge';
 
 const BLOG_CATEGORIES = listBlogCategoryOptions();
 
@@ -43,6 +45,8 @@ export default function AdminContentBlogs() {
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(null);
+  const [initialFormSnapshot, setInitialFormSnapshot] = useState(EMPTY);
+  const [touchedFields, setTouchedFields] = useState(() => new Set());
 
   const readingPreview = useMemo(
     () => resolveBlogReadingMinutes({ content: form.content, excerpt: form.excerpt, readingTime: form.readingTime }),
@@ -60,7 +64,13 @@ export default function AdminContentBlogs() {
     return { applied };
   };
 
-  const openCreate = () => { setEditingId(null); setForm(EMPTY); setFormOpen(true); };
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(EMPTY);
+    setInitialFormSnapshot(EMPTY);
+    setTouchedFields(new Set());
+    setFormOpen(true);
+  };
 
   const openEdit = async (id) => {
     try {
@@ -73,6 +83,14 @@ export default function AdminContentBlogs() {
         publishedAt: b.publishedAt ? b.publishedAt.slice(0, 16) : '',
         imageAlt: b.imageAlt || '',
       });
+      setInitialFormSnapshot({
+        ...EMPTY, ...b,
+        authorName: b.authorName || (typeof b.author === 'object' && b.author?.name) || '',
+        tags: linesToText(b.tags), gallery: linesToText(b.gallery),
+        publishedAt: b.publishedAt ? b.publishedAt.slice(0, 16) : '',
+        imageAlt: b.imageAlt || '',
+      });
+      setTouchedFields(new Set());
       setEditingId(id);
       setFormOpen(true);
     } catch (err) {
@@ -190,6 +208,17 @@ export default function AdminContentBlogs() {
                   onOpenTranslation={(doc) => openEdit(doc._id)}
                 />
               ) : null}
+              <CmsDocumentUploadPanel
+                title="Import blog document"
+                hint="Structured DOCX or TXT · maximum 5 MB"
+                uploadFn={adminContentApi.extractBlogFromDocument}
+                form={form}
+                formDefaults={BLOG_FORM_DEFAULTS}
+                initialForm={initialFormSnapshot}
+                touchedFields={touchedFields}
+                onApply={(next) => setForm(next)}
+                className="mt-3"
+              />
               <AdminContentAutofillBar
                 onAutofill={handleAutofill}
                 disabled={!form.title?.trim()}

@@ -43,6 +43,16 @@ export const adminContentApi = {
   bulkAdmissions: (action, ids) => axiosInstance.post('/admin/admissions/bulk', { action, ids }),
 
   blogs: crud('/admin/blogs'),
+  extractBlogFromDocument: (formData) =>
+    axiosInstance.post('/admin/blogs/import-document', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
+    }),
+  extractCareerArticleFromDocument: (formData) =>
+    axiosInstance.post('/admin/career-articles/import-document', formData, {
+      headers: { 'Content-Type': 'multipart/form-data' },
+      timeout: 60000,
+    }),
   internships: crud('/admin/internships'),
   foreignStudies: crud('/admin/foreign-studies'),
   companies: crud('/admin/companies'),

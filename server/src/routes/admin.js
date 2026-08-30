@@ -19,7 +19,12 @@ import { generateJobDescription } from '../controllers/admin/aiJobController.js'
 import {
   extractAdminJobFromDocument,
 } from '../controllers/jobDocumentExtractController.js';
+import {
+  extractBlogFromDocument,
+  extractCareerArticleFromDocument,
+} from '../controllers/cmsDocumentExtractController.js';
 import { uploadJobDescription } from '../middleware/jobDescriptionUpload.js';
+import { uploadCmsDocument } from '../middleware/cmsDocumentUpload.js';
 import { listImportResources, importData } from '../controllers/admin/adminImportController.js';
 import { importUpload } from '../middleware/importUpload.js';
 import { getGrowthDashboard } from '../controllers/growthDashboardController.js';
@@ -227,6 +232,30 @@ adminRouter.post('/admissions/:id/duplicate', requirePermission(PERMISSIONS.CONT
 adminRouter.put('/admissions/:id', requirePermission(PERMISSIONS.CONTENT_ADMISSIONS), adminAdmissions.update);
 adminRouter.delete('/admissions/:id', requirePermission(PERMISSIONS.CONTENT_ADMISSIONS), adminAdmissions.remove);
 
+adminRouter.post(
+  '/blogs/import-document',
+  requirePermission(PERMISSIONS.CONTENT_BLOGS),
+  uploadLimiter,
+  (req, res, next) => {
+    uploadCmsDocument(req, res, (err) => {
+      if (err) return res.status(400).json({ error: err.message || 'File upload failed', code: 'invalid_file_content' });
+      next();
+    });
+  },
+  extractBlogFromDocument
+);
+adminRouter.post(
+  '/career-articles/import-document',
+  requirePermission(PERMISSIONS.CONTENT_CAREER),
+  uploadLimiter,
+  (req, res, next) => {
+    uploadCmsDocument(req, res, (err) => {
+      if (err) return res.status(400).json({ error: err.message || 'File upload failed', code: 'invalid_file_content' });
+      next();
+    });
+  },
+  extractCareerArticleFromDocument
+);
 adminRouter.get('/blogs', requirePermission(PERMISSIONS.CONTENT_BLOGS), adminBlogs.list);
 adminRouter.get('/blogs/:id', requirePermission(PERMISSIONS.CONTENT_BLOGS), adminBlogs.getOne);
 adminRouter.post('/blogs', requirePermission(PERMISSIONS.CONTENT_BLOGS), adminBlogs.create);

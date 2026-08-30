@@ -16,6 +16,8 @@ import { ROUTES } from '../../constants';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
 import { applyContentAutofillPatch, buildCareerArticleAutofillPatch } from '@shared/cms/contentAutofill.js';
 import { AdminContentAutofillBar } from '../../components/admin/AdminContentAutofillBar';
+import { CmsDocumentUploadPanel } from '../../components/admin/CmsDocumentUploadPanel';
+import { CAREER_FORM_DEFAULTS } from '../../components/admin/cmsDocumentSuggestionMerge';
 
 const EMPTY = {
   title: '',
@@ -45,6 +47,8 @@ export default function AdminCareerGuidance() {
   const [editingId, setEditingId] = useState(null);
   const [saving, setSaving] = useState(false);
   const [confirm, setConfirm] = useState(null);
+  const [initialFormSnapshot, setInitialFormSnapshot] = useState(EMPTY);
+  const [touchedFields, setTouchedFields] = useState(() => new Set());
 
   const handleAutofill = () => {
     const patch = buildCareerArticleAutofillPatch(form);
@@ -53,7 +57,13 @@ export default function AdminCareerGuidance() {
     return { applied };
   };
 
-  const openCreate = () => { setEditingId(null); setForm(EMPTY); setFormOpen(true); };
+  const openCreate = () => {
+    setEditingId(null);
+    setForm(EMPTY);
+    setInitialFormSnapshot(EMPTY);
+    setTouchedFields(new Set());
+    setFormOpen(true);
+  };
 
   const openEdit = async (id) => {
     try {
@@ -65,6 +75,13 @@ export default function AdminCareerGuidance() {
         tags: linesToText(item.tags),
         scheduledAt: item.scheduledAt ? item.scheduledAt.slice(0, 16) : '',
       });
+      setInitialFormSnapshot({
+        ...EMPTY,
+        ...item,
+        tags: linesToText(item.tags),
+        scheduledAt: item.scheduledAt ? item.scheduledAt.slice(0, 16) : '',
+      });
+      setTouchedFields(new Set());
       setEditingId(id);
       setFormOpen(true);
     } catch (err) {
@@ -179,6 +196,17 @@ export default function AdminCareerGuidance() {
             <EscapeWhen active onEscape={() => setFormOpen(false)} />
             <div className="max-w-2xl mx-auto my-4 rounded-xl bg-white dark:bg-gray-900 p-6 border border-gray-200 dark:border-gray-700">
               <h3 className="text-lg font-bold mb-4">{editingId ? t('admin:editCareerArticle') : t('admin:addCareerArticle')}</h3>
+              <CmsDocumentUploadPanel
+                title="Import career guidance document"
+                hint="Structured DOCX or TXT · maximum 5 MB"
+                uploadFn={adminContentApi.extractCareerArticleFromDocument}
+                form={form}
+                formDefaults={CAREER_FORM_DEFAULTS}
+                initialForm={initialFormSnapshot}
+                touchedFields={touchedFields}
+                onApply={(next) => setForm(next)}
+                className="mb-3"
+              />
               <AdminContentAutofillBar
                 onAutofill={handleAutofill}
                 disabled={!form.title?.trim()}
