@@ -165,6 +165,16 @@ export function validateApplicationUrlCandidate(value, _context = {}) {
   return result(CANDIDATE_STATUS.ACCEPTED, url);
 }
 
+/**
+ * Admin-only logo import. Reuses the application-URL guarantees - https/http only (which already
+ * excludes `javascript:`, `data:` and `file:`), no private or loopback hosts - but deliberately
+ * does not demand an image filename extension: CDN and asset-service logo URLs routinely have none,
+ * and rejecting them would drop legitimate values.
+ */
+export function validateLogoUrlCandidate(value, context = {}) {
+  return validateApplicationUrlCandidate(value, context);
+}
+
 export function validateEmailCandidate(value, context = {}) {
   const email = String(value || '').trim();
   if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return result(CANDIDATE_STATUS.REJECTED, null, 'invalid_email');
@@ -266,6 +276,7 @@ export const FIELD_CONTRACT_VALIDATORS = Object.freeze({
   sourceUrl: validateSourceUrlCandidate,
   seoTitle: validateSeoTitleCandidate,
   metaDescription: validateMetaDescriptionCandidate,
+  logoUrl: validateLogoUrlCandidate,
 });
 
 export function applyFieldContract(field, value, context = {}) {

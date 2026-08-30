@@ -37,6 +37,7 @@ const APPLY_ORDER = [
   'externalId',
   'seoTitle',
   'metaDescription',
+  'logoUrl',
 ];
 
 export const FIELD_STATE = Object.freeze({
@@ -363,6 +364,7 @@ export const ADMIN_SUGGESTION_FIELD_MAP = {
   externalId: 'externalId',
   seoTitle: 'seoTitle',
   metaDescription: 'metaDescription',
+  logoUrl: 'logoUrl',
 };
 
 export const SUGGESTION_FIELD_LABELS = {
@@ -395,6 +397,7 @@ export const SUGGESTION_FIELD_LABELS = {
   externalId: 'External ID',
   seoTitle: 'SEO title',
   metaDescription: 'Meta description',
+  logoUrl: 'Logo URL',
 };
 
 /** Employer create-form defaults for untouched-default detection. */

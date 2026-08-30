@@ -80,6 +80,7 @@ export const ADMIN_EXTRA_FIELDS = [
   'externalId',
   'seoTitle',
   'metaDescription',
+  'logoUrl',
 ];
 
 export const MAX_EXTRACTED_TEXT_CHARS = 150_000;
@@ -127,6 +128,7 @@ const LABEL_ALIASES = Object.freeze({
   externalId: ['external job id / reference id', 'external job id', 'external id', 'job id', 'reference id'],
   seoTitle: ['seo title'],
   metaDescription: ['meta description'],
+  logoUrl: ['company logo url', 'logo image url', 'logo url'],
 });
 
 const SECTION_FIELDS = new Set(['requirements', 'responsibilities', 'skillsRequired', 'description']);
@@ -243,6 +245,18 @@ const STRICT_COLON_FIELDS = Object.freeze({
   deadline: 'deadline',
 });
 
+/**
+ * Strict-colon fields whose bare alias is still accepted when the normalized line is *exactly* the
+ * label and nothing else. Word's labelled-template and two-column shapes write `Education` on its
+ * own paragraph with the value in the next one, and mammoth flattens that to a bare label line with
+ * no colon, so the colon rule alone dropped the field entirely. Requiring a whole-line match keeps
+ * the guard the colon rule exists for: prose such as `Education is important to us` carries trailing
+ * text and still fails. `experience` is deliberately excluded - a bare `Experience` line commonly
+ * heads a work-history section rather than naming a requirement value, and it already has
+ * non-strict aliases (`Experience Requirement`, `Years of Experience`) that match without a colon.
+ */
+const STRICT_COLON_BARE_EXACT_FIELDS = new Set(['educationRequirement', 'deadline']);
+
 function matchLabelLine(line) {
   const trimmed = String(line || '').trim();
   if (!trimmed) return null;
@@ -253,7 +267,10 @@ function matchLabelLine(line) {
     for (const alias of sorted) {
       const strictColon = STRICT_COLON_FIELDS[field];
       if (strictColon && alias === strictColon && !new RegExp(`^${escapeRegExp(alias)}\\s*:`, 'i').test(trimmed)) {
-        continue;
+        const bareExact =
+          STRICT_COLON_BARE_EXACT_FIELDS.has(field)
+          && new RegExp(`^${escapeRegExp(alias)}$`, 'i').test(trimmed);
+        if (!bareExact) continue;
       }
       const re = new RegExp(`^${escapeRegExp(alias)}\\s*:?\\s*(.*)$`, 'i');
       const m = trimmed.match(re);
@@ -752,6 +769,11 @@ function validateAndNormalizeField(field, rawCandidate, mode) {
       if (mode !== 'admin') return null;
       return applyContractToCandidate(field, base, String(value).trim().slice(0, 500));
     case 'sourceUrl':
+      if (mode !== 'admin') return null;
+      return applyContractToCandidate(field, base, String(value).trim().replace(/[.,;)]+$/, ''));
+    // Admin-only: the employer create form renders no logo input, so an employer-mode suggestion
+    // would be dropped by the merge layer's formHasKey guard anyway.
+    case 'logoUrl':
       if (mode !== 'admin') return null;
       return applyContractToCandidate(field, base, String(value).trim().replace(/[.,;)]+$/, ''));
     case 'externalId':
