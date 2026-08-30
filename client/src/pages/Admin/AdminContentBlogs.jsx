@@ -256,7 +256,14 @@ export default function AdminContentBlogs() {
                     {t('admin:fieldReadingTimePreview', { count: readingPreview })}
                   </p>
                 </div>
-                <input className={adminFieldClass} placeholder={t('admin:fieldTags')} value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
+                <textarea
+                  rows={5}
+                  className={adminFieldClass}
+                  placeholder={t('admin:fieldTags')}
+                  aria-label={t('admin:fieldTags')}
+                  value={form.tags}
+                  onChange={(e) => setForm({ ...form, tags: e.target.value })}
+                />
                 <input type="datetime-local" className={adminFieldClass} aria-label={t('admin:fieldPublishedAt', { defaultValue: 'Published at' })} value={form.publishedAt} onChange={(e) => setForm({ ...form, publishedAt: e.target.value })} />
                 <AdminSelectBare  value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>
                   <option value="draft">Draft</option>

@@ -2,6 +2,7 @@
  * CONTENT-AUTOFILL-P2 — deterministic CMS document import field contracts.
  */
 import { canonicalBlogCategoryLabel, BLOG_CATEGORY_REGISTRY } from '../blog/taxonomy.js';
+import { normalizeCmsImportTags, CMS_MAX_TAG_LENGTH } from './cmsTagNormalize.js';
 
 export const CANDIDATE_STATUS = Object.freeze({
   ACCEPTED: 'accepted',
@@ -140,12 +141,11 @@ export function validatePlainTextCandidate(value, { min = 1, max = 50000 } = {})
 }
 
 export function validateTagsCandidate(value) {
-  const lines = String(value || '')
-    .split(/[\n,]/)
-    .map((t) => t.trim())
-    .filter(Boolean);
+  const lines = normalizeCmsImportTags(value);
   if (!lines.length) return result(CANDIDATE_STATUS.REJECTED, null, 'empty');
-  if (lines.some((t) => t.length > 80)) return result(CANDIDATE_STATUS.REJECTED, null, 'tag_too_long');
+  if (lines.some((t) => t.length > CMS_MAX_TAG_LENGTH)) {
+    return result(CANDIDATE_STATUS.REJECTED, null, 'tag_too_long');
+  }
   return result(CANDIDATE_STATUS.ACCEPTED, lines);
 }
 

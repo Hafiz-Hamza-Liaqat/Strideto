@@ -223,7 +223,11 @@ const cs = careerExtract.suggestions;
 check(cs.title?.value?.includes('CV'), 'DOC-CG-01 career title');
 check(cs.category?.value === 'Career Advice', 'DOC-CG-02 career category');
 check(cs.excerpt?.value?.includes('CV'), 'DOC-CG-03 career excerpt');
-check(cs.content?.value?.includes('<h2'), 'DOC-CG-04 career content');
+check(
+  cs.content?.value?.includes('##') || cs.content?.value?.includes('Start with a clear profile'),
+  'DOC-CG-04 career content plain/markdown for textarea',
+);
+check(!cs.content?.value?.includes('<h2'), 'DOC-CG-04b career content not raw HTML in textarea');
 check(Array.isArray(cs.tags?.value), 'DOC-CG-05 career tags');
 check(cs.imageUrl?.value?.startsWith('https://'), 'DOC-CG-06 career image');
 check(String(cs.scheduledAt?.value).startsWith('2026-09-01'), 'DOC-CG-07 scheduledAt');

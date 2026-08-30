@@ -74,7 +74,7 @@ check(adminBlogs.includes('BlogRichTextEditor'), 'BLOG-EDITOR-01 rich-text edito
 check(!adminBlogs.includes('placeholder={t(\'admin:fieldContent\')}') || adminBlogs.includes('BlogRichTextEditor'), 'BLOG-EDITOR-01 no mislabeled textarea-only content');
 check(read('client/src/components/richText/BlogRichTextEditor.jsx').includes('levels: [2, 3]'), 'BLOG-EDITOR-02 H2/H3 only in editor');
 check(read('client/src/components/richText/BlogRichTextEditor.jsx').includes('insertTable'), 'BLOG-EDITOR-07 table insert');
-check(read('client/src/components/richText/BlogRichTextEditor.jsx').includes('blog-callout'), 'BLOG-EDITOR-08 callout round-trip structure');
+check(read('client/src/components/richText/BlogCalloutBlockquote.js').includes('blog-callout'), 'BLOG-EDITOR-08 callout round-trip structure');
 
 const h1Demoted = normalizeBlogContent('<h1>Title</h1><h2>Section</h2><h2>Next</h2>');
 check(!h1Demoted.html.includes('<h1'), 'BLOG-EDITOR-03 body H1 demoted');

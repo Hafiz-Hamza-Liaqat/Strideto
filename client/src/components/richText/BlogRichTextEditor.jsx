@@ -5,6 +5,8 @@ import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
 import { ToolbarButton } from './RichTextToolbar';
+import { BlogCalloutBlockquote, isCalloutActive, insertCallout } from './BlogCalloutBlockquote';
+import { BlogSources, insertSourcesSection, isSourcesActive } from './BlogSources';
 
 const CALLOUT_VARIANTS = [
   { key: 'important', label: 'Important' },
@@ -24,7 +26,11 @@ export function BlogRichTextEditor({ value, onChange, placeholder = 'Write artic
     extensions: [
       StarterKit.configure({
         heading: { levels: [2, 3] },
+        blockquote: false,
+        link: false,
       }),
+      BlogCalloutBlockquote,
+      BlogSources,
       Link.configure({
         openOnClick: false,
         HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
@@ -74,27 +80,6 @@ export function BlogRichTextEditor({ value, onChange, placeholder = 'Write artic
     editor.chain().focus().insertTable({ rows, cols, withHeaderRow: true }).run();
   };
 
-  const insertCallout = (variant) => {
-    const label = CALLOUT_VARIANTS.find((v) => v.key === variant)?.label || 'Note';
-    editor
-      .chain()
-      .focus()
-      .insertContent(
-        `<blockquote class="blog-callout blog-callout--${variant}"><p><strong>${label}:</strong> </p></blockquote><p></p>`
-      )
-      .run();
-  };
-
-  const insertSourcesSection = () => {
-    editor
-      .chain()
-      .focus()
-      .insertContent(
-        '<div class="blog-sources"><h2>Sources</h2><ol><li>Organization — source title (<a href="https://">official link</a>)</li></ol></div><p></p>'
-      )
-      .run();
-  };
-
   return (
     <div className="rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 overflow-hidden">
       <div className="flex flex-wrap gap-1 p-2 border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900/50">
@@ -132,7 +117,11 @@ export function BlogRichTextEditor({ value, onChange, placeholder = 'Write artic
         <ToolbarButton title="Numbered list" active={editor.isActive('orderedList')} onClick={() => editor.chain().focus().toggleOrderedList().run()}>
           1. List
         </ToolbarButton>
-        <ToolbarButton title="Blockquote" active={editor.isActive('blockquote')} onClick={() => editor.chain().focus().toggleBlockquote().run()}>
+        <ToolbarButton
+          title="Blockquote"
+          active={editor.isActive('blockquote') && !isCalloutActive(editor, 'important') && !isCalloutActive(editor, 'tip') && !isCalloutActive(editor, 'warning') && !isCalloutActive(editor, 'example')}
+          onClick={() => editor.chain().focus().toggleBlockquote().run()}
+        >
           Quote
         </ToolbarButton>
         <ToolbarButton title="Link" active={editor.isActive('link')} onClick={setLink}>
@@ -143,11 +132,16 @@ export function BlogRichTextEditor({ value, onChange, placeholder = 'Write artic
         </ToolbarButton>
         <span className="w-px h-6 bg-gray-300 dark:bg-gray-600 mx-1" aria-hidden />
         {CALLOUT_VARIANTS.map((v) => (
-          <ToolbarButton key={v.key} title={`${v.label} callout`} onClick={() => insertCallout(v.key)}>
+          <ToolbarButton
+            key={v.key}
+            title={`${v.label} callout`}
+            active={isCalloutActive(editor, v.key)}
+            onClick={() => insertCallout(editor, v.key)}
+          >
             {v.label}
           </ToolbarButton>
         ))}
-        <ToolbarButton title="Sources section" onClick={insertSourcesSection}>
+        <ToolbarButton title="Sources section" active={isSourcesActive(editor)} onClick={() => insertSourcesSection(editor)}>
           Sources
         </ToolbarButton>
       </div>

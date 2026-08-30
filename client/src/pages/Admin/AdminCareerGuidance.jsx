@@ -14,6 +14,7 @@ import { AdminViewPublicLink, isAdminSlugPreviewReady } from '../../components/a
 import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
+import { detectContentFormat, legacyMarkdownToHtml } from '@shared/blog/blogContent.js';
 import { applyContentAutofillPatch, buildCareerArticleAutofillPatch } from '@shared/cms/contentAutofill.js';
 import { AdminContentAutofillBar } from '../../components/admin/AdminContentAutofillBar';
 import { CmsDocumentUploadPanel } from '../../components/admin/CmsDocumentUploadPanel';
@@ -95,7 +96,9 @@ export default function AdminCareerGuidance() {
       return;
     }
     setSaving(true);
-    const payload = { ...form, tags: textToLines(form.tags) };
+    const content =
+      detectContentFormat(form.content) === 'html' ? form.content : legacyMarkdownToHtml(form.content);
+    const payload = { ...form, content, tags: textToLines(form.tags) };
     try {
       if (editingId) await adminContentApi.careerArticles.update(editingId, payload);
       else await adminContentApi.careerArticles.create(payload);
@@ -217,7 +220,14 @@ export default function AdminCareerGuidance() {
                 <input className={adminFieldClass} placeholder={t('admin:fieldCategory')} value={form.category} onChange={(e) => setForm({ ...form, category: e.target.value })} />
                 <textarea rows={2} className={adminFieldClass} placeholder={t('admin:fieldSummary')} value={form.excerpt} onChange={(e) => setForm({ ...form, excerpt: e.target.value })} />
                 <textarea rows={6} className={adminFieldClass} placeholder={t('admin:fieldContent')} value={form.content} onChange={(e) => setForm({ ...form, content: e.target.value })} />
-                <input className={adminFieldClass} placeholder={t('admin:fieldTags')} value={form.tags} onChange={(e) => setForm({ ...form, tags: e.target.value })} />
+                <textarea
+                  rows={5}
+                  className={adminFieldClass}
+                  placeholder={t('admin:fieldTags')}
+                  aria-label={t('admin:fieldTags')}
+                  value={form.tags}
+                  onChange={(e) => setForm({ ...form, tags: e.target.value })}
+                />
                 <AdminImageUrlField label={t('admin:fieldFeaturedImage')} value={form.imageUrl} onChange={(v) => setForm({ ...form, imageUrl: v })} />
                 <input type="datetime-local" className={adminFieldClass} placeholder={t('admin:fieldScheduledAt')} value={form.scheduledAt} onChange={(e) => setForm({ ...form, scheduledAt: e.target.value })} />
                 <AdminSelectBare  value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>

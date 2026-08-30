@@ -1,7 +1,6 @@
 import { validateCmsDocumentBuffer } from '../utils/cmsDocumentFileValidation.js';
 import { extractCmsDocumentBounded } from './cmsDocumentBoundedExtract.js';
-import { extractCmsFieldsFromText, parseLabeledSections } from '../../../shared/cms/cmsDocumentExtraction.js';
-import { importPlainTextToBlogHtml } from '../../../shared/cms/importContentHtml.js';
+import { extractCmsFieldsFromText } from '../../../shared/cms/cmsDocumentExtraction.js';
 import { sanitizeHtml } from '../utils/htmlSanitize.js';
 
 const CONTENT_TYPES = new Set(['blog', 'career-article']);
@@ -10,14 +9,6 @@ function mapParseError(err) {
   const code = err.code || 'corrupt_document';
   const status = err.status || 400;
   return { status, body: { error: err.message, code } };
-}
-
-function sanitizeContentSuggestion(suggestions, rawText, contentType) {
-  if (!suggestions?.content?.value) return;
-  const sections = parseLabeledSections(rawText, contentType);
-  const plain = sections.get('content') || suggestions.content.value;
-  const html = importPlainTextToBlogHtml(plain);
-  suggestions.content.value = sanitizeHtml(html);
 }
 
 /**
@@ -33,9 +24,11 @@ export async function parseCmsImportDocument(buffer, declaredMime, originalname,
 
   const { format } = await validateCmsDocumentBuffer(buffer, declaredMime, originalname);
   let text;
+  let docxHtml = '';
   try {
     const extracted = await extractCmsDocumentBounded(format, buffer);
     text = extracted.text;
+    docxHtml = extracted.html || '';
   } catch (err) {
     if (err.code) throw err;
     const e = new Error(err.message || 'Parse failed');
@@ -49,8 +42,14 @@ export async function parseCmsImportDocument(buffer, declaredMime, originalname,
     throw err;
   }
 
-  const { suggestions, meta } = extractCmsFieldsFromText(text, contentType);
-  sanitizeContentSuggestion(suggestions, text, contentType);
+  const { suggestions, meta } = extractCmsFieldsFromText(text, contentType, {
+    contentHtml: docxHtml,
+    documentText: text,
+  });
+
+  if (suggestions.content?.value && contentType === 'blog') {
+    suggestions.content.value = sanitizeHtml(String(suggestions.content.value));
+  }
 
   const warnings = [];
   if (meta.reviewCount > 0) {

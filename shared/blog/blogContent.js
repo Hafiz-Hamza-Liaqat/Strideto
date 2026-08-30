@@ -32,13 +32,13 @@ function safeHref(url) {
   return '';
 }
 
-function inlineMarkdown(text) {
+export function inlineMarkdown(text) {
   let out = escapeHtml(text);
   out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   out = out.replace(/\*([^*]+)\*/g, '<em>$1</em>');
   out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, label, url) => {
     const href = safeHref(url);
-    return href ? `<a href="${href}" rel="noopener noreferrer">${escapeHtml(label)}</a>` : escapeHtml(label);
+    return href ? `<a href="${href}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>` : escapeHtml(label);
   });
   return out;
 }

@@ -1,4 +1,5 @@
 import sanitizeHtmlLib from 'sanitize-html';
+import { CALLOUT_VARIANTS, SOURCES_WRAPPER_CLASS } from '../../../shared/cms/blogCanonicalHtml.js';
 
 /** Allowed rich-text tags for CMS, blogs, career articles, etc. */
 const ALLOWED_TAGS = [
@@ -12,12 +13,31 @@ const ALLOWED_TAGS = [
   'img',
 ];
 
+const ALLOWED_CALLOUT_CLASS_TOKENS = new Set([
+  'blog-callout',
+  ...CALLOUT_VARIANTS.map((v) => `blog-callout--${v}`),
+]);
+
+function sanitizeCalloutClass(className) {
+  const tokens = String(className || '')
+    .split(/\s+/)
+    .filter((t) => ALLOWED_CALLOUT_CLASS_TOKENS.has(t));
+  if (!tokens.includes('blog-callout')) return '';
+  return tokens.join(' ');
+}
+
+function isUnsafeHref(href) {
+  return /^(javascript|data|vbscript):/i.test(String(href || '').trim());
+}
+
 const ALLOWED_ATTRIBUTES = {
   a: ['href', 'title', 'target', 'rel'],
   img: ['src', 'alt', 'title', 'width', 'height', 'loading'],
   th: ['colspan', 'rowspan', 'scope'],
   td: ['colspan', 'rowspan'],
-  '*': ['class', 'id'],
+  blockquote: ['class'],
+  div: ['class'],
+  '*': ['id'],
 };
 
 const ALLOWED_SCHEMES = ['http', 'https', 'mailto', 'tel'];
@@ -32,8 +52,28 @@ const SANITIZE_OPTIONS = {
   transformTags: {
     a: (tagName, attribs) => {
       const next = { ...attribs };
+      if (isUnsafeHref(next.href)) {
+        delete next.href;
+        return { tagName: 'span', attribs: next };
+      }
       if (next.target === '_blank') {
         next.rel = 'noopener noreferrer';
+      }
+      return { tagName, attribs: next };
+    },
+    blockquote: (tagName, attribs) => {
+      const next = { ...attribs };
+      const cls = sanitizeCalloutClass(next.class);
+      if (cls) next.class = cls;
+      else delete next.class;
+      return { tagName, attribs: next };
+    },
+    div: (tagName, attribs) => {
+      const next = { ...attribs };
+      if (next.class === SOURCES_WRAPPER_CLASS) {
+        next.class = SOURCES_WRAPPER_CLASS;
+      } else {
+        delete next.class;
       }
       return { tagName, attribs: next };
     },

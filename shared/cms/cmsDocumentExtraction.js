@@ -9,7 +9,11 @@ import {
   CMS_DANGEROUS_KEYS,
   isAllowlistedCmsField,
 } from './cmsDocumentFieldContracts.js';
-import { importPlainTextToBlogHtml } from './importContentHtml.js';
+import {
+  importContentToCanonicalBlogHtml,
+  canonicalBlogHtmlToCareerPlain,
+} from './blogCanonicalHtml.js';
+import { cmsImportTagsToFormText } from './cmsTagNormalize.js';
 
 export const MAX_CMS_DOCUMENT_TEXT_CHARS = 150_000;
 
@@ -140,8 +144,19 @@ export function extractCmsFieldsFromText(text, contentType, options = {}) {
     let rawValue = rawSections.get(field);
 
     if (field === 'content') {
-      const htmlFromPlain = importPlainTextToBlogHtml(rawValue);
-      rawValue = options.contentHtml?.trim() || htmlFromPlain || rawValue;
+      const canonicalHtml = importContentToCanonicalBlogHtml(rawValue, {
+        docxHtml: options.contentHtml || '',
+        documentText: options.documentText || text,
+      });
+      if (contentType === 'career-article') {
+        rawValue = canonicalBlogHtmlToCareerPlain(canonicalHtml) || rawValue;
+      } else {
+        rawValue = canonicalHtml || rawValue;
+      }
+    }
+
+    if (field === 'tags') {
+      rawValue = cmsImportTagsToFormText(rawValue);
     }
 
     const contract = applyCmsFieldContract(field, rawValue, contentType);
