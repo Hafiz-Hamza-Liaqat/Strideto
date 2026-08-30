@@ -1,8 +1,14 @@
 import { parentPort, workerData } from 'worker_threads';
 import mammoth from 'mammoth';
-import { PDFParse } from 'pdf-parse';
 
+/**
+ * `pdf-parse` pulls in the native `@napi-rs/canvas` (Skia) addon at module scope. Loading that
+ * addon into a short-lived worker isolate intermittently segfaults the host process on worker
+ * teardown, which crashed DOCX parses that never touch PDF code. Import it lazily so the DOCX
+ * path never loads it. PDF extraction semantics are unchanged.
+ */
 async function extractTextFromPdf(buffer) {
+  const { PDFParse } = await import('pdf-parse');
   const parser = new PDFParse({ data: buffer, isEvalSupported: false });
   try {
     const result = await parser.getText();
