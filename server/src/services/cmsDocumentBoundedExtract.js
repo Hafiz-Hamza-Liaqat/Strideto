@@ -48,13 +48,14 @@ export function extractCmsDocumentBounded(format, buffer, timeoutMs = CMS_DOCUME
     });
 
     worker.on('error', (err) => finish(reject, err));
-    worker.on('exit', (code) => {
+
+    // A worker that exits before posting a result never settles the promise on its own, so an
+    // exit code of 0 must reject here too rather than leave the caller waiting for the timeout.
+    worker.on('exit', () => {
       if (settled) return;
-      if (code !== 0) {
-        const err = new Error('Document parser worker exited unexpectedly');
-        err.code = 'corrupt_document';
-        finish(reject, err);
-      }
+      const err = new Error('Document parser worker exited unexpectedly');
+      err.code = 'corrupt_document';
+      finish(reject, err);
     });
   });
 }
