@@ -11,7 +11,7 @@ import { PublicListingLogo } from '../../components/listings/PublicListingLogo';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { Alert } from '../../components/ui/Alerts';
 import { formatDate, daysUntil } from '../../utils/formatDate';
-import { useAuth } from '../../context/AuthContext';
+import { useStudentProductEnabled } from '../../hooks/useStudentProductEnabled';
 import { useContentView } from '../../hooks/usePageView';
 import { talentApi } from '../../services/talentApi';
 import { shouldUseTalentProfileApi, isOpportunityApplicationEnabled } from '../../config/careerFeatureFlags';
@@ -32,7 +32,7 @@ export default function AdmissionDetail() {
   const { t } = useTranslation(['admissions', 'common', 'navbar', 'applications']);
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { studentProductEnabled } = useStudentProductEnabled();
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -45,17 +45,17 @@ export default function AdmissionDetail() {
   useEffect(() => {
     admissionsApi.get(slug).then(({ data }) => {
       setItem(data);
-      if (isAuthenticated && data?._id) recentViewedApi.record('admission', data._id).catch(() => {});
+      if (studentProductEnabled && data?._id) recentViewedApi.record('admission', data._id).catch(() => {});
     }).catch((err) => setError(err.response?.data?.error || t('failedToLoad', { ns: 'common' }))).finally(() => setLoading(false));
-  }, [slug, isAuthenticated]);
+  }, [slug, studentProductEnabled]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!studentProductEnabled) return;
     savedApi.get().then(({ data: d }) => setSavedIds(new Set((d.savedAdmissions || []).map((a) => a._id)))).catch(() => {});
     if (shouldUseTalentProfileApi()) {
       talentApi.getApplyKit().then(({ data }) => setApplyKit(data)).catch(() => setApplyKit(null));
     }
-  }, [isAuthenticated]);
+  }, [studentProductEnabled]);
 
   const handleSaveToggle = async (id, save) => {
     if (save) await admissionsApi.save(id);
@@ -161,7 +161,7 @@ export default function AdmissionDetail() {
               {officialLink && (
                 <a href={officialLink} className="inline-flex items-center min-h-[44px] px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover btn-theme" target="_blank" rel="noopener noreferrer">{t('applyOfficialWebsite', { ns: 'jobs', defaultValue: 'Apply on official website' })}</a>
               )}
-              {isAuthenticated && isOpportunityApplicationEnabled() && (
+              {studentProductEnabled && isOpportunityApplicationEnabled() && (
                 <button
                   type="button"
                   onClick={handleTrackApplication}
@@ -173,7 +173,7 @@ export default function AdmissionDetail() {
               )}
             </div>
           </div>
-          {isAuthenticated && <ApplyKitBanner kit={applyKit} />}
+          {studentProductEnabled && <ApplyKitBanner kit={applyKit} />}
           {item.description && (
             <section className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{t('description', { ns: 'common' })}</h2>

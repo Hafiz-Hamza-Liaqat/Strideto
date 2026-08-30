@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import { useAuth } from '../context/AuthContext';
 import { careerDashboardApi } from '../services/careerDashboardApi';
 import { DEFAULT_DASHBOARD_LAYOUT } from './widgetRegistry';
 
@@ -8,12 +9,19 @@ import { DEFAULT_DASHBOARD_LAYOUT } from './widgetRegistry';
  */
 export function useDashboardComposition() {
   const { t } = useTranslation(['dashboard']);
+  const { isAuthenticated, hasStudentCapability: studentCapable, loading: authLoading } = useAuth();
   const [composition, setComposition] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
     let cancelled = false;
+    if (!isAuthenticated || authLoading || !studentCapable) {
+      setComposition(null);
+      setError(null);
+      setLoading(false);
+      return undefined;
+    }
     setLoading(true);
     setError(null);
 
@@ -37,7 +45,7 @@ export function useDashboardComposition() {
       });
 
     return () => { cancelled = true; };
-  }, [t]);
+  }, [t, isAuthenticated, authLoading, studentCapable]);
 
   return { composition, loading, error };
 }

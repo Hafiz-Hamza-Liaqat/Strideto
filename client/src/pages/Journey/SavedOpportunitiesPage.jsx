@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { listSaved, unsaveOpportunity } from '../../services/actionEngineService';
 import { savedApi, internshipsApi, jobsApi, scholarshipsApi } from '../../services/listingsService';
+import { useStudentProductEnabled } from '../../hooks/useStudentProductEnabled';
 import { ROUTES } from '../../constants';
 
 const TYPE_LABELS = {
@@ -26,12 +27,18 @@ function hrefFor(item) {
 
 export default function SavedOpportunitiesPage() {
   const { t } = useTranslation('common');
+  const { studentProductEnabled } = useStudentProductEnabled();
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [filter, setFilter] = useState('');
 
   function load() {
+    if (!studentProductEnabled) {
+      setItems([]);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     setError(null);
     const journeyParams = {};
@@ -85,7 +92,7 @@ export default function SavedOpportunitiesPage() {
       .finally(() => setLoading(false));
   }
 
-  useEffect(() => { void load(); }, [filter]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { void load(); }, [filter, studentProductEnabled]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handleUnsave(item) {
     try {

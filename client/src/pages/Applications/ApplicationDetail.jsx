@@ -18,6 +18,7 @@ import { CandidateApplicationOfferSection } from '../../components/applications/
 import { ActivityFeed } from '../../components/timeline/ActivityFeed';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { isOpportunityApplicationEnabled } from '../../config/careerFeatureFlags';
+import { useStudentProductEnabled } from '../../hooks/useStudentProductEnabled';
 import {
   applicationDisplayTitle,
   formatApplicationDate,
@@ -89,6 +90,7 @@ function EmployerInstitutionStagePanel({ application, onWithdraw }) {
 export default function ApplicationDetail() {
   const { id } = useParams();
   const { t, i18n } = useTranslation(['applications', 'common']);
+  const { studentProductEnabled } = useStudentProductEnabled();
   const [application, setApplication] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -111,7 +113,7 @@ export default function ApplicationDetail() {
   }, [id]);
 
   useEffect(() => {
-    if (!isOpportunityApplicationEnabled() || !id) {
+    if (!isOpportunityApplicationEnabled() || !id || !studentProductEnabled) {
       setLoading(false);
       return;
     }
@@ -119,7 +121,7 @@ export default function ApplicationDetail() {
       .then(() => loadOffer())
       .catch((err) => setError(err.response?.data?.error || t('applications:loadError')))
       .finally(() => setLoading(false));
-  }, [id, t, load, loadOffer]);
+  }, [id, t, load, loadOffer, studentProductEnabled]);
 
   async function afterMutation(promise) {
     await promise;

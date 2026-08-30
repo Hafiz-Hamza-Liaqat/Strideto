@@ -10,7 +10,7 @@ import { SearchBar } from '../../components/ui/SearchBar';
 import { Pagination } from '../../components/ui/Pagination';
 import { SaveButton } from '../../components/listings/SaveButton';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
-import { useAuth } from '../../context/AuthContext';
+import { useStudentProductEnabled } from '../../hooks/useStudentProductEnabled';
 import { formatDate } from '../../utils/formatDate';
 import { EmptyState } from '../../components/common/EmptyState';
 import { Alert } from '../../components/ui/Alerts';
@@ -26,7 +26,7 @@ const selectClass =
 
 export default function Internships() {
   const { t } = useTranslation(['internships', 'common', 'navbar']);
-  const { isAuthenticated } = useAuth();
+  const { studentProductEnabled } = useStudentProductEnabled();
   const [savedIds, setSavedIds] = useState(new Set());
 
   const location = useLocation();
@@ -46,12 +46,12 @@ export default function Internships() {
   const { data, totalPages, loading, error, params, setPage, setFilters } = useListings(internshipsApi.list, initialParams);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!studentProductEnabled) return;
     savedApi.get().then(({ data: d }) => {
       const ids = new Set((d.savedInternships || []).map((i) => i._id));
       setSavedIds(ids);
     }).catch(() => {});
-  }, [isAuthenticated]);
+  }, [studentProductEnabled]);
 
   const handleSaveToggle = async (id, save) => {
     if (save) await internshipsApi.save(id);

@@ -12,7 +12,7 @@ import {
 } from '../../config/studentNavConfig';
 import {
   USER_WORKSPACE_EVENT,
-  readUserCapabilities,
+  hasStudentCapabilityOrPending,
   readUserWorkspacePreference,
 } from '../../auth/userCapabilityWorkspace';
 
@@ -116,8 +116,7 @@ export function StudentPortalNav() {
   const { pathname } = useLocation();
   const { isAuthenticated, user } = useAuth();
   const [userWorkspace, setUserWorkspace] = useState(readUserWorkspacePreference);
-  const caps = readUserCapabilities(user);
-  const hasStudentCapability = !Array.isArray(user?.capabilities) || caps.student;
+  const studentCapable = hasStudentCapabilityOrPending(user);
 
   useEffect(() => {
     const sync = () => setUserWorkspace(readUserWorkspacePreference());
@@ -130,7 +129,7 @@ export function StudentPortalNav() {
   }, []);
 
   if (!isStudentPortalNavVisible(pathname, isAuthenticated, {
-    hasStudentCapability,
+    hasStudentCapability: studentCapable,
     userWorkspace,
   })) return null;
 

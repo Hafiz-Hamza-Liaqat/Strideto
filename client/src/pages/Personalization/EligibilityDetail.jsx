@@ -9,6 +9,7 @@ import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { SeoHead } from '../../components/seo';
 import { personalizationApi } from '../../services/personalizationApi';
+import { useStudentProductEnabled } from '../../hooks/useStudentProductEnabled';
 import { ROUTES } from '../../constants';
 
 const STATE_CONFIG = {
@@ -86,12 +87,16 @@ function MatchComponentRow({ componentKey, comp }) {
 export function EligibilityDetailPage({ opportunityType }) {
   const { programId, scholarshipId } = useParams();
   const id = programId || scholarshipId;
+  const { studentProductEnabled } = useStudentProductEnabled();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
-    if (!id) return;
+    if (!id || !studentProductEnabled) {
+      setLoading(false);
+      return undefined;
+    }
     const fetchFn = opportunityType === 'scholarship'
       ? personalizationApi.scholarshipEligibility(id)
       : personalizationApi.programEligibility(id);
@@ -100,7 +105,7 @@ export function EligibilityDetailPage({ opportunityType }) {
       .then((res) => setData(res.data))
       .catch((err) => setError(err.response?.data?.error || 'Could not load eligibility.'))
       .finally(() => setLoading(false));
-  }, [id, opportunityType]);
+  }, [id, opportunityType, studentProductEnabled]);
 
   if (loading) return <div className="py-16 text-center text-sm text-gray-500">Evaluating eligibility…</div>;
   if (error) return (

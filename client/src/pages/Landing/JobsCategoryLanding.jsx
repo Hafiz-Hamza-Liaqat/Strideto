@@ -7,12 +7,12 @@ import { v1Api, seoApi, jobsApi, savedApi } from '../../services/listingsService
 import { ROUTES } from '../../constants';
 import { HomeJobCard } from '../../components/listings/HomeListingCard';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
-import { useAuth } from '../../context/AuthContext';
+import { useStudentProductEnabled } from '../../hooks/useStudentProductEnabled';
 
 export default function JobsCategoryLanding() {
   const { t } = useTranslation(['jobs', 'navbar']);
   const { slug } = useParams();
-  const { isAuthenticated } = useAuth();
+  const { studentProductEnabled } = useStudentProductEnabled();
   const [meta, setMeta] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -34,9 +34,9 @@ export default function JobsCategoryLanding() {
   }, [slug, t]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!studentProductEnabled) return;
     savedApi.get().then(({ data }) => setSavedIds(new Set((data.savedJobs || []).map((j) => j._id)))).catch(() => {});
-  }, [isAuthenticated]);
+  }, [studentProductEnabled]);
 
   const handleSave = async (id, save) => {
     if (save) await jobsApi.save(id);

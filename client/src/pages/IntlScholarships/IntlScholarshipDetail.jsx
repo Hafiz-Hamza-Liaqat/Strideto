@@ -7,7 +7,7 @@ import { buildCanonicalUrl } from '../../seo/config';
 import { intlScholarshipsApi, savedApi } from '../../services/listingsService';
 import { ROUTES } from '../../constants';
 import { SaveButton } from '../../components/listings/SaveButton';
-import { useAuth } from '../../context/AuthContext';
+import { useStudentProductEnabled } from '../../hooks/useStudentProductEnabled';
 import { formatDate } from '../../utils/formatDate';
 import { useContentView } from '../../hooks/usePageView';
 import { RelatedResources } from '../../components/seo/RelatedResources';
@@ -34,7 +34,7 @@ export default function IntlScholarshipDetail() {
   const { t } = useTranslation(['scholarships', 'common', 'navbar']);
   const { id: slugOrId } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { studentProductEnabled } = useStudentProductEnabled();
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -57,12 +57,12 @@ export default function IntlScholarshipDetail() {
   }, [item, slugOrId, navigate]);
 
   useEffect(() => {
-    if (!isAuthenticated || !item) return;
+    if (!studentProductEnabled || !item) return;
     savedApi.get().then(({ data: d }) => {
       const ids = (d.savedIntlScholarships || []).map((s) => s._id);
       setSaved(ids.includes(item._id));
     }).catch(() => {});
-  }, [isAuthenticated, item]);
+  }, [studentProductEnabled, item]);
 
   const handleSaveToggle = async (scholarshipId, save) => {
     if (!scholarshipId) return;
@@ -133,7 +133,7 @@ export default function IntlScholarshipDetail() {
               <KeyFacts facts={intlFacts} headingId="intl-scholarship-key-facts" />
             </div>
           </div>
-          {isAuthenticated && <SaveButton id={item._id} saved={saved} onToggle={(scholarshipId, save) => handleSaveToggle(scholarshipId, save)} />}
+          <SaveButton id={item._id} saved={saved} onToggle={handleSaveToggle} />
         </div>
 
         {item.description && (

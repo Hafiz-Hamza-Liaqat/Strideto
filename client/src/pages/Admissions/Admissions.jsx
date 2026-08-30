@@ -14,7 +14,7 @@ import { SaveButton } from '../../components/listings/SaveButton';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { Alert } from '../../components/ui/Alerts';
 import { formatDate, daysUntil } from '../../utils/formatDate';
-import { useAuth } from '../../context/AuthContext';
+import { useStudentProductEnabled } from '../../hooks/useStudentProductEnabled';
 import { AdHost } from '../../components/ads';
 import { EmptyState } from '../../components/common/EmptyState';
 import { CountrySelect } from '../../components/forms/CountrySelect';
@@ -32,14 +32,14 @@ const ADMISSION_SORT_KEYS = {
 
 export default function Admissions() {
   const { t } = useTranslation(['admissions', 'common', 'navbar']);
-  const { isAuthenticated } = useAuth();
+  const { studentProductEnabled } = useStudentProductEnabled();
   const [savedIds, setSavedIds] = useState(new Set());
   const { data, total, totalPages, loading, error, params, setPage, setFilters } = useListings(admissionsApi.list, { limit: PER_PAGE, sort: 'newest' });
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!studentProductEnabled) return;
     savedApi.get().then(({ data: d }) => setSavedIds(new Set((d.savedAdmissions || []).map((a) => a._id)))).catch(() => {});
-  }, [isAuthenticated]);
+  }, [studentProductEnabled]);
 
   const handleSearch = (q) => setFilters({ search: q || undefined });
   const handleSaveToggle = async (id, save) => {

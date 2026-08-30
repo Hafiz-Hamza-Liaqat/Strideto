@@ -9,6 +9,7 @@ import { talentApi } from '../../services/talentApi';
 import { shouldUseTalentProfileApi, isOpportunityApplicationEnabled } from '../../config/careerFeatureFlags';
 import { ROUTES } from '../../constants';
 import { useActiveWorkspace } from '../../context/ActiveWorkspaceContext';
+import { useStudentProductEnabled } from '../../hooks/useStudentProductEnabled';
 import { StudentAuthorityNotice } from '../../components/auth/StudentAuthorityNotice';
 import { useToast } from '../../context/ToastContext';
 import { SaveButton } from '../../components/listings/SaveButton';
@@ -87,6 +88,7 @@ export default function JobDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const { canActAsStudent, isAuthenticated: workspaceAuth, realm, isHydrating } = useActiveWorkspace();
+  const { studentProductEnabled } = useStudentProductEnabled();
   const studentWriteBlocked = workspaceAuth && realm !== 'student' && realm !== 'guest';
   const fileInputRef = useRef(null);
   const [job, setJob] = useState(null);
@@ -110,36 +112,36 @@ export default function JobDetail() {
   useEffect(() => {
     jobsApi.get(slug).then(({ data }) => {
       setJob(data);
-      if (canActAsStudent && data?._id) recentViewedApi.record('job', data._id).catch(() => {});
+      if (studentProductEnabled && data?._id) recentViewedApi.record('job', data._id).catch(() => {});
     }).catch((err) => setError(err.response?.data?.error || t('failedToLoad', { ns: 'common' }))).finally(() => setLoading(false));
-  }, [slug, canActAsStudent, t]);
+  }, [slug, studentProductEnabled, t]);
 
   useEffect(() => {
-    if (!canActAsStudent) return;
+    if (!studentProductEnabled) return;
     savedApi.get().then(({ data: d }) => setSavedIds(new Set((d.savedJobs || []).map((j) => j._id)))).catch(() => {});
-  }, [canActAsStudent]);
+  }, [studentProductEnabled]);
 
   useEffect(() => {
-    if (!canActAsStudent || !job?._id) return;
+    if (!studentProductEnabled || !job?._id) return;
     applicationsApi.getMy().then(({ data }) => {
       const list = data.data || [];
       const hasApplied = list.some((a) => (a.job?._id || a.job)?.toString() === job._id.toString());
       setApplied(hasApplied);
     }).catch(() => {});
-  }, [canActAsStudent, job?._id]);
+  }, [studentProductEnabled, job?._id]);
 
   useEffect(() => {
-    if (!canActAsStudent || !shouldUseTalentProfileApi()) return;
+    if (!studentProductEnabled || !shouldUseTalentProfileApi()) return;
     talentApi.getApplyKit().then(({ data }) => {
       setApplyKit(data);
       if (data?.resumeDocumentUrl) setSelectedDocUrl(data.resumeDocumentUrl);
     }).catch(() => setApplyKit(null));
-  }, [canActAsStudent]);
+  }, [studentProductEnabled]);
 
   useEffect(() => {
-    if (!canActAsStudent) return;
+    if (!studentProductEnabled) return;
     recommendationsApi.get().then(({ data }) => setRecommended(data.jobs || [])).catch(() => setRecommended([]));
-  }, [canActAsStudent]);
+  }, [studentProductEnabled]);
 
   const handleSaveToggle = async (id, save) => {
     if (save) await jobsApi.save(id);

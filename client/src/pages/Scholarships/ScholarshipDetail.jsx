@@ -9,7 +9,7 @@ import { ROUTES } from '../../constants';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { Alert } from '../../components/ui/Alerts';
 import { formatDate } from '../../utils/formatDate';
-import { useAuth } from '../../context/AuthContext';
+import { useStudentProductEnabled } from '../../hooks/useStudentProductEnabled';
 import { useContentView } from '../../hooks/usePageView';
 import { talentApi } from '../../services/talentApi';
 import { shouldUseTalentProfileApi, isOpportunityApplicationEnabled } from '../../config/careerFeatureFlags';
@@ -33,7 +33,7 @@ export default function ScholarshipDetail() {
   const { t } = useTranslation(['scholarships', 'common', 'navbar', 'applications']);
   const { slug } = useParams();
   const navigate = useNavigate();
-  const { isAuthenticated } = useAuth();
+  const { studentProductEnabled } = useStudentProductEnabled();
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -46,17 +46,17 @@ export default function ScholarshipDetail() {
   useEffect(() => {
     scholarshipsApi.get(slug).then(({ data }) => {
       setItem(data);
-      if (isAuthenticated && data?._id) recentViewedApi.record('scholarship', data._id).catch(() => {});
+      if (studentProductEnabled && data?._id) recentViewedApi.record('scholarship', data._id).catch(() => {});
     }).catch((err) => setError(err.response?.data?.error || t('failedToLoad', { ns: 'common' }))).finally(() => setLoading(false));
-  }, [slug, isAuthenticated]);
+  }, [slug, studentProductEnabled]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!studentProductEnabled) return;
     savedApi.get().then(({ data: d }) => setSavedIds(new Set((d.savedScholarships || []).map((s) => s._id)))).catch(() => {});
     if (shouldUseTalentProfileApi()) {
       talentApi.getApplyKit().then(({ data }) => setApplyKit(data)).catch(() => setApplyKit(null));
     }
-  }, [isAuthenticated]);
+  }, [studentProductEnabled]);
 
   const handleSaveToggle = async (id, save) => {
     if (save) await scholarshipsApi.save(id);
@@ -161,7 +161,7 @@ export default function ScholarshipDetail() {
                   {t('applyOfficialWebsite', { ns: 'jobs', defaultValue: 'Apply on official website' })}
                 </a>
               )}
-              {isAuthenticated && isOpportunityApplicationEnabled() && (
+              {studentProductEnabled && isOpportunityApplicationEnabled() && (
                 <button
                   type="button"
                   onClick={handleTrackApplication}
@@ -173,7 +173,7 @@ export default function ScholarshipDetail() {
               )}
             </div>
           </div>
-          {isAuthenticated && <ApplyKitBanner kit={applyKit} />}
+          {studentProductEnabled && <ApplyKitBanner kit={applyKit} />}
           {item.description && (
             <section className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-700">
               <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">{t('description', { ns: 'common' })}</h2>

@@ -8,10 +8,13 @@ import { ListingCardSkeleton } from '../../components/listings/ListingCardSkelet
 import { Chatbot } from '../../components/chatbot/Chatbot';
 import { ProfileCompletionCard } from '../../components/profile/ProfileCompletionCard';
 import { ResumeEncouragementBanner } from '../../components/profile/ResumeEncouragementBanner';
+import { useAuth } from '../../context/AuthContext';
 
 /** Legacy monolithic dashboard — used when VITE_CAREER_DASHBOARD_ENABLED=0 */
 export default function LegacyDashboard() {
   const { t } = useTranslation(['dashboard', 'common']);
+  const { isAuthenticated, hasStudentCapability: studentCapable, loading: authLoading } = useAuth();
+  const studentProductEnabled = isAuthenticated && !authLoading && studentCapable;
   const [dashboard, setDashboard] = useState(null);
   const [applications, setApplications] = useState([]);
   const [referralData, setReferralData] = useState(null);
@@ -20,6 +23,10 @@ export default function LegacyDashboard() {
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (!studentProductEnabled) {
+      setLoading(false);
+      return undefined;
+    }
     dashboardApi
       .get()
       .then(({ data }) => {
@@ -28,14 +35,16 @@ export default function LegacyDashboard() {
       })
       .catch((err) => setError(err.response?.data?.error || t('dashboard:failedLoad')))
       .finally(() => setLoading(false));
-  }, [t]);
+  }, [t, studentProductEnabled]);
 
   useEffect(() => {
+    if (!studentProductEnabled) return undefined;
     applicationsApi.getMy().then(({ data }) => setApplications(data.data || [])).catch(() => setApplications([]));
-  }, []);
+  }, [studentProductEnabled]);
   useEffect(() => {
+    if (!studentProductEnabled) return undefined;
     referralsApi.getMy().then(({ data }) => setReferralData(data)).catch(() => setReferralData(null));
-  }, []);
+  }, [studentProductEnabled]);
 
   if (loading) {
     return (

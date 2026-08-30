@@ -7,13 +7,13 @@ import { ROUTES } from '../../constants';
 import { seoApi } from '../../services/listingsService';
 import { HomeScholarshipCard } from '../../components/listings/HomeListingCard';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
-import { useAuth } from '../../context/AuthContext';
+import { useStudentProductEnabled } from '../../hooks/useStudentProductEnabled';
 import { scholarshipsApi, savedApi } from '../../services/listingsService';
 
 export default function SEOScholarshipsPage() {
   const { t } = useTranslation(['scholarships', 'navbar']);
   const { country } = useParams();
-  const { isAuthenticated } = useAuth();
+  const { studentProductEnabled } = useStudentProductEnabled();
   const [meta, setMeta] = useState(null);
   const [scholarships, setScholarships] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -31,9 +31,9 @@ export default function SEOScholarshipsPage() {
   }, [country, t]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!studentProductEnabled) return;
     savedApi.get().then(({ data }) => setSavedIds(new Set((data.savedScholarships || []).map((s) => s._id)))).catch(() => {});
-  }, [isAuthenticated]);
+  }, [studentProductEnabled]);
 
   const handleSave = async (id, save) => {
     if (save) await scholarshipsApi.save(id);

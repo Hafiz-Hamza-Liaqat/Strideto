@@ -3,7 +3,7 @@ import { validateSubmission } from '@shared/formSchema.js';
 import { formsApi } from '../../services/formsApi';
 import { talentApi } from '../../services/talentApi';
 import { shouldUseTalentProfileApi } from '../../config/careerFeatureFlags';
-import { useAuth } from '../../context/AuthContext';
+import { useStudentProductEnabled } from '../../hooks/useStudentProductEnabled';
 import { FormFieldInput } from './FormFieldInput';
 
 /**
@@ -27,7 +27,7 @@ export function FormRenderer({
   const [submitting, setSubmitting] = useState(false);
   const [submitError, setSubmitError] = useState('');
   const [success, setSuccess] = useState(null);
-  const { isAuthenticated } = useAuth();
+  const { studentProductEnabled } = useStudentProductEnabled();
   const [prefillApplied, setPrefillApplied] = useState(false);
 
   useEffect(() => {
@@ -56,7 +56,7 @@ export function FormRenderer({
   }, [fields]);
 
   useEffect(() => {
-    if (!isAuthenticated || !shouldUseTalentProfileApi() || prefillApplied || !fields.length || preview) return;
+    if (!studentProductEnabled || !shouldUseTalentProfileApi() || prefillApplied || !fields.length || preview) return;
     talentApi.getPrefill()
       .then(({ data }) => {
         if (!data || typeof data !== 'object') return;
@@ -86,7 +86,7 @@ export function FormRenderer({
         setPrefillApplied(true);
       })
       .catch(() => {});
-  }, [fields, isAuthenticated, prefillApplied, preview]);
+  }, [fields, studentProductEnabled, prefillApplied, preview]);
 
   const setValue = useCallback((name, val) => {
     setValues((prev) => ({ ...prev, [name]: val }));

@@ -9,6 +9,7 @@ import { applicationsApi as oaApi } from '../../services/applicationsApi';
 import { ROUTES } from '../../constants';
 import { SaveButton } from '../../components/listings/SaveButton';
 import { useActiveWorkspace } from '../../context/ActiveWorkspaceContext';
+import { useStudentProductEnabled } from '../../hooks/useStudentProductEnabled';
 import { StudentAuthorityNotice } from '../../components/auth/StudentAuthorityNotice';
 import { useToast } from '../../context/ToastContext';
 import { isOpportunityApplicationEnabled } from '../../config/careerFeatureFlags';
@@ -36,6 +37,7 @@ export default function InternshipDetail() {
   const navigate = useNavigate();
   const location = useLocation();
   const { canActAsStudent, isAuthenticated: workspaceAuth, realm } = useActiveWorkspace();
+  const { studentProductEnabled } = useStudentProductEnabled();
   const studentWriteBlocked = workspaceAuth && realm !== 'student' && realm !== 'guest';
   const { toast } = useToast();
   const [internship, setInternship] = useState(null);
@@ -51,15 +53,15 @@ export default function InternshipDetail() {
   }, [idOrSlug]);
 
   useEffect(() => {
-    if (!canActAsStudent || !internship) return;
+    if (!studentProductEnabled || !internship) return;
     savedApi.get().then(({ data: d }) => {
       const ids = (d.savedInternships || []).map((i) => i._id);
       setSaved(ids.includes(internship._id));
     }).catch(() => {});
-  }, [canActAsStudent, internship]);
+  }, [studentProductEnabled, internship]);
 
   const handleSaveToggle = async (id, save) => {
-    if (!id || !canActAsStudent) return;
+    if (!id || !studentProductEnabled) return;
     if (save) await internshipsApi.save(id);
     else await internshipsApi.unsave(id);
     setSaved(!!save);

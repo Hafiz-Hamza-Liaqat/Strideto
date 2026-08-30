@@ -11,6 +11,7 @@ import { ApplicationCalendarView } from '../../components/applications/Applicati
 import { ApplicationMetricsStrip } from '../../components/applications/ApplicationMetricsStrip';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { isOpportunityApplicationEnabled } from '../../config/careerFeatureFlags';
+import { useStudentProductEnabled } from '../../hooks/useStudentProductEnabled';
 import { PIPELINE_STAGES } from '@shared/career/constants.js';
 import {
   OPPORTUNITY_TYPE_FILTERS,
@@ -25,6 +26,7 @@ const VIEWS = ['list', 'kanban', 'table', 'calendar'];
 
 export default function MyApplications() {
   const { t } = useTranslation(['applications', 'common']);
+  const { studentProductEnabled } = useStudentProductEnabled();
   const [applications, setApplications] = useState([]);
   const [metrics, setMetrics] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -44,14 +46,14 @@ export default function MyApplications() {
   }, []);
 
   useEffect(() => {
-    if (!isOpportunityApplicationEnabled()) {
+    if (!isOpportunityApplicationEnabled() || !studentProductEnabled) {
       setLoading(false);
       return;
     }
     reload()
       .catch((err) => setError(err.response?.data?.error || t('applications:loadError')))
       .finally(() => setLoading(false));
-  }, [t, reload]);
+  }, [t, reload, studentProductEnabled]);
 
   const visible = useMemo(() => {
     let list = filterApplications(applications, { type: typeFilter, query: search, channel: channelFilter });

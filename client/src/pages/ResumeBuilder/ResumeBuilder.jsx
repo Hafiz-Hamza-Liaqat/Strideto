@@ -20,7 +20,7 @@ import { EmptyState } from '../../components/common/EmptyState';
 
 export default function ResumeBuilder() {
   const { t } = useTranslation(['resume', 'common']);
-  const { isAuthenticated, loading: authLoading } = useAuth();
+  const { isAuthenticated, loading: authLoading, hasStudentCapability } = useAuth();
   const [searchParams] = useSearchParams();
   const editId = searchParams.get('edit') || searchParams.get('id');
   const optimizeForJobId = searchParams.get('optimizeForJob');
@@ -32,7 +32,7 @@ export default function ResumeBuilder() {
   // Covers both bootstrap races: authLoading=true at mount (Case A) and
   // authLoading=false+isAuthenticated=true at mount (Case B) where loadTalent runs immediately.
   const [loading, setLoading] = useState(
-    !!(editId || authLoading || (isAuthenticated && shouldUseTalentProfileApi()))
+    !!(editId || authLoading || (isAuthenticated && hasStudentCapability && shouldUseTalentProfileApi()))
   );
   const [saving, setSaving] = useState(false);
   const [optimizeResult, setOptimizeResult] = useState(null);
@@ -71,7 +71,7 @@ export default function ResumeBuilder() {
       return;
     }
 
-    if (!isAuthenticated) {
+    if (!isAuthenticated || !hasStudentCapability) {
       setLoading(false);
       return;
     }

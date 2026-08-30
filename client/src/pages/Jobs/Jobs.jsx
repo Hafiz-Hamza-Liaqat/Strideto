@@ -22,7 +22,7 @@ import { ListingCardSkeleton } from '../../components/listings/ListingCardSkelet
 import { Alert } from '../../components/ui/Alerts';
 import { EmptyState } from '../../components/common/EmptyState';
 import { formatDate } from '../../utils/formatDate';
-import { useAuth } from '../../context/AuthContext';
+import { useStudentProductEnabled } from '../../hooks/useStudentProductEnabled';
 import { AdHost } from '../../components/ads';
 import { LocationCascadeFilter } from '../../components/forms/LocationCascadeFilter';
 import { DateInput } from '../../components/forms/NativeTemporalInput';
@@ -40,7 +40,7 @@ const selectClass =
 
 export default function Jobs() {
   const { t } = useTranslation(['jobs', 'common', 'navbar']);
-  const { isAuthenticated } = useAuth();
+  const { studentProductEnabled } = useStudentProductEnabled();
   const [savedIds, setSavedIds] = useState(new Set());
   const [recommendedJobs, setRecommendedJobs] = useState([]);
   const [, setLoadingRecommended] = useState(false);
@@ -80,18 +80,18 @@ export default function Jobs() {
   }, [countryCode, regionValue]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!studentProductEnabled) return;
     savedApi.get().then(({ data: d }) => {
       const ids = new Set((d.savedJobs || []).map((j) => j._id));
       setSavedIds(ids);
     }).catch(() => {});
-  }, [isAuthenticated]);
+  }, [studentProductEnabled]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!studentProductEnabled) return;
     setLoadingRecommended(true);
     recommendationsApi.get().then(({ data: d }) => setRecommendedJobs(d.jobs || [])).catch(() => setRecommendedJobs([])).finally(() => setLoadingRecommended(false));
-  }, [isAuthenticated]);
+  }, [studentProductEnabled]);
 
   const handleSearch = (q) => {
     if (q && q.trim()) trackSearchQuery(q);
@@ -164,7 +164,7 @@ export default function Jobs() {
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('title', { ns: 'jobs' })}</h1>
         <p className="text-gray-600 dark:text-gray-400 mb-6">{t('subtitle', { ns: 'jobs' })}</p>
 
-        {isAuthenticated && visibleRecommended.length > 0 && (
+        {studentProductEnabled && visibleRecommended.length > 0 && (
           <ScrollReveal as="section" className="mb-8 p-4 rounded-xl border border-primary/30 dark:border-mint/30 bg-mint/20 dark:bg-mint/10">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">{t('recommended', { ns: 'jobs' })}</h2>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">

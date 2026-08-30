@@ -56,7 +56,7 @@ const FOREIGN_STUDY_COUNTRIES = [
 export default function Home() {
   const { t } = useTranslation(['home', 'common', 'navbar']);
   const navigate = useNavigate();
-  const { isAuthenticated, user } = useAuth();
+  const { isAuthenticated, user, hasStudentCapability: studentCapable, loading: authLoading } = useAuth();
   const { isAuthenticated: isEmployer } = useEmployerAuth();
   const persona = resolvePersonaBucket(user, isEmployer);
   const { homepage, banners, hasResolved } = useSiteContent();
@@ -132,7 +132,7 @@ export default function Home() {
   }, [countryCode]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || authLoading || !studentCapable) return;
     savedApi.get().then(({ data }) => {
       setSavedIds({
         jobs: new Set((data.savedJobs || []).map((j) => j._id)),
@@ -140,10 +140,10 @@ export default function Home() {
         admissions: new Set((data.savedAdmissions || []).map((a) => a._id)),
       });
     }).catch(() => {});
-  }, [isAuthenticated]);
+  }, [isAuthenticated, authLoading, studentCapable]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!isAuthenticated || authLoading || !studentCapable) return;
     setLoadingRecommended(true);
     recommendationsApi.get().then(({ data }) => {
       setRecommended({
@@ -152,7 +152,7 @@ export default function Home() {
         admissions: data.admissions || [],
       });
     }).catch(() => setRecommended({ jobs: [], scholarships: [], admissions: [] })).finally(() => setLoadingRecommended(false));
-  }, [isAuthenticated]);
+  }, [isAuthenticated, authLoading, studentCapable]);
 
   useEffect(() => {
     blogsApi.list({ limit: BLOG_LIMIT, status: 'published' }).then((r) => setBlogs((r.data?.data || r.data || []).slice(0, BLOG_LIMIT))).catch(() => setBlogs([])).finally(() => setLoadingBlogs(false));

@@ -18,16 +18,17 @@ import { useToast } from '../context/ToastContext';
  * Loads profile completion signals and returns weighted evaluation.
  */
 export function useProfileCompletion({ enabled = true } = {}) {
-  const { user, isAuthenticated } = useAuth();
+  const { user, isAuthenticated, hasStudentCapability: studentCapable, loading: authLoading } = useAuth();
   const { toast } = useToast();
   const [talent, setTalent] = useState(null);
   const [hasResume, setHasResume] = useState(false);
-  const [loading, setLoading] = useState(Boolean(enabled && isAuthenticated));
+  const studentProductEnabled = enabled && isAuthenticated && !authLoading && studentCapable;
+  const [loading, setLoading] = useState(Boolean(studentProductEnabled));
 
   const userId = user?._id ? String(user._id) : null;
 
   useEffect(() => {
-    if (!enabled || !isAuthenticated) {
+    if (!studentProductEnabled) {
       setLoading(false);
       return undefined;
     }
@@ -68,7 +69,7 @@ export function useProfileCompletion({ enabled = true } = {}) {
     return () => {
       cancelled = true;
     };
-  }, [enabled, isAuthenticated, userId]);
+  }, [studentProductEnabled, userId]);
 
   const prefs = useMemo(() => {
     const fromUser = user?.careerPreferences
@@ -88,7 +89,7 @@ export function useProfileCompletion({ enabled = true } = {}) {
   }, [user, talent, hasResume, prefs]);
 
   useEffect(() => {
-    if (!enabled || !isAuthenticated || loading) return;
+    if (!studentProductEnabled || loading) return;
     const news = findNewMilestones(evaluation.percent, userId);
     news.forEach((m) => {
       if (markMilestoneReached(m, userId)) {
@@ -97,7 +98,7 @@ export function useProfileCompletion({ enabled = true } = {}) {
         );
       }
     });
-  }, [enabled, isAuthenticated, loading, evaluation.percent, userId, toast]);
+  }, [studentProductEnabled, loading, evaluation.percent, userId, toast]);
 
   return {
     loading,

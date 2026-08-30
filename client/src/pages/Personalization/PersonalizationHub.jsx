@@ -11,6 +11,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { SeoHead } from '../../components/seo';
+import { useAuth } from '../../context/AuthContext';
 import { personalizationApi } from '../../services/personalizationApi';
 import { ROUTES } from '../../constants';
 import { Pagination } from '../../components/ui/Pagination';
@@ -187,16 +188,21 @@ function RecommendationCard({ rec, detailPath, eligibilityDetailPath }) {
 // ── Gap analysis panel ────────────────────────────────────────────────────────
 
 function GapAnalysisPanel() {
+  const { isAuthenticated, hasStudentCapability: studentCapable, loading: authLoading } = useAuth();
   const [gaps, setGaps] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   useEffect(() => {
+    if (!isAuthenticated || authLoading || !studentCapable) {
+      setLoading(false);
+      return undefined;
+    }
     personalizationApi.gapAnalysis()
       .then((res) => setGaps(res.data?.gaps || []))
       .catch(() => setError('Could not load gap analysis.'))
       .finally(() => setLoading(false));
-  }, []);
+  }, [isAuthenticated, authLoading, studentCapable]);
 
   if (loading) return <div className="py-6 text-center text-sm text-gray-500">Analysing profile…</div>;
   if (error) return <div className="py-4 text-sm text-red-600 dark:text-red-400">{error}</div>;
@@ -221,12 +227,14 @@ function GapAnalysisPanel() {
 // ── Program recommendations tab ───────────────────────────────────────────────
 
 function ProgramTab() {
+  const { isAuthenticated, hasStudentCapability: studentCapable, loading: authLoading } = useAuth();
   const [data, setData] = useState(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const load = (p) => {
+    if (!isAuthenticated || authLoading || !studentCapable) return;
     setLoading(true);
     setError(null);
     personalizationApi.programRecommendations({ page: p, limit: 10 })
@@ -235,7 +243,7 @@ function ProgramTab() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(page); }, [page]);
+  useEffect(() => { load(page); }, [page, isAuthenticated, authLoading, studentCapable]);
 
   if (loading) return <div className="py-10 text-center text-sm text-gray-500">Loading recommendations…</div>;
   if (error) return <div className="py-6 text-sm text-red-600 dark:text-red-400">{error}</div>;
@@ -276,12 +284,14 @@ function ProgramTab() {
 // ── Scholarship recommendations tab ──────────────────────────────────────────
 
 function ScholarshipTab() {
+  const { isAuthenticated, hasStudentCapability: studentCapable, loading: authLoading } = useAuth();
   const [data, setData] = useState(null);
   const [page, setPage] = useState(1);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
 
   const load = (p) => {
+    if (!isAuthenticated || authLoading || !studentCapable) return;
     setLoading(true);
     setError(null);
     personalizationApi.scholarshipRecommendations({ page: p, limit: 10 })
@@ -290,7 +300,7 @@ function ScholarshipTab() {
       .finally(() => setLoading(false));
   };
 
-  useEffect(() => { load(page); }, [page]);
+  useEffect(() => { load(page); }, [page, isAuthenticated, authLoading, studentCapable]);
 
   if (loading) return <div className="py-10 text-center text-sm text-gray-500">Loading recommendations…</div>;
   if (error) return <div className="py-6 text-sm text-red-600 dark:text-red-400">{error}</div>;

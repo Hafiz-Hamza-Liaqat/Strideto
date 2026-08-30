@@ -19,6 +19,26 @@ export function readUserCapabilities(user) {
   };
 }
 
+/**
+ * Server-projected student capability from `/auth/me` (strict).
+ * Never infers from role, realm, or isAuthenticated alone.
+ * Returns false until capabilities array is present on the user record.
+ */
+export function hasStudentCapability(user) {
+  if (!user || !Array.isArray(user.capabilities)) return false;
+  return user.capabilities.includes(USER_CAPABILITY_IDS.STUDENT);
+}
+
+/**
+ * UX-only optimistic check for nav/chrome while capabilities hydrate.
+ * Do not use for student-product API calls — use {@link hasStudentCapability}.
+ */
+export function hasStudentCapabilityOrPending(user) {
+  if (!user) return false;
+  if (!Array.isArray(user.capabilities)) return true;
+  return user.capabilities.includes(USER_CAPABILITY_IDS.STUDENT);
+}
+
 export function isUserWorkspaceMode(value) {
   return USER_WORKSPACE_MODES.includes(value);
 }

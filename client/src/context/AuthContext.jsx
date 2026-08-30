@@ -24,6 +24,7 @@ import {
 import {
   clearUserWorkspacePreference,
   defaultUserWorkspaceMode,
+  hasStudentCapability,
   readUserCapabilities,
   readUserWorkspacePreference,
   resolveUserWorkspaceMode,
@@ -305,6 +306,7 @@ export function AuthProvider({ children }) {
     error,
     setError,
     isAuthenticated: !!user && !!getAccessToken(),
+    hasStudentCapability: hasStudentCapability(user),
     isAdmin: user?.role === 'Admin',
     identityConflict,
     login,

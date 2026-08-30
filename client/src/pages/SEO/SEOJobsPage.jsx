@@ -7,7 +7,7 @@ import { ROUTES } from '../../constants';
 import { seoApi } from '../../services/listingsService';
 import { HomeJobCard } from '../../components/listings/HomeListingCard';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
-import { useAuth } from '../../context/AuthContext';
+import { useStudentProductEnabled } from '../../hooks/useStudentProductEnabled';
 import { jobsApi, savedApi } from '../../services/listingsService';
 
 export default function SEOJobsPage() {
@@ -16,7 +16,7 @@ export default function SEOJobsPage() {
   const location = useLocation();
   const pathSlug = (location.pathname || '').replace(/^\//, '').split('?')[0];
   const slug = paramSlug || pathSlug;
-  const { isAuthenticated } = useAuth();
+  const { studentProductEnabled } = useStudentProductEnabled();
   const [meta, setMeta] = useState(null);
   const [jobs, setJobs] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -45,9 +45,9 @@ export default function SEOJobsPage() {
   }, [slug, isCategory, isLatestGov, sourceSlug, t]);
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!studentProductEnabled) return;
     savedApi.get().then(({ data }) => setSavedIds(new Set((data.savedJobs || []).map((j) => j._id)))).catch(() => {});
-  }, [isAuthenticated]);
+  }, [studentProductEnabled]);
 
   const handleSave = async (id, save) => {
     if (save) await jobsApi.save(id);

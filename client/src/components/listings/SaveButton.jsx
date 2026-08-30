@@ -2,11 +2,13 @@ import { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useActiveWorkspace } from '../../context/ActiveWorkspaceContext';
+import { useStudentProductEnabled } from '../../hooks/useStudentProductEnabled';
 import { ROUTES } from '../../constants';
 import { loginLocationState } from '../../utils/loginReturn.js';
 
 export function SaveButton({ id, saved: initialSaved, onToggle }) {
   const { isAuthenticated } = useAuth();
+  const { studentProductEnabled } = useStudentProductEnabled();
   const { canActAsStudent, isAuthenticated: workspaceAuth, realm } = useActiveWorkspace();
   const location = useLocation();
   const [saved, setSaved] = useState(!!initialSaved);
@@ -41,6 +43,19 @@ export function SaveButton({ id, saved: initialSaved, onToggle }) {
         <span aria-hidden>🔖</span>
         <span className="hidden sm:inline">Login to Save</span>
       </Link>
+    );
+  }
+
+  if (!studentProductEnabled) {
+    return (
+      <span
+        className="inline-flex items-center justify-center gap-1.5 min-w-[44px] min-h-[44px] px-2 sm:px-3 py-1.5 text-sm rounded-lg border border-gray-200 dark:border-gray-700 text-gray-500 dark:text-gray-400 cursor-not-allowed"
+        aria-label="Student access required to save"
+        title="Student access required for this action."
+      >
+        <span aria-hidden>🔖</span>
+        <span className="hidden sm:inline">Save unavailable</span>
+      </span>
     );
   }
 

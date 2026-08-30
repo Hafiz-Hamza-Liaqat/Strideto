@@ -19,7 +19,7 @@ import { SaveButton } from '../../components/listings/SaveButton';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { Alert } from '../../components/ui/Alerts';
 import { formatDate } from '../../utils/formatDate';
-import { useAuth } from '../../context/AuthContext';
+import { useStudentProductEnabled } from '../../hooks/useStudentProductEnabled';
 import { AdHost } from '../../components/ads';
 import { EmptyState } from '../../components/common/EmptyState';
 import { OfficialScholarshipsRail } from '../../components/public/OfficialDiscoveryRail';
@@ -35,13 +35,13 @@ const SCHOLARSHIP_SORT_KEYS = {
 
 export default function Scholarships() {
   const { t } = useTranslation(['scholarships', 'common', 'navbar']);
-  const { isAuthenticated } = useAuth();
+  const { studentProductEnabled } = useStudentProductEnabled();
   const [savedIds, setSavedIds] = useState(new Set());
   const [recommendedScholarships, setRecommendedScholarships] = useState([]);
   const { data, total, totalPages, loading, error, params, setPage, setFilters } = useListings(scholarshipsApi.list, { limit: PER_PAGE, sort: 'newest' });
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!studentProductEnabled) return;
     let cancelled = false;
     Promise.all([
       savedApi.get(),
@@ -58,7 +58,7 @@ export default function Scholarships() {
     return () => {
       cancelled = true;
     };
-  }, [isAuthenticated]);
+  }, [studentProductEnabled]);
 
   const handleSearch = (q) => {
     if (q && q.trim()) trackSearchQuery(q);
@@ -107,7 +107,7 @@ export default function Scholarships() {
         <p className="text-gray-600 dark:text-gray-400 mb-6">{t('subtitle', { ns: 'scholarships' })}</p>
         <OfficialScholarshipsRail />
 
-        {isAuthenticated && recommendedScholarships.length > 0 && (
+        {studentProductEnabled && recommendedScholarships.length > 0 && (
           <section className="mb-8 p-4 rounded-xl border border-primary/30 dark:border-mint/30 bg-mint/20 dark:bg-mint/10">
             <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-3">{t('recommended', { ns: 'scholarships' })}</h2>
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-3">

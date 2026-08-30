@@ -12,7 +12,7 @@ import { SearchBar } from '../../components/ui/SearchBar';
 import { Pagination } from '../../components/ui/Pagination';
 import { SaveButton } from '../../components/listings/SaveButton';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
-import { useAuth } from '../../context/AuthContext';
+import { useStudentProductEnabled } from '../../hooks/useStudentProductEnabled';
 import { formatDate } from '../../utils/formatDate';
 import { CountrySelect } from '../../components/forms/CountrySelect';
 import { coerceCountryCode } from '@shared/international/country.js';
@@ -25,7 +25,7 @@ function intlScholarshipPath(item) {
 
 export default function IntlScholarships() {
   const { t } = useTranslation(['scholarships', 'seo', 'common']);
-  const { isAuthenticated } = useAuth();
+  const { studentProductEnabled } = useStudentProductEnabled();
   const [searchParams, setSearchParams] = useSearchParams();
   const [savedIds, setSavedIds] = useState(new Set());
   const urlCountry = coerceCountryCode(searchParams.get('country') || '') || '';
@@ -47,12 +47,12 @@ export default function IntlScholarships() {
   };
 
   useEffect(() => {
-    if (!isAuthenticated) return;
+    if (!studentProductEnabled) return;
     savedApi.get().then(({ data: d }) => {
       const ids = new Set((d.savedIntlScholarships || []).map((s) => s._id));
       setSavedIds(ids);
     }).catch(() => {});
-  }, [isAuthenticated]);
+  }, [studentProductEnabled]);
 
   const handleSaveToggle = async (id, save) => {
     if (save) await intlScholarshipsApi.save(id);
@@ -146,9 +146,7 @@ export default function IntlScholarships() {
                           {[item.country, item.university || item.provider].filter(Boolean).join(' · ')}
                         </p>
                       </div>
-                      {isAuthenticated && (
-                        <SaveButton saved={savedIds.has(item._id)} onToggle={() => handleSaveToggle(item._id, !savedIds.has(item._id))} />
-                      )}
+                      <SaveButton id={item._id} saved={savedIds.has(item._id)} onToggle={handleSaveToggle} />
                     </div>
                     <div className="flex flex-wrap gap-1.5 mt-2">
                       {item.fundingType ? (

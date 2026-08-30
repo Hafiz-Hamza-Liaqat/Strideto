@@ -2,6 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
+import { useStudentProductEnabled } from '../../hooks/useStudentProductEnabled';
 import { useLanguage } from '../../context/LanguageContext';
 import { authApi } from '../../services/authService';
 import { savedApi } from '../../services/listingsService';
@@ -22,6 +23,7 @@ import { openProfilingWizard } from '../../onboarding/ProfilingWizard.jsx';
 export default function Profile() {
   const { t } = useTranslation(['profile', 'common']);
   const { user, updateUser, logout, logoutAll } = useAuth();
+  const { studentProductEnabled } = useStudentProductEnabled();
   const { setLang } = useLanguage();
   const location = useLocation();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -77,12 +79,14 @@ export default function Profile() {
       })
       .finally(() => setLoading(false));
 
-    savedApi.get().then(({ data }) => {
-      setSavedJobs(data.savedJobs || []);
-      setSavedScholarships(data.savedScholarships || []);
-      setSavedAdmissions(data.savedAdmissions || []);
-    }).catch(() => {});
-  }, [setLang]);
+    if (studentProductEnabled) {
+      savedApi.get().then(({ data }) => {
+        setSavedJobs(data.savedJobs || []);
+        setSavedScholarships(data.savedScholarships || []);
+        setSavedAdmissions(data.savedAdmissions || []);
+      }).catch(() => {});
+    }
+  }, [setLang, studentProductEnabled, t]);
 
   useEffect(() => {
     if (loading) return;
