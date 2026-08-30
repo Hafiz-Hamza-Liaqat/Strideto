@@ -4,7 +4,9 @@
  * `pdf-parse` loads the native `@napi-rs/canvas` (Skia) addon at module scope. While the job
  * worker imported it at the top level, every DOCX parse loaded that addon into a short-lived
  * worker isolate and the host process intermittently died with SIGSEGV (exit 139) on worker
- * teardown — DOCX-only traffic crashed on PDF machinery it never used. The import is now lazy.
+ * teardown — DOCX-only traffic crashed on PDF machinery it never used. The PDF engine is now
+ * `pdfjs-dist` text extraction, imported lazily, and `pdf-parse` is gone from this path entirely.
+ * These tests still assert that no PDF machinery is loaded by a DOCX parse.
  *
  * Nothing in the suite previously spawned a worker; the only coverage was source-text greps,
  * which is why the crash shipped. These tests drive the real `extractDocumentTextBounded` path.
@@ -159,12 +161,12 @@ const DOCX = buildDocx([
   check(ok === ITERATIONS, `WORKER-B-01 ${ITERATIONS} sequential DOCX worker parses all succeeded (got ${ok})`);
 }
 
-// ── C. the DOCX worker path never loads pdf-parse ──
+// ── C. the DOCX worker path never loads the PDF stack ──
 //
-// Runtime proof, not a source grep: a child process registers an ESM resolve hook that makes
-// `pdf-parse` unresolvable. Loader hooks propagate into worker threads, so a DOCX parse that
-// still succeeds provably never resolved `pdf-parse`. The same child then parses a PDF and must
-// fail — that second half proves the hook is in force, so the first half is not a false negative.
+// Runtime proof, not a source grep: a child process registers an ESM resolve hook that makes the
+// worker's PDF engine unresolvable. Loader hooks propagate into worker threads, so a DOCX parse
+// that still succeeds provably never resolved it. The same child then parses a PDF and must fail —
+// that second half proves the hook is in force, so the first half is not a false negative.
 {
   const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'strideto-worker-'));
   const docxPath = path.join(tmp, 'probe.docx');
@@ -174,7 +176,7 @@ const DOCX = buildDocx([
   fs.writeFileSync(
     path.join(tmp, 'hook.mjs'),
     "export async function resolve(specifier, context, next) {\n"
-      + "  if (specifier === 'pdf-parse') throw new Error('PDF_PARSE_RESOLVED');\n"
+      + "  if (specifier.startsWith('pdfjs-dist')) throw new Error('PDFJS_RESOLVED');\n"
       + "  return next(specifier, context);\n"
       + "}\n",
   );
@@ -213,15 +215,20 @@ const DOCX = buildDocx([
   );
   const out = String(res.stdout || '');
 
-  check(out.includes('DOCX_OK'), `WORKER-C-01 DOCX parses with pdf-parse unresolvable (stdout: ${out.trim()})`);
+  check(out.includes('DOCX_OK'), `WORKER-C-01 DOCX parses with pdfjs-dist unresolvable (stdout: ${out.trim()})`);
   check(out.includes('PDF_BLOCKED'), `WORKER-C-02 hook proven in force — PDF path blocked (stdout: ${out.trim()})`);
 
   const workerSrc = fs.readFileSync(
     path.join(repoRoot, 'server/src/workers/jobDescriptionDocumentParse.worker.js'),
     'utf8',
   );
-  check(!/^import[^\n]*'pdf-parse'/m.test(workerSrc), 'WORKER-C-03 no top-level pdf-parse import in the worker');
-  check(workerSrc.includes("await import('pdf-parse')"), 'WORKER-C-04 pdf-parse imported lazily inside the PDF path');
+  check(!/^import[^\n]*'pdfjs-dist/m.test(workerSrc), 'WORKER-C-03 no top-level pdfjs-dist import in the worker');
+  check(
+    workerSrc.includes("await import('pdfjs-dist/build/pdf.mjs')"),
+    'WORKER-C-04 the modern pdfjs-dist build is imported lazily inside the PDF path',
+  );
+  // The legacy build wires up Node canvas support eagerly and drags the Skia addon back in.
+  check(!workerSrc.includes('pdfjs-dist/legacy'), 'WORKER-C-05 the worker does not use the legacy pdfjs-dist build');
 
   fs.rmSync(tmp, { recursive: true, force: true });
 }
