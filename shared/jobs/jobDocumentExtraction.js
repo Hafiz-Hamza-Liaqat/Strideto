@@ -38,8 +38,6 @@ export const JOB_DOCUMENT_PROTECTED_FIELDS = [
   'sponsored',
   'analytics',
   'slug',
-  'seoTitle',
-  'metaDescription',
   'isFeatured',
   'urgent',
   'remote',
@@ -76,7 +74,13 @@ export const EMPLOYER_EXTRACTABLE_FIELDS = [
 ];
 
 /** Admin-mode additionally may detect provenance when literally labeled. */
-export const ADMIN_EXTRA_FIELDS = ['sourceWebsite', 'sourceUrl', 'externalId'];
+export const ADMIN_EXTRA_FIELDS = [
+  'sourceWebsite',
+  'sourceUrl',
+  'externalId',
+  'seoTitle',
+  'metaDescription',
+];
 
 export const MAX_EXTRACTED_TEXT_CHARS = 150_000;
 
@@ -120,7 +124,9 @@ const LABEL_ALIASES = Object.freeze({
   applyEmail: ['application email', 'apply email', 'email applications'],
   sourceWebsite: ['source website', 'source'],
   sourceUrl: ['source url'],
-  externalId: ['external id', 'job id', 'reference id'],
+  externalId: ['external job id / reference id', 'external job id', 'external id', 'job id', 'reference id'],
+  seoTitle: ['seo title'],
+  metaDescription: ['meta description'],
 });
 
 const SECTION_FIELDS = new Set(['requirements', 'responsibilities', 'skillsRequired', 'description']);
@@ -275,24 +281,94 @@ function isNextSectionBoundary(line) {
   return false;
 }
 
+/**
+ * DOCX paragraph handling.
+ * `mammoth.extractRawText` terminates every paragraph — headings, prose and list items alike —
+ * with a blank line, so a blank line on its own cannot mark the end of a section. Blocks therefore
+ * step over a bounded run of blank separators and rely on boundary detection to stop, with hard
+ * caps so a malformed document can never absorb the remainder of the file.
+ */
+const MAX_BLOCK_BLANK_GAP = 1;
+const MAX_BLOCK_ITEMS = 200;
+const MAX_BLOCK_LINES = 400;
+
+/** Unlabelled `Some Heading:` line — ends a block even when it is not a known alias. */
+function isGenericHeadingLine(line) {
+  const s = String(line || '').trim();
+  if (!s.endsWith(':') || s.length > 60) return false;
+  const body = s.slice(0, -1).trim();
+  if (!body || body.includes(':')) return false;
+  return /^[A-Z0-9][A-Za-z0-9\s/&.,'()-]*$/.test(body);
+}
+
+/**
+ * Controlled STRIDETO section and metadata labels that trail a document. They end the preceding
+ * block but are never extracted — every one is a protected or workflow-owned field. The authoring
+ * template writes labels either bare on their own paragraph (`SEO Slug`) or with a colon
+ * (`SEO Slug:`, `Urgent: No`), so both forms are recognised, but only for these exact labels: the
+ * whole line must be the label, or the label immediately followed by `:`. There is no word-count,
+ * value-length or generic `X: value` inference, so arbitrary colon-bearing content such as
+ * `Bonus: Nice to have` or `Tools: LangGraph and LangChain` stays a list item.
+ */
+const BOUNDARY_ONLY_LABELS = Object.freeze([
+  'urgent',
+  'featured',
+  'is featured',
+  'sponsored',
+  'priority',
+  'status',
+  'publication state',
+  'publication status',
+  'approval status',
+  'seo fields',
+  'seo slug',
+  'slug',
+]);
+
+const BOUNDARY_ONLY_LABEL_RE = new RegExp(
+  '^(?:' + BOUNDARY_ONLY_LABELS.map(escapeRegExp).join('|') + ')(?:[ \\t]*:.*)?$',
+  'i'
+);
+
+/** `SEO Fields`, `SEO Slug`, `Urgent: No` — a boundary, never a value. */
+function isBoundaryOnlyLabelLine(line) {
+  return BOUNDARY_ONLY_LABEL_RE.test(String(line || '').trim());
+}
+
+/** True when `line` starts a new section and must not be absorbed into the current block. */
+function isBlockBoundary(line) {
+  if (!line) return false;
+  return isNextSectionBoundary(line) || isGenericHeadingLine(line) || isBoundaryOnlyLabelLine(line);
+}
+
 function parseListBlock(lines, startIdx) {
   const items = [];
   let i = startIdx;
+  let blankRun = 0;
   while (i < lines.length) {
     const line = lines[i].trim();
     if (!line) {
-      if (items.length) break;
+      if (!items.length) {
+        i += 1;
+        continue;
+      }
+      blankRun += 1;
+      if (blankRun > MAX_BLOCK_BLANK_GAP) break;
       i += 1;
       continue;
     }
-    if (isNextSectionBoundary(line) && items.length) break;
-    if (/^[A-Z][\w\s/&-]{2,48}:$/.test(line) && items.length) break;
+    if (items.length && isBlockBoundary(line)) break;
+    if (items.length >= MAX_BLOCK_ITEMS) break;
 
-    let item = line.replace(/^[-•*●]\s*/, '').replace(/^\d+[.)]\s*/, '').trim();
+    // An ordered-list marker must be followed by real whitespace. Without that guard `1.` is
+    // stripped out of a decimal value such as `1.5+ years`, silently rewriting the requirement.
+    let item = line.replace(/^[-•*●]\s*/, '').replace(/^\d+[.)]\s+/, '').trim();
     if (!item) {
       i += 1;
       continue;
     }
+
+    blankRun = 0;
 
     if (items.length === 0 && item.includes(',') && !/^https?:\/\//i.test(item)) {
       const commaParts = item.split(',').map((s) => s.trim()).filter(Boolean);
@@ -312,18 +388,31 @@ function parseListBlock(lines, startIdx) {
 function parseParagraphBlock(lines, startIdx) {
   const block = [];
   let i = startIdx;
+  let blankRun = 0;
+  let pendingGap = false;
   while (i < lines.length) {
     const line = lines[i].trim();
     if (!line) {
-      if (block.length) break;
+      if (!block.length) {
+        i += 1;
+        continue;
+      }
+      blankRun += 1;
+      if (blankRun > MAX_BLOCK_BLANK_GAP) break;
+      pendingGap = true;
       i += 1;
       continue;
     }
-    if (isNextSectionBoundary(line) && block.length) break;
+    if (block.length && isBlockBoundary(line)) break;
+    if (block.length >= MAX_BLOCK_LINES) break;
+
+    if (pendingGap) block.push('');
+    blankRun = 0;
+    pendingGap = false;
     block.push(line);
     i += 1;
   }
-  return { text: block.join('\n'), nextIdx: i };
+  return { text: block.join('\n').trim(), nextIdx: i };
 }
 
 function parseDateValue(raw) {
@@ -668,6 +757,12 @@ function validateAndNormalizeField(field, rawCandidate, mode) {
     case 'externalId':
       if (mode !== 'admin') return null;
       return applyContractToCandidate(field, base, String(value).trim().slice(0, 500));
+    // Not pre-sliced: the contract flags over-length SEO text as `review`/`truncated` so an
+    // authoritative value is never silently shortened on bulk apply.
+    case 'seoTitle':
+    case 'metaDescription':
+      if (mode !== 'admin') return null;
+      return applyContractToCandidate(field, base, String(value).trim());
     default:
       return null;
   }

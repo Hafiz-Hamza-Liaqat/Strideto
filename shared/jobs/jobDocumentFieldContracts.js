@@ -41,6 +41,15 @@ const DEADLINE_ACCEPT_RE =
 const EXTERNAL_ID_ACCEPT_RE =
   /^(?:[A-Z]{1,4}[-_]\d+|\d{4,}|[A-Z0-9]+[-_][A-Z0-9]+)$/i;
 
+/**
+ * SEO import limits. Mirrors the CMS document-import contract in
+ * `shared/cms/cmsDocumentFieldContracts.js` so both import paths share one convention.
+ */
+export const JOB_SEO_TITLE_MAX = 5000;
+export const JOB_META_DESCRIPTION_MAX = 500;
+
+const SEO_HEADING_ONLY_RE = /^(?:seo\s+title|meta\s+description|seo\s+slug|slug)\s*:?\s*$/i;
+
 function result(status, value = null, reason = '') {
   return { status, value: value ?? null, reason };
 }
@@ -214,6 +223,33 @@ export function validateSkillsItemCandidate(value, _context = {}) {
   return result(CANDIDATE_STATUS.ACCEPTED, s);
 }
 
+/**
+ * Admin-only SEO text import. Over-length input is surfaced as `review` with a `truncated`
+ * reason rather than silently trimmed, matching the CMS import contract semantics.
+ */
+function validateSeoTextCandidate(value, max) {
+  const s = String(value || '').trim();
+  if (!s) return result(CANDIDATE_STATUS.REJECTED, null, 'empty');
+  if (SEO_HEADING_ONLY_RE.test(s)) return result(CANDIDATE_STATUS.REJECTED, null, 'label_leakage');
+  if (/<script/i.test(s)) {
+    return result(
+      CANDIDATE_STATUS.REVIEW,
+      s.replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '').trim(),
+      'script_stripped'
+    );
+  }
+  if (s.length > max) return result(CANDIDATE_STATUS.REVIEW, s.slice(0, max), 'truncated');
+  return result(CANDIDATE_STATUS.ACCEPTED, s);
+}
+
+export function validateSeoTitleCandidate(value, _context = {}) {
+  return validateSeoTextCandidate(value, JOB_SEO_TITLE_MAX);
+}
+
+export function validateMetaDescriptionCandidate(value, _context = {}) {
+  return validateSeoTextCandidate(value, JOB_META_DESCRIPTION_MAX);
+}
+
 /** Map field name → validator fn */
 export const FIELD_CONTRACT_VALIDATORS = Object.freeze({
   title: validateTitleCandidate,
@@ -228,6 +264,8 @@ export const FIELD_CONTRACT_VALIDATORS = Object.freeze({
   externalId: validateExternalJobIdCandidate,
   sourceWebsite: validateSourceWebsiteCandidate,
   sourceUrl: validateSourceUrlCandidate,
+  seoTitle: validateSeoTitleCandidate,
+  metaDescription: validateMetaDescriptionCandidate,
 });
 
 export function applyFieldContract(field, value, context = {}) {

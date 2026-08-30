@@ -35,6 +35,8 @@ const APPLY_ORDER = [
   'sourceWebsite',
   'sourceUrl',
   'externalId',
+  'seoTitle',
+  'metaDescription',
 ];
 
 export const FIELD_STATE = Object.freeze({
@@ -42,6 +44,16 @@ export const FIELD_STATE = Object.freeze({
   UNTOUCHED_DEFAULT: 'UNTOUCHED_DEFAULT',
   USER_EDITED: 'USER_EDITED',
 });
+
+/**
+ * Suggestion application must never invent form state. A suggestion whose target key is absent
+ * from the form is skipped, so admin-only and employer-only shapes each receive exactly the
+ * fields they render (the admin create form has no jobFamily/specialization/applyMethod input,
+ * and its whole state object is submitted verbatim as the create/update payload).
+ */
+function formHasKey(form, formKey) {
+  return Boolean(formKey) && Object.prototype.hasOwnProperty.call(form || {}, formKey);
+}
 
 function isEmptyValue(val) {
   if (val == null) return true;
@@ -144,34 +156,34 @@ function applyApplicationMethod(next, suggestions, fieldMap, applied) {
   const methodFormKey = fieldMap[methodField] || 'applyMethod';
   if (!methodSuggestion?.value) return;
 
-  next[methodFormKey] = methodSuggestion.value;
-  applied.push(methodField);
+  if (formHasKey(next, methodFormKey)) {
+    next[methodFormKey] = methodSuggestion.value;
+    applied.push(methodField);
+  }
+
+  const linkKey = fieldMap.applicationLink || 'applyLink';
+  const emailKey = fieldMap.applyEmail || 'applyEmail';
+  const setIfPresent = (key, value) => {
+    if (formHasKey(next, key)) next[key] = value;
+  };
+  const clearOnHighConfidence =
+    methodSuggestion.sourceType === 'explicit_label' || methodSuggestion.confidence === 'high';
 
   if (methodSuggestion.value === 'external_url') {
-    const linkKey = fieldMap.applicationLink || 'applyLink';
-    if (suggestions.applicationLink?.value) {
+    if (suggestions.applicationLink?.value && formHasKey(next, linkKey)) {
       next[linkKey] = suggestions.applicationLink.value;
       applied.push('applicationLink');
     }
-    const emailKey = fieldMap.applyEmail || 'applyEmail';
-    if (methodSuggestion.sourceType === 'explicit_label' || methodSuggestion.confidence === 'high') {
-      next[emailKey] = '';
-    }
+    if (clearOnHighConfidence) setIfPresent(emailKey, '');
   } else if (methodSuggestion.value === 'external_email') {
-    const emailKey = fieldMap.applyEmail || 'applyEmail';
-    if (suggestions.applyEmail?.value) {
+    if (suggestions.applyEmail?.value && formHasKey(next, emailKey)) {
       next[emailKey] = suggestions.applyEmail.value;
       applied.push('applyEmail');
     }
-    const linkKey = fieldMap.applicationLink || 'applyLink';
-    if (methodSuggestion.sourceType === 'explicit_label' || methodSuggestion.confidence === 'high') {
-      next[linkKey] = '';
-    }
+    if (clearOnHighConfidence) setIfPresent(linkKey, '');
   } else if (methodSuggestion.value === 'internal') {
-    const linkKey = fieldMap.applicationLink || 'applyLink';
-    const emailKey = fieldMap.applyEmail || 'applyEmail';
-    next[linkKey] = '';
-    next[emailKey] = '';
+    setIfPresent(linkKey, '');
+    setIfPresent(emailKey, '');
   }
 }
 
@@ -219,6 +231,10 @@ export function applyJobDocumentSuggestions(form, suggestions, options = {}) {
     }
 
     const formKey = fieldMap[field] || field;
+    if (!formHasKey(next, formKey)) {
+      skipped.push(field);
+      continue;
+    }
     const current = next[formKey];
     const state = resolveFieldState(formKey, current, {
       touchedFields,
@@ -254,11 +270,13 @@ export function applyJobDocumentSuggestions(form, suggestions, options = {}) {
 
     if (field === 'countryCode') {
       next[formKey] = suggested;
-      if (!touchedFields?.has?.(fieldMap.region || 'region')) {
-        next[fieldMap.region || 'region'] = '';
+      const regionKey = fieldMap.region || 'region';
+      const cityKey = fieldMap.city || 'city';
+      if (formHasKey(next, regionKey) && !touchedFields?.has?.(regionKey)) {
+        next[regionKey] = '';
       }
-      if (!touchedFields?.has?.(fieldMap.city || 'city')) {
-        next[fieldMap.city || 'city'] = '';
+      if (formHasKey(next, cityKey) && !touchedFields?.has?.(cityKey)) {
+        next[cityKey] = '';
       }
       applied.push(field);
       continue;
@@ -266,8 +284,9 @@ export function applyJobDocumentSuggestions(form, suggestions, options = {}) {
 
     if (field === 'jobFamily') {
       next[formKey] = suggested;
-      if (!touchedFields?.has?.(fieldMap.specialization || 'specialization')) {
-        next[fieldMap.specialization || 'specialization'] = '';
+      const specKey = fieldMap.specialization || 'specialization';
+      if (formHasKey(next, specKey) && !touchedFields?.has?.(specKey)) {
+        next[specKey] = '';
       }
       applied.push(field);
       continue;
@@ -310,7 +329,11 @@ export const EMPLOYER_SUGGESTION_FIELD_MAP = {
   specialization: 'specialization',
 };
 
-/** Admin form field name mapping. */
+/**
+ * Admin form field name mapping.
+ * The admin create form exposes a single flat `category` input rather than the employer form's
+ * jobFamily/specialization pair, so the canonical jobFamily suggestion maps to `category` here.
+ */
 export const ADMIN_SUGGESTION_FIELD_MAP = {
   title: 'title',
   company: 'company',
@@ -334,11 +357,12 @@ export const ADMIN_SUGGESTION_FIELD_MAP = {
   countryCode: 'countryCode',
   region: 'region',
   city: 'city',
-  jobFamily: 'jobFamily',
-  specialization: 'specialization',
+  jobFamily: 'category',
   sourceWebsite: 'sourceWebsite',
   sourceUrl: 'sourceUrl',
   externalId: 'externalId',
+  seoTitle: 'seoTitle',
+  metaDescription: 'metaDescription',
 };
 
 export const SUGGESTION_FIELD_LABELS = {
@@ -369,6 +393,8 @@ export const SUGGESTION_FIELD_LABELS = {
   sourceWebsite: 'Source website',
   sourceUrl: 'Source URL',
   externalId: 'External ID',
+  seoTitle: 'SEO title',
+  metaDescription: 'Meta description',
 };
 
 /** Employer create-form defaults for untouched-default detection. */
@@ -425,4 +451,6 @@ export const ADMIN_FORM_DEFAULTS = {
   applyEmail: '',
   applyMethod: 'internal',
   deadline: '',
+  seoTitle: '',
+  metaDescription: '',
 };
