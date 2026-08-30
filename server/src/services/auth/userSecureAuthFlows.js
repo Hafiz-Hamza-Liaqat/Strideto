@@ -12,6 +12,7 @@ import {
   SAFE_BODIES,
 } from './secureAuthResultMapping.js';
 import { secureAuthConfig } from './secureAuthConfig.js';
+import { accountHasPassword } from '../../../../shared/auth/passwordAccountState.js';
 
 /**
  * SEC-3E — User-realm secure authentication flow composition. Orchestrates
@@ -361,7 +362,7 @@ export function createUserSecureAuthFlows({
           passwordResetToken: hashedToken,
           passwordResetExpires: { $gt: new Date() },
         },
-        { _id: 1 }
+        { _id: 1, hasPassword: 1, password: 1 }
       );
     } catch {
       return Object.freeze({
@@ -372,6 +373,20 @@ export function createUserSecureAuthFlows({
       });
     }
     if (!subject?._id) {
+      return Object.freeze({
+        code: 'RESET_TOKEN_INVALID',
+        httpStatus: 400,
+        clearCookie: false,
+      });
+    }
+    /**
+     * Google Sign-In P1 defence-in-depth. `forgotPassword` already refuses to
+     * issue a reset token for a social-only account, so no such token should
+     * exist — this refuses to honour one anyway, with the same generic
+     * response, rather than letting a reset write a first password onto an
+     * account that deliberately has none.
+     */
+    if (!accountHasPassword(subject)) {
       return Object.freeze({
         code: 'RESET_TOKEN_INVALID',
         httpStatus: 400,

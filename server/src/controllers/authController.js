@@ -18,6 +18,11 @@ import { getPermissionsForRole } from '../config/rbac.js';
 import { hashResetToken } from '../utils/tokenStore.js';
 import { legalAcceptanceMetadata } from '../../../shared/legal/policyVersions.js';
 import {
+  accountHasPassword,
+  PASSWORD_NOT_SET_CODE,
+  PASSWORD_NOT_SET_MESSAGE,
+} from '../../../shared/auth/passwordAccountState.js';
+import {
   frontendBaseUrl,
   isEmailVerificationRequired,
 } from '../utils/emailVerification.js';
@@ -168,7 +173,14 @@ export const login = asyncHandler(async (req, res) => {
   const user = await User.findOne({ email }).select(
     '+password +tempPasswordExpires'
   );
-  if (!user || !(await user.comparePassword(req.body.password))) {
+  // A social-only account (hasPassword === false) has no password at all and
+  // can never satisfy this flow. It is refused with the identical generic
+  // response as a wrong password, so this route stays non-enumerating about
+  // which accounts are social-only.
+  if (!user || !accountHasPassword(user)) {
+    return res.status(401).json({ error: 'Invalid email or password' });
+  }
+  if (!(await user.comparePassword(req.body.password))) {
     return res.status(401).json({ error: 'Invalid email or password' });
   }
   if (user.accountStatus === 'suspended') {
@@ -316,10 +328,18 @@ export const forgotPassword = asyncHandler(async (req, res) => {
   }
   const email = req.body.email.trim().toLowerCase();
   const user = await User.findOne({ email }).select(
-    '+passwordResetToken +passwordResetExpires'
+    '+password +passwordResetToken +passwordResetExpires'
   );
   const { genericRecoveryResponse, sensitiveTransactionalDeliveryMode } = await import('../services/auth/realmEmailVerification.js');
-  if (user) {
+  /**
+   * A social-only account must never be issued a password-reset token. Doing
+   * so would let anyone with mailbox access *set* a first password on an
+   * account that deliberately has none, silently converting it into a password
+   * account and creating a second, weaker authentication path around the
+   * provider. The response stays byte-identical to every other outcome, so
+   * this remains non-enumerating.
+   */
+  if (user && accountHasPassword(user)) {
     const token = crypto.randomBytes(32).toString('hex');
     user.passwordResetToken = hashResetToken(token);
     user.passwordResetExpires = new Date(Date.now() + RESET_TOKEN_EXPIRY_MS);
@@ -411,6 +431,19 @@ export const changePassword = asyncHandler(async (req, res) => {
   }
   const user = await User.findById(req.user.userId).select('+password');
   if (!user) return res.status(404).json({ error: 'User not found' });
+  /**
+   * Authenticated, own account — an explicit reason is safe and correct here;
+   * there is nothing to enumerate. "Current password is incorrect" would be a
+   * dead end for a social-only account that has no current password to give.
+   * Setting a first password belongs to a later, deliberate flow, not to a
+   * route whose entire contract is proving possession of an existing one.
+   */
+  if (!accountHasPassword(user)) {
+    return res.status(400).json({
+      error: PASSWORD_NOT_SET_MESSAGE,
+      code: PASSWORD_NOT_SET_CODE,
+    });
+  }
   if (!(await user.comparePassword(req.body.currentPassword))) {
     return res.status(401).json({ error: 'Current password is incorrect' });
   }

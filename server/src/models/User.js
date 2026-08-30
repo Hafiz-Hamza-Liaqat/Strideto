@@ -11,7 +11,29 @@ const userSchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     },
-    password: { type: String, required: true, select: false },
+    /**
+     * Google Sign-In P1 — `required` is now conditional on `hasPassword`.
+     * Every password path (public registration, staff invitation acceptance,
+     * seeds, admin creation) leaves `hasPassword` at its `true` default, so
+     * the requirement is unchanged for them. Only the canonical social-user
+     * creation path writes `hasPassword: false`, and only such a document may
+     * omit a password. A social-only account is never given a generated or
+     * placeholder password — it has no password at all.
+     */
+    password: {
+      type: String,
+      select: false,
+      required: function requirePasswordUnlessSocialOnly() {
+        return this.hasPassword !== false;
+      },
+    },
+    /**
+     * Explicit password-state marker. Interpreted through
+     * `shared/auth/passwordAccountState.js` — never read raw — so historical
+     * documents written before this field existed are read as password
+     * accounts and need no backfill.
+     */
+    hasPassword: { type: Boolean, default: true },
     role: {
       type: String,
       enum: ['User', 'Editor', 'Moderator', 'Admin', 'SuperAdmin'],
@@ -94,7 +116,12 @@ const userSchema = new mongoose.Schema(
      * preferredLocations[], experience, careerGoal, notificationPrefs, profilingCompleted, updatedAt }
      */
     careerPreferences: { type: mongoose.Schema.Types.Mixed, default: null },
-    // OAuth: googleId, avatar (future GOOGLE_CLIENT_ID integration)
+    /**
+     * External social identities are NOT stored on this document. They live in
+     * the `UserIdentity` collection, keyed by `(provider, subject)` — see
+     * server/src/models/UserIdentity.js. A provider account is never
+     * identified by email.
+     */
     /**
      * Canonical access-authority version used for global access-token and
      * refresh-session invalidation, as defined in
@@ -146,7 +173,16 @@ userSchema.pre('save', async function (next) {
   next();
 });
 
+/**
+ * Fails closed for an account with no stored password (a social-only account,
+ * or a query that did not `select('+password')`). `bcrypt.compare` throws on a
+ * non-string hash, which would surface as a 500 instead of an authentication
+ * failure — this guard keeps the answer a plain `false`.
+ */
 userSchema.methods.comparePassword = function (candidate) {
+  if (typeof this.password !== 'string' || this.password.length === 0) {
+    return Promise.resolve(false);
+  }
   return bcrypt.compare(candidate, this.password);
 };
 

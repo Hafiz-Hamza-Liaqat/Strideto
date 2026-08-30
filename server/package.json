@@ -13,6 +13,8 @@
     "hsi:scan-worker": "node src/gbsDocumentScanWorker.js",
     "auth:indexes:verify": "node src/scripts/provisionRefreshSessionIndexes.js --verify",
     "auth:indexes:apply": "node src/scripts/provisionRefreshSessionIndexes.js --apply",
+    "identities:indexes:verify": "node src/scripts/provisionUserIdentityIndexes.js --verify",
+    "identities:indexes:apply": "node src/scripts/provisionUserIdentityIndexes.js --apply",
     "notifications:indexes:verify": "node src/scripts/provisionUserNotificationDedupeIndex.js --verify",
     "notifications:indexes:apply": "node src/scripts/provisionUserNotificationDedupeIndex.js --apply",
     "trust:notifications:reconcile": "node src/scripts/reconcileSkillTrustNotification.js",

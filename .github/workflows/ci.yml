@@ -40,6 +40,10 @@ jobs:
         working-directory: server
         run: node src/__tests__/auth.test.js
 
+      - name: Run social identity foundation tests
+        working-directory: server
+        run: node src/__tests__/socialIdentityFoundation.test.js
+
       - name: Production verification (static)
         run: npm run verify:production
 

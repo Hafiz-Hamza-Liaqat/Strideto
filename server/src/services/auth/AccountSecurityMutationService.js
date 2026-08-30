@@ -291,6 +291,12 @@ export function createAccountSecurityMutationService({
       update: {
         $set: {
           password: newHash,
+          // Google Sign-In P1 — an administrative recovery reset is the one
+          // sanctioned way an account gains a password it did not have. The
+          // marker moves with the write so password state can never disagree
+          // with the stored password. User realm only; this operation has no
+          // employer/agent/institution counterpart.
+          hasPassword: true,
           mustChangePassword: true,
           tempPasswordExpires,
         },
