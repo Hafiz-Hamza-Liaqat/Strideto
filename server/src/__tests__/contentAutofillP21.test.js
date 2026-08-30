@@ -191,7 +191,8 @@ for (const variant of CALLOUT_VARIANTS) {
 const sources = structuredContentToCanonicalBlogHtml(
   'Sources\nUK Government — Student visa\nhttps://www.gov.uk/student-visa',
 );
-check(sources.includes(`class="${SOURCES_WRAPPER_CLASS}"`) && sources.includes('https://www.gov.uk/student-visa'), 'R17 Sources');
+check(sources.includes(`class="${SOURCES_WRAPPER_CLASS}"`) && sources.includes('href="https://www.gov.uk/student-visa"'), 'R17 Sources');
+check(sources.includes('UK Government — Student visa') && !sources.includes('official link'), 'R17b Sources linked title');
 
 const xss = sanitizeHtml('<p onclick="x()"><script>alert(1)</script>Hi</p>');
 check(!xss.includes('<script') && !xss.includes('onclick'), 'R18 script stripped');
@@ -266,7 +267,7 @@ try {
 
   const samples = {
     callout: `<blockquote class="blog-callout blog-callout--important"><p><strong>Important:</strong> Note</p></blockquote>`,
-    sources: `<div class="${SOURCES_WRAPPER_CLASS}"><h2>Sources</h2><ol><li><p>Org (<a href="https://example.org">link</a>)</p></li></ol></div>`,
+    sources: `<div class="${SOURCES_WRAPPER_CLASS}"><h2>Sources</h2><ol><li><p><a href="https://example.org" class="blog-external-link" target="_blank" rel="noopener noreferrer">Org</a></p></li></ol></div>`,
     h2: '<h2>Heading</h2>',
     bold: '<p><strong>bold</strong></p>',
   };

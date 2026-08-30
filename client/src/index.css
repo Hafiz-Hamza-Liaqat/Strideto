@@ -505,6 +505,26 @@ html.dark {
   .blog-body a:hover {
     @apply opacity-90;
   }
+  .blog-body a.blog-external-link::after {
+    content: ' ↗';
+    @apply text-[0.85em] opacity-80 no-underline;
+  }
+  .blog-body a.blog-external-link:focus-visible {
+    @apply outline outline-2 outline-offset-2 outline-edur-steel dark:outline-edur-sky rounded-sm;
+  }
+  .blog-editor-surface a {
+    @apply text-primary dark:text-mint underline underline-offset-2 cursor-pointer;
+  }
+  .blog-editor-surface a:hover {
+    @apply opacity-90;
+  }
+  .blog-editor-surface a.blog-external-link::after {
+    content: ' ↗';
+    @apply text-[0.85em] opacity-70 no-underline;
+  }
+  .blog-editor-surface a:focus-visible {
+    @apply outline outline-2 outline-offset-1 outline-primary dark:outline-mint rounded-sm;
+  }
   .blog-body img {
     @apply rounded-lg my-6 max-w-full h-auto;
   }

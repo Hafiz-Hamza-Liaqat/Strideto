@@ -2,6 +2,12 @@
  * Blog body format detection + legacy-safe normalization.
  * Final HTML must still be sanitized at render boundary (DOMPurify / sanitize-html).
  */
+import {
+  buildSemanticLinkHtml,
+  linkifyEscapedInlineText,
+  normalizeBlogLinksInHtml,
+  normalizeSafeHref,
+} from './blogLinks.js';
 
 const HTML_TAG_RE = /<\/?(?:h[1-6]|p|ul|ol|li|div|span|strong|em|a|img|blockquote|table|thead|tbody|tfoot|tr|th|td|caption|br|hr)\b/i;
 const MD_HEADING_RE = /^#{1,6}\s+\S/m;
@@ -26,20 +32,15 @@ export function detectContentFormat(content) {
 }
 
 function safeHref(url) {
-  const href = String(url || '').trim();
-  if (/^https?:\/\//i.test(href)) return escapeHtml(href);
-  if (/^\//.test(href)) return escapeHtml(href);
-  return '';
+  const href = normalizeSafeHref(url);
+  return href ? escapeHtml(href) : '';
 }
 
 export function inlineMarkdown(text) {
   let out = escapeHtml(text);
   out = out.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>');
   out = out.replace(/\*([^*]+)\*/g, '<em>$1</em>');
-  out = out.replace(/\[([^\]]+)\]\(([^)]+)\)/g, (_m, label, url) => {
-    const href = safeHref(url);
-    return href ? `<a href="${href}" target="_blank" rel="noopener noreferrer">${escapeHtml(label)}</a>` : escapeHtml(label);
-  });
+  out = linkifyEscapedInlineText(out);
   return out;
 }
 
@@ -185,6 +186,7 @@ export function normalizeBlogContent(content) {
     html = plainTextToHtml(content);
   }
   html = demoteBodyH1(html);
+  html = normalizeBlogLinksInHtml(html);
   const { html: withIds, toc } = injectHeadingIds(html);
   return { html: wrapBlogTables(withIds), toc };
 }
@@ -193,4 +195,4 @@ export function shouldShowBlogToc(toc) {
   return Array.isArray(toc) && toc.length >= 2;
 }
 
-export { escapeHtml };
+export { escapeHtml, buildSemanticLinkHtml, normalizeSafeHref };

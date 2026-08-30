@@ -2,6 +2,13 @@
  * CONTENT-AUTOFILL-P2.1 — canonical BlogRichTextEditor HTML for toolbar + DOCX import.
  */
 import { inlineMarkdown, escapeHtml } from '../blog/blogContent.js';
+import {
+  buildSemanticLinkHtml,
+  normalizeSafeHref,
+  normalizeBlogLinksInHtml,
+  parseCitationParenthetical,
+  parseMarkdownLinkLine,
+} from '../blog/blogLinks.js';
 
 export const CALLOUT_VARIANTS = Object.freeze(['important', 'tip', 'warning', 'example']);
 
@@ -30,11 +37,7 @@ const INNER_CONTENT_MARKERS = Object.freeze([
 ]);
 
 function safeLinkHref(url) {
-  const href = String(url || '').trim();
-  if (/^javascript:/i.test(href) || /^data:/i.test(href) || /^vbscript:/i.test(href)) return '';
-  if (/^https?:\/\//i.test(href)) return href;
-  if (/^\//.test(href)) return href;
-  return '';
+  return normalizeSafeHref(url);
 }
 
 function wrapListItems(html, tag) {
@@ -49,11 +52,12 @@ function wrapListItems(html, tag) {
 }
 
 function normalizeLinks(html) {
-  return html.replace(/<a\b([^>]*)>/gi, (match, attrs) => {
+  return html.replace(/<a\b([^>]*)>([\s\S]*?)<\/a>/gi, (_match, attrs, inner) => {
     const hrefMatch = attrs.match(/href\s*=\s*("([^"]*)"|'([^']*)'|([^\s>]+))/i);
     const href = hrefMatch ? safeLinkHref(hrefMatch[2] || hrefMatch[3] || hrefMatch[4] || '') : '';
-    if (!href) return '<span>';
-    return `<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">`;
+    if (!href) return inner;
+    const label = inner.replace(/<[^>]+>/g, '').trim() || href;
+    return buildSemanticLinkHtml(label, href);
   });
 }
 
@@ -159,14 +163,26 @@ function parseSourcesEntries(body) {
   const entries = [];
   for (let i = 0; i < lines.length; i += 1) {
     const line = lines[i];
-    const urlMatch = line.match(/^https?:\/\//i);
-    if (urlMatch) {
-      const href = safeLinkHref(line);
-      if (href && entries.length) {
-        const prev = entries[entries.length - 1];
-        prev.url = href;
-      }
+    const citation = parseCitationParenthetical(line);
+    if (citation) {
+      entries.push({ title: citation.title, url: citation.href });
       continue;
+    }
+    const mdLink = parseMarkdownLinkLine(line);
+    if (mdLink) {
+      entries.push({ title: mdLink.title, url: mdLink.href });
+      continue;
+    }
+    if (/^https?:\/\//i.test(line)) {
+      const href = safeLinkHref(line);
+      if (href) {
+        if (entries.length && !entries[entries.length - 1].url) {
+          entries[entries.length - 1].url = href;
+        } else {
+          entries.push({ title: line, url: href });
+        }
+        continue;
+      }
     }
     entries.push({ title: line, url: '' });
   }
@@ -178,9 +194,8 @@ function buildSourcesHtml(body) {
   const items = entries
     .map((entry) => {
       const href = safeLinkHref(entry.url);
-      const label = escapeHtml(entry.title);
       if (href) {
-        return `<li><p>${label} (<a href="${escapeHtml(href)}" target="_blank" rel="noopener noreferrer">official link</a>)</p></li>`;
+        return `<li><p>${buildSemanticLinkHtml(entry.title, href)}</p></li>`;
       }
       return `<li><p>${escapeHtml(entry.title)}</p></li>`;
     })
@@ -323,6 +338,7 @@ export function mammothHtmlToCanonicalBlogHtml(html) {
     const pInner = /^<p[\s>]/i.test(inner.trim()) ? inner : `<p>${inner}</p>`;
     return `<blockquote>${pInner}</blockquote>`;
   });
+  out = normalizeBlogLinksInHtml(out);
   return out.trim();
 }
 
@@ -368,7 +384,7 @@ export function importContentToCanonicalBlogHtml(text, { docxHtml = '', document
       nativeCanonical = stripStructuredMarkerParagraphsFromNative(nativeCanonical);
       const supplements = structuredSupplementHtml(plain);
       if (nativeCanonical || supplements) {
-        return `${nativeCanonical}${supplements}`.trim();
+        return normalizeBlogLinksInHtml(`${nativeCanonical}${supplements}`.trim());
       }
     }
   }
@@ -376,7 +392,7 @@ export function importContentToCanonicalBlogHtml(text, { docxHtml = '', document
   if (fullHtml && !hasStructuredMarkers(plain) && !/^#{1,3}\s/m.test(plain)) {
     return mammothHtmlToCanonicalBlogHtml(fullHtml);
   }
-  return structuredContentToCanonicalBlogHtml(plain);
+  return normalizeBlogLinksInHtml(structuredContentToCanonicalBlogHtml(plain));
 }
 
 /** @deprecated use structuredContentToCanonicalBlogHtml */

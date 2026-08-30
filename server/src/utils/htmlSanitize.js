@@ -17,6 +17,14 @@ const ALLOWED_CALLOUT_CLASS_TOKENS = new Set([
   'blog-callout',
   ...CALLOUT_VARIANTS.map((v) => `blog-callout--${v}`),
 ]);
+const ALLOWED_LINK_CLASS = 'blog-external-link';
+
+function sanitizeLinkClass(className) {
+  const tokens = String(className || '')
+    .split(/\s+/)
+    .filter((t) => t === ALLOWED_LINK_CLASS);
+  return tokens.join(' ');
+}
 
 function sanitizeCalloutClass(className) {
   const tokens = String(className || '')
@@ -31,7 +39,7 @@ function isUnsafeHref(href) {
 }
 
 const ALLOWED_ATTRIBUTES = {
-  a: ['href', 'title', 'target', 'rel'],
+  a: ['href', 'title', 'target', 'rel', 'class'],
   img: ['src', 'alt', 'title', 'width', 'height', 'loading'],
   th: ['colspan', 'rowspan', 'scope'],
   td: ['colspan', 'rowspan'],
@@ -56,6 +64,9 @@ const SANITIZE_OPTIONS = {
         delete next.href;
         return { tagName: 'span', attribs: next };
       }
+      const linkClass = sanitizeLinkClass(next.class);
+      if (linkClass) next.class = linkClass;
+      else delete next.class;
       if (next.target === '_blank') {
         next.rel = 'noopener noreferrer';
       }

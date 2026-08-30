@@ -1,12 +1,12 @@
 import { useEffect } from 'react';
 import { useEditor, EditorContent } from '@tiptap/react';
 import StarterKit from '@tiptap/starter-kit';
-import Link from '@tiptap/extension-link';
 import Placeholder from '@tiptap/extension-placeholder';
 import { Table, TableRow, TableCell, TableHeader } from '@tiptap/extension-table';
 import { ToolbarButton } from './RichTextToolbar';
 import { BlogCalloutBlockquote, isCalloutActive, insertCallout } from './BlogCalloutBlockquote';
 import { BlogSources, insertSourcesSection, isSourcesActive } from './BlogSources';
+import { BlogLink } from './BlogLink';
 
 const CALLOUT_VARIANTS = [
   { key: 'important', label: 'Important' },
@@ -31,9 +31,9 @@ export function BlogRichTextEditor({ value, onChange, placeholder = 'Write artic
       }),
       BlogCalloutBlockquote,
       BlogSources,
-      Link.configure({
+      BlogLink.configure({
         openOnClick: false,
-        HTMLAttributes: { rel: 'noopener noreferrer', target: '_blank' },
+        HTMLAttributes: {},
       }),
       Table.configure({ resizable: false }),
       TableRow,

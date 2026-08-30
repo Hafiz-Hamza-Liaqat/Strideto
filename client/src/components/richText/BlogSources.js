@@ -25,7 +25,7 @@ export function insertSourcesSection(editor) {
     .chain()
     .focus()
     .insertContent(
-      `<div class="${SOURCES_WRAPPER_CLASS}"><h2>Sources</h2><ol><li><p>Organization — source title (<a href="https://">official link</a>)</p></li></ol></div><p></p>`
+      `<div class="${SOURCES_WRAPPER_CLASS}"><h2>Sources</h2><ol><li><p><a href="https://www.example.org" class="blog-external-link" target="_blank" rel="noopener noreferrer">Organization — source title</a></p></li></ol></div><p></p>`
     )
     .run();
 }
