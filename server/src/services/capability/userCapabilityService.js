@@ -14,7 +14,11 @@ import {
   isKnownUserCapability,
   USER_CAPABILITY_IDS,
 } from '../../../../shared/capability/userCapabilities.js';
-import { classifyLegacyUserAccount, isLegacyStaffRole } from '../../../../shared/capability/legacyUserClassification.js';
+import {
+  classifyLegacyUserAccount,
+  isLegacyCustomerRole,
+  isLegacyStaffRole,
+} from '../../../../shared/capability/legacyUserClassification.js';
 import {
   CAPABILITY_INITIALIZATION_STATES,
   isCapabilityEraIncomplete,
@@ -293,9 +297,12 @@ export function createUserCapabilityService({
 
   /**
    * Server-authoritative role ↔ capability transition.
-   * Does not grant student or business_client because role changed.
-   * Uninitialized accounts are marked schema-initialized so legacy fallback
-   * cannot reactivate after an administrative role mutation.
+   * Does not grant student or business_client merely because role changed.
+   * Incomplete capability-era customer accounts (priorRole User) complete
+   * registration via initializeCustomerUser so same-role / promotion touches
+   * cannot strand them as ready + zero student.
+   * Staff-origin and uninitialized legacy staff still get blank schema init only.
+   * Suspended/revoked student grants are never resurrected here.
    */
   async function applyRoleTransitionCapabilities({
     userId,
@@ -317,17 +324,42 @@ export function createUserCapabilityService({
       });
     }
 
-    const grants = await listGrants(userId);
-    const preservedCapabilities = grants
+    let grants = await listGrants(userId);
+    let preservedCapabilities = grants
       .filter((g) => grantStatusAuthorizes(g.status))
       .map((g) => g.capability);
 
     let schemaInitializedOnTransition = false;
+    let grantedStudent = false;
     if (
       !isCapabilitySchemaInitialized(user.capabilitySchemaVersion) ||
       isCapabilityEraIncomplete(user)
     ) {
-      if (typeof markSchemaVersion === 'function') {
+      const recoverIncompleteCustomer =
+        isCapabilityEraIncomplete(user) && isLegacyCustomerRole(priorRole);
+
+      let intentionallyDeniedStudent = false;
+      if (recoverIncompleteCustomer) {
+        const studentGrant = await grantStore.findOne(userId, USER_CAPABILITY_IDS.STUDENT);
+        intentionallyDeniedStudent =
+          studentGrant != null && !grantStatusAuthorizes(studentGrant.status);
+      }
+
+      if (recoverIncompleteCustomer && !intentionallyDeniedStudent) {
+        await initializeCustomerUser(
+          { ...user, _id: userId },
+          {
+            grantedBy: 'system:registration_recovery',
+            grantReason: 'student_registration_incomplete_recovery',
+          }
+        );
+        grantedStudent = true;
+        schemaInitializedOnTransition = true;
+        grants = await listGrants(userId);
+        preservedCapabilities = grants
+          .filter((g) => grantStatusAuthorizes(g.status))
+          .map((g) => g.capability);
+      } else if (typeof markSchemaVersion === 'function') {
         await markSchemaVersion(userId, CAPABILITY_SCHEMA_VERSION);
         schemaInitializedOnTransition = true;
       }
@@ -365,7 +397,7 @@ export function createUserCapabilityService({
         mode: resolvedMode,
         preservedCapabilities,
         schemaInitializedOnTransition,
-        grantedStudent: false,
+        grantedStudent,
         grantedBusinessClient: false,
         studentSuspended,
       }),
@@ -375,7 +407,7 @@ export function createUserCapabilityService({
       mode: resolvedMode,
       preservedCapabilities,
       schemaInitializedOnTransition,
-      grantedStudent: false,
+      grantedStudent,
       grantedBusinessClient: false,
       studentSuspended,
     };

@@ -273,9 +273,17 @@ function studentProductDecision(resolved, user) {
     mode: DEFAULT_ADMIN_ROLE_TRANSITION_MODE,
     user: pendingUser,
   });
-  check(transition.grantedStudent === false && transition.grantedBusinessClient === false, '15. User→staff creates no new capability');
+  check(transition.grantedStudent === true, '15. incomplete User→staff recovers customer student grant');
+  check(transition.grantedBusinessClient === false, '15. incomplete User→staff never auto-grants business_client');
   check(pendingPromo.initState.get('pending-promo') === 'ready', 'role mutation does not mark a pending registration as historical legacy');
   check(pendingPromo.initState.get('pending-promo') !== 'legacy', 'pending registration is not rewritten as legacy eligible');
+  const recoveredPromo = await pendingPromo.svc.resolveUserCapabilities({
+    _id: 'pending-promo',
+    role: 'Admin',
+    capabilitySchemaVersion: pendingPromo.schema.get('pending-promo'),
+    capabilityInitializationState: pendingPromo.initState.get('pending-promo'),
+  });
+  check(recoveredPromo.active.includes('student'), '15. recovered student remains active after User→Admin');
 }
 
 // --- Backfill classification ---

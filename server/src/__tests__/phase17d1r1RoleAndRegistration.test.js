@@ -16,6 +16,10 @@ import {
   resolveRoleCapabilityTransitionMode,
 } from '../../../shared/capability/roleCapabilityTransition.js';
 import { GBS_AUDIT_EVENTS } from '../../../shared/security/gbsAuditEvents.js';
+import { shouldRetryCapabilityEraRegistration } from '../../../shared/capability/legacyUserClassification.js';
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
+import path from 'node:path';
 
 let count = 0;
 function check(cond, msg) {
@@ -272,6 +276,237 @@ check(
     incomplete = err.code === REGISTRATION_AUTHORITY_INCOMPLETE;
   }
   check(incomplete, 'missing active student grant after write is registration_authority_incomplete');
+}
+
+// --- Orphan customer prevention: incomplete User role touches ---
+{
+  const sameRole = serviceWith();
+  const transition = await sameRole.svc.applyRoleTransitionCapabilities({
+    userId: 'orphan-same',
+    priorRole: 'User',
+    newRole: 'User',
+    mode: DEFAULT_ADMIN_ROLE_TRANSITION_MODE,
+    user: {
+      role: 'User',
+      capabilitySchemaVersion: 0,
+      capabilityInitializationState: 'pending',
+    },
+  });
+  check(transition.grantedStudent === true, 'A. same-role User touch recovers incomplete customer');
+  check(sameRole.schema.get('orphan-same') === CAPABILITY_SCHEMA_VERSION, 'A. schema ready after same-role recovery');
+  check(sameRole.initState.get('orphan-same') === 'ready', 'A. init state ready after same-role recovery');
+  const sameResolved = await sameRole.svc.resolveUserCapabilities({
+    _id: 'orphan-same',
+    role: 'User',
+    capabilitySchemaVersion: sameRole.schema.get('orphan-same'),
+    capabilityInitializationState: sameRole.initState.get('orphan-same'),
+  });
+  check(sameResolved.active.includes('student'), 'A. student active — not ready+zero orphan');
+  check(!sameResolved.active.includes('business_client'), 'A. no business_client from recovery');
+
+  const retry = serviceWith();
+  const pendingRetry = {
+    _id: 'retry-reg',
+    role: 'User',
+    capabilitySchemaVersion: 0,
+    capabilityInitializationState: 'failed',
+  };
+  check(
+    shouldRetryCapabilityEraRegistration(pendingRetry) === true,
+    'B. registration retry gate still matches incomplete User'
+  );
+  await retry.svc.initializeCustomerUser(pendingRetry, {
+    grantedBy: 'system:registration',
+    grantReason: 'student_registration_retry',
+  });
+  check(
+    (await retry.store.findOne('retry-reg', 'student'))?.status === GRANT_STATUSES.ACTIVE,
+    'B. registration retry still grants student'
+  );
+
+  const promoPending = serviceWith();
+  const promoTransition = await promoPending.svc.applyRoleTransitionCapabilities({
+    userId: 'promo-pending',
+    priorRole: 'User',
+    newRole: 'Admin',
+    mode: DEFAULT_ADMIN_ROLE_TRANSITION_MODE,
+    user: {
+      role: 'User',
+      capabilitySchemaVersion: 0,
+      capabilityInitializationState: 'pending',
+    },
+  });
+  check(promoTransition.grantedStudent === true, 'C. incomplete User→Admin recovers customer init');
+  check(promoTransition.preservedCapabilities.includes('student'), 'C. student preserved through transition');
+  const promoAfter = await promoPending.svc.resolveUserCapabilities({
+    _id: 'promo-pending',
+    role: 'Admin',
+    capabilitySchemaVersion: promoPending.schema.get('promo-pending'),
+    capabilityInitializationState: promoPending.initState.get('promo-pending'),
+  });
+  check(promoAfter.active.includes('student'), 'C. student remains active after User→Admin');
+
+  for (const staffRole of ['Admin', 'Editor', 'Moderator', 'SuperAdmin']) {
+    const demote = serviceWith();
+    await demote.svc.initializeStaffUser({ _id: `demote-${staffRole}` });
+    const t = await demote.svc.applyRoleTransitionCapabilities({
+      userId: `demote-${staffRole}`,
+      priorRole: staffRole,
+      newRole: 'User',
+      mode: DEFAULT_ADMIN_ROLE_TRANSITION_MODE,
+      user: {
+        role: staffRole,
+        capabilitySchemaVersion: demote.schema.get(`demote-${staffRole}`),
+        capabilityInitializationState: demote.initState.get(`demote-${staffRole}`),
+      },
+    });
+    check(t.grantedStudent === false, `D/E. initialized ${staffRole}→User does not auto-grant student`);
+    const resolved = await demote.svc.resolveUserCapabilities({
+      _id: `demote-${staffRole}`,
+      role: 'User',
+      capabilitySchemaVersion: demote.schema.get(`demote-${staffRole}`),
+      capabilityInitializationState: demote.initState.get(`demote-${staffRole}`),
+    });
+    check(!resolved.active.includes('student'), `D/E. demoted ${staffRole} stays zero-student`);
+  }
+
+  const incompleteStaff = serviceWith();
+  const staffTouch = await incompleteStaff.svc.applyRoleTransitionCapabilities({
+    userId: 'incomplete-staff',
+    priorRole: 'Admin',
+    newRole: 'User',
+    mode: DEFAULT_ADMIN_ROLE_TRANSITION_MODE,
+    user: {
+      role: 'Admin',
+      capabilitySchemaVersion: 0,
+      capabilityInitializationState: 'pending',
+    },
+  });
+  check(staffTouch.grantedStudent === false, 'F. incomplete staff-origin→User does not auto-grant student');
+  check(incompleteStaff.schema.get('incomplete-staff') === CAPABILITY_SCHEMA_VERSION, 'F. incomplete staff still schema-initialized');
+  const staffResolved = await incompleteStaff.svc.resolveUserCapabilities({
+    _id: 'incomplete-staff',
+    role: 'User',
+    capabilitySchemaVersion: incompleteStaff.schema.get('incomplete-staff'),
+    capabilityInitializationState: incompleteStaff.initState.get('incomplete-staff'),
+  });
+  check(!staffResolved.active.includes('student'), 'F. incomplete staff demotion remains zero-student');
+
+  const denied = serviceWith();
+  await denied.store.upsert({
+    userId: 'denied-student',
+    capability: USER_CAPABILITY_IDS.STUDENT,
+    status: GRANT_STATUSES.REVOKED,
+    grantedAt: new Date(),
+    grantedBy: 'admin',
+    grantReason: 'manual_revoke',
+    history: [],
+    schemaVersion: CAPABILITY_SCHEMA_VERSION,
+  });
+  const deniedTransition = await denied.svc.applyRoleTransitionCapabilities({
+    userId: 'denied-student',
+    priorRole: 'User',
+    newRole: 'User',
+    mode: DEFAULT_ADMIN_ROLE_TRANSITION_MODE,
+    user: {
+      role: 'User',
+      capabilitySchemaVersion: 0,
+      capabilityInitializationState: 'pending',
+    },
+  });
+  check(deniedTransition.grantedStudent === false, 'G. revoked student is not resurrected');
+  check(
+    (await denied.store.findOne('denied-student', 'student'))?.status === GRANT_STATUSES.REVOKED,
+    'G. revoked student grant remains revoked'
+  );
+
+  const suspended = serviceWith();
+  await suspended.store.upsert({
+    userId: 'suspended-student',
+    capability: USER_CAPABILITY_IDS.STUDENT,
+    status: GRANT_STATUSES.SUSPENDED,
+    grantedAt: new Date(),
+    grantedBy: 'admin',
+    grantReason: 'manual_suspend',
+    history: [],
+    schemaVersion: CAPABILITY_SCHEMA_VERSION,
+  });
+  const suspendedTransition = await suspended.svc.applyRoleTransitionCapabilities({
+    userId: 'suspended-student',
+    priorRole: 'User',
+    newRole: 'User',
+    mode: DEFAULT_ADMIN_ROLE_TRANSITION_MODE,
+    user: {
+      role: 'User',
+      capabilitySchemaVersion: 0,
+      capabilityInitializationState: 'failed',
+    },
+  });
+  check(suspendedTransition.grantedStudent === false, 'G. suspended student is not resurrected');
+  check(
+    (await suspended.store.findOne('suspended-student', 'student'))?.status === GRANT_STATUSES.SUSPENDED,
+    'G. suspended student grant remains suspended'
+  );
+
+  const withBiz = serviceWith();
+  await withBiz.store.upsert({
+    userId: 'biz-client',
+    capability: USER_CAPABILITY_IDS.BUSINESS_CLIENT,
+    status: GRANT_STATUSES.ACTIVE,
+    grantedAt: new Date(),
+    grantedBy: 'system:activation',
+    grantReason: 'explicit_business_client_activation',
+    history: [],
+    schemaVersion: CAPABILITY_SCHEMA_VERSION,
+  });
+  const bizTransition = await withBiz.svc.applyRoleTransitionCapabilities({
+    userId: 'biz-client',
+    priorRole: 'User',
+    newRole: 'User',
+    mode: DEFAULT_ADMIN_ROLE_TRANSITION_MODE,
+    user: {
+      role: 'User',
+      capabilitySchemaVersion: 0,
+      capabilityInitializationState: 'pending',
+    },
+  });
+  check(bizTransition.grantedStudent === true, 'H. incomplete customer with business_client still recovers student');
+  check(bizTransition.grantedBusinessClient === false, 'H. transition never auto-creates business_client');
+  check(bizTransition.preservedCapabilities.includes('business_client'), 'H. existing business_client preserved');
+  check(bizTransition.preservedCapabilities.includes('student'), 'H. recovered student listed in preservedCapabilities');
+  const bizResolved = await withBiz.svc.resolveUserCapabilities({
+    _id: 'biz-client',
+    role: 'User',
+    capabilitySchemaVersion: withBiz.schema.get('biz-client'),
+    capabilityInitializationState: withBiz.initState.get('biz-client'),
+  });
+  check(bizResolved.active.includes('business_client'), 'H. business_client remains active');
+  check(bizResolved.active.includes('student'), 'H. student recovered alongside business_client');
+
+  const legacy = serviceWith();
+  const legacyDemote = await legacy.svc.applyRoleTransitionCapabilities({
+    userId: 'legacy-admin-2',
+    priorRole: 'Admin',
+    newRole: 'User',
+    mode: DEFAULT_ADMIN_ROLE_TRANSITION_MODE,
+    user: { role: 'Admin', capabilitySchemaVersion: 0 },
+  });
+  check(legacyDemote.grantedStudent === false, 'I. legacy uninitialized Admin→User still no student');
+  const legacyResolved = await legacy.svc.resolveUserCapabilities({
+    _id: 'legacy-admin-2',
+    role: 'User',
+    capabilitySchemaVersion: legacy.schema.get('legacy-admin-2'),
+  });
+  check(!legacyResolved.active.includes('student'), 'I. legacy staff demotion does not gain legacy student');
+
+  const usersCtrl = readFileSync(
+    path.join(path.dirname(fileURLToPath(import.meta.url)), '../controllers/admin/usersController.js'),
+    'utf8'
+  );
+  check(
+    /if \(prev === role\) continue;/.test(usersCtrl),
+    'J. bulkAssignRole still skips same-role rows'
+  );
 }
 
 console.log(`phase17d1r1RoleAndRegistration.test.js: ${count} assertions passed`);
