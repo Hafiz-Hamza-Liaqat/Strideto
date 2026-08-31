@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
-import { breadcrumbSchema, collectionPageSchema, combineSchemas } from '../../seo/schemas';
 import { DEFAULT_KEYWORDS } from '../../seo/config';
 import { examsApi } from '../../services/listingsService';
 import { ROUTES } from '../../constants';
@@ -41,19 +40,9 @@ export default function ExamPrep() {
         title={t('exams:seoTitle')}
         description={t('exams:seoDescription')}
         canonical={ROUTES.EXAM_PREP}
+        noindex
         keywords={`PPSC, FPSC, NTS, CSS, exam preparation, ${DEFAULT_KEYWORDS}`}
         ogType="website"
-        jsonLd={combineSchemas(
-          breadcrumbSchema([
-            { name: t('exams:breadcrumbHome'), url: ROUTES.HOME },
-            { name: t('exams:breadcrumbExamPrep'), url: ROUTES.EXAM_PREP },
-          ]),
-          collectionPageSchema({
-            name: t('exams:seoTitle'),
-            description: t('exams:seoDescription'),
-            url: ROUTES.EXAM_PREP,
-          })
-        )}
       />
       <div className="max-w-4xl mx-auto px-4 py-8">
         <div className="mb-6 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-4 text-sm text-amber-900 dark:text-amber-100">

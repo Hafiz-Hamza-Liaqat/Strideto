@@ -66,6 +66,7 @@ const testPrepGuideSchema = new mongoose.Schema(
       index: true,
     },
     version: { type: Number, default: 1 },
+    nextReviewAt: { type: Date, default: null, index: true },
     sources: { type: [evidenceSubSchema], default: [] },
   },
   { timestamps: true }

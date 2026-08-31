@@ -39,6 +39,7 @@ import { normalizeCountryCode } from '../../../../shared/international/country.j
 import { assignLaunchEligibleOnAuthorityPublish } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 import { currentAcceptanceMongoFilter } from '../../../../shared/publicDiscovery/publicTruth.js';
 import { scheduleSeoChangeNotification } from '../../services/seo/seoChangeNotificationService.js';
+import { deriveEditorialFreshness } from '../../../../shared/education/editorialFreshness.js';
 
 const INSTITUTION_POPULATE = 'officialName slug countryCode city region status institutionType';
 
@@ -73,6 +74,24 @@ function normalizeIntakes(raw) {
     status: sanitizeString(intake?.status || 'draft'),
     sourceUrl: sanitizeString(intake?.sourceUrl || ''),
   }));
+}
+
+function parseOptionalReviewDate(value) {
+  if (value === undefined) return { provided: false, value: undefined };
+  if (value === null || value === '') return { provided: true, value: null };
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return { provided: true, error: 'nextReviewAt is invalid' };
+  return { provided: true, value: date };
+}
+
+function withEditorialFreshness(doc) {
+  if (!doc) return doc;
+  const freshness = deriveEditorialFreshness({ sources: doc.sources, nextReviewAt: doc.nextReviewAt });
+  return { ...doc, ...freshness };
+}
+
+function toPlainObject(doc) {
+  return doc && typeof doc.toObject === 'function' ? doc.toObject() : doc;
 }
 
 async function attachAcceptanceSummaries(programs) {
@@ -356,7 +375,7 @@ export const adminListPrepGuides = asyncHandler(async (req, res) => {
   if (q.testId) filter.testId = sanitizeString(q.testId);
   if (q.status) filter.status = sanitizeString(q.status);
   const data = await TestPrepGuide.find(filter).populate('testId', 'name slug').sort({ updatedAt: -1 }).lean();
-  res.json({ data });
+  res.json({ data: data.map(withEditorialFreshness) });
 });
 
 export const adminCreatePrepGuide = asyncHandler(async (req, res) => {
@@ -365,6 +384,14 @@ export const adminCreatePrepGuide = asyncHandler(async (req, res) => {
 
   const testExists = await Test.exists({ _id: body.testId });
   if (!testExists) return res.status(400).json({ error: 'Test not found' });
+  const status = isValidPubStatus(body.status) ? body.status : 'draft';
+  const reviewDate = parseOptionalReviewDate(body.nextReviewAt);
+  if (reviewDate.error) return res.status(400).json({ error: reviewDate.error });
+  const sourcesResult = parseSources(body.sources, { strict: status === 'published' });
+  if (!sourcesResult.ok) return res.status(400).json({ error: sourcesResult.errors.join('; ') });
+  if (status === 'published' && sourcesResult.sources.length === 0) {
+    return res.status(400).json({ error: 'Published prep guides require at least one valid source' });
+  }
 
   const doc = await TestPrepGuide.create({
     testId: body.testId,
@@ -377,17 +404,23 @@ export const adminCreatePrepGuide = asyncHandler(async (req, res) => {
     testDayGuidance: sanitizeString(body.testDayGuidance),
     registrationGuidance: sanitizeString(body.registrationGuidance),
     copyrightPolicyAcknowledged: body.copyrightPolicyAcknowledged === true,
-    status: isValidPubStatus(body.status) ? body.status : 'draft',
+    status,
     version: body.version ? Number(body.version) : 1,
-    sources: parseSources(body.sources).sources,
+    nextReviewAt: reviewDate.value,
+    sources: sourcesResult.sources,
   });
 
-  res.status(201).json(doc);
+  res.status(201).json(withEditorialFreshness(toPlainObject(doc)));
 });
 
 export const adminUpdatePrepGuide = asyncHandler(async (req, res) => {
   const body = req.body || {};
+  const existing = await TestPrepGuide.findById(req.params.id).lean();
+  if (!existing) return res.status(404).json({ error: 'Prep guide not found' });
   const update = {};
+  const reviewDate = parseOptionalReviewDate(body.nextReviewAt);
+  if (reviewDate.error) return res.status(400).json({ error: reviewDate.error });
+  if (reviewDate.provided) update.nextReviewAt = reviewDate.value;
 
   if (body.title !== undefined) update.title = sanitizeString(body.title);
   if (body.overview !== undefined) update.overview = sanitizeString(body.overview);
@@ -400,11 +433,17 @@ export const adminUpdatePrepGuide = asyncHandler(async (req, res) => {
   if (body.copyrightPolicyAcknowledged !== undefined) update.copyrightPolicyAcknowledged = body.copyrightPolicyAcknowledged === true;
   if (body.status !== undefined && isValidPubStatus(body.status)) update.status = body.status;
   if (body.version !== undefined) update.version = Number(body.version);
-  if (body.sources !== undefined) update.sources = parseSources(body.sources).sources;
+  if (body.sources !== undefined) {
+    const sourcesResult = parseSources(body.sources, { strict: body.status === 'published' });
+    if (!sourcesResult.ok) return res.status(400).json({ error: sourcesResult.errors.join('; ') });
+    update.sources = sourcesResult.sources;
+  }
+  if (body.status === 'published' && !(update.sources || existing.sources || []).length) {
+    return res.status(400).json({ error: 'Published prep guides require at least one valid source' });
+  }
 
   const doc = await TestPrepGuide.findByIdAndUpdate(req.params.id, update, { new: true });
-  if (!doc) return res.status(404).json({ error: 'Prep guide not found' });
-  res.json(doc);
+  res.json(withEditorialFreshness(toPlainObject(doc)));
 });
 
 // ── External Resources ────────────────────────────────────────────────────────
@@ -415,7 +454,7 @@ export const adminListResources = asyncHandler(async (req, res) => {
   if (q.testId) filter.testId = sanitizeString(q.testId);
   if (q.status) filter.status = sanitizeString(q.status);
   const data = await ExternalTestResource.find(filter).populate('testId', 'name slug').sort({ updatedAt: -1 }).lean();
-  res.json({ data });
+  res.json({ data: data.map(withEditorialFreshness) });
 });
 
 export const adminCreateResource = asyncHandler(async (req, res) => {
@@ -434,6 +473,15 @@ export const adminCreateResource = asyncHandler(async (req, res) => {
   const testExists = await Test.exists({ _id: body.testId });
   if (!testExists) return res.status(400).json({ error: 'Test not found' });
 
+  const status = isValidPubStatus(body.status) ? body.status : 'draft';
+  const reviewDate = parseOptionalReviewDate(body.nextReviewAt);
+  if (reviewDate.error) return res.status(400).json({ error: reviewDate.error });
+  const sourcesResult = parseSources(body.sources, { strict: status === 'published' });
+  if (!sourcesResult.ok) return res.status(400).json({ error: sourcesResult.errors.join('; ') });
+  if (status === 'published' && sourcesResult.sources.length === 0) {
+    return res.status(400).json({ error: 'Published resources require at least one valid source' });
+  }
+
   const doc = await ExternalTestResource.create({
     testId: body.testId,
     provider: sanitizeString(body.provider),
@@ -445,16 +493,22 @@ export const adminCreateResource = asyncHandler(async (req, res) => {
     isPaid: body.isPaid === true,
     platformType: sanitizeString(body.platformType),
     description: sanitizeString(body.description),
-    sources: parseSources(body.sources).sources,
-    status: isValidPubStatus(body.status) ? body.status : 'draft',
+    nextReviewAt: reviewDate.value,
+    sources: sourcesResult.sources,
+    status,
   });
 
-  res.status(201).json(doc);
+  res.status(201).json(withEditorialFreshness(toPlainObject(doc)));
 });
 
 export const adminUpdateResource = asyncHandler(async (req, res) => {
   const body = req.body || {};
+  const existing = await ExternalTestResource.findById(req.params.id).lean();
+  if (!existing) return res.status(404).json({ error: 'Resource not found' });
   const update = {};
+  const reviewDate = parseOptionalReviewDate(body.nextReviewAt);
+  if (reviewDate.error) return res.status(400).json({ error: reviewDate.error });
+  if (reviewDate.provided) update.nextReviewAt = reviewDate.value;
 
   if (body.provider !== undefined) update.provider = sanitizeString(body.provider);
   if (body.title !== undefined) update.title = sanitizeString(body.title);
@@ -468,12 +522,18 @@ export const adminUpdateResource = asyncHandler(async (req, res) => {
   if (body.isPaid !== undefined) update.isPaid = body.isPaid === true;
   if (body.platformType !== undefined) update.platformType = sanitizeString(body.platformType);
   if (body.description !== undefined) update.description = sanitizeString(body.description);
-  if (body.sources !== undefined) update.sources = parseSources(body.sources).sources;
+  if (body.sources !== undefined) {
+    const sourcesResult = parseSources(body.sources, { strict: body.status === 'published' });
+    if (!sourcesResult.ok) return res.status(400).json({ error: sourcesResult.errors.join('; ') });
+    update.sources = sourcesResult.sources;
+  }
   if (body.status !== undefined && isValidPubStatus(body.status)) update.status = body.status;
+  if (body.status === 'published' && !(update.sources || existing.sources || []).length) {
+    return res.status(400).json({ error: 'Published resources require at least one valid source' });
+  }
 
   const doc = await ExternalTestResource.findByIdAndUpdate(req.params.id, update, { new: true });
-  if (!doc) return res.status(404).json({ error: 'Resource not found' });
-  res.json(doc);
+  res.json(withEditorialFreshness(toPlainObject(doc)));
 });
 
 // ── Test Alerts ───────────────────────────────────────────────────────────────
@@ -484,7 +544,7 @@ export const adminListAlerts = asyncHandler(async (req, res) => {
   if (q.testId) filter.testId = sanitizeString(q.testId);
   if (q.publicationStatus) filter.publicationStatus = sanitizeString(q.publicationStatus);
   const data = await TestAlert.find(filter).populate('testId', 'name slug').sort({ effectiveDate: -1 }).lean();
-  res.json({ data });
+  res.json({ data: data.map(withEditorialFreshness) });
 });
 
 export const adminCreateAlert = asyncHandler(async (req, res) => {
@@ -495,11 +555,23 @@ export const adminCreateAlert = asyncHandler(async (req, res) => {
 
   const testExists = await Test.exists({ _id: body.testId });
   if (!testExists) return res.status(400).json({ error: 'Test not found' });
+  if (body.officialSourceUrl && !isValidHttpUrl(body.officialSourceUrl)) {
+    return res.status(400).json({ error: 'officialSourceUrl must be a valid http(s) URL' });
+  }
 
   const parseDate = (v) => (v ? new Date(v) : undefined);
   const effectiveDate = parseDate(body.effectiveDate);
   if (body.effectiveDate && effectiveDate && isNaN(effectiveDate.getTime())) {
     return res.status(400).json({ error: 'effectiveDate is invalid' });
+  }
+
+  const publicationStatus = isValidPubStatus(body.publicationStatus) ? body.publicationStatus : 'draft';
+  const reviewDate = parseOptionalReviewDate(body.nextReviewAt);
+  if (reviewDate.error) return res.status(400).json({ error: reviewDate.error });
+  const sourcesResult = parseSources(body.sources, { strict: publicationStatus === 'published' });
+  if (!sourcesResult.ok) return res.status(400).json({ error: sourcesResult.errors.join('; ') });
+  if (publicationStatus === 'published' && sourcesResult.sources.length === 0) {
+    return res.status(400).json({ error: 'Published alerts require at least one valid source' });
   }
 
   const doc = await TestAlert.create({
@@ -513,17 +585,23 @@ export const adminCreateAlert = asyncHandler(async (req, res) => {
       ? body.countryCodes.map((c) => normalizeCountryCode(c)).filter(Boolean)
       : [],
     officialSourceUrl: sanitizeString(body.officialSourceUrl),
-    sources: parseSources(body.sources).sources,
-    publicationStatus: isValidPubStatus(body.publicationStatus) ? body.publicationStatus : 'draft',
+    sources: sourcesResult.sources,
+    nextReviewAt: reviewDate.value,
+    publicationStatus,
     importance: isValidAlertImportance(body.importance) ? body.importance : 'medium',
   });
 
-  res.status(201).json(doc);
+  res.status(201).json(withEditorialFreshness(toPlainObject(doc)));
 });
 
 export const adminUpdateAlert = asyncHandler(async (req, res) => {
   const body = req.body || {};
+  const existing = await TestAlert.findById(req.params.id).lean();
+  if (!existing) return res.status(404).json({ error: 'Alert not found' });
   const update = {};
+  const reviewDate = parseOptionalReviewDate(body.nextReviewAt);
+  if (reviewDate.error) return res.status(400).json({ error: reviewDate.error });
+  if (reviewDate.provided) update.nextReviewAt = reviewDate.value;
 
   if (body.title !== undefined) update.title = sanitizeString(body.title);
   if (body.alertType !== undefined && isValidAlertType(body.alertType)) update.alertType = body.alertType;
@@ -535,14 +613,25 @@ export const adminUpdateAlert = asyncHandler(async (req, res) => {
       ? body.countryCodes.map((c) => normalizeCountryCode(c)).filter(Boolean)
       : [];
   }
-  if (body.officialSourceUrl !== undefined) update.officialSourceUrl = sanitizeString(body.officialSourceUrl);
-  if (body.sources !== undefined) update.sources = parseSources(body.sources).sources;
+  if (body.officialSourceUrl !== undefined) {
+    if (body.officialSourceUrl && !isValidHttpUrl(body.officialSourceUrl)) {
+      return res.status(400).json({ error: 'officialSourceUrl must be a valid http(s) URL' });
+    }
+    update.officialSourceUrl = sanitizeString(body.officialSourceUrl);
+  }
+  if (body.sources !== undefined) {
+    const sourcesResult = parseSources(body.sources, { strict: body.publicationStatus === 'published' });
+    if (!sourcesResult.ok) return res.status(400).json({ error: sourcesResult.errors.join('; ') });
+    update.sources = sourcesResult.sources;
+  }
   if (body.publicationStatus !== undefined && isValidPubStatus(body.publicationStatus)) update.publicationStatus = body.publicationStatus;
   if (body.importance !== undefined && isValidAlertImportance(body.importance)) update.importance = body.importance;
+  if (body.publicationStatus === 'published' && !(update.sources || existing.sources || []).length) {
+    return res.status(400).json({ error: 'Published alerts require at least one valid source' });
+  }
 
   const doc = await TestAlert.findByIdAndUpdate(req.params.id, update, { new: true });
-  if (!doc) return res.status(404).json({ error: 'Alert not found' });
-  res.json(doc);
+  res.json(withEditorialFreshness(toPlainObject(doc)));
 });
 
 // ── Country Education ─────────────────────────────────────────────────────────

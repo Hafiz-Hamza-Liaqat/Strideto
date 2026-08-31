@@ -2,7 +2,6 @@ import { useState, useEffect } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
-import { courseSchema, breadcrumbSchema, combineSchemas } from '../../seo/schemas';
 import { examsApi } from '../../services/listingsService';
 import { ROUTES } from '../../constants';
 
@@ -56,14 +55,7 @@ export default function ExamDetail() {
         title={`${exam.name} ${t('exams:examPrepSuffix')}`}
         description={description}
         canonical={canonicalPath}
-        jsonLd={combineSchemas(
-          courseSchema(exam),
-          breadcrumbSchema([
-            { name: t('navbar:home'), url: ROUTES.HOME },
-            { name: t('exams:examPrepBreadcrumb'), url: ROUTES.EXAM_PREP },
-            { name: exam.name, url: canonicalPath },
-          ]),
-        )}
+        noindex
       />
       <div className="max-w-4xl mx-auto px-4 py-8">
         <Link to={ROUTES.EXAM_PREP} className="text-sm text-primary dark:text-mint hover:underline mb-4 inline-block">

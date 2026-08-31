@@ -88,6 +88,21 @@ export const adminContentApi = {
     create: (body) => axiosInstance.post('/admin/education/tests', body),
     update: (id, body) => axiosInstance.patch(`/admin/education/tests/${id}`, body),
   },
+  educationPrepGuides: {
+    list: (params) => axiosInstance.get('/admin/education/prep-guides', { params }),
+    create: (body) => axiosInstance.post('/admin/education/prep-guides', body),
+    update: (id, body) => axiosInstance.patch(`/admin/education/prep-guides/${id}`, body),
+  },
+  educationResources: {
+    list: (params) => axiosInstance.get('/admin/education/resources', { params }),
+    create: (body) => axiosInstance.post('/admin/education/resources', body),
+    update: (id, body) => axiosInstance.patch(`/admin/education/resources/${id}`, body),
+  },
+  educationAlerts: {
+    list: (params) => axiosInstance.get('/admin/education/alerts', { params }),
+    create: (body) => axiosInstance.post('/admin/education/alerts', body),
+    update: (id, body) => axiosInstance.patch(`/admin/education/alerts/${id}`, body),
+  },
   educationAcceptance: {
     list: (params) => axiosInstance.get('/admin/education/acceptance', { params }),
     get: (id) => axiosInstance.get(`/admin/education/acceptance/${id}`),

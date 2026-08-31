@@ -56,6 +56,7 @@ const externalTestResourceSchema = new mongoose.Schema(
     // e.g. "web", "app", "course_platform"
     platformType: { type: String, trim: true, default: '' },
     description: { type: String, trim: true, default: '' },
+    nextReviewAt: { type: Date, default: null, index: true },
     sources: { type: [evidenceSubSchema], default: [] },
     status: {
       type: String,

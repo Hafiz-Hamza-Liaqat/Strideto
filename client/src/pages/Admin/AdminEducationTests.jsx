@@ -9,6 +9,7 @@ import { adminFieldClass } from '../../components/admin/AdminImageUrlField';
 import { AdminSelectBare } from '../../components/admin/AdminFormFields';
 import { adminContentApi } from '../../services/adminContentApi';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
+import { Link } from 'react-router-dom';
 import { TEST_CATEGORIES, PUB_STATUSES } from '@shared/education/taxonomy.js';
 
 const TABS = ['providers', 'tests'];
@@ -165,6 +166,9 @@ export default function AdminEducationTests() {
           <button type="button" className="bg-primary text-white px-4 py-2 rounded-lg text-sm hover:bg-primary/90 transition" onClick={openAdd}>
             + {addLabel}
           </button>
+          <Link to="/admin/education/test-editorial" className="border border-primary text-primary px-4 py-2 rounded-lg text-sm hover:bg-primary/5">
+            Editorial content
+          </Link>
         </div>
 
         <div className="flex gap-1 mb-4 border-b border-gray-200 dark:border-gray-700">

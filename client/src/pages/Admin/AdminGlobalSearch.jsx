@@ -28,6 +28,7 @@ export default function AdminGlobalSearch() {
   const [stats, setStats] = useState(null);
   const [reindexing, setReindexing] = useState(false);
   const [reindexMessage, setReindexMessage] = useState('');
+  const [testReindexing, setTestReindexing] = useState(false);
 
   const refreshStats = () => {
     searchApi.adminStats().then(({ data }) => setStats(data)).catch(() => {});
@@ -65,6 +66,22 @@ export default function AdminGlobalSearch() {
     }
   };
 
+  const handleRebuildTests = async () => {
+    if (testReindexing) return;
+    setTestReindexing(true);
+    setReindexMessage('');
+    try {
+      const { data } = await searchApi.adminReindex({ entityType: 'test' });
+      const result = data?.results?.find((item) => item.entityType === 'test');
+      setReindexMessage(`Test search rebuild complete — ${result?.indexed || 0} eligible Tests indexed; ${result?.removed || 0} stale Test documents removed.`);
+      refreshStats();
+    } catch (err) {
+      setReindexMessage(err.response?.data?.error || 'Test search rebuild failed. Check permissions and server logs.');
+    } finally {
+      setTestReindexing(false);
+    }
+  };
+
   const byType = stats?.byType || [];
   const indexEmpty = stats?.total === 0;
 
@@ -84,14 +101,24 @@ export default function AdminGlobalSearch() {
             </p>
           ) : null}
         </div>
-        <button
-          type="button"
-          onClick={handleRebuildIndex}
-          disabled={reindexing}
-          className="shrink-0 inline-flex items-center justify-center px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-60 min-h-[44px]"
-        >
-          {reindexing ? 'Rebuilding…' : 'Rebuild Search Index'}
-        </button>
+        <div className="flex flex-wrap gap-2 shrink-0">
+          <button
+            type="button"
+            onClick={handleRebuildTests}
+            disabled={testReindexing || reindexing}
+            className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg border border-primary text-primary text-sm font-medium hover:bg-primary/5 disabled:opacity-60 min-h-[44px]"
+          >
+            {testReindexing ? 'Rebuilding Tests…' : 'Rebuild Test Search'}
+          </button>
+          <button
+            type="button"
+            onClick={handleRebuildIndex}
+            disabled={reindexing || testReindexing}
+            className="inline-flex items-center justify-center px-4 py-2.5 rounded-lg bg-primary text-white text-sm font-medium hover:opacity-90 disabled:opacity-60 min-h-[44px]"
+          >
+            {reindexing ? 'Rebuilding…' : 'Rebuild Search Index'}
+          </button>
+        </div>
       </div>
 
       {reindexMessage ? (

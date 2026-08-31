@@ -47,6 +47,7 @@ const testAlertSchema = new mongoose.Schema(
     countryCodes: { type: [String], default: [] },
     officialSourceUrl: { type: String, trim: true, default: '' },
     sources: { type: [evidenceSubSchema], default: [] },
+    nextReviewAt: { type: Date, default: null, index: true },
     publicationStatus: {
       type: String,
       enum: Object.values(PUB_STATUSES),
