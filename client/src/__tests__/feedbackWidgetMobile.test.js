@@ -3,11 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import path from 'node:path';
 
-/**
- * 17D-3R follow-up: Feedback FAB must not overlay mobile form controls.
- * Below `sm` the trigger stays in document flow; `sm+` keeps the existing
- * fixed corner placement.
- */
+/** Feedback FAB remains fixed and outside normal document flow at every width. */
 
 let count = 0;
 function check(cond, msg) {
@@ -17,6 +13,7 @@ function check(cond, msg) {
 
 const here = path.dirname(fileURLToPath(import.meta.url));
 const src = readFileSync(path.join(here, '..', 'components', 'feedback', 'FeedbackWidget.jsx'), 'utf8');
+const layout = readFileSync(path.join(here, '..', 'layouts', 'MainLayout.jsx'), 'utf8');
 
 check(/export function FeedbackWidget\(/.test(src), 'shared FeedbackWidget remains the trigger');
 const btn = src.match(/<button\b[\s\S]*?aria-haspopup="dialog"[\s\S]*?<\/button>/)[0];
@@ -28,20 +25,17 @@ check(
   'keyboard focus remains visible on the trigger'
 );
 check(
-  /sm:fixed/.test(btn) && /sm:bottom-6/.test(btn) && /sm:end-6/.test(btn),
+  /sm:bottom-6/.test(btn) && /sm:end-6/.test(btn),
   'desktop/tablet keeps the existing fixed corner placement'
 );
-check(
-  !/\bfixed\b/.test(btn.replace(/sm:fixed/g, '')),
-  'trigger is not position:fixed on the default (mobile) breakpoint'
-);
-check(
-  /max-sm:m-4/.test(btn) && /max-sm:self-end/.test(btn),
-  'narrow screens keep an in-flow, end-aligned Feedback action'
-);
-check(
-  !/bottom-4 end-4/.test(btn),
-  'mobile no longer uses the overlapping fixed bottom-4 end-4 inset'
-);
+check(/\bfixed\b/.test(btn), 'trigger is fixed at the default/mobile breakpoint');
+check(/bottom-\[max\(1rem,env\(safe-area-inset-bottom\)\)\]/.test(btn), 'mobile bottom inset is safe-area aware');
+check(/end-\[max\(1rem,env\(safe-area-inset-right\)\)\]/.test(btn), 'mobile end inset is safe-area aware');
+check(!/max-sm:m-4/.test(btn) && !/max-sm:self-end/.test(btn), 'mobile trigger has no in-flow spacing or alignment');
+check(/z-\[45\]/.test(btn), 'trigger remains below modal and cookie overlay layers');
+check(layout.indexOf('<Footer />') < layout.indexOf('<FeedbackWidget />'), 'Footer remains before the Feedback widget in MainLayout');
+for (const width of [320, 390, 639, 640, 768, 1024]) {
+  check(/\bfixed\b/.test(btn), `${width}px trigger remains out of normal document flow`);
+}
 
 console.log(`feedbackWidgetMobile.test.js: ${count} assertions passed`);

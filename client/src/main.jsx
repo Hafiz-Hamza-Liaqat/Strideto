@@ -18,7 +18,10 @@ import { LANG_STORAGE_KEY } from './i18n/config.js';
 import { OnboardingProvider } from './onboarding';
 import { ScrollManager } from './components/navigation/ScrollManager.jsx';
 import { TabSessionGuard } from './components/auth/SessionChangeScreen';
+import { installPreloadErrorRecovery } from './runtime/preloadRecovery.js';
 import './index.css';
+
+installPreloadErrorRecovery();
 
 const BOOTSTRAP_LOADING = {
   en: 'Loading...',

@@ -20,6 +20,7 @@ export default function Blog() {
   const { t } = useTranslation(['blog', 'seo', 'common']);
   const [posts, setPosts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [loadError, setLoadError] = useState(false);
   const [category, setCategory] = useState('');
 
   const categories = useMemo(() => {
@@ -39,11 +40,15 @@ export default function Blog() {
   useEffect(() => {
     blogsApi.list({ limit: 30, status: 'published' })
       .then(({ data }) => setPosts(data?.data || []))
-      .catch(() => setPosts([]))
+      .catch(() => {
+        setPosts([]);
+        setLoadError(true);
+      })
       .finally(() => setLoading(false));
   }, []);
 
   const list = useMemo(() => {
+    if (loadError) return [];
     if (posts.length > 0) return posts;
     if (isProduction) return [];
     return SAMPLE_BLOGS.map((p) => ({
@@ -56,7 +61,7 @@ export default function Blog() {
       createdAt: p.date,
       category: 'Career Advice',
     }));
-  }, [posts]);
+  }, [loadError, posts]);
 
   const filtered = useMemo(() => {
     if (!category) return list;
@@ -118,11 +123,14 @@ export default function Blog() {
               <ListingCardSkeleton key={i} />
             ))}
           </div>
+        ) : loadError ? (
+          <p role="alert" className="rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700 dark:border-red-900/60 dark:bg-red-950/30 dark:text-red-300">
+            {t('blog:loadError', { defaultValue: 'Articles could not be loaded. Please try again later.' })}
+          </p>
         ) : filtered.length === 0 ? (
           <p className="text-gray-600 dark:text-gray-400">{t('blog:noPosts', { defaultValue: 'No published articles yet.' })}</p>
         ) : (
-          <ScrollReveal>
-            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-5">
               {filtered.map((post) => {
                 const catLabel = displayableBlogCategoryLabel(post.category);
                 const dateStr = post.publishedAt ? new Date(post.publishedAt).toLocaleDateString() : post.createdAt ? new Date(post.createdAt).toLocaleDateString() : '';
@@ -155,8 +163,7 @@ export default function Blog() {
                   </Link>
                 );
               })}
-            </div>
-          </ScrollReveal>
+          </div>
         )}
           </div>
           <aside className="w-full lg:w-64 flex-shrink-0">

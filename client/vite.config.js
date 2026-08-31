@@ -41,10 +41,16 @@ function spaSecurityHeaders(isDev) {
 
 export default defineConfig(({ command }) => {
   const isDev = command === 'serve';
+  const buildEnv = globalThis.process?.env || {};
   const securityHeaders = spaSecurityHeaders(isDev);
 
   return {
   plugins: [react()],
+  base: '/',
+  define: {
+    // Deployment IDs are non-secret diagnostics; do not expose other Vercel env values.
+    'import.meta.env.VITE_VERCEL_DEPLOYMENT_ID': JSON.stringify(buildEnv.VERCEL_DEPLOYMENT_ID || ''),
+  },
   resolve: {
     dedupe: ['react', 'react-dom'],
     alias: {

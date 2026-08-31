@@ -1,4 +1,5 @@
 import { Component } from 'react';
+import { getPreloadRecoveryStatus } from '../../runtime/preloadRecovery.js';
 
 /**
  * Route-level error boundary (Mission 26).
@@ -23,8 +24,20 @@ export class RouteErrorBoundary extends Component {
   }
 
   componentDidCatch(error, info) {
-    // Developer-facing only; never rendered into the page.
-    if (import.meta.env.DEV) console.error('Route render failed', error, info);
+    const message = (error instanceof Error ? error.message : String(error || 'Unknown route error'))
+      .slice(0, 1000)
+      .replace(/[\w.%+-]+@[\w.-]+\.[A-Za-z]{2,}/g, '[redacted-email]');
+    const failedChunkUrl = message.match(/https?:\/\/[^\s)?#]+\.js|\/assets\/[^\s)?#]+\.js/i)?.[0] || null;
+    const diagnostic = {
+      route: typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search}` : 'unknown',
+      deploymentId: import.meta.env.VITE_VERCEL_DEPLOYMENT_ID || null,
+      name: error?.name || 'Error',
+      message,
+      failedChunkUrl,
+      preloadRecovery: getPreloadRecoveryStatus(),
+    };
+    // Developer-facing diagnostics; no stack, credentials, or user data are emitted.
+    console.error('Route render failed', diagnostic, import.meta.env.DEV ? info : undefined);
   }
 
   render() {

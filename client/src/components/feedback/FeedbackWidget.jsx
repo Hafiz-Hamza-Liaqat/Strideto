@@ -120,7 +120,7 @@ export function FeedbackWidget() {
           setOpen(true);
           setStatus(null);
         }}
-        className="z-[45] min-h-[44px] min-w-[44px] px-4 rounded-lg bg-primary text-white text-sm font-semibold shadow-lg hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary max-sm:m-4 max-sm:self-end sm:fixed sm:bottom-6 sm:end-6"
+        className="fixed z-[45] min-h-[44px] min-w-[44px] px-4 rounded-lg bg-primary text-white text-sm font-semibold shadow-lg hover:opacity-90 focus-visible:outline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary bottom-[max(1rem,env(safe-area-inset-bottom))] end-[max(1rem,env(safe-area-inset-right))] sm:bottom-6 sm:end-6"
         aria-label="Feedback"
         aria-haspopup="dialog"
         aria-expanded={open}
