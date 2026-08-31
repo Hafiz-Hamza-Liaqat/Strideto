@@ -64,6 +64,27 @@ export const forgotPasswordLimiter = limiter('forgot', {
   message: { error: 'Too many password reset requests. Try again in an hour.' },
 });
 
+/**
+ * Social sign-in start — bounds transaction-cookie minting. Its own bucket
+ * because `authLimiter`'s `skipSuccessfulRequests` is wrong here: a successful
+ * start is exactly what an abuser wants to repeat.
+ */
+export const oauthStartLimiter = limiter('oauth-start', {
+  windowMs: 60 * 1000,
+  max: isDev ? 60 : 15,
+  message: { error: 'Too many sign-in attempts. Try again later.' },
+});
+
+/**
+ * Social sign-in callback — bounds `state`/`code` guessing. Successful
+ * callbacks count too; a legitimate user reaches this at most once per login.
+ */
+export const oauthCallbackLimiter = limiter('oauth-callback', {
+  windowMs: 60 * 1000,
+  max: isDev ? 60 : 20,
+  message: { error: 'Too many sign-in attempts. Try again later.' },
+});
+
 /** Verify-email attempts — bound guessing even with high-entropy tokens */
 export const verifyEmailLimiter = limiter('verify-email', {
   windowMs: 15 * 60 * 1000,

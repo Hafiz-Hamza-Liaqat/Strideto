@@ -5,6 +5,7 @@
  * JwtSessionProvider must reuse this helper — do not fork a second list.
  */
 import { isInsecureHsiCredential } from './hsiSecurityConfig.js';
+import { buildGoogleOidcConfig } from '../services/auth/googleOidcConfig.js';
 
 export const INSECURE_SIGNING_SECRETS = new Set([
   'change-me-in-production',
@@ -109,6 +110,32 @@ export function validateProductionEnv() {
       '\n❌ FATAL: Set REDIS_URL in production — the secure access-token denylist requires a shared store; no process-local fallback is permitted once secure auth is active.\n'
     );
     process.exit(1);
+  }
+
+  if (process.env.OAUTH_GOOGLE_ENABLED === '1') {
+    // The runtime config degrades an enabled-but-invalid Google setup to
+    // "disabled" so it can never take password authentication down with it.
+    // In production that silent degradation is the wrong answer: an operator
+    // who set the flag expects the flow to work, so a bad configuration is
+    // fatal at startup instead of quietly missing.
+    const googleRequired = [
+      'GOOGLE_CLIENT_ID',
+      'GOOGLE_CLIENT_SECRET',
+      'GOOGLE_REDIRECT_URI',
+    ];
+    const missingGoogle = googleRequired.filter((key) => !process.env[key]);
+    if (missingGoogle.length) {
+      console.error(
+        `\n❌ FATAL: Google sign-in is enabled but missing configuration: ${missingGoogle.join(', ')}\n`
+      );
+      process.exit(1);
+    }
+    try {
+      buildGoogleOidcConfig(process.env);
+    } catch (error) {
+      console.error(`\n❌ FATAL: Google sign-in configuration is invalid: ${error.message}\n`);
+      process.exit(1);
+    }
   }
 
   if (process.env.GBS_HSI_DOCUMENTS_ENABLED === '1') {

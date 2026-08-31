@@ -44,6 +44,10 @@ jobs:
         working-directory: server
         run: node src/__tests__/socialIdentityFoundation.test.js
 
+      - name: Run Google OIDC flow tests
+        working-directory: server
+        run: node src/__tests__/googleOidcP2.test.js
+
       - name: Production verification (static)
         run: npm run verify:production
 
