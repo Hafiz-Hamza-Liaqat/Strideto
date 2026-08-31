@@ -14,6 +14,7 @@ import { MediaAsset } from '../../models/MediaAsset.js';
 import { TalentProfile } from '../../models/career/TalentProfile.js';
 import { Credential } from '../../models/career/Credential.js';
 import { Test } from '../../models/education/Test.js';
+import { SearchDocument } from '../../models/SearchDocument.js';
 import { SEARCH_ENTITY_TYPES } from '../../../../shared/search/entityTypes.js';
 import { SEARCH_DOCUMENT_MAPPERS } from './documentMappers.js';
 import { deleteSearchDocument, upsertSearchDocument } from './SearchIndexService.js';
@@ -34,6 +35,15 @@ const ENTITY_MODELS = {
   credential: Credential,
   test: Test,
 };
+
+export async function removeStaleTestSearchDocuments(eligibleIds, SearchDocumentModel = SearchDocument) {
+  const result = await SearchDocumentModel.deleteMany({
+    entityType: 'test',
+    locale: 'en',
+    entityId: { $nin: eligibleIds },
+  });
+  return result.deletedCount || 0;
+}
 
 /**
  * @param {string} entityType
@@ -78,15 +88,21 @@ export async function rebuildEntityType(entityType) {
   if (entityType === 'test') query = query.populate('providerId', 'name officialWebsite status');
   const cursor = query.cursor();
   let indexed = 0;
+  const eligibleIds = [];
   for await (const doc of cursor) {
     const normalized = mapper(doc);
     if (normalized?.searchable) {
       await upsertSearchDocument(normalized);
       indexed += 1;
+      if (entityType === 'test') eligibleIds.push(String(doc._id));
     }
   }
+  let removed = 0;
+  if (entityType === 'test') {
+    removed = await removeStaleTestSearchDocuments(eligibleIds);
+  }
   searchCacheInvalidatePrefix('search:');
-  return { entityType, indexed };
+  return { entityType, indexed, removed };
 }
 
 export async function rebuildAll() {
@@ -102,4 +118,5 @@ export class SearchIndexer {
   static removeEntity = removeEntity;
   static rebuildEntityType = rebuildEntityType;
   static rebuildAll = rebuildAll;
+  static removeStaleTestSearchDocuments = removeStaleTestSearchDocuments;
 }
