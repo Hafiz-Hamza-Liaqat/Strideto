@@ -567,6 +567,17 @@ function makeSessionFlows(result) {
   };
 }
 
+function makeNewAccountHook({ error } = {}) {
+  const calls = [];
+  return {
+    calls,
+    async handler(input) {
+      calls.push(input);
+      if (error) throw error;
+    },
+  };
+}
+
 function makeFlows({
   config = ENABLED_CONFIG,
   indexes = READY_INDEXES,
@@ -575,6 +586,7 @@ function makeFlows({
   tokenResponse,
   denylistService = makeDenylist(),
   jwksKeys = [PUBLIC_JWK],
+  welcome = makeNewAccountHook(),
 } = {}) {
   const base = makeTransactionService({ denylistService });
   // Capture the live transaction so the stubbed token endpoint can mint an
@@ -602,8 +614,9 @@ function makeFlows({
       tokenResponse
       || (async () => ({ ok: true, json: async () => ({ id_token: signIdToken({ nonce: currentNonce() }) }) })),
     recordLastLogin: async (input) => { lastLogin.push(input); },
+    onNewAccountCreated: welcome.handler,
   });
-  return { flows, transactionService, social, session, lastLogin, currentNonce };
+  return { flows, transactionService, social, session, lastLogin, currentNonce, welcome };
 }
 
 {
@@ -771,7 +784,21 @@ async function runCallback(setup = {}, overrides = {}) {
 
 // Replay of a whole callback is refused by the burned transaction.
 {
-  const harness = makeFlows();
+  const harness = makeFlows({
+    social: makeSocialService({
+      resolveOrCreate: {
+        code: R.IDENTITY_RESOLVED,
+        user: {
+          _id: 'u-replay-new',
+          tokenVersion: 0,
+          email: 'replay-new@example.com',
+          name: 'Replay New',
+        },
+        identity: { _id: 'i-replay-new' },
+        created: true,
+      },
+    }),
+  });
   const started = await harness.flows.start();
   const state = new URL(started.authorizationUrl).searchParams.get('state');
   const cookieHeader = `${harness.transactionService.cookieName}=${started.cookieValue}`;
@@ -781,6 +808,7 @@ async function runCallback(setup = {}, overrides = {}) {
   check(second.code === FLOW.TRANSACTION_INVALID, 'a replayed callback is rejected');
   check(second.reason === TX.REPLAYED, 'the replay is identified as such');
   check(harness.session.calls.length === 1, 'a replayed callback issues no second session');
+  check(harness.welcome.calls.length === 1, 'a replayed callback queues no duplicate welcome');
 }
 
 // ---------------------------------------------------------------------------
@@ -801,6 +829,7 @@ async function runCallback(setup = {}, overrides = {}) {
     });
     check(harness.result.code === FLOW.POLICY_REJECTED, `policy rejection: ${label}`);
     check(harness.session.calls.length === 0, `no session issued: ${label}`);
+    check(harness.welcome.calls.length === 0, `no welcome queued: ${label}`);
     check(harness.result.clearTransactionCookie === true, `transaction cleared: ${label}`);
     const redirect = new URL(harness.flows.buildFrontendRedirect(harness.result));
     check(redirect.searchParams.get('error') === redirectCode, `redirect code for ${label}`);
@@ -823,15 +852,21 @@ async function runCallback(setup = {}, overrides = {}) {
   check(harness.result.createdAccount === false, 'a known subject is not reported as a new account');
   check(harness.session.calls[0].subjectId === 'u-known', 'the linked user is the session subject');
   check(harness.lastLogin[0].identityId === 'i-known', 'the identity login timestamp is recorded');
+  check(harness.welcome.calls.length === 0, 'a returning Google identity queues no welcome');
 }
 
-// A new Google user is reported as created.
+// A new Google user is reported as created and receives one safe welcome hook.
 {
   const harness = await runCallback({
     social: makeSocialService({
       resolveOrCreate: {
         code: R.IDENTITY_RESOLVED,
-        user: { _id: 'u-new', tokenVersion: 0 },
+        user: {
+          _id: 'u-new',
+          tokenVersion: 0,
+          email: 'new-user@example.com',
+          name: 'New User',
+        },
         identity: { _id: 'i-new' },
         created: true,
       },
@@ -840,17 +875,104 @@ async function runCallback(setup = {}, overrides = {}) {
   check(harness.result.code === FLOW.SESSION_ISSUED, 'a new Google user signs in after creation');
   check(harness.result.createdAccount === true, 'a newly created account is reported as such');
   check(harness.session.calls[0].tokenVersion === 0, 'a new account starts at tokenVersion 0');
+  check(harness.welcome.calls.length === 1, 'a new Google account invokes the welcome hook once');
+  check(
+    JSON.stringify(harness.welcome.calls[0]) === JSON.stringify({
+      userId: 'u-new',
+      email: 'new-user@example.com',
+      name: 'New User',
+    }),
+    'the welcome hook receives only persisted user id, email, and name',
+  );
+  check(
+    !/id.?token|access.?token|refresh.?token|password|verification|nonce|state|pkce/i.test(
+      JSON.stringify(harness.welcome.calls[0]),
+    ),
+    'the welcome hook payload contains no OAuth, password, or verification material',
+  );
 }
 
-// A session-issuance failure never reports success.
+// A session-issuance failure never reports success, but creation already queued welcome.
 {
   const harness = await runCallback({
+    social: makeSocialService({
+      resolveOrCreate: {
+        code: R.IDENTITY_RESOLVED,
+        user: {
+          _id: 'u-session-failed',
+          tokenVersion: 0,
+          email: 'session-failed@example.com',
+          name: 'Session Failed',
+        },
+        identity: { _id: 'i-session-failed' },
+        created: true,
+      },
+    }),
     session: makeSessionFlows({ code: 'STORAGE_FAILURE', httpStatus: 503 }),
   });
   check(harness.result.code === FLOW.SESSION_FAILED, 'a failed session issuance is reported as a failure');
+  check(harness.welcome.calls.length === 1, 'welcome is attempted before new-account session issuance fails');
   check(harness.lastLogin.length === 0, 'no login is recorded when the session fails');
   const redirect = new URL(harness.flows.buildFrontendRedirect(harness.result));
   check(redirect.searchParams.get('error') === 'oauth_failed', 'a session failure redirects with a generic code');
+}
+
+// Welcome queue failure is non-authoritative and cannot fail account/session success.
+{
+  const welcome = makeNewAccountHook({ error: new Error('queue unavailable') });
+  const harness = await runCallback({
+    welcome,
+    social: makeSocialService({
+      resolveOrCreate: {
+        code: R.IDENTITY_RESOLVED,
+        user: {
+          _id: 'u-queue-failed',
+          tokenVersion: 0,
+          email: 'queue-failed@example.com',
+          name: 'Queue Failed',
+        },
+        identity: { _id: 'i-queue-failed' },
+        created: true,
+      },
+    }),
+  });
+  check(welcome.calls.length === 1, 'a failed welcome queue is attempted exactly once');
+  check(harness.result.code === FLOW.SESSION_ISSUED, 'welcome queue failure leaves session success unchanged');
+  check(harness.result.createdAccount === true, 'welcome queue failure leaves new-account result unchanged');
+  check(harness.session.calls.length === 1, 'welcome queue failure does not suppress session issuance');
+}
+
+// Two converged resolutions queue welcome only for the authoritative creator.
+{
+  let resolutions = 0;
+  const social = makeSocialService();
+  social.resolveOrCreate = async (assertion, provenance) => {
+    social.calls.push({ method: 'resolveOrCreate', assertion, provenance });
+    resolutions += 1;
+    return {
+      code: R.IDENTITY_RESOLVED,
+      user: {
+        _id: 'u-converged',
+        tokenVersion: 0,
+        email: 'converged@example.com',
+        name: 'Converged User',
+      },
+      identity: { _id: 'i-converged' },
+      ...(resolutions === 1 ? { created: true } : {}),
+    };
+  };
+  const harness = makeFlows({ social });
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    const started = await harness.flows.start();
+    const state = new URL(started.authorizationUrl).searchParams.get('state');
+    const result = await harness.flows.callback({
+      code: `auth-code-${attempt}`,
+      state,
+      cookieHeader: `${harness.transactionService.cookieName}=${started.cookieValue}`,
+    });
+    check(result.code === FLOW.SESSION_ISSUED, `converged callback ${attempt + 1} succeeds`);
+  }
+  check(harness.welcome.calls.length === 1, 'converged creator/returning resolutions queue one welcome total');
 }
 
 // ---------------------------------------------------------------------------
@@ -900,6 +1022,23 @@ async function runCallback(setup = {}, overrides = {}) {
   check(!/jwt\.sign/.test(flowsSrc), 'the flow mints no JWT of its own');
   check(!/res\.|req\./.test(flowsSrc), 'the flow layer is framework-agnostic');
   check(!/role|capability|grantCapability/.test(flowsSrc.replace(/GOOGLE_PROVENANCE|grantedBy|grantReason/g, '')), 'the flow never touches role or capabilities');
+
+  const runtime = codeOnly(readRepo('server/src/services/auth/googleOidcRuntime.js'));
+  const welcomeBinding = runtime.slice(
+    runtime.indexOf('async function queueNewAccountWelcome'),
+    runtime.indexOf('let transactionSingleton'),
+  );
+  check(/templateKey: 'welcome'/.test(welcomeBinding), 'the runtime reuses the existing welcome template');
+  check(/dedupKey: `welcome:\$\{userId\}`/.test(welcomeBinding), 'the runtime uses exactly welcome:<userId> deduplication');
+  check(/queueEmail\(\{/.test(welcomeBinding), 'the runtime reuses the existing email queue');
+  check(
+    !/idToken|accessToken|refreshToken|password|verification|nonce|state|codeVerifier|assertion/.test(welcomeBinding),
+    'the runtime welcome binding carries no provider, password, or verification material',
+  );
+
+  const registration = codeOnly(readRepo('server/src/controllers/authController.js'));
+  check(/templateKey: 'welcome'/.test(registration), 'password registration still uses the existing welcome template');
+  check(/dedupKey: `welcome:\$\{user\._id\}`/.test(registration), 'password registration welcome deduplication is unchanged');
 
   const verifier = readRepo('server/src/services/auth/googleIdTokenVerifier.js');
   check(/algorithms: ALLOWED_ALGORITHMS/.test(verifier), 'the verifier pins its algorithm list');

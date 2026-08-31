@@ -83,6 +83,8 @@ function frozen(code, extra = {}) {
  * @param {object} deps.socialIdentityService — the P1 linking service
  * @param {object} deps.sessionFlows — `userSecureAuthFlows`
  * @param {object} deps.indexReadiness — `userIdentityIndexReadiness`
+ * @param {(account: {userId: string, email: string, name: string}) => Promise<unknown>} [deps.onNewAccountCreated]
+ *   — best-effort, non-authoritative side effects for a completed new account.
  */
 export function createGoogleOidcFlows({
   config,
@@ -93,6 +95,7 @@ export function createGoogleOidcFlows({
   indexReadiness,
   fetchImpl = globalThis.fetch,
   recordLastLogin = async () => undefined,
+  onNewAccountCreated = async () => undefined,
 } = {}) {
   if (!config) throw new TypeError('config is required');
   if (!transactionService?.createTransaction) {
@@ -107,6 +110,9 @@ export function createGoogleOidcFlows({
   }
   if (!indexReadiness?.assertReady) {
     throw new TypeError('indexReadiness is required');
+  }
+  if (typeof onNewAccountCreated !== 'function') {
+    throw new TypeError('onNewAccountCreated must be a function');
   }
 
   /**
@@ -262,6 +268,24 @@ export function createGoogleOidcFlows({
     }
 
     const user = resolution.user;
+    if (resolution.created === true) {
+      // `created` is the authoritative P1 result: capability initialization
+      // and identity persistence have both completed. Welcome delivery is a
+      // best-effort side effect and must never change the account or login
+      // result. Run it before session issuance so a completed account is not
+      // deprived of its welcome when session persistence subsequently fails.
+      try {
+        await onNewAccountCreated({
+          userId: String(user._id),
+          email: user.email,
+          name: user.name,
+        });
+      } catch {
+        // The runtime hook records a safe operational warning. Provider data,
+        // credentials, and tokens never enter this boundary or its logs.
+      }
+    }
+
     const sessionResult = await sessionFlows.issueLoginSession({
       subjectId: String(user._id),
       tokenVersion: user.tokenVersion,

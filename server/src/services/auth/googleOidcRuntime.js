@@ -20,6 +20,8 @@ import { createAccessDenylistService } from './accessDenylist.js';
 import { secureAuthConfig } from './secureAuthConfig.js';
 import { userSecureAuthFlows } from './userSecureAuthFlows.js';
 import { getSocialIdentityLinkingService } from './socialIdentityRuntime.js';
+import { queueEmail } from '../automationService.js';
+import { logger } from '../../utils/logger.js';
 
 /**
  * Ordinary social login touches login timestamps and nothing else. Role,
@@ -30,6 +32,24 @@ async function recordLastLogin({ userId, identityId }) {
   await User.updateOne({ _id: userId }, { $set: { lastLoginAt: at } });
   if (identityId) {
     await UserIdentity.updateOne({ _id: identityId }, { $set: { lastLoginAt: at } });
+  }
+}
+
+/** Queue the ordinary STRIDETO welcome mail without making it authoritative. */
+async function queueNewAccountWelcome({ userId, email, name }) {
+  try {
+    return await queueEmail({
+      to: email,
+      templateKey: 'welcome',
+      vars: { name },
+      dedupKey: `welcome:${userId}`,
+    });
+  } catch (error) {
+    logger.warn('google_welcome_email_enqueue_failed', {
+      userId: String(userId),
+      errorCategory: error?.code || 'enqueue_failed',
+    });
+    throw error;
   }
 }
 
@@ -59,6 +79,7 @@ export function getGoogleOidcFlows() {
       sessionFlows: userSecureAuthFlows,
       indexReadiness: userIdentityIndexReadiness,
       recordLastLogin,
+      onNewAccountCreated: queueNewAccountWelcome,
     });
   }
   return flowsSingleton;
