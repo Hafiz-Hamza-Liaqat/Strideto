@@ -348,6 +348,7 @@ export function projectPublicAcceptance(claim) {
     _id,
     testId,
     testIdentity,
+    testScoreScale: testId && typeof testId === 'object' ? (testId.scoreScale || null) : null,
     institutionId: institutionId ?? null,
     programId: programId ?? null,
     countryCode: countryCode ?? null,
@@ -365,8 +366,8 @@ export function projectPublicAcceptance(claim) {
     conditions: conditions ?? null,
     waiverNotes: waiverNotes ?? null,
     sources: Array.isArray(sources)
-      ? sources.filter((s) => s && s.sourceUrl).map(({ sourceType, sourceUrl, publisher, retrievedAt, verifiedAt }) => ({
-          sourceType, sourceUrl, publisher, retrievedAt, verifiedAt,
+      ? sources.filter((s) => s && s.sourceUrl).map(({ sourceType, sourceUrl, publisher, retrievedAt, verifiedAt, evidenceRef }) => ({
+          sourceType, sourceUrl, publisher, retrievedAt, verifiedAt, evidenceRef,
         }))
       : [],
     verificationStatus: verificationStatus ?? 'unverified',

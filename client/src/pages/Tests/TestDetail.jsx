@@ -438,8 +438,8 @@ function AcceptanceCard({ claim }) {
   const freshness = FRESHNESS_LABELS[claim.freshnessState] || FRESHNESS_LABELS.unknown;
   const scopeLabel = {
     country: 'Country — not institution-wide unless specified',
-    institution: 'Institution',
-    program: 'Program',
+    institution: 'Institution-level guidance',
+    program: 'Program-specific requirement',
     program_intake: 'Program intake',
   }[claim.acceptanceScope] || claim.acceptanceScope;
   const scopeCaution = claim.acceptanceScope === 'country'
@@ -479,6 +479,12 @@ function AcceptanceCard({ claim }) {
       {claim.minimumOverallScore != null && (
         <p className="text-xs text-gray-600 dark:text-gray-300 mb-1">
           Minimum overall score: <span className="font-medium">{claim.minimumOverallScore}</span>
+        </p>
+      )}
+
+      {claim.testScoreScale && (
+        <p className="text-xs text-gray-600 dark:text-gray-300 mb-1">
+          Score scale: <span className="font-medium">{claim.testScoreScale}</span>
         </p>
       )}
 

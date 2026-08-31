@@ -33,6 +33,8 @@
     "seed:assessments": "node src/scripts/seedAssessments.js",
     "seed:international-tests": "node src/scripts/seedInternationalTests.js",
     "seed:international-institutions": "node src/scripts/seedInternationalInstitutions.js",
+    "seed:international-test-acceptances": "node src/scripts/seedInternationalTestAcceptances.js",
+    "seed:international-test-acceptances": "node src/scripts/seedInternationalTestAcceptances.js",
     "seed:beta": "node src/scripts/seedBetaContent.js",
     "seed": "node src/seed/index.js",
     "lint": "eslint src --ext js"

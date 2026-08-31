@@ -65,6 +65,7 @@ export const getTestAcceptance = asyncHandler(async (req, res) => {
 
   const [raw, total] = await Promise.all([
     TestAcceptance.find(filter)
+      .populate('testId', 'name shortName slug category scoreScale providerId')
       .populate('institutionId', 'officialName slug countryCode institutionType')
       .populate('programId', 'name slug degreeLevel field')
       .sort({ acceptanceScope: -1, countryCode: 1 })
