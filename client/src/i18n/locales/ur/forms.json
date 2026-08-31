@@ -83,5 +83,21 @@
   },
   "employerRegister": {
     "seoDescription": "نوکریاں پوسٹ کرنے کے لیے آجر اکاؤنٹ بنائیں۔"
+  },
+  "oauthCallback": {
+    "title": "سائن ان ہو رہا ہے",
+    "completing": "گوگل سائن ان مکمل کیا جا رہا ہے…",
+    "failedTitle": "سائن ان ناکام ہوا",
+    "backToSignIn": "سائن ان پر واپس",
+    "errors": {
+      "existing_account_requires_link": "اس ای میل کے ساتھ پہلے سے ایک اکاؤنٹ موجود ہے۔ اپنے موجودہ STRIDETO اکاؤنٹ سے سائن ان کریں۔ Google اکاؤنٹ لنکنگ Connected Accounts میں دستیاب ہوگی۔",
+      "provider_email_unverified": "Google نے اس اکاؤنٹ کے ای میل کی تصدیق نہیں کی۔ اسے Google پر تصدیق کریں یا ای میل اور پاس ورڈ سے سائن ان کریں۔",
+      "account_suspended": "یہ اکاؤنٹ معطل ہے۔ اگر یہ غلطی ہے تو سپورٹ سے رابطہ کریں۔",
+      "oauth_state_invalid": "یہ سائن ان لنک کی مدت ختم ہو گئی یا پہلے استعمال ہو چکا ہے۔ دوبارہ کوشش کریں۔",
+      "oauth_provider_error": "Google نے سائن ان مکمل نہیں کیا۔ دوبارہ کوشش کریں۔",
+      "oauth_unavailable": "Google سائن ان عارضی طور پر دستیاب نہیں۔ ای میل اور پاس ورڈ سے سائن ان کریں۔",
+      "session_failed": "ہم سائن ان مکمل نہیں کر سکے۔ دوبارہ کوشش کریں۔",
+      "oauth_failed": "Google سائن ان مکمل نہیں ہو سکا۔ دوبارہ کوشش کریں۔"
+    }
   }
 }

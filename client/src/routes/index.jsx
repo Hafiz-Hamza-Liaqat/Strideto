@@ -39,6 +39,7 @@ const Contact = lazyLoad(() => import('../pages/Contact/Contact'));
 const Login = lazyLoad(() => import('../pages/Auth/Login'));
 const Register = lazyLoad(() => import('../pages/Auth/Register'));
 const ForgotPassword = lazyLoad(() => import('../pages/Auth/ForgotPassword'));
+const OAuthCallback = lazyLoad(() => import('../pages/Auth/OAuthCallback'));
 const ResetPassword = lazyLoad(() => import('../pages/Auth/ResetPassword'));
 const AcceptInvitation = lazyLoad(() => import('../pages/Auth/AcceptInvitation'));
 const Profile = lazyLoad(() => import('../pages/Profile/Profile'));
@@ -587,6 +588,7 @@ export const routes = [
       { path: ROUTES.RESET_PASSWORD, element: withAuthLayout(<ResetPassword />, 'Student account') },
       { path: ROUTES.VERIFY_EMAIL, element: withAuthLayout(<VerifyEmail />, 'Verify email') },
       { path: ROUTES.ACCEPT_INVITATION, element: <AcceptInvitation /> },
+      { path: ROUTES.OAUTH_CALLBACK, element: withAuthLayout(<OAuthCallback />, 'Student account') },
       {
         path: ROUTES.PROFILE,
         element: (

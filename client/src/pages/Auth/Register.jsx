@@ -17,12 +17,14 @@ import { PasswordInput } from '../../components/forms/PasswordInput';
 import { pendingVerifyPath } from '../../utils/authUrls.js';
 import { AuthCard } from '../../layouts/AuthLayout.jsx';
 import { clearAuthFormDraft, useAuthFormDraft } from '../../hooks/useAuthFormDraft.js';
+import { googleSignInEnabled, startGoogleSignIn } from '../../auth/googleSignIn.js';
 
 export default function Register() {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
   const refCode = searchParams.get('ref') || '';
   const { register, error, setError } = useAuth();
+  const googleEnabled = googleSignInEnabled();
   const { t } = useTranslation(['forms', 'common', 'validation']);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -83,8 +85,13 @@ export default function Register() {
     }
   };
 
+  /** Identical to Login's handler by design — see the note there. */
   const handleGoogleSignUp = () => {
-    setError(t('forms:register.googleSoon'));
+    if (!googleEnabled) {
+      setError(t('forms:register.googleSoon'));
+      return;
+    }
+    startGoogleSignIn();
   };
 
   return (
@@ -152,7 +159,7 @@ export default function Register() {
 
         <div className="mt-6 animate-fade-in">
           <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-3">{t('forms:register.signUpWith')}</p>
-          <SocialAuthButton provider="Google" onClick={handleGoogleSignUp} comingSoon />
+          <SocialAuthButton provider="Google" onClick={handleGoogleSignUp} comingSoon={!googleEnabled} />
         </div>
 
         <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">

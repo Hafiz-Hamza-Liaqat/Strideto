@@ -212,6 +212,43 @@ export function AuthProvider({ children }) {
     }
   }, [clearAuth]);
 
+  /**
+   * Completes a Google sign-in after the backend's OAuth callback has already
+   * verified the provider, resolved the account, and written the ordinary
+   * HttpOnly refresh cookie. There is no OAuth-specific session here: this
+   * walks exactly the same refresh → `/auth/me` → bind path the normal
+   * bootstrap walks, so the access token still lives only in memory and the
+   * tab-identity and workspace behaviour are unchanged.
+   *
+   * `refreshToken` is deliberately reused rather than a fresh POST being made:
+   * it routes through `axiosBase`'s single-flight, so if the realm bootstrap
+   * happens to be refreshing at the same moment on this route, both callers
+   * share one request. Refresh cookies rotate on use, and a second concurrent
+   * POST would present an already-rotated cookie and read as a logout.
+   *
+   * `bindLocalUser` (not `acceptUserSubject`) is correct here for the same
+   * reason `login` uses it: the user has just deliberately authenticated, so a
+   * previously-bound subject in this tab is superseded rather than reported as
+   * an identity conflict. It also bumps the auth epoch, which retires any
+   * in-flight bootstrap chain so it cannot bind a stale subject afterwards.
+   */
+  const completeOAuthLogin = useCallback(async () => {
+    setError(null);
+    const token = await refreshToken({ clearOnFailure: false });
+    if (!token) {
+      clearAuth();
+      return { ok: false };
+    }
+    const { data } = await authApi.me();
+    if (!data?.user) {
+      clearAuth();
+      return { ok: false };
+    }
+    bindLocalUser(data.user);
+    syncUserWorkspaceUx(data.user);
+    return { ok: true, user: data.user };
+  }, [bindLocalUser, clearAuth, refreshToken]);
+
   useEffect(() => {
     return onSessionExpired((realm) => {
       if (realm === 'user') {
@@ -314,6 +351,7 @@ export function AuthProvider({ children }) {
     logout,
     logoutAll,
     refreshToken,
+    completeOAuthLogin,
     updateUser: persistUser,
     continueAsCurrentSession,
     signInAgainFromConflict,

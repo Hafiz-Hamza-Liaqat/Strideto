@@ -14,6 +14,7 @@ import { SeoHead } from '../../components/seo';
 import { isOnboardingComplete, markOnboardingPending } from '../../onboarding';
 import { LOGIN_REALMS, resolveLoginReturnPath } from '../../utils/loginReturn.js';
 import { AuthCard } from '../../layouts/AuthLayout.jsx';
+import { googleSignInEnabled, startGoogleSignIn } from '../../auth/googleSignIn.js';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -29,6 +30,7 @@ export default function Login() {
   const requestedFrom = location.state?.from;
   const previewFrom = resolveLoginReturnPath(requestedFrom, ROUTES.HOME, LOGIN_REALMS.STAFF_OR_STUDENT);
   const isFromAdmin = previewFrom === ROUTES.ADMIN || previewFrom.startsWith(`${ROUTES.ADMIN}/`);
+  const googleEnabled = googleSignInEnabled();
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -80,8 +82,18 @@ export default function Login() {
     }
   };
 
+  /**
+   * One Google flow serves both Login and Register: the backend callback
+   * decides whether a verified Google identity is an existing account or a
+   * new canonical social registration. A full-page navigation to STRIDETO's
+   * own start endpoint, never an XHR and never a call to Google.
+   */
   const handleGoogleLogin = () => {
-    setError(t('forms:login.googleSoon'));
+    if (!googleEnabled) {
+      setError(t('forms:login.googleSoon'));
+      return;
+    }
+    startGoogleSignIn({ returnPath: requestedFrom?.pathname });
   };
 
   return (
@@ -142,7 +154,7 @@ export default function Login() {
 
         <div className="mt-6 animate-fade-in">
           <p className="text-sm text-gray-500 dark:text-gray-400 text-center mb-3">{t('common:continueWith')}</p>
-          <SocialAuthButton provider="Google" onClick={handleGoogleLogin} comingSoon />
+          <SocialAuthButton provider="Google" onClick={handleGoogleLogin} comingSoon={!googleEnabled} />
         </div>
 
         <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">

@@ -13,6 +13,7 @@ export const ROUTES = {
   RESET_PASSWORD: '/auth/reset-password',
   VERIFY_EMAIL: '/auth/verify-email',
   ACCEPT_INVITATION: '/auth/accept-invitation',
+  OAUTH_CALLBACK: '/auth/callback',
   PROFILE: '/profile',
   DASHBOARD: '/dashboard',
   SAVED_JOBS: '/saved-jobs',

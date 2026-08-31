@@ -108,5 +108,21 @@
   },
   "employerRegister": {
     "seoDescription": "Create an employer workspace to publish opportunities and manage supported hiring activity on STRIDETO."
+  },
+  "oauthCallback": {
+    "title": "Signing in",
+    "completing": "Completing Google sign-in…",
+    "failedTitle": "Sign-in failed",
+    "backToSignIn": "Back to Sign In",
+    "errors": {
+      "existing_account_requires_link": "An account already exists with this email. Sign in with your existing STRIDETO account. Google account linking will be available from Connected Accounts.",
+      "provider_email_unverified": "Google has not verified the email address on that account. Verify it with Google, or sign in with your email and password.",
+      "account_suspended": "This account is suspended. Contact support if you believe this is a mistake.",
+      "oauth_state_invalid": "This sign-in link has expired or was already used. Please start again.",
+      "oauth_provider_error": "Google did not complete the sign-in. Please try again.",
+      "oauth_unavailable": "Google sign-in is temporarily unavailable. Please sign in with your email and password.",
+      "session_failed": "We could not finish signing you in. Please try again.",
+      "oauth_failed": "Google sign-in could not be completed. Please try again."
+    }
   }
 }
