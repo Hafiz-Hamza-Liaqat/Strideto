@@ -15,6 +15,7 @@ import {
   projectPublicAcceptance,
   fallbackScopeLabel,
   ACCEPTANCE_SCOPES,
+  mergeProgramAcceptanceWithInstitutionFallback,
 } from '../../../../shared/education/acceptanceExplorer.js';
 import { currentAcceptanceMongoFilter } from '../../../../shared/publicDiscovery/publicTruth.js';
 import { withFixtureExclusion } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
@@ -181,7 +182,7 @@ export const getProgramAcceptance = asyncHandler(async (req, res) => {
   let fallbackLabel = null;
 
   // If no program-specific claims exist, surface institution-level claims as fallback
-  if (programData.length === 0 && program.institutionId) {
+  if (program.institutionId) {
     const institutionClaims = await TestAcceptance.find({
       institutionId: program.institutionId,
       ...currentAcceptanceMongoFilter(),
@@ -194,8 +195,9 @@ export const getProgramAcceptance = asyncHandler(async (req, res) => {
       })
       .lean();
 
-    if (institutionClaims.length > 0) {
-      fallbackData = institutionClaims.map(project);
+    const merged = mergeProgramAcceptanceWithInstitutionFallback(raw.map(project), institutionClaims);
+    if (merged.institutionFallback.length > 0) {
+      fallbackData = merged.institutionFallback.map(project);
       fallbackLabel = fallbackScopeLabel(ACCEPTANCE_SCOPES.INSTITUTION);
     }
   }

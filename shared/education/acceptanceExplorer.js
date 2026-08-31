@@ -82,6 +82,21 @@ export function resolvePrecedence(claims) {
   });
 }
 
+/**
+ * Keep program-specific claims authoritative per test while exposing
+ * institution claims for tests with no program-specific evidence.
+ * The returned fallback list must be labelled as institution-level by callers.
+ */
+export function mergeProgramAcceptanceWithInstitutionFallback(programClaims = [], institutionClaims = []) {
+  const programTestIds = new Set(programClaims.map((claim) => String(claim.testId?._id || claim.testId || '')));
+  return {
+    programClaims,
+    institutionFallback: institutionClaims.filter(
+      (claim) => !programTestIds.has(String(claim.testId?._id || claim.testId || ''))
+    ),
+  };
+}
+
 // ── Conflict detection ────────────────────────────────────────────────────────
 //
 // Two published claims conflict when they occupy the same "slot":
