@@ -11,6 +11,7 @@ import { TestAlert } from '../../models/education/TestAlert.js';
 import { CountryEducation } from '../../models/education/CountryEducation.js';
 import { CanonicalInstitution } from '../../models/education/CanonicalInstitution.js';
 import { Program } from '../../models/education/Program.js';
+import { TestAcceptance } from '../../models/education/TestAcceptance.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
 import { sanitizeString } from '../../utils/sanitize.js';
 import {
@@ -19,6 +20,7 @@ import {
 } from '../../../../shared/publicDiscovery/projectPublicDiscovery.js';
 import { withFixtureExclusion } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 import { isTestPubliclyPromotable } from '../../../../shared/education/testPublicationPolicy.js';
+import { currentAcceptanceMongoFilter } from '../../../../shared/publicDiscovery/publicTruth.js';
 
 const PAGE_SIZE = 20;
 
@@ -61,6 +63,55 @@ export const listTests = asyncHandler(async (req, res) => {
   const data = eligibleData.slice(skip, skip + limit);
   const total = eligibleData.length;
   res.json({ data, total, page, limit, pages: Math.ceil(total / limit) });
+});
+
+/**
+ * Public factual comparison of the canonical Test catalog.
+ * One bounded request supplies the comparison rows and coverage labels;
+ * it never treats Strideto's records as a global acceptance census.
+ */
+export const compareTests = asyncHandler(async (req, res) => {
+  const rawSlugs = req.query?.slugs;
+  const slugs = rawSlugs
+    ? (Array.isArray(rawSlugs) ? rawSlugs : String(rawSlugs).split(','))
+      .map((value) => sanitizeString(value))
+      .filter(Boolean)
+      .slice(0, 12)
+    : null;
+  const filter = { status: 'published', ...(slugs?.length ? { slug: { $in: slugs } } : {}) };
+  const tests = await Test.find(filter)
+    .populate('providerId', 'name slug officialWebsite status')
+    .sort({ displayOrder: 1, name: 1 })
+    .lean();
+  const eligible = tests.filter((test) => isTestPubliclyPromotable(test));
+  const ids = eligible.map((test) => test._id);
+
+  const [guides, resources, acceptanceCounts] = await Promise.all([
+    TestPrepGuide.find({ testId: { $in: ids }, status: 'published' }).select('testId').lean(),
+    ExternalTestResource.find({ testId: { $in: ids }, status: 'published' }).select('testId trustLevel').lean(),
+    TestAcceptance.aggregate([
+      { $match: { testId: { $in: ids }, ...currentAcceptanceMongoFilter() } },
+      { $group: { _id: '$testId', count: { $sum: 1 } } },
+    ]),
+  ]);
+  const guideIds = new Set(guides.map((guide) => String(guide.testId)));
+  const resourceCounts = new Map();
+  for (const resource of resources) {
+    const key = String(resource.testId);
+    resourceCounts.set(key, (resourceCounts.get(key) || 0) + 1);
+  }
+  const acceptanceByTest = new Map(acceptanceCounts.map((item) => [String(item._id), item.count]));
+
+  res.json({
+    data: eligible.map((test) => ({
+      ...test,
+      prepGuideAvailable: guideIds.has(String(test._id)),
+      resourceCount: resourceCounts.get(String(test._id)) || 0,
+      verifiedAcceptanceCount: acceptanceByTest.get(String(test._id)) || 0,
+      acceptanceCoverageLabel: 'Verified requirements currently available on Strideto',
+    })),
+    total: eligible.length,
+  });
 });
 
 export const getTest = asyncHandler(async (req, res) => {

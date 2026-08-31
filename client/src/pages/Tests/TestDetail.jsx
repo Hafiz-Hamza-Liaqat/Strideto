@@ -300,13 +300,16 @@ export default function TestDetail() {
               )}
 
               {prepGuide.recommendedDurationMinWeeks && (
-                <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                  Recommended preparation: {prepGuide.recommendedDurationMinWeeks}
+                <div className="mb-4 rounded-lg bg-blue-50 dark:bg-blue-950/30 p-3 text-sm text-blue-900 dark:text-blue-100">
+                  <p>
+                    Planning range: {prepGuide.recommendedDurationMinWeeks}
                   {prepGuide.recommendedDurationMaxWeeks && prepGuide.recommendedDurationMaxWeeks !== prepGuide.recommendedDurationMinWeeks
                     ? `–${prepGuide.recommendedDurationMaxWeeks}`
                     : ''}
-                  {' '}weeks
-                </p>
+                    {' '}weeks. Your timeline depends on your baseline, target score, available study time and familiarity with the format.
+                  </p>
+                  <p className="mt-1">Check your target institution or program requirement before choosing a score target; Strideto does not add an arbitrary score margin.</p>
+                </div>
               )}
 
               {(prepGuide.prepSequence || []).length > 0 && (
@@ -328,11 +331,30 @@ export default function TestDetail() {
                 </div>
               )}
 
+              {(prepGuide.sectionPrep || []).length > 0 && (
+                <div className="mb-4">
+                  <h4 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">Section strategy</h4>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    {prepGuide.sectionPrep.map((section) => (
+                      <div key={section.sectionName} className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+                        <p className="font-medium text-sm text-gray-900 dark:text-white">{section.sectionName}</p>
+                        <ul className="mt-1 list-disc pl-4 text-sm text-gray-600 dark:text-gray-300">
+                          {(section.tips || []).map((tip) => <li key={tip}>{tip}</li>)}
+                        </ul>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
               {prepGuide.testDayGuidance && (
                 <div className="rounded-lg bg-gray-50 dark:bg-gray-700/50 p-3 text-sm">
                   <p className="font-medium text-gray-700 dark:text-gray-300 mb-1">Test Day</p>
                   <p className="text-gray-600 dark:text-gray-300">{prepGuide.testDayGuidance}</p>
                 </div>
+              )}
+              {prepGuide.registrationGuidance && (
+                <p className="mt-3 text-sm text-gray-600 dark:text-gray-300">{prepGuide.registrationGuidance}</p>
               )}
             </div>
           </Section>
@@ -346,6 +368,11 @@ export default function TestDetail() {
                 <ResourceCard key={r._id} resource={r} />
               ))}
             </div>
+          </Section>
+        )}
+        {!officialResources.length && !trustedResources.length && (
+          <Section title="Preparation Resources">
+            <p className="text-sm text-gray-600 dark:text-gray-300">No verified preparation resource is currently available. Check the official test provider for current materials.</p>
           </Section>
         )}
 

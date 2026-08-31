@@ -8,6 +8,7 @@ export const testsRouter = Router();
 
 // ── Test catalog (public, published only) ─────────────────────────────────────
 testsRouter.get('/tests', tests.listTests);
+testsRouter.get('/tests/compare', tests.compareTests);
 testsRouter.get('/tests/:slug', tests.getTest);
 testsRouter.get('/tests/:slug/prep-guide', tests.getTestPrepGuide);
 testsRouter.get('/tests/:slug/resources', tests.getTestResources);

@@ -279,6 +279,7 @@ export const resumesApi = {
 
 export const testsApi = {
   list: (params) => axiosInstance.get(`/tests${buildParams(params)}`),
+  compare: (params) => axiosInstance.get(`/tests/compare${buildParams(params)}`),
   get: (slug) => axiosInstance.get(`/tests/${encodeURIComponent(slug)}`),
   getPrepGuide: (slug) => axiosInstance.get(`/tests/${encodeURIComponent(slug)}/prep-guide`),
   getResources: (slug, params) => axiosInstance.get(`/tests/${encodeURIComponent(slug)}/resources${buildParams(params)}`),

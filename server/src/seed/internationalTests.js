@@ -152,7 +152,7 @@ const providerPacks = [
       officialWebsite: 'https://www.mba.com/exams/gmat-exam', registrationUrl: 'https://www.mba.com/exams/gmat-exam/register',
       sources: [evidence('https://www.mba.com/exams/gmat-exam/about/exam-structure', 'GMAC', 'GMAT exam structure')], displayOrder: 60,
     },
-    resource: { provider: 'GMAT', title: 'GMAT exam preparation', url: 'https://www.mba.com/exams/gmat-exam/prepare', resourceType: RESOURCE_TYPES.OFFICIAL_GUIDE },
+    resource: { provider: 'GMAT', title: 'GMAT exam preparation strategies', url: 'https://www.mba.com/exams/gmat-exam/prep-for-the-exam/prep-strategies', resourceType: RESOURCE_TYPES.OFFICIAL_GUIDE },
   },
 ];
 

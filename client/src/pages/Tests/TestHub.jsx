@@ -118,6 +118,7 @@ export default function TestHub() {
         <div className="mb-6 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 p-4 text-sm text-blue-900 dark:text-blue-100">
           <p className="font-medium">Which test do I need?</p>
           <p className="mt-1">Compare test purposes, see where a test is accepted, understand score targets, and find official or trusted preparation resources.</p>
+          <Link to={ROUTES.TEST_COMPARE} className="mt-2 inline-block font-medium underline">Compare international tests</Link>
         </div>
 
         {/* Filters */}

@@ -68,6 +68,7 @@ const ExamDetail = lazyLoad(() => import('../pages/ExamPrep/ExamDetail'));
 const QuizTake = lazyLoad(() => import('../pages/ExamPrep/QuizTake'));
 const TestHub = lazyLoad(() => import('../pages/Tests/TestHub'));
 const TestDetail = lazyLoad(() => import('../pages/Tests/TestDetail'));
+const TestCompare = lazyLoad(() => import('../pages/Tests/TestCompare'));
 const ScholarshipIntelligence = lazyLoad(() => import('../pages/Scholarships/ScholarshipIntelligence'));
 const ScholarshipIntelligenceDetail = lazyLoad(() => import('../pages/Scholarships/ScholarshipIntelligenceDetail'));
 const ProgramExplorerList = lazyLoad(() => import('../pages/Tests/ProgramExplorerList'));
@@ -842,6 +843,7 @@ export const routes = [
       { path: `${ROUTES.EXAM_PREP}/quiz/:quizId`, element: <QuizTake /> },
       { path: `${ROUTES.EXAM_PREP}/:slug`, element: <ExamDetail /> },
       { path: ROUTES.TEST_HUB, element: <TestHub /> },
+      { path: ROUTES.TEST_COMPARE, element: <TestCompare /> },
       { path: `${ROUTES.TEST_HUB}/:slug`, element: <TestDetail /> },
       { path: ROUTES.CANONICAL_SCHOLARSHIPS, element: <ScholarshipIntelligence /> },
       { path: `${ROUTES.CANONICAL_SCHOLARSHIPS}/:slug`, element: <ScholarshipIntelligenceDetail /> },
