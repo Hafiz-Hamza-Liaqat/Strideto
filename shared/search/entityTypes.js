@@ -15,6 +15,7 @@ export const SEARCH_ENTITY_TYPES = [
   'media',
   'talent-profile',
   'credential',
+  'test',
 ];
 
 export const SEARCH_ENTITY_TYPE_SET = new Set(SEARCH_ENTITY_TYPES);
@@ -29,6 +30,7 @@ export const PUBLIC_SEARCH_ENTITY_TYPES = [
   'career-guidance',
   'cms-page',
   'page-builder-page',
+  'test',
 ];
 
 export const SUGGESTION_ENTITY_TYPES = [
@@ -38,6 +40,7 @@ export const SUGGESTION_ENTITY_TYPES = [
   'blog',
   'cms-page',
   'page-builder-page',
+  'test',
 ];
 
 export const SEARCH_SORT_OPTIONS = ['relevance', 'newest', 'oldest', 'alphabetical'];
@@ -62,6 +65,7 @@ export function entityTypeLabel(entityType) {
     'career-guidance': 'Career Guidance',
     'cms-page': 'Pages',
     'page-builder-page': 'Pages',
+    test: 'Tests',
     form: 'Forms',
     media: 'Media',
     'talent-profile': 'Talent Profiles',

@@ -42,7 +42,7 @@ const readRoot = (rel) => readFileSync(path.join(repoRoot, rel), 'utf8');
   const navbar = read('components/layout/Navbar.jsx');
   const css = read('index.css');
   check(/programExplorer/.test(nav) && /schoolsAndColleges/.test(nav) && /foreignStudies/.test(nav) && /intlScholarships/.test(nav), 'B. Study & Institutions mega IA');
-  check(/testHub/.test(nav) && /examPrep/.test(nav), 'B. Tests & Prep mega is Test Hub + Exam Prep');
+  check(/testHub/.test(nav) && !/examPrep/.test(nav), 'B. Tests mega promotes only the canonical Test Hub');
   check(/agentsDirectory/.test(nav) && /professionalMarketplace/.test(nav) && /careerGuidance/.test(nav) && /resumeBuilder/.test(nav), 'B. Services mega IA');
   check(!/helpCenter/.test(nav) && !/\/help-center/.test(nav), 'B. Help Center is not in Services mega');
   check(/isNavItemCurrent/.test(navbar) && /aria-current=\{current \? 'page'/.test(navbar), 'B. Current page uses aria-current');

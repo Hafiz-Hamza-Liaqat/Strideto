@@ -5,6 +5,7 @@ import { normalizeSearchDocument } from '../../../../shared/search/searchDocumen
 import { buildLocalizedSlugUrl } from '../../../../shared/localization/localeUtils.js';
 import { normalizeLocale } from '../../../../shared/localization/localeResolver.js';
 import { isPubliclyLaunchVisible } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
+import { isTestPubliclyPromotable } from '../../../../shared/education/testPublicationPolicy.js';
 
 function docLocale(doc) {
   return normalizeLocale(doc?.locale || 'en');
@@ -334,6 +335,28 @@ export function mapCredentialToSearchDocument(doc) {
   });
 }
 
+export function mapTestToSearchDocument(doc) {
+  if (!doc || !isTestPubliclyPromotable(doc)) return null;
+  const provider = doc.providerId || {};
+  return normalizeSearchDocument({
+    entityType: 'test',
+    entityId: String(doc._id),
+    title: doc.name,
+    slug: doc.slug,
+    url: `/tests/${doc.slug}`,
+    summary: doc.description || doc.overview || '',
+    keywords: [doc.shortName, provider.name, doc.category, ...(doc.purposes || [])].filter(Boolean),
+    category: doc.category,
+    country: doc.countryCodes || [],
+    publishedAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+    status: 'published',
+    searchable: true,
+    locale: 'en',
+    metadata: { adminEditUrl: '/admin/education/tests', icon: 'test', provider: provider.name || '' },
+  });
+}
+
 export const SEARCH_DOCUMENT_MAPPERS = {
   job: mapJobToSearchDocument,
   scholarship: mapScholarshipToSearchDocument,
@@ -347,4 +370,5 @@ export const SEARCH_DOCUMENT_MAPPERS = {
   media: mapMediaToSearchDocument,
   'talent-profile': mapTalentProfileToSearchDocument,
   credential: mapCredentialToSearchDocument,
+  test: mapTestToSearchDocument,
 };

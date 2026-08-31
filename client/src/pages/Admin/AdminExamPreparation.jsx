@@ -73,19 +73,6 @@ export default function AdminExamPreparation() {
   useEffect(() => { loadExams(); loadQuizzes(); }, [loadExams, loadQuizzes]);
   useEffect(() => { loadTabData(); }, [loadTabData]);
 
-  const emptyForm = () => {
-    if (tab === 'exams') return EMPTY_EXAM;
-    if (tab === 'mcqs') return EMPTY_MCQ;
-    if (tab === 'quizzes') return EMPTY_QUIZ;
-    return EMPTY_PAST_PAPER;
-  };
-
-  const openCreate = () => {
-    setEditingId(null);
-    setForm(emptyForm());
-    setFormOpen(true);
-  };
-
   const openEdit = (row) => {
     if (tab === 'exams') {
       setForm({ ...EMPTY_EXAM, name: row.name || '', code: row.code || '', description: row.description || '', status: row.status || 'active' });
@@ -352,10 +339,10 @@ export default function AdminExamPreparation() {
     <AdminRouteGuard permission={PERMISSIONS.CONTENT_MCQS}>
       <div>
         <div className="flex flex-wrap justify-between gap-2 mb-4">
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">{t('admin:manageExamPrep', { defaultValue: 'Exam Preparation' })}</h1>
-          <button type="button" onClick={openCreate} className="px-4 py-2 rounded-lg bg-primary text-white text-sm min-h-[44px]">
-            {t('admin:create')}
-          </button>
+          <div>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">Legacy Exam Preparation</h1>
+            <p className="mt-1 text-sm text-amber-700 dark:text-amber-300">Deprecated read/archive area. New international guidance belongs in the canonical Tests catalog.</p>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2 mb-4 border-b border-gray-200 dark:border-gray-700">

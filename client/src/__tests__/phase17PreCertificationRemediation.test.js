@@ -42,7 +42,7 @@ const catalog = read('pages/Assessments/AssessmentsCatalog.jsx');
 check(catalog.includes('featureDisabled') && catalog.includes('isAssessmentsEnabled'), 'direct assessments route follows disabled contract');
 
 const testsNav = read('components/layout/navConfig.js');
-check(testsNav.includes('/tests') && testsNav.includes('/exam-prep'), 'Tests & Prep remains launch scope');
+check(testsNav.includes('/tests') && !testsNav.includes('/exam-prep'), 'Tests remains the canonical launch scope');
 
 const intakes = read('pages/Institution/InstitutionIntakes.jsx');
 check(intakes.includes('Fall 2027'), 'intake name placeholder');

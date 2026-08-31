@@ -7,6 +7,13 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import { sanitizeString } from '../../utils/sanitize.js';
 import { examSlug } from '../../utils/slugify.js';
 
+export function legacyExamCreationDisabled(_req, res) {
+  return res.status(410).json({
+    error: 'Legacy exam-preparation authoring is deprecated. Use the canonical international Tests catalog.',
+    code: 'LEGACY_EXAM_AUTHORING_DISABLED',
+  });
+}
+
 export const listExams = asyncHandler(async (req, res) => {
   const q = req.query || {};
   const filter = {};

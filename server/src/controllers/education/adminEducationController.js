@@ -17,6 +17,7 @@ import { TestAcceptance } from '../../models/education/TestAcceptance.js';
 import { InstitutionClaim } from '../../models/institution/InstitutionClaim.js';
 import { OrganizationVerification } from '../../models/OrganizationVerification.js';
 import { asyncHandler } from '../../utils/asyncHandler.js';
+import { scheduleSearchIndexUpdate } from '../../utils/searchIndexHooks.js';
 import { sanitizeString } from '../../utils/sanitize.js';
 import { validateSource } from '../../../../shared/international/evidence.js';
 import {
@@ -308,6 +309,7 @@ export const adminCreateTest = asyncHandler(async (req, res) => {
     sources: sourcesResult.sources,
   });
 
+  scheduleSearchIndexUpdate('test', doc._id);
   res.status(201).json(doc);
 });
 
@@ -342,6 +344,7 @@ export const adminUpdateTest = asyncHandler(async (req, res) => {
 
   const doc = await Test.findByIdAndUpdate(req.params.id, update, { new: true });
   if (!doc) return res.status(404).json({ error: 'Test not found' });
+  scheduleSearchIndexUpdate('test', doc._id);
   res.json(doc);
 });
 

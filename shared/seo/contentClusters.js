@@ -33,8 +33,8 @@ export const CONTENT_CLUSTERS = Object.freeze([
     id: 'institutions-programs',
     label: 'Institutions & Programs',
     hubPath: '/institutions',
-    blogCategories: ['Universities & Programs', 'Exam Prep', 'Admissions'],
-    relatedPaths: ['/institutions', '/program-explorer', '/admissions', '/scholarships', '/tests', '/exam-prep'],
+    blogCategories: ['Universities & Programs', 'Admissions'],
+    relatedPaths: ['/institutions', '/program-explorer', '/admissions', '/scholarships', '/tests'],
   },
   {
     id: 'employer',
@@ -42,13 +42,6 @@ export const CONTENT_CLUSTERS = Object.freeze([
     hubPath: '/employers',
     blogCategories: ['Employer & Hiring'],
     relatedPaths: ['/employers', '/jobs', '/blog'],
-  },
-  {
-    id: 'exam-prep',
-    label: 'Exam Preparation',
-    hubPath: '/exam-prep',
-    blogCategories: ['Exam Prep'],
-    relatedPaths: ['/exam-prep', '/tests', '/program-explorer', '/institutions'],
   },
 ]);
 
@@ -67,7 +60,6 @@ const CLUSTER_RESOURCE_LABELS = Object.freeze({
   '/blog': 'Career Blog',
   '/employers': 'For Employers',
   '/tests': 'Tests & Prep',
-  '/exam-prep': 'Exam Preparation',
 });
 
 /**

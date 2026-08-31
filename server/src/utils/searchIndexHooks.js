@@ -20,6 +20,8 @@ const ENTITY_TYPE_ALIASES = {
   form: 'form',
   media: 'media',
   'talent-profile': 'talent-profile',
+  test: 'test',
+  tests: 'test',
 };
 
 /**

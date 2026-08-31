@@ -13,6 +13,7 @@ import { FormDefinition } from '../../models/FormDefinition.js';
 import { MediaAsset } from '../../models/MediaAsset.js';
 import { TalentProfile } from '../../models/career/TalentProfile.js';
 import { Credential } from '../../models/career/Credential.js';
+import { Test } from '../../models/education/Test.js';
 import { SEARCH_ENTITY_TYPES } from '../../../../shared/search/entityTypes.js';
 import { SEARCH_DOCUMENT_MAPPERS } from './documentMappers.js';
 import { deleteSearchDocument, upsertSearchDocument } from './SearchIndexService.js';
@@ -31,6 +32,7 @@ const ENTITY_MODELS = {
   media: MediaAsset,
   'talent-profile': TalentProfile,
   credential: Credential,
+  test: Test,
 };
 
 /**
@@ -43,7 +45,9 @@ export async function indexEntity(entityType, entityId, locale = 'en') {
   const Model = ENTITY_MODELS[entityType];
   if (!mapper || !Model) return null;
 
-  const doc = await Model.findById(entityId).lean();
+  let query = Model.findById(entityId);
+  if (entityType === 'test') query = query.populate('providerId', 'name officialWebsite status');
+  const doc = await query.lean();
   if (!doc) {
     await deleteSearchDocument(entityType, entityId, locale);
     return null;
@@ -70,7 +74,9 @@ export async function rebuildEntityType(entityType) {
   const mapper = SEARCH_DOCUMENT_MAPPERS[entityType];
   if (!Model || !mapper) return { entityType, indexed: 0 };
 
-  const cursor = Model.find().cursor();
+  let query = Model.find();
+  if (entityType === 'test') query = query.populate('providerId', 'name officialWebsite status');
+  const cursor = query.cursor();
   let indexed = 0;
   for await (const doc of cursor) {
     const normalized = mapper(doc);

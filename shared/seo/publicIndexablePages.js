@@ -11,7 +11,6 @@ export const INDEXABLE_STATIC_PATHS = Object.freeze([
   '/internships',
   '/program-explorer',
   '/tests',
-  '/exam-prep',
   '/schools-and-colleges',
   '/foreign-studies',
   '/intl-scholarships',

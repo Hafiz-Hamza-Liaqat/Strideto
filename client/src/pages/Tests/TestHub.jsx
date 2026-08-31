@@ -104,17 +104,21 @@ export default function TestHub() {
   return (
     <>
       <SeoHead
-        title="Tests & Prep | Strideto"
-        description="Browse international tests including IELTS, TOEFL, SAT, GRE and more. Get preparation guidance, find resources, and see official test information."
+        title="International Tests for Study & Admissions | Strideto"
+        description="International tests for study, admissions and career pathways. Find the right test, understand acceptance and scores, and prepare with trusted resources."
         canonical={ROUTES.TEST_HUB}
       />
       <div className="max-w-5xl mx-auto px-4 py-8">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">
-          Test Hub
+          International Tests
         </h1>
         <p className="text-gray-600 dark:text-gray-400 mb-6">
-          Find the right test for your goals — preparation guidance, official resources, and registration links.
+          International tests for study, admissions and career pathways.
         </p>
+        <div className="mb-6 rounded-xl border border-blue-200 dark:border-blue-800 bg-blue-50 dark:bg-blue-950/30 p-4 text-sm text-blue-900 dark:text-blue-100">
+          <p className="font-medium">Which test do I need?</p>
+          <p className="mt-1">Compare test purposes, see where a test is accepted, understand score targets, and find official or trusted preparation resources.</p>
+        </div>
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-3 mb-6">

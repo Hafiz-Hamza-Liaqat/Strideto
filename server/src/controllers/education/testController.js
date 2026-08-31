@@ -18,6 +18,7 @@ import {
   projectPublicProgram,
 } from '../../../../shared/publicDiscovery/projectPublicDiscovery.js';
 import { withFixtureExclusion } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
+import { isTestPubliclyPromotable } from '../../../../shared/education/testPublicationPolicy.js';
 
 const PAGE_SIZE = 20;
 
@@ -49,16 +50,16 @@ export const listTests = asyncHandler(async (req, res) => {
   const limit = parseLimit(q);
   const skip = (page - 1) * limit;
 
-  const [data, total] = await Promise.all([
+  const [rawData] = await Promise.all([
     Test.find(filter)
-      .populate('providerId', 'name slug officialWebsite')
+      .populate('providerId', 'name slug officialWebsite status')
       .sort({ displayOrder: 1, name: 1 })
-      .skip(skip)
-      .limit(limit)
       .lean(),
-    Test.countDocuments(filter),
   ]);
 
+  const eligibleData = rawData.filter((test) => isTestPubliclyPromotable(test));
+  const data = eligibleData.slice(skip, skip + limit);
+  const total = eligibleData.length;
   res.json({ data, total, page, limit, pages: Math.ceil(total / limit) });
 });
 
@@ -67,10 +68,10 @@ export const getTest = asyncHandler(async (req, res) => {
     slug: req.params.slug,
     status: 'published',
   })
-    .populate('providerId', 'name slug officialWebsite registrationUrl')
+    .populate('providerId', 'name slug officialWebsite registrationUrl status')
     .lean();
 
-  if (!test) return res.status(404).json({ error: 'Test not found' });
+  if (!test || !isTestPubliclyPromotable(test)) return res.status(404).json({ error: 'Test not found' });
 
   const [prepGuide, resources, alerts] = await Promise.all([
     TestPrepGuide.findOne({ testId: test._id, status: 'published' }).lean(),
@@ -91,8 +92,10 @@ export const getTest = asyncHandler(async (req, res) => {
 });
 
 export const getTestPrepGuide = asyncHandler(async (req, res) => {
-  const test = await Test.findOne({ slug: req.params.slug, status: 'published' }).lean();
-  if (!test) return res.status(404).json({ error: 'Test not found' });
+  const test = await Test.findOne({ slug: req.params.slug, status: 'published' })
+    .populate('providerId', 'name officialWebsite status')
+    .lean();
+  if (!test || !isTestPubliclyPromotable(test)) return res.status(404).json({ error: 'Test not found' });
 
   const guide = await TestPrepGuide.findOne({ testId: test._id, status: 'published' }).lean();
   if (!guide) return res.status(404).json({ error: 'Preparation guide not found' });
@@ -101,8 +104,10 @@ export const getTestPrepGuide = asyncHandler(async (req, res) => {
 });
 
 export const getTestResources = asyncHandler(async (req, res) => {
-  const test = await Test.findOne({ slug: req.params.slug, status: 'published' }).lean();
-  if (!test) return res.status(404).json({ error: 'Test not found' });
+  const test = await Test.findOne({ slug: req.params.slug, status: 'published' })
+    .populate('providerId', 'name officialWebsite status')
+    .lean();
+  if (!test || !isTestPubliclyPromotable(test)) return res.status(404).json({ error: 'Test not found' });
 
   const q = req.query || {};
   const filter = { testId: test._id, status: 'published' };
@@ -117,8 +122,10 @@ export const getTestResources = asyncHandler(async (req, res) => {
 });
 
 export const getTestAlerts = asyncHandler(async (req, res) => {
-  const test = await Test.findOne({ slug: req.params.slug, status: 'published' }).lean();
-  if (!test) return res.status(404).json({ error: 'Test not found' });
+  const test = await Test.findOne({ slug: req.params.slug, status: 'published' })
+    .populate('providerId', 'name officialWebsite status')
+    .lean();
+  if (!test || !isTestPubliclyPromotable(test)) return res.status(404).json({ error: 'Test not found' });
 
   const data = await TestAlert.find({
     testId: test._id,

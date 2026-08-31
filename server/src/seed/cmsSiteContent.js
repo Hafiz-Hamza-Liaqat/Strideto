@@ -34,7 +34,6 @@ export function defaultHeaderItems() {
       order: 6,
       children: [
         { label: 'Test hub', path: '/tests', visible: true, order: 0 },
-        { label: 'Exam Prep', path: '/exam-prep', visible: true, order: 1 },
       ],
     },
     {
@@ -71,7 +70,6 @@ function defaultFooterColumns() {
         { label: 'Foreign Studies', path: '/foreign-studies' },
         { label: 'International Scholarships', path: '/intl-scholarships' },
         { label: 'Tests & Prep', path: '/tests' },
-        { label: 'Exam Prep', path: '/exam-prep' },
       ],
     },
     {

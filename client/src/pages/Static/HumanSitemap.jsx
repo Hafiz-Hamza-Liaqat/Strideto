@@ -63,7 +63,6 @@ export default function HumanSitemap() {
         { to: ROUTES.INTL_SCHOLARSHIPS, label: t('navbar:intlScholarships') },
         { to: ROUTES.CANONICAL_SCHOLARSHIPS, label: t('navbar:scholarshipIntelligence', { defaultValue: 'Scholarship Intelligence' }) },
         { to: ROUTES.TEST_HUB, label: t('navbar:testsAndPrep') },
-        { to: ROUTES.EXAM_PREP, label: t('navbar:examPrep') },
       ],
     },
     {

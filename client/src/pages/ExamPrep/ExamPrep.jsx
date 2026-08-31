@@ -56,6 +56,9 @@ export default function ExamPrep() {
         )}
       />
       <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="mb-6 rounded-xl border border-amber-200 dark:border-amber-800 bg-amber-50 dark:bg-amber-950/30 p-4 text-sm text-amber-900 dark:text-amber-100">
+          This section contains legacy exam-preparation content. For international study and admissions test guidance, visit <Link className="font-semibold underline" to={ROUTES.TEST_HUB}>Tests</Link>.
+        </div>
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('exams:title')}</h1>
         <p className="text-gray-600 dark:text-gray-400 mb-6">{t('exams:subtitle')}</p>
 

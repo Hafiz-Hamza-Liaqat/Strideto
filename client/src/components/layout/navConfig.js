@@ -22,7 +22,6 @@ export const PRIMARY_NAV_ITEMS = [
     path: '/tests',
     mega: [
       { labelKey: 'navbar:testHub', path: '/tests' },
-      { labelKey: 'navbar:examPrep', path: '/exam-prep' },
     ],
   },
   {

@@ -286,7 +286,7 @@ adminRouter.post('/announcements/:id/expire', requireAdmin, adminAnnouncements.e
 adminRouter.delete('/announcements/:id', requirePermission(PERMISSIONS.NOTIFICATIONS_SEND), adminAnnouncements.remove);
 
 adminRouter.get('/exams', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.listExams);
-adminRouter.post('/exams', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.createExam);
+adminRouter.post('/exams', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.legacyExamCreationDisabled);
 adminRouter.put('/exams/:id', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.updateExam);
 adminRouter.delete('/exams/:id', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.removeExam);
 adminRouter.get('/exams/analytics', requirePermission(PERMISSIONS.ANALYTICS_READ), adminExams.getExamAnalytics);
@@ -321,15 +321,15 @@ adminRouter.put('/universities/:id', requirePermission(PERMISSIONS.CONTENT_UNIVE
 adminRouter.delete('/universities/:id', requirePermission(PERMISSIONS.CONTENT_UNIVERSITIES), adminIntl.removeUniversity);
 
 adminRouter.get('/past-papers', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.listPastPapers);
-adminRouter.post('/past-papers', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.createPastPaper);
+adminRouter.post('/past-papers', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.legacyExamCreationDisabled);
 adminRouter.put('/past-papers/:id', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.updatePastPaper);
 adminRouter.delete('/past-papers/:id', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.removePastPaper);
 adminRouter.get('/mcqs', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.listMcqs);
-adminRouter.post('/mcqs', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.createMcq);
+adminRouter.post('/mcqs', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.legacyExamCreationDisabled);
 adminRouter.put('/mcqs/:id', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.updateMcq);
 adminRouter.delete('/mcqs/:id', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.removeMcq);
 adminRouter.get('/quizzes', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.listQuizzes);
-adminRouter.post('/quizzes', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.createQuiz);
+adminRouter.post('/quizzes', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.legacyExamCreationDisabled);
 adminRouter.put('/quizzes/:id', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.updateQuiz);
 adminRouter.delete('/quizzes/:id', requirePermission(PERMISSIONS.CONTENT_MCQS), adminExams.removeQuiz);
 

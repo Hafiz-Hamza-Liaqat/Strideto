@@ -15,8 +15,8 @@ const SKILL_KEYS = [
   { key: 'webDev', to: ROUTES.TEST_HUB },
   { key: 'dataScience', to: ROUTES.TEST_HUB },
   { key: 'aiMl', to: ROUTES.TEST_HUB },
-  { key: 'cybersecurity', to: ROUTES.EXAM_PREP },
-  { key: 'cloud', to: ROUTES.EXAM_PREP },
+  { key: 'cybersecurity', to: ROUTES.TEST_HUB },
+  { key: 'cloud', to: ROUTES.TEST_HUB },
 ];
 
 export default function CareerGuidance() {

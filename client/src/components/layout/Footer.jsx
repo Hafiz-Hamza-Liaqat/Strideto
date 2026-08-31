@@ -80,7 +80,6 @@ export function Footer() {
     { label: t('navbar:foreignStudies', { ns: 'navbar' }), path: ROUTES.FOREIGN_STUDIES },
     { label: t('navbar:intlScholarships', { ns: 'navbar' }), path: ROUTES.INTL_SCHOLARSHIPS },
     { label: t('footer:testsAndPrep'), path: ROUTES.TEST_HUB },
-    { label: t('footer:examPrep'), path: ROUTES.EXAM_PREP },
   ];
 
   const servicesLinks = [

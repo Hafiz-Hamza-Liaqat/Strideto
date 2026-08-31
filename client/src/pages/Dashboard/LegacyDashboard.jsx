@@ -89,7 +89,7 @@ export default function LegacyDashboard() {
     { to: ROUTES.RESUME_BUILDER, label: t('dashboard:resumeBuilder'), outline: true },
     { to: ROUTES.RESUME_ANALYZER, label: t('dashboard:resumeScanner'), outline: true },
     { to: ROUTES.CAREER_GUIDANCE, label: t('dashboard:careerGuidance') },
-    { to: ROUTES.EXAM_PREP, label: t('dashboard:examPreparation'), outline: true },
+    { to: ROUTES.TEST_HUB, label: t('navbar:testsAndPrep'), outline: true },
     { to: ROUTES.INTERNSHIPS, label: t('dashboard:internshipsTrainings') },
     { to: ROUTES.WEBINARS, label: t('dashboard:webinars') },
     { to: ROUTES.INTL_SCHOLARSHIPS, label: t('dashboard:intlScholarships') },

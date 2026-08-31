@@ -3,7 +3,6 @@ import { Scholarship } from '../models/Scholarship.js';
 import { Admission } from '../models/Admission.js';
 import { Blog } from '../models/Blog.js';
 import { Internship } from '../models/Internship.js';
-import { Exam } from '../models/Exam.js';
 import { IntlScholarship } from '../models/IntlScholarship.js';
 import { Institution } from '../models/Institution.js';
 import { ForeignStudy } from '../models/ForeignStudy.js';
@@ -46,6 +45,7 @@ import {
 import { AGENT_PROFILE_STATUSES } from '../../../shared/agent/constants.js';
 import { withFixtureExclusion } from '../../../shared/publicDiscovery/fixtureExclusion.js';
 import { listEligibleMarketplaceSitemapPaths } from '../services/gbs/gbsMarketplaceService.js';
+import { isTestPubliclyPromotable } from '../../../shared/education/testPublicationPolicy.js';
 
 function getPublicOrigin() {
   return resolvePublicSiteOrigin(process.env.SITE_URL || process.env.FRONTEND_URL || '');
@@ -98,7 +98,6 @@ export const getSitemap = asyncHandler(async (_req, res) => {
     admissions,
     blogs,
     internships,
-    exams,
     intlScholarships,
     institutions,
     foreignStudies,
@@ -114,7 +113,6 @@ export const getSitemap = asyncHandler(async (_req, res) => {
     Admission.find(withFixtureExclusion({ status: 'active', ...slugFilter })).select('slug updatedAt').limit(2000).lean(),
     Blog.find({ status: 'published', ...slugFilter }).select('slug updatedAt publishedAt').limit(2000).lean(),
     Internship.find(withFixtureExclusion({ status: 'active', ...slugFilter })).select('slug updatedAt').limit(1000).lean(),
-    Exam.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(200).lean(),
     IntlScholarship.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(500).lean(),
     Institution.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(1000).lean(),
     ForeignStudy.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(500).lean(),
@@ -122,7 +120,11 @@ export const getSitemap = asyncHandler(async (_req, res) => {
       .select('slug name institutionId description degreeLevels fields updatedAt status')
       .limit(2000)
       .lean(),
-    Test.find({ status: PUB_STATUSES.PUBLISHED, ...slugFilter }).select('slug updatedAt').limit(500).lean(),
+    Test.find({ status: PUB_STATUSES.PUBLISHED, ...slugFilter })
+      .populate('providerId', 'name officialWebsite status')
+      .select('name slug updatedAt status officialWebsite registrationUrl sources providerId')
+      .limit(500)
+      .lean(),
     CanonicalInstitution.find(withFixtureExclusion({ status: PUB_STATUSES.PUBLISHED, ...slugFilter }))
       .select('slug officialName countryCode sources officialWebsite updatedAt status')
       .limit(2000)
@@ -194,7 +196,6 @@ export const getSitemap = asyncHandler(async (_req, res) => {
   internships.filter(hasSlug).forEach((i) =>
     addUrl(`/internships/${i.slug}`, { entityType: SEO_ENTITY_TYPES.INTERNSHIP, doc: i })
   );
-  exams.filter(hasSlug).forEach((e) => addUrl(`/exam-prep/${e.slug}`, { lastmod: e.updatedAt }));
   intlScholarships.filter(isIntlScholarshipDetailEligible).forEach((s) =>
     addUrl(`/intl-scholarships/${s.slug}`, { entityType: SEO_ENTITY_TYPES.INTL_SCHOLARSHIP, doc: s })
   );
@@ -218,7 +219,7 @@ export const getSitemap = asyncHandler(async (_req, res) => {
   programs.filter(isProgramDetailIndexable).forEach((p) =>
     addUrl(`/program-explorer/${p.slug}`, { entityType: SEO_ENTITY_TYPES.PROGRAM, doc: p })
   );
-  tests.filter(hasSlug).forEach((t) => addUrl(`/tests/${t.slug}`, { lastmod: t.updatedAt }));
+  tests.filter((t) => hasSlug(t) && isTestPubliclyPromotable(t)).forEach((t) => addUrl(`/tests/${t.slug}`, { lastmod: t.updatedAt }));
   agentProfiles.filter(hasSlug).forEach((a) => addUrl(`/agents/${a.slug}`, { lastmod: a.updatedAt }));
   marketplacePosts.filter(hasSlug).forEach((p) => addUrl(`/agents/marketplace/${p.slug}`, { lastmod: p.updatedAt || p.publishedAt }));
 

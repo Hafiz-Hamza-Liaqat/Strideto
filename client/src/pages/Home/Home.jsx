@@ -95,7 +95,7 @@ export default function Home() {
     return [
       { label: t('home:resourceResumeBuilder'), to: ROUTES.RESUME_BUILDER, icon: '📄', description: t('home:resourceResumeBuilderDesc') },
       { label: t('home:resourceCareerGuidance'), to: ROUTES.CAREER_GUIDANCE, icon: '💡', description: t('home:resourceCareerGuidanceDesc') },
-      { label: t('home:resourceExamPrep'), to: ROUTES.EXAM_PREP, icon: '📚', description: t('home:resourceExamPrepDesc') },
+      { label: t('navbar:testsAndPrep'), to: ROUTES.TEST_HUB, icon: '📚', description: 'International tests for study, admissions and career pathways.' },
       { label: t('home:resourceInternships'), to: ROUTES.INTERNSHIPS, icon: '🎯', description: t('home:resourceInternshipsDesc') },
     ];
   }, [homepage, t]);
