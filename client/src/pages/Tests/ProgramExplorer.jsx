@@ -419,6 +419,8 @@ export function ProgramExplorerDetail() {
   const [relatedResources, setRelatedResources] = useState([]);
   const [freshnessWarning, setFreshnessWarning] = useState(null);
   const [acceptanceFallback, setAcceptanceFallback] = useState(null);
+  const [acceptanceLoaded, setAcceptanceLoaded] = useState(false);
+  const [acceptanceError, setAcceptanceError] = useState('');
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -435,12 +437,15 @@ export function ProgramExplorerDetail() {
         setRelatedPrograms(res.data.relatedPrograms || []);
         setRelatedResources(res.data.relatedResources || []);
         setFreshnessWarning(res.data.freshnessWarning || null);
-        if (!(res.data.acceptedTests || []).length) {
-          return testsApi.getProgramAcceptance(slug).then(({ data: acc }) => {
-            if (acc?.fallback?.data?.length) setAcceptanceFallback(acc.fallback);
-          }).catch(() => {});
-        }
-        return undefined;
+        return testsApi.getProgramAcceptance(slug).then(({ data: acc }) => {
+          setAcceptedTests(acc?.data || []);
+          setAcceptanceFallback(acc?.fallback || null);
+          setAcceptanceLoaded(true);
+          setAcceptanceError('');
+        }).catch(() => {
+          setAcceptanceLoaded(true);
+          setAcceptanceError('Test requirements could not be loaded.');
+        });
       })
       .catch((err) => {
         if (err?.response?.status === 404) setNotFound(true);
@@ -688,32 +693,57 @@ export function ProgramExplorerDetail() {
             </Section>
           )}
 
-          {acceptanceFallback?.data?.length > 0 && acceptedTests.length === 0 && (
+          {!acceptanceLoaded && !acceptanceError && (
+            <Section title="English Language & Admissions Tests">
+              <p className="text-sm text-gray-500" aria-busy="true">Loading verified test requirements…</p>
+            </Section>
+          )}
+
+          {acceptanceError && (
+            <Section title="English Language & Admissions Tests">
+              <p className="text-sm text-red-700 dark:text-red-300">{acceptanceError}</p>
+            </Section>
+          )}
+
+          {acceptanceLoaded && !acceptanceError && acceptanceFallback?.data?.length > 0 && (
             <Section title="Accepted tests (institution-level guidance)">
               <p className="text-xs text-amber-800 dark:text-amber-200 mb-2">{acceptanceFallback.label || fallbackScopeLabel(ACCEPTANCE_SCOPES.INSTITUTION)}</p>
               <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
                 {acceptanceFallback.data.map((at) => (
                   <div key={at._id} className="px-4 py-3 text-sm">
-                    <span className="font-medium">{at.testId?.name || 'Test'}</span>
+                    {at.testId?.slug ? <Link className="font-medium text-primary underline" to={`${ROUTES.TEST_HUB}/${at.testId.slug}`}>{at.testId?.name || 'Test'}</Link> : <span className="font-medium">{at.testId?.name || 'Test'}</span>}
                     {(() => {
                       const STATUS_LABEL = { accepted: 'Accepted', conditional: 'Conditional', not_accepted: 'Not Accepted', case_by_case: 'Case by Case', unknown: 'Unknown' };
                       return <span className="ml-2 text-xs text-gray-500 dark:text-gray-400">{STATUS_LABEL[at.acceptanceStatus] || at.acceptanceStatus}</span>;
                     })()}
+                    {at.minimumOverallScore != null && <p className="text-xs text-gray-500 mt-0.5">Overall: {at.minimumOverallScore}</p>}
+                    {at.testScoreScale && <p className="text-xs text-gray-500 mt-0.5">Score scale: {at.testScoreScale}</p>}
+                    {at.conditions && <p className="text-xs text-gray-400 mt-0.5">{at.conditions}</p>}
+                    {at.sources?.[0]?.sourceUrl && <a className="text-xs text-primary underline inline-block mt-1" href={at.sources[0].sourceUrl} target="_blank" rel="noopener noreferrer">View official requirement</a>}
                   </div>
                 ))}
               </div>
             </Section>
           )}
 
+          {acceptanceLoaded && !acceptanceError && !acceptedTests.length && !acceptanceFallback?.data?.length && (
+            <Section title="English Language & Admissions Tests">
+              <p className="text-sm text-gray-500">No verified test requirement is currently available on STRIDETO. Check the program&apos;s official admissions page.</p>
+            </Section>
+          )}
+
           {/* Accepted tests — Mission 6 */}
-          {acceptedTests.length > 0 && (
-            <Section title="Accepted Language / Admissions Tests">
+          {acceptanceLoaded && !acceptanceError && acceptedTests.length > 0 && (
+            <Section title="English Language & Admissions Tests">
               <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
                 {acceptedTests.map((at) => (
                   <div key={at._id} className="px-4 py-3 text-sm">
                     <div className="flex items-center gap-2">
                       <span className="font-medium text-gray-800 dark:text-gray-200">
-                        {at.testId?.name || 'Test'}
+                        {at.testId?.slug ? <Link className="text-primary underline" to={`${ROUTES.TEST_HUB}/${at.testId.slug}`}>{at.testId?.name || 'Test'}</Link> : (at.testId?.name || 'Test')}
+                      </span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400">
+                        {at.acceptanceScope === ACCEPTANCE_SCOPES.PROGRAM ? 'Program-specific requirement' : fallbackScopeLabel(at.acceptanceScope || ACCEPTANCE_SCOPES.INSTITUTION)}
                       </span>
                       {(() => {
                         const STATUS_UI = {
@@ -730,6 +760,9 @@ export function ProgramExplorerDetail() {
                     {at.minimumOverallScore != null && (
                       <p className="text-gray-500 dark:text-gray-400 mt-0.5">Overall: {at.minimumOverallScore}</p>
                     )}
+                    {at.testScoreScale && (
+                      <p className="text-xs text-gray-500 mt-0.5">Score scale: {at.testScoreScale}</p>
+                    )}
                     {Array.isArray(at.sectionMinimums) && at.sectionMinimums.length > 0 && (
                       <ul className="mt-1 text-xs text-gray-500 dark:text-gray-400 space-y-0.5">
                         {at.sectionMinimums.map((sec) => (
@@ -744,6 +777,9 @@ export function ProgramExplorerDetail() {
                     )}
                     {at.conditions && (
                       <p className="text-xs text-gray-400 mt-0.5">{at.conditions}</p>
+                    )}
+                    {at.sources?.[0]?.sourceUrl && (
+                      <a className="text-xs text-primary underline inline-block mt-1" href={at.sources[0].sourceUrl} target="_blank" rel="noopener noreferrer">View official requirement</a>
                     )}
                     {at.lastVerifiedAt && (
                       <p className="text-xs text-gray-400 mt-0.5">

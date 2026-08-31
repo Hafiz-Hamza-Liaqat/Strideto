@@ -77,7 +77,9 @@ function locationLine(inst) {
 
 function AcceptanceCard({ claim }) {
   const name = claim.testIdentity?.name || claim.testId?.name || 'Test';
+  const testSlug = claim.testIdentity?.slug || claim.testId?.slug;
   const provider = claim.testIdentity?.providerName || claim.testId?.providerId?.name;
+  const scopeLabel = claim.acceptanceScope === 'institution' ? 'Institution-level guidance' : claim.acceptanceScope === 'program' ? 'Program-specific requirement' : claim.acceptanceScope;
   return (
     <div className="px-4 py-3 text-sm border-b border-gray-100 dark:border-gray-700 last:border-0">
       <div className="flex flex-wrap items-center gap-2">
@@ -89,7 +91,7 @@ function AcceptanceCard({ claim }) {
           return <span className={`text-xs px-2 py-0.5 rounded-full ${cls}`}>{label}</span>;
         })()}
         {claim.acceptanceScope && (
-          <span className="text-xs text-gray-400">{claim.acceptanceScope}</span>
+          <span className="text-xs text-gray-400">{scopeLabel}</span>
         )}
       </div>
       {claim.minimumOverallScore != null && (
@@ -115,6 +117,12 @@ function AcceptanceCard({ claim }) {
         </p>
       )}
       {claim.conditions && <p className="mt-1 text-xs text-gray-500">{claim.conditions}</p>}
+      {claim.testScoreScale && <p className="mt-1 text-xs text-gray-500">Score scale: {claim.testScoreScale}</p>}
+      {claim.lastVerifiedAt && <p className="mt-1 text-xs text-gray-400">Last verified: {new Date(claim.lastVerifiedAt).toLocaleDateString()}</p>}
+      <div className="mt-2 flex flex-wrap gap-3 text-xs">
+        {testSlug && <Link className="text-primary underline" to={`${ROUTES.TEST_HUB}/${testSlug}`}>View test guide</Link>}
+        {claim.sources?.[0]?.sourceUrl && <a className="text-primary underline" href={claim.sources[0].sourceUrl} target="_blank" rel="noopener noreferrer">View official requirement</a>}
+      </div>
     </div>
   );
 }
@@ -306,6 +314,7 @@ export function InstitutionExplorerDetail() {
   const [data, setData] = useState(null);
   const [programs, setPrograms] = useState([]);
   const [acceptedTests, setAcceptedTests] = useState([]);
+  const [acceptanceError, setAcceptanceError] = useState('');
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
@@ -314,18 +323,24 @@ export function InstitutionExplorerDetail() {
     let cancelled = false;
     setLoading(true);
     setError('');
-    Promise.all([
+    Promise.allSettled([
       testsApi.getInstitution(slug),
-      testsApi.getInstitutionAcceptance(slug).catch(() => ({ data: { data: [] } })),
+      testsApi.getInstitutionAcceptance(slug),
     ])
       .then(([instRes, accRes]) => {
         if (cancelled) return;
-        const body = instRes.data || {};
+        if (instRes.status === 'rejected') throw instRes.reason;
+        const body = instRes.value.data || {};
         // Support both wrapped { data, programs } and legacy flat projection
         const institution = body.data && body.data.officialName ? body.data : body;
         setData(institution);
         setPrograms(Array.isArray(body.programs) ? body.programs : []);
-        setAcceptedTests(accRes.data?.data || []);
+        if (accRes.status === 'fulfilled') {
+          setAcceptedTests(accRes.value.data?.data || []);
+          setAcceptanceError('');
+        } else {
+          setAcceptanceError('Test requirements could not be loaded.');
+        }
       })
       .catch((err) => {
         if (!cancelled) {
@@ -495,8 +510,10 @@ export function InstitutionExplorerDetail() {
             <p className="text-xs text-gray-500 mb-3">
               {fallbackScopeLabel(ACCEPTANCE_SCOPES.INSTITUTION)}
             </p>
-            {acceptedTests.length === 0 ? (
-              <p className="text-sm text-gray-500">No published test acceptance rules on file for this institution.</p>
+            {acceptanceError ? (
+              <p className="text-sm text-red-700 dark:text-red-300">{acceptanceError}</p>
+            ) : acceptedTests.length === 0 ? (
+              <p className="text-sm text-gray-500">No verified test requirement is currently available on STRIDETO. Check the institution&apos;s official admissions information.</p>
             ) : (
               <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700">
                 {acceptedTests.map((claim) => (
