@@ -22,9 +22,9 @@ function TestCard({ test }) {
   return (
     <Link
       to={detailPath}
-      className="block rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 hover:shadow-md transition-shadow"
+      className="block w-full min-w-0 max-w-full rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5 hover:shadow-md transition-shadow"
     >
-      <div className="flex items-start justify-between gap-3">
+      <div className="flex min-w-0 items-start justify-between gap-3">
         <div className="flex-1 min-w-0">
           <h3 className="text-base font-semibold text-gray-900 dark:text-white truncate">
             {test.name}
@@ -33,28 +33,28 @@ function TestCard({ test }) {
             <p className="text-sm text-gray-500 dark:text-gray-400">{test.shortName}</p>
           )}
         </div>
-        <span className="flex-shrink-0 inline-block px-2 py-0.5 rounded-full text-xs font-medium bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
+        <span className="shrink min-w-0 max-w-full inline-block px-2 py-0.5 rounded-full text-center text-xs font-medium whitespace-normal break-words-safe bg-blue-100 dark:bg-blue-900/40 text-blue-700 dark:text-blue-300">
           {CATEGORY_LABELS[test.category] || test.category}
         </span>
       </div>
       {test.providerId && (
-        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+        <p className="mt-2 min-w-0 break-words-safe text-xs text-gray-500 dark:text-gray-400">
           {test.providerId.name}
         </p>
       )}
       {test.description && (
-        <p className="mt-2 text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
+        <p className="mt-2 min-w-0 break-words-safe text-sm text-gray-600 dark:text-gray-300 line-clamp-2">
           {test.description}
         </p>
       )}
-      <div className="mt-3 flex flex-wrap gap-2">
+      <div className="mt-3 flex min-w-0 flex-wrap gap-2">
         {(test.deliveryModes || []).map((m) => (
-          <span key={m} className="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+          <span key={m} className="max-w-full whitespace-normal break-words-safe text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
             {m.replace(/_/g, ' ')}
           </span>
         ))}
         {test.validityMonths != null && (
-          <span className="text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
+          <span className="max-w-full whitespace-normal break-words-safe text-xs px-2 py-0.5 rounded bg-gray-100 dark:bg-gray-700 text-gray-600 dark:text-gray-300">
             Valid {test.validityMonths} months
           </span>
         )}
@@ -108,7 +108,7 @@ export default function TestHub() {
         description="International tests for study, admissions and career pathways. Find the right test, understand acceptance and scores, and prepare with trusted resources."
         canonical={ROUTES.TEST_HUB}
       />
-      <div className="max-w-5xl mx-auto px-4 py-8">
+      <div className="w-full min-w-0 max-w-5xl mx-auto px-4 py-8">
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">
           International Tests
         </h1>
@@ -150,7 +150,7 @@ export default function TestHub() {
         </div>
 
         {loading && (
-          <div className="grid sm:grid-cols-2 gap-4">
+          <div className="grid w-full min-w-0 sm:grid-cols-2 gap-4">
             {[...Array(6)].map((_, i) => (
               <div key={i} className="h-36 rounded-xl bg-gray-100 dark:bg-gray-700 animate-pulse" />
             ))}
@@ -170,7 +170,7 @@ export default function TestHub() {
             <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
               {meta.total} test{meta.total !== 1 ? 's' : ''} found
             </p>
-            <div className="grid sm:grid-cols-2 gap-4">
+            <div className="grid w-full min-w-0 sm:grid-cols-2 gap-4">
               {tests.map((test) => (
                 <TestCard key={test._id} test={test} />
               ))}
