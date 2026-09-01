@@ -40,6 +40,7 @@ export function JobDescriptionUploadPanel({
   formDefaults,
   initialForm,
   touchedFields,
+  replaceSupported = false,
   className = '',
 }) {
   const fileRef = useRef(null);
@@ -95,6 +96,7 @@ export function JobDescriptionUploadPanel({
     const { form: next } = applyJobDocumentSuggestions(form, suggestions, {
       ...mergeOptions,
       onlyEmpty: true,
+      replaceSupported,
       allowUntouchedDefaults: true,
     });
     onApply(next);
@@ -133,6 +135,7 @@ export function JobDescriptionUploadPanel({
     const { form: withEmpty } = applyJobDocumentSuggestions(nextForm, suggestions, {
       ...mergeOptions,
       onlyEmpty: true,
+      replaceSupported: false,
       allowUntouchedDefaults: true,
     });
     onApply(withEmpty);

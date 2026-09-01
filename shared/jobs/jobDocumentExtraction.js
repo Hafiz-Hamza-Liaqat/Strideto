@@ -99,7 +99,7 @@ const BULLET_CHARS = /[\u2022\u2023\u25E6\u2043\u2219●◦▪▫]/g;
 
 /** Canonical field → label alias phrases (matched case-insensitively). */
 const LABEL_ALIASES = Object.freeze({
-  title: ['job title', 'position title', 'role title', 'position', 'vacancy title', 'role'],
+  title: ['job title', 'position title', 'role title', 'position', 'vacancy title', 'role', 'title'],
   openingsCount: ['number of openings', 'openings', 'positions available', 'vacancies', 'no. of openings'],
   company: ['company', 'company / organization', 'organization', 'employer', 'company/organization'],
   location: ['location', 'job location', 'work location'],
@@ -108,23 +108,23 @@ const LABEL_ALIASES = Object.freeze({
   city: ['city'],
   jobFamily: ['job family', 'career family', 'category'],
   specialization: ['specialization', 'specialisation'],
-  jobType: ['job classification', 'classification', 'sector'],
+  jobType: ['job type', 'job classification', 'classification', 'sector'],
   type: ['employment type', 'job employment type'],
   workMode: ['work mode', 'work arrangement', 'workplace type'],
   salaryRange: ['salary', 'salary range', 'compensation range', 'pay range', 'compensation'],
   salaryCurrency: ['salary currency', 'currency'],
-  skillsRequired: ['required skills', 'skills', 'technical skills', 'key skills'],
-  experience: ['experience requirement', 'required experience', 'years of experience', 'minimum experience', 'professional experience'],
+  skillsRequired: ['skills required', 'required skills', 'technical skills', 'key skills', 'skills'],
+  experience: ['experience requirement', 'required experience', 'years of experience', 'minimum experience', 'professional experience', 'experience'],
   educationRequirement: ['education requirement', 'qualification', 'academic requirement', 'education'],
   requirements: ['requirements', 'qualifications', 'candidate requirements'],
   responsibilities: ['responsibilities', 'duties', 'key responsibilities', 'role responsibilities'],
   description: ['job description', 'description', 'about the role', 'role overview', 'overview', 'summary'],
   deadline: ['application deadline', 'closing date', 'apply by', 'last date to apply', 'deadline'],
   applicationMethod: ['application method', 'how to apply', 'apply method'],
-  applicationLink: ['application link', 'apply link', 'application url', 'careers url', 'apply url'],
+  applicationLink: ['apply / official link', 'application link', 'apply link', 'application url', 'careers url', 'apply url'],
   applyEmail: ['application email', 'apply email', 'email applications'],
-  sourceWebsite: ['source website', 'source'],
-  sourceUrl: ['source url'],
+  sourceWebsite: ['source / employer website name', 'employer website name', 'source website', 'employer website'],
+  sourceUrl: ['official source url', 'source url'],
   externalId: ['external job id / reference id', 'external job id', 'external id', 'job id', 'reference id'],
   seoTitle: ['seo title'],
   metaDescription: ['meta description'],
@@ -149,6 +149,7 @@ const JOB_FAMILY_ALIASES = Object.freeze({
   'software & it': 'Software & IT',
   'software and it': 'Software & IT',
   'information technology': 'Software & IT',
+  'data & analytics': 'Data, AI & Analytics',
   'data science and ai': 'Data, AI & Analytics',
   'data, ai and analytics': 'Data, AI & Analytics',
 });
@@ -251,11 +252,10 @@ const STRICT_COLON_FIELDS = Object.freeze({
  * own paragraph with the value in the next one, and mammoth flattens that to a bare label line with
  * no colon, so the colon rule alone dropped the field entirely. Requiring a whole-line match keeps
  * the guard the colon rule exists for: prose such as `Education is important to us` carries trailing
- * text and still fails. `experience` is deliberately excluded - a bare `Experience` line commonly
- * heads a work-history section rather than naming a requirement value, and it already has
- * non-strict aliases (`Experience Requirement`, `Years of Experience`) that match without a colon.
+ * text and still fails. A bare `Experience` line is accepted only with a following value that passes
+ * the existing experience semantic contract.
  */
-const STRICT_COLON_BARE_EXACT_FIELDS = new Set(['educationRequirement', 'deadline']);
+const STRICT_COLON_BARE_EXACT_FIELDS = new Set(['educationRequirement', 'deadline', 'experience']);
 
 function matchLabelLine(line) {
   const trimmed = String(line || '').trim();
@@ -340,6 +340,10 @@ const BOUNDARY_ONLY_LABELS = Object.freeze([
   'seo fields',
   'seo slug',
   'slug',
+  'approval',
+  'benefits / work environment',
+  'publishing / seo fields',
+  'fields not stated in the official posting',
 ]);
 
 const BOUNDARY_ONLY_LABEL_RE = new RegExp(
@@ -355,7 +359,11 @@ function isBoundaryOnlyLabelLine(line) {
 /** True when `line` starts a new section and must not be absorbed into the current block. */
 function isBlockBoundary(line) {
   if (!line) return false;
-  return isNextSectionBoundary(line) || isGenericHeadingLine(line) || isBoundaryOnlyLabelLine(line);
+  const label = matchLabelLine(line);
+  // An inline Experience value is commonly a legitimate Requirements/Skills list item. It still
+  // parses as a top-level field, but must not truncate an already-open list block.
+  if (label?.field === 'experience' && label.inlineValue) return false;
+  return Boolean(label) || isGenericHeadingLine(line) || isBoundaryOnlyLabelLine(line);
 }
 
 function parseListBlock(lines, startIdx) {

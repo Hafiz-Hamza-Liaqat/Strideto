@@ -195,6 +195,7 @@ export function applyJobDocumentSuggestions(form, suggestions, options = {}) {
   const {
     fieldMap = {},
     onlyEmpty = true,
+    replaceSupported = false,
     allowUntouchedDefaults = true,
     fields = null,
     mergeArrays = false,
@@ -244,7 +245,9 @@ export function applyJobDocumentSuggestions(form, suggestions, options = {}) {
       field,
     });
 
-    const canApply = shouldApplyField(state, { onlyEmpty, allowUntouchedDefaults });
+    const canApply = replaceSupported
+      ? true
+      : shouldApplyField(state, { onlyEmpty, allowUntouchedDefaults });
 
     if (!canApply) {
       if (!onlyEmpty && !isEmptyValue(current)) {

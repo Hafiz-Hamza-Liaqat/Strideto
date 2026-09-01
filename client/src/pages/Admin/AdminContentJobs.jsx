@@ -377,6 +377,7 @@ export default function AdminContentJobs() {
                 formDefaults={ADMIN_FORM_DEFAULTS}
                 initialForm={initialFormSnapshot}
                 touchedFields={touchedFields}
+                replaceSupported
                 onApply={(next) => setForm(next)}
                 className="mt-3"
               />
