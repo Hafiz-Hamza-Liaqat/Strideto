@@ -272,13 +272,35 @@ export function applyJobDocumentSuggestions(form, suggestions, options = {}) {
     if (field === 'countryCode') {
       next[formKey] = suggested;
       const regionKey = fieldMap.region || 'region';
+      const provinceKey = fieldMap.province || 'province';
       const cityKey = fieldMap.city || 'city';
       if (formHasKey(next, regionKey) && !touchedFields?.has?.(regionKey)) {
         next[regionKey] = '';
       }
+      if (formHasKey(next, provinceKey) && !touchedFields?.has?.(provinceKey)) {
+        next[provinceKey] = '';
+      }
       if (formHasKey(next, cityKey) && !touchedFields?.has?.(cityKey)) {
         next[cityKey] = '';
       }
+      applied.push(field);
+      continue;
+    }
+
+    if (field === 'region') {
+      next[formKey] = suggested;
+      const provinceKey = fieldMap.province || 'province';
+      if (formHasKey(next, provinceKey) && !touchedFields?.has?.(provinceKey)) {
+        next[provinceKey] = suggested;
+      }
+      applied.push(field);
+      continue;
+    }
+
+    if (field === 'workMode') {
+      next[formKey] = suggested;
+      if (formHasKey(next, 'remote')) next.remote = suggested === 'remote';
+      if (formHasKey(next, 'hybrid')) next.hybrid = suggested === 'hybrid';
       applied.push(field);
       continue;
     }
@@ -342,7 +364,6 @@ export const ADMIN_SUGGESTION_FIELD_MAP = {
   deadline: 'deadline',
   applicationLink: 'applicationLink',
   applyEmail: 'applyEmail',
-  applicationMethod: 'applyMethod',
   skillsRequired: 'skillsRequired',
   requirements: 'requirements',
   responsibilities: 'responsibilities',

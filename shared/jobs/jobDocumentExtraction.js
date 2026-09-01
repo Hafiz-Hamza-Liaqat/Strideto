@@ -106,7 +106,7 @@ const LABEL_ALIASES = Object.freeze({
   countryCode: ['country', 'country code'],
   region: ['region', 'state', 'province', 'state / province / region', 'state/province/region'],
   city: ['city'],
-  jobFamily: ['job family', 'career family'],
+  jobFamily: ['job family', 'career family', 'category'],
   specialization: ['specialization', 'specialisation'],
   jobType: ['job classification', 'classification', 'sector'],
   type: ['employment type', 'job employment type'],
@@ -118,7 +118,7 @@ const LABEL_ALIASES = Object.freeze({
   educationRequirement: ['education requirement', 'qualification', 'academic requirement', 'education'],
   requirements: ['requirements', 'qualifications', 'candidate requirements'],
   responsibilities: ['responsibilities', 'duties', 'key responsibilities', 'role responsibilities'],
-  description: ['job description', 'about the role', 'role overview', 'overview', 'summary'],
+  description: ['job description', 'description', 'about the role', 'role overview', 'overview', 'summary'],
   deadline: ['application deadline', 'closing date', 'apply by', 'last date to apply', 'deadline'],
   applicationMethod: ['application method', 'how to apply', 'apply method'],
   applicationLink: ['application link', 'apply link', 'application url', 'careers url', 'apply url'],
@@ -436,10 +436,21 @@ function parseDateValue(raw) {
   const s = String(raw || '').trim();
   if (!s) return null;
 
+  const validIsoDate = (year, month, day) => {
+    const isoDate = `${year}-${month}-${day}`;
+    const parsed = new Date(`${isoDate}T12:00:00Z`);
+    if (Number.isNaN(parsed.getTime())) return null;
+    if (
+      parsed.getUTCFullYear() !== Number(year)
+      || parsed.getUTCMonth() + 1 !== Number(month)
+      || parsed.getUTCDate() !== Number(day)
+    ) return null;
+    return isoDate;
+  };
+
   const iso = s.match(/^(\d{4})-(\d{2})-(\d{2})$/);
   if (iso) {
-    const d = new Date(`${iso[1]}-${iso[2]}-${iso[3]}T12:00:00`);
-    if (!Number.isNaN(d.getTime())) return `${iso[1]}-${iso[2]}-${iso[3]}`;
+    return validIsoDate(iso[1], iso[2], iso[3]);
   }
 
   const MONTH_MAP = {
@@ -449,24 +460,22 @@ function parseDateValue(raw) {
   const monthMatch = s.match(/^([A-Za-z]+)\s+(\d{1,2}),?\s+(\d{4})$/);
   if (monthMatch) {
     const monthNum = MONTH_MAP[monthMatch[1].toLowerCase()];
-    if (monthNum) {
-      const day = monthMatch[2].padStart(2, '0');
-      return `${monthMatch[3]}-${monthNum}-${day}`;
-    }
+    if (monthNum) return validIsoDate(monthMatch[3], monthNum, monthMatch[2].padStart(2, '0'));
   }
 
-  const d = new Date(s);
-  if (!Number.isNaN(d.getTime()) && d.getFullYear() >= 2000 && d.getFullYear() <= 2100) {
-    const local = new Date(d.getTime() - d.getTimezoneOffset() * 60000);
-    return local.toISOString().slice(0, 10);
+  const dayMonthMatch = s.match(/^(\d{1,2})\s+([A-Za-z]+)\s+(\d{4})$/);
+  if (dayMonthMatch) {
+    const monthNum = MONTH_MAP[dayMonthMatch[2].toLowerCase()];
+    if (monthNum) return validIsoDate(dayMonthMatch[3], monthNum, dayMonthMatch[1].padStart(2, '0'));
   }
 
   const m = s.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
   if (m) {
     const year = m[3].length === 2 ? `20${m[3]}` : m[3];
-    const isoDate = `${year}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
-    const parsed = new Date(`${isoDate}T12:00:00`);
-    if (!Number.isNaN(parsed.getTime())) return isoDate;
+    const first = Number(m[1]);
+    const second = Number(m[2]);
+    if (first > 12 && second <= 12) return validIsoDate(year, String(second).padStart(2, '0'), String(first).padStart(2, '0'));
+    if (second > 12 && first <= 12) return validIsoDate(year, String(first).padStart(2, '0'), String(second).padStart(2, '0'));
   }
   return null;
 }
@@ -1183,6 +1192,9 @@ export function filterSuggestionsForMode(suggestions, mode) {
     ...EMPLOYER_EXTRACTABLE_FIELDS,
     ...(mode === 'admin' ? ADMIN_EXTRA_FIELDS : []),
   ]);
+  // The Admin Job form has no application-method control. Keep this suggestion available to the
+  // employer workflow, but do not surface an Admin-only suggestion that the form cannot apply.
+  if (mode === 'admin') allowed.delete('applicationMethod');
   const out = {};
   for (const [k, v] of Object.entries(suggestions || {})) {
     if (allowed.has(k) && !JOB_DOCUMENT_PROTECTED_FIELDS.includes(k)) out[k] = v;
