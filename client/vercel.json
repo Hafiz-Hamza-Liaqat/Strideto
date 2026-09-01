@@ -1,14 +1,36 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": "vite",
-  "buildCommand": "npm run build",
+  "buildCommand": "npm run build:seo",
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "https://api.strideto.com/sitemap.xml" },
     { "source": "/indexnow-key.txt", "destination": "https://api.strideto.com/indexnow-key.txt" },
+    { "source": "/tests", "destination": "/tests/index.html" },
+    { "source": "/tests/compare", "destination": "/tests/compare/index.html" },
+    { "source": "/tests/ielts", "destination": "/tests/ielts/index.html" },
+    { "source": "/tests/toefl-ibt", "destination": "/tests/toefl-ibt/index.html" },
+    { "source": "/tests/pte-academic", "destination": "/tests/pte-academic/index.html" },
+    { "source": "/tests/duolingo-english-test", "destination": "/tests/duolingo-english-test/index.html" },
+    { "source": "/tests/gre", "destination": "/tests/gre/index.html" },
+    { "source": "/tests/gmat", "destination": "/tests/gmat/index.html" },
+    { "source": "/exam-prep", "destination": "/exam-prep/index.html" },
+    { "source": "/exam-prep/:path*", "destination": "/exam-prep/index.html" },
     { "source": "/((?!assets/).*)", "destination": "/index.html" }
   ],
   "headers": [
+    {
+      "source": "/exam-prep",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, follow" }
+      ]
+    },
+    {
+      "source": "/exam-prep/:path*",
+      "headers": [
+        { "key": "X-Robots-Tag", "value": "noindex, follow" }
+      ]
+    },
     {
       "source": "/(.*)",
       "headers": [
