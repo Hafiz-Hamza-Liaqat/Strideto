@@ -20,6 +20,35 @@ for (const input of inputs) {
 }
 
 assert.deepEqual(normalizeJobSkills(['React', ' react ', '', null]), ['React']);
+assert.deepEqual(normalizeJobSkills('React, Next.js, TypeScript, JavaScript'), [
+  'React', 'Next.js', 'TypeScript', 'JavaScript',
+]);
+assert.deepEqual(normalizeJobSkills(['React, Next.js, TypeScript']), expected);
+assert.deepEqual(normalizeJobSkills('React; Next.js; TypeScript'), expected);
+assert.deepEqual(normalizeJobSkills('React\nNext.js\nTypeScript'), expected);
+assert.deepEqual(normalizeJobSkills(
+  'B2B Sales, Mid-Market Sales, Full-Cycle Sales, New Business Acquisition, F&B Sales, Business Development, Sales Pipeline Management, CRM, Prospecting, LinkedIn Outreach, Negotiation, Stakeholder Management, C-Level Engagement, Account Executive, Commercial Sales, Forecasting, Customer Acquisition, Problem Solving, English Communication, Nice to Have, Background in the F&B industry, particularly with POS systems or online-ordering platforms., Existing customer network or relationships within the UAE F&B or technology industry., Native proficiency in Arabic.'
+), [
+  'B2B Sales', 'Mid-Market Sales', 'Full-Cycle Sales', 'New Business Acquisition',
+  'F&B Sales', 'Business Development', 'Sales Pipeline Management', 'CRM',
+  'Prospecting', 'LinkedIn Outreach', 'Negotiation', 'Stakeholder Management',
+  'C-Level Engagement', 'Account Executive', 'Commercial Sales', 'Forecasting',
+  'Customer Acquisition', 'Problem Solving', 'English Communication',
+]);
+assert.deepEqual(normalizeJobSkills(
+  'Food Systems, Agriculture, Climate Resilience, Behavioral Science, Qualitative Research, In-Depth Interviews, Focus Group Discussions, Thematic Analysis, Ethnographic Research, Mixed-Methods Research, Research Design, Client Advisory, Project Management, People Management, Stakeholder Management, Proposal Development, Business Development, Data Synthesis, Technical Writing, English Communication, Field Research, Smallholder Agriculture, Climate Adaptation, Strongly Preferred, Experience applying behavioral science to agricultural extension..., Application Timing, Applications are reviewed on a rolling basis...'
+), [
+  'Food Systems', 'Agriculture', 'Climate Resilience', 'Behavioral Science',
+  'Qualitative Research', 'In-Depth Interviews', 'Focus Group Discussions',
+  'Thematic Analysis', 'Ethnographic Research', 'Mixed-Methods Research',
+  'Research Design', 'Client Advisory', 'Project Management', 'People Management',
+  'Stakeholder Management', 'Proposal Development', 'Business Development',
+  'Data Synthesis', 'Technical Writing', 'English Communication', 'Field Research',
+  'Smallholder Agriculture', 'Climate Adaptation',
+]);
+assert.deepEqual(normalizeJobSkills('Project Management, Business Development, Data Analysis'), [
+  'Project Management', 'Business Development', 'Data Analysis',
+]);
 assert.deepEqual(
   normalizeJobSkills('Experience applying data science to agricultural extension, climate adaptation and food value chains.'),
   ['Experience applying data science to agricultural extension, climate adaptation and food value chains.'],

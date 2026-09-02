@@ -8,6 +8,13 @@
 
 const MAX_SAFE_COMMA_LINE_LENGTH = 400;
 const MAX_SAFE_COMMA_ITEM_LENGTH = 80;
+const EMBEDDED_SECTION_BOUNDARIES = new Set([
+  'nice to have', 'nice-to-have', 'preferred', 'preferred skills',
+  'preferred qualifications', 'preferred experience', 'strongly preferred',
+  'requirements', 'qualifications', 'additional requirements', 'application timing',
+  'how to apply', 'application process', 'benefits', 'compensation / benefits',
+  'work environment', 'location eligibility', 'additional information',
+]);
 
 function cleanItem(value) {
   return String(value ?? '')
@@ -20,6 +27,7 @@ function looksLikeProse(value) {
   const text = cleanItem(value);
   if (text.length > MAX_SAFE_COMMA_LINE_LENGTH) return true;
   if (/[.!?](?:\s|$)/.test(text)) return true;
+  if (/^(?:experience applying|applications? are|applicants? (?:must|should|may)|background in|existing customer)\b/i.test(text)) return true;
   if (/\b(?:applications?|experience|responsibilities|requirements?|preferred|reviewed|apply|must|will)\b/i.test(text)
     && text.split(/\s+/).length > 10) return true;
   return false;
@@ -32,20 +40,27 @@ function splitTextItem(value) {
   const parts = raw.split(/[;\n]/).map(cleanItem).filter(Boolean);
   const expanded = [];
   for (const part of parts) {
-    if (!part.includes(',') || looksLikeProse(part)) {
+    if (!part.includes(',')) {
       expanded.push(part);
       continue;
     }
     const commaParts = part.split(',').map(cleanItem).filter(Boolean);
-    if (
-      commaParts.length > 1
-      && part.length <= MAX_SAFE_COMMA_LINE_LENGTH
-      && commaParts.every((item) => item.length <= MAX_SAFE_COMMA_ITEM_LENGTH)
-    ) {
-      expanded.push(...commaParts);
-    } else {
+    if (commaParts.length <= 1) {
       expanded.push(part);
+      continue;
     }
+
+    const recovered = [];
+    for (const candidate of commaParts) {
+      const key = candidate.toLocaleLowerCase();
+      if (EMBEDDED_SECTION_BOUNDARIES.has(key) || looksLikeProse(candidate)) break;
+      if (candidate.length > MAX_SAFE_COMMA_ITEM_LENGTH) break;
+      recovered.push(candidate);
+    }
+
+    // Preserve a standalone prose value for backwards compatibility. Once a
+    // clean prefix is recoverable, omit the contaminated suffix instead.
+    expanded.push(...(recovered.length > 0 ? recovered : [part]));
   }
   return expanded;
 }
