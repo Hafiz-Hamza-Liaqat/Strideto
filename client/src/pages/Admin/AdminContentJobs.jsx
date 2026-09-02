@@ -85,6 +85,7 @@ export default function AdminContentJobs() {
     loading,
     error,
     setPage,
+    setLimit,
     refetch,
   } = useAdminList('/admin/jobs');
 
@@ -314,11 +315,13 @@ export default function AdminContentJobs() {
           error={error}
           emptyMessage={t('admin:noJobsFound')}
           pagination={pagination}
-          onPageChange={setPage}
+          onPageChange={(page) => { setSelectedIds([]); setPage(page); }}
+          onPageSizeChange={(limit) => { setSelectedIds([]); setLimit(limit); }}
+          pageSizeOptions={[25, 50, 100]}
           sort={sort}
           onSort={setSort}
           filters={filters}
-          onFiltersChange={(f) => { setFilters(f); setPage(1); }}
+          onFiltersChange={(f) => { setSelectedIds([]); setFilters(f); setPage(1); }}
           filterFields={['search', 'status', 'approvalStatus', 'country', 'province', 'city', 'category', 'employer', 'featured', 'from', 'to']}
           selectable={canEdit || canModerate}
           selectedIds={selectedIds}

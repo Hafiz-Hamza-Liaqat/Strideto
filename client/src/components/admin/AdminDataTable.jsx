@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AdminTableFilters } from './AdminTableFilters';
 import { AdminStatusBadge, formatAdminDate } from './adminTableUtils';
@@ -12,6 +12,8 @@ export function AdminDataTable({
   emptyMessage,
   pagination,
   onPageChange,
+  onPageSizeChange,
+  pageSizeOptions = [],
   sort,
   onSort,
   filters,
@@ -40,6 +42,13 @@ export function AdminDataTable({
   const allSelected = data.length > 0 && data.every((row) => selectedIds.includes(row[rowKey]));
   const someSelected = selectedIds.length > 0;
   const hasRowActions = !!onRowClick || actions.length > 0;
+
+  useEffect(() => {
+    if (!onSelectionChange || !selectable) return;
+    const loadedIds = new Set(data.map((row) => row[rowKey]));
+    const visibleSelection = selectedIds.filter((id) => loadedIds.has(id));
+    if (visibleSelection.length !== selectedIds.length) onSelectionChange(visibleSelection);
+  }, [data, onSelectionChange, rowKey, selectable, selectedIds]);
 
   const toggleAll = () => {
     if (!onSelectionChange) return;
@@ -104,7 +113,7 @@ export function AdminDataTable({
       {someSelected && bulkActions.length > 0 && (
         <div className="flex flex-wrap gap-2 p-3 rounded-lg bg-primary/10 dark:bg-primary/20">
           <span className="text-sm text-gray-700 dark:text-gray-300 self-center">
-            {t('admin:selectedCount', { count: selectedIds.length })}
+            {t('admin:selectedCountPage', { count: selectedIds.length })}
           </span>
           {bulkActions.map((action) => (
             <button
@@ -149,7 +158,8 @@ export function AdminDataTable({
                       type="checkbox"
                       checked={allSelected}
                       onChange={toggleAll}
-                      aria-label={t('admin:selectAll')}
+                      aria-label={t('admin:selectAllPage')}
+                      title={t('admin:selectAllPage')}
                     />
                   </th>
                 )}
@@ -220,7 +230,7 @@ export function AdminDataTable({
         </div>
       )}
 
-      {pagination && pagination.pages > 1 && (
+      {pagination && (pagination.pages > 1 || pageSizeOptions.length > 0) && (
         <div className="flex flex-wrap items-center justify-between gap-2">
           <p className="text-sm text-gray-500">
             {t('admin:paginationSummary', {
@@ -229,7 +239,20 @@ export function AdminDataTable({
               total: pagination.total,
             })}
           </p>
-          <div className="flex gap-2">
+          <div className="flex flex-wrap items-center gap-2">
+            {pageSizeOptions.length > 0 && onPageSizeChange && (
+              <label className="flex items-center gap-2 text-sm text-gray-500">
+                <span>{t('admin:pageSize')}</span>
+                <select
+                  value={pagination.limit}
+                  onChange={(event) => onPageSizeChange(Number(event.target.value))}
+                  className="px-2 py-1.5 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800"
+                  aria-label={t('admin:pageSize')}
+                >
+                  {pageSizeOptions.map((size) => <option key={size} value={size}>{size}</option>)}
+                </select>
+              </label>
+            )}
             <button
               type="button"
               disabled={pagination.page <= 1}

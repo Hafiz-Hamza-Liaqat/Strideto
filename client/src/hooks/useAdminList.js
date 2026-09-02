@@ -19,6 +19,10 @@ export function useAdminList(endpoint, { initialFilters = {}, limit = DEFAULT_LI
     setPagination((p) => ({ ...p, page }));
   }, []);
 
+  const setLimit = useCallback((limit) => {
+    setPagination((p) => ({ ...p, limit, page: 1 }));
+  }, []);
+
   useEffect(() => {
     abortRef.current?.abort();
     const controller = new AbortController();
@@ -71,6 +75,7 @@ export function useAdminList(endpoint, { initialFilters = {}, limit = DEFAULT_LI
     loading,
     error,
     setPage,
+    setLimit,
     refetch,
     setError,
   };
