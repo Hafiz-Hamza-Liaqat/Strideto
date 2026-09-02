@@ -38,14 +38,21 @@ const PUBLIC_PUBLICATION_OR = [
   { publicationState: 'active' },
 ];
 
-export function buildPublicJobFilter() {
-  return withFixtureExclusion({
+export function buildPublicJobFilter({ allowHistorical = false } = {}) {
+  const now = new Date();
+  const filter = withFixtureExclusion({
     status: 'active',
     $and: [
       { $or: PUBLIC_APPROVAL_OR },
       { $or: PUBLIC_PUBLICATION_OR },
     ],
   });
+  if (!allowHistorical) {
+    filter.$and.push({ $or: [{ visibleUntil: { $exists: false } }, { visibleUntil: null }, { visibleUntil: { $gte: now } }] });
+    filter.$and.push({ $or: [{ applicationsCloseAt: { $exists: false } }, { applicationsCloseAt: null }, { applicationsCloseAt: { $gte: now } }] });
+    filter.$and.push({ $or: [{ deadline: { $exists: false } }, { deadline: null }, { deadline: { $gte: now } }] });
+  }
+  return filter;
 }
 
 function safeSearchRe(value) {
@@ -205,7 +212,7 @@ export const getJobs = asyncHandler(async (req, res) => {
 export const getJobByIdOrSlug = asyncHandler(async (req, res) => {
   const { idOrSlug } = req.params;
   const locale = getRequestLocale(req);
-  const publicFilter = buildPublicJobFilter();
+  const publicFilter = buildPublicJobFilter({ allowHistorical: true });
   const job = isObjectIdParam(idOrSlug)
     ? await findLocalizedById(Job, idOrSlug, publicFilter, locale)
     : await findLocalizedBySlug(Job, idOrSlug, publicFilter, locale);

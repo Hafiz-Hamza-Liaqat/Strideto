@@ -72,6 +72,7 @@ const scholarshipsList = read('client/src/pages/Scholarships/Scholarships.jsx');
 const institutionExplorer = read('client/src/pages/Education/InstitutionExplorer.jsx');
 const scholarshipIntel = read('client/src/pages/Scholarships/ScholarshipIntelligence.jsx');
 const schemasSource = read('client/src/seo/schemas.js');
+const jobHtmlShellSource = read('shared/seo/jobHtmlShell.js');
 const entityIdsSource = read('client/src/seo/entityIds.js');
 const jobDetailSource = read('client/src/pages/Jobs/JobDetail.jsx');
 const internshipDetailSource = read('client/src/pages/Internships/InternshipDetail.jsx');
@@ -142,7 +143,7 @@ const ORIGIN = PRODUCTION_PUBLIC_ORIGIN;
 
 // SEO-P3-08 — JobPosting policy unchanged
 {
-  check(schemasSource.includes('evaluateJobPostingEligibility'), 'SEO-P3-08: JobPosting still gated by eligibility');
+  check(jobHtmlShellSource.includes('evaluateJobPostingEligibility'), 'SEO-P3-08: JobPosting still gated by eligibility');
   check(jobDetailSource.includes('JOB_POSTING_SURFACES.DETAIL'), 'SEO-P3-08: JobDetail still uses detail surface');
 }
 

@@ -7,15 +7,15 @@
 import fs from 'fs/promises';
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { SEO_ORIGIN, renderSeoShell, renderJobShell } from '../shared/seo/jobHtmlShell.js';
+export { SEO_ORIGIN, renderSeoShell, renderJobShell } from '../shared/seo/jobHtmlShell.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.join(__dirname, '../client/dist');
 const INDEX = path.join(DIST, 'index.html');
-export const SEO_ORIGIN = 'https://www.strideto.com';
-
 export const SEO_ROUTES = [
   { path: '/', title: 'Strideto – Jobs & Education Portal Pakistan', description: "Pakistan's job and education portal.", robots: 'index, follow' },
-  { path: '/jobs', title: 'Jobs in Pakistan', description: 'Find latest jobs in Pakistan.', robots: 'index, follow' },
+  { path: '/jobs', title: 'Jobs & Career Opportunities | STRIDETO', description: 'Browse jobs and career opportunities by location, work mode, category, skills, and employment type on STRIDETO.', robots: 'index, follow' },
   { path: '/scholarships', title: 'Scholarships in Pakistan', description: 'Find scholarships for Pakistani students.', robots: 'index, follow' },
   { path: '/admissions', title: 'Admissions in Pakistan', description: 'University and college admissions.', robots: 'index, follow' },
   { path: '/about', title: 'About Strideto', description: 'About Strideto student-first mission.', robots: 'index, follow' },
@@ -31,42 +31,6 @@ export const SEO_ROUTES = [
   { path: '/exam-prep', title: 'Exam Preparation Archive | STRIDETO', description: 'Archived exam-preparation content from STRIDETO. Check current international Test guidance for verified resources.', robots: 'noindex, follow' },
 ];
 
-function escapeHtml(value) {
-  return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('"', '&quot;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;');
-}
-
-function upsertTitle(html, title) {
-  const tag = `<title data-rh="true">${escapeHtml(title)}</title>`;
-  return /<title\b[^>]*>[\s\S]*?<\/title>/i.test(html)
-    ? html.replace(/<title\b[^>]*>[\s\S]*?<\/title>/i, tag)
-    : html.replace(/<\/head>/i, `  ${tag}\n</head>`);
-}
-
-function upsertMeta(html, name, content) {
-  const tag = `<meta name="${name}" data-rh="true" content="${escapeHtml(content)}" />`;
-  const pattern = new RegExp(`<meta\\b(?=[^>]*\\bname=["']${name}["'])[^>]*>`, 'gi');
-  return html.replace(pattern, '').replace(/<\/head>/i, `  ${tag}\n</head>`);
-}
-
-function upsertCanonical(html, href) {
-  const pattern = /<link\b(?=[^>]*\brel=["']canonical["'])[^>]*>/gi;
-  return html.replace(pattern, '').replace(/<\/head>/i, `  <link rel="canonical" data-rh="true" href="${escapeHtml(href)}" />\n</head>`);
-}
-
-export function renderSeoShell(baseHtml, route) {
-  let html = upsertTitle(baseHtml, route.title);
-  html = upsertMeta(html, 'description', route.description);
-  html = upsertMeta(html, 'robots', route.robots);
-  html = route.robots.startsWith('index')
-    ? upsertCanonical(html, `${SEO_ORIGIN}${route.path}`)
-    : html.replace(/<link\b(?=[^>]*\brel=["']canonical["'])[^>]*>/gi, '');
-  return html;
-}
-
 async function main() {
   const baseHtml = await fs.readFile(INDEX, 'utf8');
   for (const route of SEO_ROUTES) {
@@ -76,7 +40,7 @@ async function main() {
     const outFile = route.path === '/' ? INDEX : path.join(outDir, 'index.html');
     await fs.writeFile(outFile, html);
   }
-  console.log(`Prerendered ${SEO_ROUTES.length} SEO shells into dist/`);
+  console.log(`Prerendered ${SEO_ROUTES.length} static SEO shells.`);
 }
 
 if (process.argv[1] && path.resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {

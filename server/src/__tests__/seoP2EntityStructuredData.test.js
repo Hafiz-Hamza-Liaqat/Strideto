@@ -24,6 +24,7 @@ const repo = path.join(here, '../../..');
 const read = (rel) => readFileSync(path.join(repo, rel), 'utf8');
 
 const schemasSource = read('client/src/seo/schemas.js');
+const jobHtmlShellSource = read('shared/seo/jobHtmlShell.js');
 const entityIdsSource = read('client/src/seo/entityIds.js');
 const sanitizeSource = read('client/src/seo/sanitize.js');
 const globalSeoSource = read('client/src/components/seo/GlobalSeo.jsx');
@@ -70,7 +71,22 @@ const schemasModule = await import(
       .replace(
         /'@shared\/seo\/jobPostingEligibility\.js'/,
         `'${fileUrl('shared/seo/jobPostingEligibility.js')}'`
-      ),
+      )
+      .replace(
+        /'@shared\/jobs\/jobSkills\.js'/,
+        `'${fileUrl('shared/jobs/jobSkills.js')}'`
+      )
+      .replace(
+        /'@shared\/jobs\/jobTextLists\.js'/,
+        `'${fileUrl('shared/jobs/jobTextLists.js')}'`
+      )
+      .replace(
+        /'@shared\/seo\/jobHtmlShell\.js'/,
+        `'${fileUrl('shared/seo/jobHtmlShell.js')}'`
+      )
+      .replaceAll('@shared/seo/jobHtmlShell.js', fileUrl('shared/seo/jobHtmlShell.js'))
+      .replace("'../../../shared/seo/jobHtmlShell.js'", `'${fileUrl('shared/seo/jobHtmlShell.js')}'`)
+      .replace(/import \{ buildJobPostingSchema \} from '[^']+';/, `import { buildJobPostingSchema } from '${fileUrl('shared/seo/jobHtmlShell.js')}';`),
     'utf8'
   ).toString('base64')}`
 );
@@ -294,7 +310,7 @@ check(!schemasSource.includes('@type: \'Event\''), 'SEO-P2-19: no Event schema h
 // SEO-P2-20 — eligible employer JobPosting policy unchanged
 // ---------------------------------------------------------------------------
 check(
-  /evaluateJobPostingEligibility/.test(schemasSource),
+  /evaluateJobPostingEligibility/.test(jobHtmlShellSource),
   'SEO-P2-20: JobPosting still gated by eligibility policy'
 );
 check(

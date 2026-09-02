@@ -4,6 +4,7 @@
 import { PUB_STATUSES } from '../education/taxonomy.js';
 import { isValidSourceUrl } from '../international/evidence.js';
 import { UNIFIED_SCHOLARSHIP_SOURCE } from '../publicDiscovery/unifiedScholarshipDiscovery.js';
+import { isPubliclyListableJob } from '../publicDiscovery/publicTruth.js';
 
 /** Job detail sitemap/index eligibility aligns with public listing filter truth. */
 export function isJobDetailPubliclyEligible(job) {
@@ -13,6 +14,12 @@ export function isJobDetailPubliclyEligible(job) {
   if (approval && approval !== 'approved') return false;
   const pub = job.publicationState;
   if (pub && pub !== 'active') return false;
+  if (job.visibleUntil && !isPubliclyListableJob(job)) return false;
+  const closeAt = job.applicationsCloseAt || job.deadline;
+  if (closeAt) {
+    const date = new Date(closeAt);
+    if (!Number.isNaN(date.getTime()) && date < new Date()) return false;
+  }
   return true;
 }
 

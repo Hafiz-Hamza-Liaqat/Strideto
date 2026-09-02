@@ -168,7 +168,7 @@ check(
   'JOB-P1A-SEC-06: draft/plan behavior hooks still present on create'
 );
 
-check(!publicDiscovery.includes("'benefits'"), 'Benefits deferred: not projected on public Job surfaces');
+check(publicDiscovery.includes("'benefits'"), 'Benefits are projected on public Job surfaces');
 check(!employerPostJob.includes('name="benefits"'), 'Benefits deferred: no dead Employer benefits field');
 
 for (const key of ['requirements', 'responsibilities', 'salaryCurrency']) {

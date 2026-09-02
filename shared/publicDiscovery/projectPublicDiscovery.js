@@ -13,6 +13,7 @@ import {
   formatPublicOpenings,
   authorityLabel,
 } from './publicTruth.js';
+import { normalizeJobTextList } from '../jobs/jobTextLists.js';
 
 const JOB_PUBLIC_KEYS = [
   '_id',
@@ -36,6 +37,8 @@ const JOB_PUBLIC_KEYS = [
   'description',
   'requirements',
   'responsibilities',
+  'benefits',
+  'locationEligibility',
   'applicationInstructions',
   'deadline',
   'logoUrl',
@@ -45,6 +48,8 @@ const JOB_PUBLIC_KEYS = [
   'createdAt',
   'publishedAt',
   'updatedAt',
+  'seoTitle',
+  'metaDescription',
   'source',
   'sourceWebsite',
   'remote',
@@ -105,6 +110,10 @@ export function projectPublicJob(job, extras = {}) {
 
   return {
     ...pick(job, JOB_PUBLIC_KEYS),
+    benefits: normalizeJobTextList(job.benefits),
+    locationEligibility: job.locationEligibility || '',
+    seoTitle: job.seoTitle || '',
+    metaDescription: job.metaDescription || '',
     // Absent/legacy documents are unauthorized, never "unknown".
     jobsGraphEligible: job.jobsGraphEligible === true,
     applyType,

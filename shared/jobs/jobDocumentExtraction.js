@@ -17,6 +17,7 @@ import {
   validateSkillsItemCandidate,
   validateTitleCandidate,
 } from './jobDocumentFieldContracts.js';
+import { normalizeJobTextList } from './jobTextLists.js';
 
 /** Fields that document parsing must never populate or return. */
 export const JOB_DOCUMENT_PROTECTED_FIELDS = [
@@ -42,7 +43,6 @@ export const JOB_DOCUMENT_PROTECTED_FIELDS = [
   'urgent',
   'remote',
   'hybrid',
-  'benefits',
 ];
 
 /** Employer-mode extractable fields (no admin provenance). */
@@ -75,6 +75,8 @@ export const EMPLOYER_EXTRACTABLE_FIELDS = [
 
 /** Admin-mode additionally may detect provenance when literally labeled. */
 export const ADMIN_EXTRA_FIELDS = [
+  'benefits',
+  'locationEligibility',
   'sourceWebsite',
   'sourceUrl',
   'externalId',
@@ -129,9 +131,20 @@ const LABEL_ALIASES = Object.freeze({
   seoTitle: ['seo title'],
   metaDescription: ['meta description'],
   logoUrl: ['company logo url', 'logo image url', 'logo url'],
+  benefits: [
+    'compensation / benefits', 'compensation & benefits', 'salary & benefits',
+    'salary / benefits', 'perks & benefits', 'benefits / work environment', 'benefits',
+  ],
+  locationEligibility: [
+    'work authorization / location eligibility', 'work location eligibility',
+    'location eligibility', 'location requirements', 'geographic eligibility',
+    'geographic requirements', 'remote eligibility', 'candidate location',
+  ],
 });
 
-const SECTION_FIELDS = new Set(['requirements', 'responsibilities', 'skillsRequired', 'description']);
+const SECTION_FIELDS = new Set([
+  'requirements', 'responsibilities', 'skillsRequired', 'description', 'benefits', 'locationEligibility',
+]);
 
 const LABEL_LEAKAGE_PATTERNS = [
   /^job title\s*:?\s*$/i,
@@ -341,9 +354,17 @@ const BOUNDARY_ONLY_LABELS = Object.freeze([
   'seo slug',
   'slug',
   'approval',
-  'benefits / work environment',
   'publishing / seo fields',
   'fields not stated in the official posting',
+  'strongly preferred',
+  'preferred qualifications',
+  'preferred experience',
+  'application timing',
+  'how to apply',
+  'work environment',
+  'about the company',
+  'application process',
+  'additional information',
 ]);
 
 const BOUNDARY_ONLY_LABEL_RE = new RegExp(
@@ -747,6 +768,11 @@ function validateAndNormalizeField(field, rawCandidate, mode) {
       if (!arr.length) return null;
       return { ...base, value: arr, status: CANDIDATE_STATUS.ACCEPTED };
     }
+    case 'benefits': {
+      const arr = normalizeJobTextList(value);
+      if (!arr.length) return null;
+      return { ...base, value: arr, status: CANDIDATE_STATUS.ACCEPTED };
+    }
     case 'requirements':
     case 'responsibilities': {
       const arr = (Array.isArray(value) ? value : [String(value)])
@@ -765,6 +791,10 @@ function validateAndNormalizeField(field, rawCandidate, mode) {
     }
     case 'description':
       return { ...base, value: String(value).trim().slice(0, 5000), status: CANDIDATE_STATUS.ACCEPTED };
+    case 'locationEligibility': {
+      const eligibility = String(value).trim().slice(0, 5000);
+      return eligibility ? { ...base, value: eligibility, status: CANDIDATE_STATUS.ACCEPTED } : null;
+    }
     case 'deadline': {
       const d = parseDateValue(value);
       if (!d) return null;
@@ -885,7 +915,7 @@ function extractFromLabels(lines, store, mode) {
       const next = nextNonEmptyLine(lines, i + 1);
       if (next && !matchLabelLine(next.line) && !isLabelOnlyLine(next.line)) {
         if (SECTION_FIELDS.has(field)) {
-          if (field === 'description') {
+          if (field === 'description' || field === 'locationEligibility') {
             const { text, nextIdx } = parseParagraphBlock(lines, next.index);
             value = text;
             i = nextIdx - 1;
@@ -902,7 +932,7 @@ function extractFromLabels(lines, store, mode) {
     } else if (SECTION_FIELDS.has(field) && (!inlineValue || inlineValue.length < 3)) {
       const next = nextNonEmptyLine(lines, i + 1);
       if (next) {
-        if (field === 'description') {
+        if (field === 'description' || field === 'locationEligibility') {
           const { text, nextIdx } = parseParagraphBlock(lines, next.index);
           if (text) {
             value = text;
@@ -946,10 +976,10 @@ function extractFromSections(lines, store) {
     const next = nextNonEmptyLine(lines, i + 1);
     if (!next) continue;
 
-    if (match.field === 'description') {
+    if (match.field === 'description' || match.field === 'locationEligibility') {
       const { text, nextIdx } = parseParagraphBlock(lines, next.index);
       if (text) {
-        addCandidate(store, 'description', {
+        addCandidate(store, match.field, {
           value: text,
           sourceType: 'section',
           evidence: text.split('\n')[0],

@@ -133,8 +133,8 @@ export default function Jobs() {
     });
   };
 
-  const seoTitle = t('seoTitle', { ns: 'jobs' });
-  const seoDescription = t('seoDescription', { ns: 'jobs' });
+  const seoTitle = 'Jobs & Career Opportunities | STRIDETO';
+  const seoDescription = 'Browse jobs and career opportunities by location, work mode, category, skills, and employment type on STRIDETO.';
   const collectionSeo = useCollectionSeo(ROUTES.JOBS, { defaultSort: 'newest' });
 
   return (

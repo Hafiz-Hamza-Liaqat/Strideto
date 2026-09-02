@@ -45,12 +45,12 @@ const intlPublicCtrl = read('server/src/controllers/intlScholarshipsController.j
 const skillsCreate = parseStringArray('JavaScript\nTypeScript');
 check(Array.isArray(skillsCreate) && skillsCreate.length === 2, 'JOB-P0B-01 Admin skills create persists via parseStringArray');
 check(
-  adminJobsCtrl.includes('parseStringArray(body.skills || body.skillsRequired)'),
-  'JOB-P0B-01b admin controller maps skillsRequired',
+  adminJobsCtrl.includes('normalizeJobSkills(body.skills ?? body.skillsRequired)'),
+  'JOB-P0B-01b admin controller maps skillsRequired through canonical normalization',
 );
 check(
-  adminJobsUi.includes('skillsRequired') && adminJobsUi.includes('textToLines(form.skillsRequired)'),
-  'JOB-P0B-02 Admin skills edit round-trips through textarea helpers',
+  adminJobsUi.includes('skillsRequired') && adminJobsUi.includes('normalizeJobSkills(job.skillsRequired)'),
+  'JOB-P0B-02 Admin skills edit round-trips through canonical normalization',
 );
 check(
   adminJobsCtrl.includes('body.sourceUrl') && adminJobsCtrl.includes('doc.sourceUrl'),

@@ -60,6 +60,7 @@ const staticRobots = lf(read('client/public/robots.txt'));
 const robotsLines = (txt) => txt.split(String.fromCharCode(10));
 const seoController = read('server/src/controllers/seoController.js');
 const schemasSource = read('client/src/seo/schemas.js');
+const jobHtmlShellSource = read('shared/seo/jobHtmlShell.js');
 const entityIdsSource = read('client/src/seo/entityIds.js');
 const jobDetailSource = read('client/src/pages/Jobs/JobDetail.jsx');
 const internshipDetailSource = read('client/src/pages/Internships/InternshipDetail.jsx');
@@ -527,20 +528,20 @@ check(
     'SEO-P0B-07: a genuinely remote job satisfies location without inventing a place'
   );
   check(
-    /jobLocationType/.test(schemasSource),
+    /jobLocationType/.test(jobHtmlShellSource),
     'SEO-P0B-07: a remote job declares jobLocationType instead of a fabricated address'
   );
   check(
-    /datePosted: toDateOnly\(job\.publishedAt \|\| job\.createdAt\)/.test(schemasSource),
+    /datePosted: toDateOnly\(job\.publishedAt \|\| job\.createdAt\)/.test(jobHtmlShellSource),
     'SEO-P0B-07: emitted datePosted uses the same source the eligibility gate checked'
   );
   check(
-    /validThrough: toDateOnly\(job\.applicationsCloseAt \|\| job\.deadline\)/.test(schemasSource),
+    /validThrough: toDateOnly\(job\.applicationsCloseAt \|\| job\.deadline\)/.test(jobHtmlShellSource),
     'SEO-P0B-07: emitted validThrough uses the product application-closing precedence'
   );
   check(
-    /const \{ eligible \} = evaluateJobPostingEligibility\(job, \{ surface, now \}\);\s*\n\s*if \(!eligible\) return null;/.test(
-      schemasSource
+    /const eligibility = evaluateJobPostingEligibility\(job, \{ surface, now \}\);\s*\n\s*if \(!eligibility\.eligible\) return null;/.test(
+      jobHtmlShellSource
     ),
     'SEO-P0B-07: jobPostingSchema emits nothing unless the shared policy says eligible'
   );
@@ -610,7 +611,22 @@ const schemasModule = await import(
       .replace(
         /'@shared\/seo\/jobPostingEligibility\.js'/,
         `'${fileUrl('shared/seo/jobPostingEligibility.js')}'`
-      ),
+      )
+      .replace(
+        /'@shared\/jobs\/jobSkills\.js'/,
+        `'${fileUrl('shared/jobs/jobSkills.js')}'`
+      )
+      .replace(
+        /'@shared\/jobs\/jobTextLists\.js'/,
+        `'${fileUrl('shared/jobs/jobTextLists.js')}'`
+      )
+      .replace(
+        /'@shared\/seo\/jobHtmlShell\.js'/,
+        `'${fileUrl('shared/seo/jobHtmlShell.js')}'`
+      )
+      .replaceAll('@shared/seo/jobHtmlShell.js', fileUrl('shared/seo/jobHtmlShell.js'))
+      .replace("'../../../shared/seo/jobHtmlShell.js'", `'${fileUrl('shared/seo/jobHtmlShell.js')}'`)
+      .replace(/import \{ buildJobPostingSchema \} from '[^']+';/, `import { buildJobPostingSchema } from '${fileUrl('shared/seo/jobHtmlShell.js')}';`),
     'utf8'
   ).toString('base64')}`
 );
@@ -1134,7 +1150,7 @@ assert.deepEqual(
 );
 count += 1;
 check(
-  (schemasSource.match(/'@type': 'JobPosting'/g) || []).length === 1,
+  (jobHtmlShellSource.match(/'@type': 'JobPosting'/g) || []).length === 1,
   'SEO-P0B: JobPosting is constructed in exactly one helper'
 );
 

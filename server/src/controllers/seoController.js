@@ -36,6 +36,8 @@ import {
 } from '../../../shared/seo/entityDetailSeoPolicy.js';
 import { currentAcceptanceMongoFilter } from '../../../shared/publicDiscovery/publicTruth.js';
 import { buildPublicJobFilter } from './jobsController.js';
+import { projectPublicJob } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
+import { getRequestLocale, findLocalizedBySlug } from '../utils/localeQuery.js';
 import { PUB_STATUSES } from '../../../shared/education/taxonomy.js';
 import { VERIFICATION_STATUSES } from '../../../shared/international/verification.js';
 import {
@@ -52,6 +54,25 @@ function getPublicOrigin() {
 }
 
 const JOB_SOURCE_SLUGS = SEO_JOB_SOURCE_SLUGS;
+
+/**
+ * Read-only public Job projection for request-time HTML rendering.
+ * Unlike the normal detail API, this endpoint must not increment views or
+ * perform any other write as part of a crawler request.
+ */
+export const getSeoJobBySlug = asyncHandler(async (req, res) => {
+  const locale = getRequestLocale(req);
+  const job = await findLocalizedBySlug(
+    Job,
+    req.params.slug,
+    buildPublicJobFilter({ allowHistorical: true }),
+    locale,
+  );
+  if (!job || (job.publicationState && ['draft', 'pending_review', 'rejected', 'closed', 'expired'].includes(job.publicationState))) {
+    return res.status(404).json({ error: 'Job not found' });
+  }
+  return res.json(projectPublicJob(job));
+});
 
 function escapeXml(s) {
   return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;').replace(/'/g, '&apos;');

@@ -14,6 +14,8 @@
     { "source": "/tests/duolingo-english-test", "destination": "/tests/duolingo-english-test/index.html" },
     { "source": "/tests/gre", "destination": "/tests/gre/index.html" },
     { "source": "/tests/gmat", "destination": "/tests/gmat/index.html" },
+    { "source": "/jobs", "destination": "/jobs/index.html" },
+    { "source": "/jobs/:slug", "destination": "/api/seo/jobs/:slug" },
     { "source": "/exam-prep", "destination": "/exam-prep/index.html" },
     { "source": "/exam-prep/:path*", "destination": "/exam-prep/index.html" },
     { "source": "/((?!assets/).*)", "destination": "/index.html" }

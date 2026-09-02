@@ -220,6 +220,7 @@ const jobSchema = new mongoose.Schema(
     demoOnly: { type: Boolean, default: false },
     responsibilities: [{ type: String }],
     benefits: [{ type: String }],
+    locationEligibility: { type: String, trim: true },
     gender: { type: String },
     salaryCurrency: {
       type: String,

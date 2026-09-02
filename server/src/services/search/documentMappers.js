@@ -6,6 +6,7 @@ import { buildLocalizedSlugUrl } from '../../../../shared/localization/localeUti
 import { normalizeLocale } from '../../../../shared/localization/localeResolver.js';
 import { isPubliclyLaunchVisible } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 import { isTestPubliclyPromotable } from '../../../../shared/education/testPublicationPolicy.js';
+import { buildJobDiscoverySummary } from '../../../../shared/jobs/jobDiscovery.js';
 
 function docLocale(doc) {
   return normalizeLocale(doc?.locale || 'en');
@@ -53,13 +54,18 @@ export function mapJobToSearchDocument(doc) {
     title: doc.title,
     slug: doc.slug,
     url: buildLocalizedSlugUrl('/jobs', doc.slug, docLocale(doc)),
-    summary: stripHtml(doc.description).slice(0, 300),
-    keywords: [doc.company, doc.organization, doc.category, doc.jobType].filter(Boolean),
+    summary: (stripHtml(doc.description) || buildJobDiscoverySummary(doc)).slice(0, 300),
+    keywords: [doc.company, doc.organization, doc.category, doc.jobFamily, doc.specialization, doc.jobType, doc.type, doc.workMode].filter(Boolean),
     category: doc.category,
     jobFamily: doc.jobFamily,
     province: doc.province || doc.region,
     country: doc.countryCode || null,
     tags: doc.skillsRequired || [],
+    searchText: [
+      doc.title, doc.company, doc.organization, doc.category, doc.jobFamily,
+      doc.specialization, doc.type, doc.jobType, doc.workMode, doc.countryCode,
+      doc.region, doc.province, doc.city, ...(Array.isArray(doc.skillsRequired) ? doc.skillsRequired : []),
+    ].filter(Boolean).join(' '),
     publishedAt: doc.createdAt,
     updatedAt: doc.updatedAt,
     featured: Boolean(doc.isFeatured),

@@ -14,6 +14,8 @@ import { AdminSlugField } from '../../components/admin/AdminSlugField';
 import { TranslationToolbar } from '../../components/admin/TranslationToolbar';
 import { adminContentApi } from '../../services/adminContentApi';
 import { ROUTES } from '../../constants';
+import { normalizeJobSkills } from '@shared/jobs/jobSkills.js';
+import { normalizeJobTextList } from '@shared/jobs/jobTextLists.js';
 import axiosInstance from '../../services/axiosBase';
 import { EscapeWhen } from '../../a11y/EscapeWhen';
 import { AdminViewPublicLink, isAdminSlugPreviewReady } from '../../components/admin/AdminViewPublicLink';
@@ -45,6 +47,7 @@ const EMPTY_JOB = {
   requirements: '',
   responsibilities: '',
   benefits: '',
+  locationEligibility: '',
   skillsRequired: '',
   applicationLink: '',
   applyEmail: '',
@@ -112,8 +115,9 @@ export default function AdminContentJobs() {
         ...job,
         requirements: linesToText(job.requirements),
         responsibilities: linesToText(job.responsibilities),
-        benefits: linesToText(job.benefits),
-        skillsRequired: linesToText(job.skillsRequired),
+        benefits: normalizeJobTextList(job.benefits).join('\n'),
+        locationEligibility: job.locationEligibility || '',
+        skillsRequired: normalizeJobSkills(job.skillsRequired).join('\n'),
         gallery: linesToText(job.gallery),
         openingsCount: job.openingsCount == null ? '' : String(job.openingsCount),
         deadline: job.deadline ? job.deadline.slice(0, 10) : '',
@@ -123,8 +127,9 @@ export default function AdminContentJobs() {
         ...job,
         requirements: linesToText(job.requirements),
         responsibilities: linesToText(job.responsibilities),
-        benefits: linesToText(job.benefits),
-        skillsRequired: linesToText(job.skillsRequired),
+        benefits: normalizeJobTextList(job.benefits).join('\n'),
+        locationEligibility: job.locationEligibility || '',
+        skillsRequired: normalizeJobSkills(job.skillsRequired).join('\n'),
         gallery: linesToText(job.gallery),
         openingsCount: job.openingsCount == null ? '' : String(job.openingsCount),
         deadline: job.deadline ? job.deadline.slice(0, 10) : '',
@@ -152,8 +157,9 @@ export default function AdminContentJobs() {
       ...form,
       requirements: textToLines(form.requirements),
       responsibilities: textToLines(form.responsibilities),
-      benefits: textToLines(form.benefits),
-      skillsRequired: textToLines(form.skillsRequired),
+      benefits: normalizeJobTextList(form.benefits),
+      locationEligibility: String(form.locationEligibility || '').trim(),
+      skillsRequired: normalizeJobSkills(form.skillsRequired),
       gallery: textToLines(form.gallery),
     };
     try {
@@ -491,6 +497,14 @@ export default function AdminContentJobs() {
                 <label className="sm:col-span-2">
                   <span className="text-xs text-gray-500">Skills required</span>
                   <textarea rows={3} className={fieldClass} value={form.skillsRequired} onChange={(e) => setForm({ ...form, skillsRequired: e.target.value })} placeholder={t('admin:onePerLine')} />
+                </label>
+                <label className="sm:col-span-2">
+                  <span className="text-xs text-gray-500">Compensation / Benefits</span>
+                  <textarea rows={3} className={fieldClass} value={form.benefits} onChange={(e) => setForm({ ...form, benefits: e.target.value })} placeholder="Competitive salary\nHealth insurance\nPaid leave\nPerformance bonus" />
+                </label>
+                <label className="sm:col-span-2">
+                  <span className="text-xs text-gray-500">Location Eligibility</span>
+                  <textarea rows={3} className={fieldClass} value={form.locationEligibility} onChange={(e) => setForm({ ...form, locationEligibility: e.target.value })} placeholder="Applicants must be based in a specified region or country" />
                 </label>
                 <label>
                   <span className="text-xs text-gray-500">{t('admin:fieldStatus')}</span>

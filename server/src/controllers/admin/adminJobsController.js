@@ -27,6 +27,8 @@ import { deriveJobLaunchEligible, CMS_STATUS } from '../../../../shared/cms/laun
 import { PUBLISHING_QUOTA_RESULT_CODES } from '../../config/freeBetaPublishingPolicy.js';
 import { normalizeCountryCode } from '../../../../shared/international/country.js';
 import { parseOpeningsCount } from '../../../../shared/employer/openingsCount.js';
+import { normalizeJobSkills } from '../../../../shared/jobs/jobSkills.js';
+import { normalizeJobTextList } from '../../../../shared/jobs/jobTextLists.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -108,10 +110,13 @@ function applyJobBody(doc, body, isCreate = false) {
   if (reqs !== undefined) doc.requirements = reqs;
   const resp = parseStringArray(body.responsibilities);
   if (resp !== undefined) doc.responsibilities = resp;
-  const benefits = parseStringArray(body.benefits);
-  if (benefits !== undefined) doc.benefits = benefits;
-  const skills = parseStringArray(body.skills || body.skillsRequired);
-  if (skills !== undefined) doc.skillsRequired = skills;
+  if (body.benefits !== undefined) doc.benefits = normalizeJobTextList(body.benefits);
+  if (body.locationEligibility !== undefined) {
+    doc.locationEligibility = sanitizeString(body.locationEligibility);
+  }
+  if (body.skills !== undefined || body.skillsRequired !== undefined) {
+    doc.skillsRequired = normalizeJobSkills(body.skills ?? body.skillsRequired);
+  }
   const gallery = parseStringArray(body.gallery);
   if (gallery !== undefined) doc.gallery = gallery;
   if (body.applicationInstructions !== undefined) doc.applicationInstructions = sanitizeString(body.applicationInstructions);

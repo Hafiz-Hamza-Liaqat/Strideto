@@ -40,6 +40,8 @@ import {
 } from '@shared/publicDiscovery/publicTruth.js';
 import { formatLocationDisplay } from '@shared/international/location.js';
 import { RelatedResources } from '../../components/seo/RelatedResources';
+import { normalizeJobSkills } from '@shared/jobs/jobSkills.js';
+import { buildJobDiscoverySummary } from '@shared/jobs/jobDiscovery.js';
 
 const JOB_TYPE_BADGE = {
   Government: 'bg-blue-100 text-blue-800 dark:bg-blue-900/40 dark:text-blue-300',
@@ -270,12 +272,13 @@ export default function JobDetail() {
   const employerName = job.organization || job.company || null;
 
   const canonicalPath = `${ROUTES.JOBS}/${job.slug || job._id}`;
-  const description = job.description || t('detailSeoDescription', {
+  const fallbackDiscoveryDescription = buildJobDiscoverySummary(job) || t('detailSeoDescription', {
     title: job.title,
     organization: job.organization || job.company,
     ns: 'jobs',
   });
-  const seoTitle = t('detailSeoTitle', { title: job.title, ns: 'jobs' });
+  const description = job.metaDescription || fallbackDiscoveryDescription;
+  const seoTitle = job.seoTitle || t('detailSeoTitle', { title: job.title, ns: 'jobs' });
 
   const loginState = loginLocationState(location);
 
@@ -524,13 +527,27 @@ export default function JobDetail() {
               </Section>
             ) : null}
 
-            {Array.isArray(job.skillsRequired) && job.skillsRequired.length > 0 ? (
+            {normalizeJobSkills(job.skillsRequired).length > 0 ? (
               <Section title={t('skillsLabel', { ns: 'jobs', defaultValue: 'Skills' })}>
                 <ul className="flex flex-wrap gap-2">
-                  {job.skillsRequired.map((skill) => (
+                  {normalizeJobSkills(job.skillsRequired).map((skill) => (
                     <li key={skill} className="px-2 py-1 rounded bg-gray-100 dark:bg-gray-700 text-sm">{skill}</li>
                   ))}
                 </ul>
+              </Section>
+            ) : null}
+
+            {Array.isArray(job.benefits) && job.benefits.length > 0 ? (
+              <Section title="Compensation / Benefits">
+                <ul className="list-disc list-inside space-y-1">
+                  {job.benefits.map((item, i) => <li key={i}>{item}</li>)}
+                </ul>
+              </Section>
+            ) : null}
+
+            {job.locationEligibility ? (
+              <Section title="Location Eligibility">
+                <p className="whitespace-pre-wrap">{job.locationEligibility}</p>
               </Section>
             ) : null}
 

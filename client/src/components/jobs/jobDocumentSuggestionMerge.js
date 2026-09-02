@@ -3,7 +3,7 @@
  * Supports EMPTY / UNTOUCHED_DEFAULT / USER_EDITED field states and dependency-aware apply.
  */
 
-const ARRAY_FIELDS = new Set(['requirements', 'responsibilities', 'skillsRequired']);
+const ARRAY_FIELDS = new Set(['requirements', 'responsibilities', 'benefits', 'skillsRequired']);
 const LINE_ARRAY_FIELDS = new Set(['requirements', 'responsibilities']);
 const SKILLS_FIELD = 'skillsRequired';
 
@@ -27,6 +27,7 @@ const APPLY_ORDER = [
   'description',
   'requirements',
   'responsibilities',
+  'benefits',
   'skillsRequired',
   'deadline',
   'applicationMethod',
@@ -389,6 +390,8 @@ export const ADMIN_SUGGESTION_FIELD_MAP = {
   seoTitle: 'seoTitle',
   metaDescription: 'metaDescription',
   logoUrl: 'logoUrl',
+  benefits: 'benefits',
+  locationEligibility: 'locationEligibility',
 };
 
 export const SUGGESTION_FIELD_LABELS = {
@@ -411,6 +414,8 @@ export const SUGGESTION_FIELD_LABELS = {
   description: 'Description',
   requirements: 'Requirements',
   responsibilities: 'Responsibilities',
+  benefits: 'Compensation / Benefits',
+  locationEligibility: 'Location Eligibility',
   deadline: 'Deadline',
   openingsCount: 'Openings',
   applicationMethod: 'Application method',
@@ -473,6 +478,7 @@ export const ADMIN_FORM_DEFAULTS = {
   description: '',
   requirements: '',
   responsibilities: '',
+  benefits: '',
   skillsRequired: '',
   applicationLink: '',
   applyEmail: '',
@@ -480,4 +486,5 @@ export const ADMIN_FORM_DEFAULTS = {
   deadline: '',
   seoTitle: '',
   metaDescription: '',
+  locationEligibility: '',
 };

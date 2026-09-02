@@ -16,25 +16,8 @@ import {
 } from './entityIds.js';
 import {
   JOB_POSTING_SURFACES,
-  evaluateJobPostingEligibility,
-  isFullyRemoteJob,
-  jobPostingCountry,
 } from '@shared/seo/jobPostingEligibility.js';
-
-function mapEmploymentType(type) {
-  const t = String(type || '').toUpperCase();
-  if (t.includes('PART')) return 'PART_TIME';
-  if (t.includes('INTERN')) return 'INTERN';
-  if (t.includes('CONTRACT')) return 'CONTRACTOR';
-  if (t.includes('TEMP')) return 'TEMPORARY';
-  return 'FULL_TIME';
-}
-
-function toDateOnly(value) {
-  if (!value) return undefined;
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? undefined : d.toISOString().slice(0, 10);
-}
+import { buildJobPostingSchema } from '../../../shared/seo/jobHtmlShell.js';
 
 function toIsoDate(value) {
   if (!value) return undefined;
@@ -172,41 +155,7 @@ export function faqPageSchema(faqs) {
  * publish on behalf of. See shared/seo/jobPostingEligibility.js.
  */
 export function jobPostingSchema(job, { surface, now } = {}) {
-  const { eligible } = evaluateJobPostingEligibility(job, { surface, now });
-  if (!eligible) return null;
-  const org = job.organization || job.company;
-  const desc = sanitizeJsonLdString(job.description || `${job.title}${org ? ` at ${org}` : ''}`, 5000);
-  const locality = job.city || undefined;
-  const region = job.province || job.location || undefined;
-  const remote = isFullyRemoteJob(job);
-  const country = jobPostingCountry(job) || undefined;
-  return stripUndefined({
-    '@type': 'JobPosting',
-    title: sanitizeJsonLdString(job.title, 200),
-    description: desc,
-    datePosted: toDateOnly(job.publishedAt || job.createdAt),
-    validThrough: toDateOnly(job.applicationsCloseAt || job.deadline),
-    employmentType: mapEmploymentType(job.type),
-    hiringOrganization: org
-      ? { '@type': 'Organization', name: org }
-      : undefined,
-    jobLocation: !remote && (locality || region)
-      ? {
-          '@type': 'Place',
-          address: {
-            '@type': 'PostalAddress',
-            addressLocality: locality,
-            addressRegion: region,
-            addressCountry: country,
-          },
-        }
-      : undefined,
-    jobLocationType: remote ? 'TELECOMMUTE' : undefined,
-    applicantLocationRequirements: remote && country
-      ? { '@type': 'Country', name: country }
-      : undefined,
-    url: job.slug ? `${SITE_URL}/jobs/${job.slug}` : undefined,
-  });
+  return buildJobPostingSchema(job, { surface, now, siteUrl: SITE_URL });
 }
 
 /**
