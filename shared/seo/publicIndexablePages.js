@@ -2,6 +2,7 @@
  * Canonical public indexable listing paths for the crawler sitemap.
  * Detail URLs are appended from approved/public projections only.
  */
+import { ROBOTS_DISALLOW_PATHS } from './robotsPolicy.js';
 
 export const INDEXABLE_STATIC_PATHS = Object.freeze([
   '/',
@@ -55,21 +56,7 @@ export const INDEXABLE_STATIC_PATHS = Object.freeze([
  * must not match public `/agents`, and `/business/` (the private buyer
  * workspace) must not match the public `/business-services` marketplace.
  */
-export const FORBIDDEN_SITEMAP_PATHS = Object.freeze([
-  '/license',
-  '/admin',
-  '/dashboard',
-  '/talent-profile',
-  '/applications',
-  '/vault',
-  '/budget',
-  '/copilot',
-  '/account',
-  '/employer',
-  '/agent/',
-  '/institution/',
-  '/business/',
-]);
+export const FORBIDDEN_SITEMAP_PATHS = ROBOTS_DISALLOW_PATHS;
 
 export function isForbiddenSitemapPath(path) {
   const p = String(path || '');
