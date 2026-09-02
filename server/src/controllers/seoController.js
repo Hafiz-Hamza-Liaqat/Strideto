@@ -48,6 +48,146 @@ import { AGENT_PROFILE_STATUSES } from '../../../shared/agent/constants.js';
 import { withFixtureExclusion } from '../../../shared/publicDiscovery/fixtureExclusion.js';
 import { listEligibleMarketplaceSitemapPaths } from '../services/gbs/gbsMarketplaceService.js';
 import { isTestPubliclyPromotable } from '../../../shared/education/testPublicationPolicy.js';
+import { publicHttpUrlOrNull } from '../../../shared/publicDiscovery/safePublicUrl.js';
+
+const NON_JOB_SEO_TYPES = new Set(['scholarship', 'blog', 'institution', 'test', 'program']);
+
+function publicSeoText(value, max = 5000) {
+  return typeof value === 'string' ? value.trim().slice(0, max) : '';
+}
+
+function seoFacts(...facts) {
+  return facts.filter((fact) => fact && publicSeoText(fact.value, 500));
+}
+
+function stripId(value) {
+  if (Array.isArray(value)) return value.map(stripId);
+  if (!value || typeof value !== 'object') return value;
+  if (value instanceof Date) return value.toISOString();
+  const out = {};
+  for (const [key, item] of Object.entries(value)) {
+    if (key !== '_id' && key !== '__v') out[key] = stripId(item);
+  }
+  return out;
+}
+
+export const getSeoEntityBySlug = asyncHandler(async (req, res) => {
+  const type = String(req.params.type || '').toLowerCase();
+  const slug = String(req.params.slug || '').trim();
+  if (!NON_JOB_SEO_TYPES.has(type) || !/^[a-z0-9][a-z0-9-]*$/i.test(slug)) {
+    return res.status(404).json({ error: 'Public entity not found' });
+  }
+
+  let entity = null;
+  if (type === 'scholarship') {
+    const doc = await findLocalizedBySlug(
+      Scholarship,
+      slug,
+      withFixtureExclusion({ status: 'active' }),
+      getRequestLocale(req),
+    );
+    if (doc) entity = {
+      type,
+      slug: doc.slug,
+      title: doc.title,
+      provider: doc.provider || doc.university || '',
+      description: doc.description || '',
+      facts: seoFacts(
+        { label: 'Provider', value: doc.provider || doc.university },
+        { label: 'Country', value: doc.country },
+        { label: 'Level', value: doc.level || doc.degreeLevel },
+        { label: 'Funding', value: doc.fundingType || doc.amount },
+        { label: 'Deadline', value: doc.deadline },
+      ),
+    };
+  } else if (type === 'blog') {
+    const doc = await findLocalizedBySlug(Blog, slug, withFixtureExclusion({ status: 'published' }), getRequestLocale(req));
+    if (doc) entity = {
+      type,
+      slug: doc.slug,
+      title: doc.title,
+      excerpt: doc.excerpt || '',
+      description: doc.excerpt || '',
+      seoTitle: doc.seoTitle || '',
+      metaDescription: doc.metaDescription || '',
+      author: doc.authorName || (doc.author && typeof doc.author === 'object' ? doc.author.name : ''),
+      publishedAt: doc.publishedAt,
+      updatedAt: doc.updatedAt,
+      facts: seoFacts(
+        { label: 'Category', value: doc.category },
+        { label: 'Author', value: doc.authorName || (doc.author && typeof doc.author === 'object' ? doc.author.name : '') },
+        { label: 'Published', value: doc.publishedAt },
+      ),
+    };
+  } else if (type === 'institution') {
+    const doc = await CanonicalInstitution.findOne(withFixtureExclusion({ slug, status: PUB_STATUSES.PUBLISHED }))
+      .select('officialName slug countryCode city region officialWebsite institutionType status sources')
+      .lean();
+    const programCount = doc ? await Program.countDocuments(withFixtureExclusion({ institutionId: doc._id, status: PUB_STATUSES.PUBLISHED })) : 0;
+    if (doc && isCanonicalInstitutionDetailEligible(doc, { programCount })) entity = {
+      type,
+      slug: doc.slug,
+      name: doc.officialName,
+      officialName: doc.officialName,
+      institutionType: doc.institutionType,
+      countryCode: doc.countryCode,
+      city: doc.city,
+      region: doc.region,
+      officialWebsite: publicHttpUrlOrNull(doc.officialWebsite),
+      description: `${doc.officialName}${doc.institutionType ? ` is a ${doc.institutionType}` : ''}${doc.city || doc.countryCode ? ` in ${[doc.city, doc.countryCode].filter(Boolean).join(', ')}` : ''}.`,
+      facts: seoFacts(
+        { label: 'Type', value: doc.institutionType },
+        { label: 'Location', value: [doc.city, doc.region, doc.countryCode].filter(Boolean).join(', ') },
+        { label: 'Programs', value: programCount ? String(programCount) : '' },
+      ),
+    };
+  } else if (type === 'test') {
+    const doc = await Test.findOne(withFixtureExclusion({ slug, status: PUB_STATUSES.PUBLISHED }))
+      .populate('providerId', 'name officialWebsite status')
+      .select('slug name shortName category description overview purposes deliveryModes totalDurationMinutes scoreScale officialWebsite providerId status')
+      .lean();
+    if (doc && isTestPubliclyPromotable(doc)) entity = {
+      type,
+      slug: doc.slug,
+      name: doc.name,
+      description: doc.description || doc.overview || '',
+      provider: doc.providerId?.name || '',
+      facts: seoFacts(
+        { label: 'Provider', value: doc.providerId?.name },
+        { label: 'Purpose', value: Array.isArray(doc.purposes) ? doc.purposes.join(', ') : '' },
+        { label: 'Format', value: Array.isArray(doc.deliveryModes) ? doc.deliveryModes.join(', ') : '' },
+        { label: 'Score scale', value: doc.scoreScale },
+        { label: 'Duration', value: doc.totalDurationMinutes ? `${doc.totalDurationMinutes} minutes` : '' },
+      ),
+    };
+  } else if (type === 'program') {
+    const doc = await Program.findOne(withFixtureExclusion({ slug, status: PUB_STATUSES.PUBLISHED }))
+      .populate('institutionId', 'officialName slug countryCode city region institutionType')
+      .select('name slug degreeLevel field studyMode durationMonths country campus instructionLanguage officialProgramUrl institutionId description summary status')
+      .lean();
+    if (doc && isProgramDetailIndexable(doc)) entity = {
+      type,
+      slug: doc.slug,
+      name: doc.name,
+      description: doc.description || doc.summary || '',
+      institutionName: doc.institutionId?.officialName || '',
+      degreeLevel: doc.degreeLevel,
+      durationMonths: doc.durationMonths,
+      facts: seoFacts(
+        { label: 'Institution', value: doc.institutionId?.officialName },
+        { label: 'Degree', value: doc.degreeLevel },
+        { label: 'Field', value: doc.field },
+        { label: 'Study mode', value: doc.studyMode },
+        { label: 'Location', value: [doc.campus, doc.country || doc.institutionId?.countryCode].filter(Boolean).join(', ') },
+        { label: 'Duration', value: doc.durationMonths ? `${doc.durationMonths} months` : '' },
+      ),
+    };
+  }
+
+  if (!entity) return res.status(404).json({ error: 'Public entity not found' });
+  res.set('Cache-Control', 'public, max-age=0, s-maxage=60, stale-while-revalidate=300');
+  return res.json(stripId(entity));
+});
 
 function getPublicOrigin() {
   return resolvePublicSiteOrigin(process.env.SITE_URL || process.env.FRONTEND_URL || '');

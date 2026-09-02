@@ -87,6 +87,10 @@ export function isProgramDetailIndexable(program) {
   const hasContext =
     Boolean(program.description) ||
     Boolean(program.summary) ||
+    Boolean(program.degreeLevel) ||
+    Boolean(program.field) ||
+    Boolean(program.studyMode) ||
+    Boolean(program.officialProgramUrl) ||
     (Array.isArray(program.degreeLevels) && program.degreeLevels.length > 0) ||
     (Array.isArray(program.fields) && program.fields.length > 0);
   return hasContext;

@@ -6,6 +6,7 @@ import {
   getLatestGovernmentJobs,
   getSeoScholarshipsPage,
   getSeoJobBySlug,
+  getSeoEntityBySlug,
 } from '../controllers/seoController.js';
 
 export const seoRouter = Router();
@@ -16,3 +17,4 @@ seoRouter.get('/seo/jobs-by-source/:source', getSeoJobsBySource);
 seoRouter.get('/seo/latest-government-jobs', getLatestGovernmentJobs);
 seoRouter.get('/seo/scholarships-in/:country', getSeoScholarshipsPage);
 seoRouter.get('/seo/jobs/:slug', getSeoJobBySlug);
+seoRouter.get('/seo/entity/:type/:slug', getSeoEntityBySlug);
