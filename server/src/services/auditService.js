@@ -1,6 +1,7 @@
 import { AuditLog } from '../models/AuditLog.js';
 
 export async function logAudit({
+  auditId = undefined,
   actor,
   action,
   targetType = '',
@@ -16,6 +17,7 @@ export async function logAudit({
 }) {
   try {
     await AuditLog.create({
+      ...(auditId !== undefined ? { _id: auditId } : {}),
       actorId: actor?.userId || actor?.employerId || actor?.agentAccountId || actor?._id,
       actorEmail: actor?.email || '',
       actorRole: actor?.role || '',
