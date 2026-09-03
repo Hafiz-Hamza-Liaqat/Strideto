@@ -8,6 +8,8 @@ import { ROUTES } from '../../constants';
 import { ListingCardSkeleton } from '../../components/listings/ListingCardSkeleton';
 import { Alert } from '../../components/ui/Alerts';
 import { VerificationBadge } from '../../components/common/VerificationBadge';
+import { safeSchemaUrl } from '@shared/seo/schemaSafety.js';
+import { buildCanonicalUrl } from '../../seo/config';
 
 const RESERVED = ['jobs', 'settings', 'applications', 'analytics', 'login', 'register', 'new'];
 
@@ -25,9 +27,9 @@ function companyOrgSchema(profile, canonical) {
     '@context': 'https://schema.org',
     '@type': 'Organization',
     name: profile.companyName,
-    url: profile.website || canonical,
+    url: safeSchemaUrl(profile.website) || buildCanonicalUrl(canonical),
     description: profile.companyDescription,
-    logo: profile.logoUrl || undefined,
+    logo: safeSchemaUrl(profile.logoUrl) || undefined,
     address: profile.location || profile.city || profile.countryCode ? {
       '@type': 'PostalAddress',
       addressLocality: profile.city || undefined,

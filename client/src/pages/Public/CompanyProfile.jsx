@@ -9,6 +9,8 @@ import { ListingCardSkeleton } from '../../components/listings/ListingCardSkelet
 import { Alert } from '../../components/ui/Alerts';
 import { VerificationBadge } from '../../components/common/VerificationBadge';
 import { formatLocationDisplay } from '@shared/international/location.js';
+import { safeSchemaUrl } from '@shared/seo/schemaSafety.js';
+import { buildCanonicalUrl } from '../../seo/config';
 
 export default function CompanyProfile() {
   const { slug } = useParams();
@@ -53,7 +55,7 @@ export default function CompanyProfile() {
             '@context': 'https://schema.org',
             '@type': 'Organization',
             name: company.name,
-            url: company.website || canonical,
+            url: safeSchemaUrl(company.website) || buildCanonicalUrl(canonical),
             description: company.description,
           }
         )}

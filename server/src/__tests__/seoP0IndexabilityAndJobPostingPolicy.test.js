@@ -609,6 +609,10 @@ const schemasModule = await import(
         `'${fileUrl('shared/seo/organizationIdentity.js')}'`
       )
       .replace(
+        /'\.\.\/\.\.\/\.\.\/shared\/seo\/schemaSafety\.js'/,
+        `'${fileUrl('shared/seo/schemaSafety.js')}'`
+      )
+      .replace(
         /'@shared\/seo\/jobPostingEligibility\.js'/,
         `'${fileUrl('shared/seo/jobPostingEligibility.js')}'`
       )
@@ -929,9 +933,9 @@ const scholarshipItems = [
     'ITEMLIST-03: the Scholarship entity keeps its own canonical URL'
   );
   check(
-    entry.item.name === 'HEC Overseas Scholarship' &&
+      entry.item.name === 'HEC Overseas Scholarship' &&
       entry.item.provider['@type'] === 'Organization' &&
-      entry.item.applicationDeadline === '2026-11-30',
+      entry.item.applicationDeadline === '2026-11-30T00:00:00.000Z',
     'ITEMLIST-03: the Scholarship entity keeps its provider, name and deadline'
   );
   check(

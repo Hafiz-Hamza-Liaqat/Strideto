@@ -15,14 +15,16 @@ import {
 } from './gbsMarketplaceFormat';
 import { GbsListingRequestCta } from './GbsListingRequestCta';
 import { formatMoney } from '@shared/international/dateDisplay.js';
+import { buildCanonicalUrl } from '../../seo/config';
 
 function offerJsonLd(item, canonical) {
+  const schemaUrl = buildCanonicalUrl(canonical);
   const summary = item.professionalFeeSummary;
   if (!summary || summary.kind === 'quote_required' || !Number.isFinite(summary.amountMinor) || !summary.currency) {
     return webPageSchema({
       name: item.title,
       description: item.shortDescription || item.description,
-      url: canonical,
+      url: schemaUrl,
     });
   }
   return {
@@ -30,7 +32,7 @@ function offerJsonLd(item, canonical) {
     '@type': 'Service',
     name: item.title,
     description: item.shortDescription || item.description,
-    url: canonical,
+    url: schemaUrl,
     provider: {
       '@type': item.subject?.providerKind === 'agency' ? 'Organization' : 'Person',
       name: item.subject?.displayName,

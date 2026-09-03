@@ -18,11 +18,15 @@ import {
   JOB_POSTING_SURFACES,
 } from '@shared/seo/jobPostingEligibility.js';
 import { buildJobPostingSchema } from '../../../shared/seo/jobHtmlShell.js';
+import {
+  safeSchemaDate,
+  safeSchemaMonetaryValue,
+  safeSchemaText,
+  safeSchemaUrl,
+} from '../../../shared/seo/schemaSafety.js';
 
 function toIsoDate(value) {
-  if (!value) return undefined;
-  const d = new Date(value);
-  return Number.isNaN(d.getTime()) ? undefined : d.toISOString();
+  return safeSchemaDate(value);
 }
 
 function stripUndefined(obj) {
@@ -44,7 +48,15 @@ function stripUndefined(obj) {
 
 function resolveCanonicalPageUrl(url) {
   if (!url) return SITE_URL;
-  return url.startsWith('http') ? url.replace(/\/$/, '') || url : buildCanonicalUrl(url);
+  const raw = String(url).trim();
+  if (raw.startsWith('http')) {
+    const safe = safeSchemaUrl(raw);
+    if (!safe) return SITE_URL;
+    const parsed = new URL(safe);
+    return `${parsed.origin}${parsed.pathname}`.replace(/\/$/, '') || parsed.origin;
+  }
+  const path = raw.split(/[?#]/, 1)[0] || '/';
+  return buildCanonicalUrl(path);
 }
 
 export function organizationSchema() {
@@ -211,9 +223,10 @@ export function blogPostingSchema(post, { readingMinutes, canonicalUrl } = {}) {
   const path = post.slug ? `/blog/${post.slug}` : '/blog';
   const url = canonicalUrl || buildCanonicalUrl(path);
   const pagePath = normalizeSchemaPath(canonicalUrl || path);
-  const image = post.featuredImage || post.imageUrl
-    ? ((post.featuredImage || post.imageUrl).startsWith('http') ? (post.featuredImage || post.imageUrl) : `${SITE_URL}${post.featuredImage || post.imageUrl}`)
-    : DEFAULT_OG_IMAGE;
+  const suppliedImage = post.featuredImage || post.imageUrl;
+  const image = suppliedImage == null
+    ? safeSchemaUrl(DEFAULT_OG_IMAGE)
+    : safeSchemaUrl(suppliedImage);
   const authorName = sanitizeJsonLdString(
     typeof post.author === 'object' ? post.author?.name : post.author,
     100
@@ -276,27 +289,26 @@ function resolveCourseProvider(exam) {
 
 export function scholarshipSchema(item) {
   if (!item) return null;
+  const amount = safeSchemaMonetaryValue(item.amount, item.currency);
   return stripUndefined({
     '@type': 'Scholarship',
-    name: item.title,
-    description: item.description || item.title,
-    url: item.slug ? `${SITE_URL}/scholarships/${item.slug}` : undefined,
+    name: safeSchemaText(item.title, 200),
+    description: safeSchemaText(item.description || item.title, 500),
+    url: item.slug ? safeSchemaUrl(`${SITE_URL}/scholarships/${encodeURIComponent(item.slug)}`) : undefined,
     provider: resolveScholarshipProvider(item),
-    eligibleRegion: item.country || undefined,
-    applicationDeadline: item.deadline,
-    amount: item.amount
-      ? { '@type': 'MonetaryAmount', currency: 'PKR', value: item.amount }
-      : undefined,
-    educationalLevel: item.level,
+    eligibleRegion: safeSchemaText(item.country, 120),
+    applicationDeadline: safeSchemaDate(item.deadline),
+    amount,
+    educationalLevel: safeSchemaText(item.level, 120),
   });
 }
 
 export function educationalOrganizationSchema({ name, description, url }) {
   return stripUndefined({
     '@type': 'EducationalOrganization',
-    name,
-    description,
-    url: url?.startsWith('http') ? url : `${SITE_URL}${url || ''}`,
+    name: safeSchemaText(name, 200),
+    description: safeSchemaText(description, 500),
+    url: safeSchemaUrl(url?.startsWith('http') ? url : `${SITE_URL}${url || ''}`),
   });
 }
 
@@ -304,10 +316,10 @@ export function courseSchema(exam) {
   if (!exam) return null;
   return stripUndefined({
     '@type': 'Course',
-    name: exam.name,
-    description: exam.description || `${exam.name} exam preparation with syllabus, past papers, and quizzes.`,
+    name: safeSchemaText(exam.name, 200),
+    description: safeSchemaText(exam.description, 500),
     provider: resolveCourseProvider(exam),
-    url: exam.slug ? `${SITE_URL}/exam-prep/${exam.slug}` : `${SITE_URL}/exam-prep`,
+    url: safeSchemaUrl(exam.slug ? `${SITE_URL}/exam-prep/${encodeURIComponent(exam.slug)}` : `${SITE_URL}/exam-prep`),
   });
 }
 

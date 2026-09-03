@@ -1,4 +1,5 @@
 import { PRODUCTION_PUBLIC_ORIGIN } from './publicSiteOrigin.js';
+import { safeSchemaDate, safeSchemaUrl } from './schemaSafety.js';
 
 const MAX_TEXT = 5000;
 
@@ -69,15 +70,15 @@ export function buildEntityJsonLd(type, entity) {
       '@type': 'BlogPosting',
       headline: base.name,
       ...(entity.author ? { author: { '@type': 'Person', name: text(entity.author, 300) } } : {}),
-      ...(entity.publishedAt ? { datePublished: entity.publishedAt } : {}),
-      ...(entity.updatedAt ? { dateModified: entity.updatedAt } : {}),
+      ...(safeSchemaDate(entity.publishedAt) ? { datePublished: safeSchemaDate(entity.publishedAt) } : {}),
+      ...(safeSchemaDate(entity.updatedAt) ? { dateModified: safeSchemaDate(entity.updatedAt) } : {}),
     };
   }
   if (type === 'institution') {
     return {
       ...base,
       '@type': entity.institutionType === 'university' ? 'CollegeOrUniversity' : 'EducationalOrganization',
-      ...(entity.officialWebsite ? { sameAs: entity.officialWebsite } : {}),
+      ...(safeSchemaUrl(entity.officialWebsite) ? { sameAs: safeSchemaUrl(entity.officialWebsite) } : {}),
       ...(entity.city || entity.region || entity.countryCode ? {
         address: {
           '@type': 'PostalAddress',
@@ -94,7 +95,9 @@ export function buildEntityJsonLd(type, entity) {
       '@type': 'Course',
       ...(entity.degreeLevel ? { educationalLevel: entity.degreeLevel } : {}),
       ...(entity.institutionName ? { provider: { '@type': 'EducationalOrganization', name: entity.institutionName } } : {}),
-      ...(entity.durationMonths ? { timeRequired: `P${entity.durationMonths}M` } : {}),
+      ...(Number.isInteger(entity.durationMonths) && entity.durationMonths > 0
+        ? { timeRequired: `P${entity.durationMonths}M` }
+        : {}),
     };
   }
   if (type === 'scholarship') {

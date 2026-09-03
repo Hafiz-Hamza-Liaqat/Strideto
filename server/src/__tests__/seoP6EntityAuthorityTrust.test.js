@@ -62,7 +62,7 @@ const configStub = [
   'export { SITE_URL, SITE_NAME, DEFAULT_DESCRIPTION, DEFAULT_OG_IMAGE };',
 ].join('\n');
 
-const stripImportFrom = (source, fromPath) =>
+const _stripImportFromLegacy = (source, fromPath) =>
   source.replace(
     new RegExp(`^import\\s*(?:\\{[\\s\\S]*?\\}|[^;]+)\\s*from\\s*'${fromPath.replace(/\./g, '\\.')}';\n?`, 'm'),
     ''
@@ -70,19 +70,27 @@ const stripImportFrom = (source, fromPath) =>
 
 const entityIdsModule = entityIdsSource.replace(/^import\s*\{[\s\S]*?\}\s*from\s*'\.\/config\.js';\n?/m, '');
 
+const stripImportFrom = (source, fromPath) => source.replace(
+  new RegExp("^import(?:(?!;)[\\s\\S])*?from\\s*'" + fromPath.replace(/[^\w]/g, '\\$&') + "';\\r?\\n?", 'm'),
+  ''
+);
+
 let schemasBody = schemasSource;
 schemasBody = stripImportFrom(schemasBody, '@shared/seo/jobPostingEligibility.js');
+schemasBody = stripImportFrom(schemasBody, '../../../shared/seo/jobHtmlShell.js');
 schemasBody = stripImportFrom(schemasBody, './entityIds.js');
 schemasBody = stripImportFrom(schemasBody, '@shared/seo/organizationIdentity.js');
 schemasBody = stripImportFrom(schemasBody, './sanitize.js');
 schemasBody = stripImportFrom(schemasBody, './config.js');
+schemasBody = stripImportFrom(schemasBody, '../../../shared/seo/schemaSafety.js');
 schemasBody = schemasBody.replace(/^export\s*\{[\s\S]*?\}\s*from\s*'\.\/entityIds\.js';\n?/m, '');
 
 const sanitizeImport = `import { sanitizeJsonLdString } from '${fileUrl('client/src/seo/sanitize.js')}';\n`;
 const identityImport = `import { ORGANIZATION_PUBLIC_NAME, ORGANIZATION_PUBLIC_DESCRIPTION, organizationPublicSameAs } from '${fileUrl('shared/seo/organizationIdentity.js')}';\n`;
 const jobImport = `import { JOB_POSTING_SURFACES, evaluateJobPostingEligibility, isFullyRemoteJob, jobPostingCountry } from '${fileUrl('shared/seo/jobPostingEligibility.js')}';\n`;
+const safetyImport = `import { safeSchemaDate, safeSchemaMonetaryValue, safeSchemaText, safeSchemaUrl } from '${fileUrl('shared/seo/schemaSafety.js')}';\n`;
 
-const schemasBundled = `${configStub}\n${entityIdsModule}\n${sanitizeImport}${identityImport}${jobImport}${schemasBody}`;
+const schemasBundled = `${configStub}\n${entityIdsModule}\n${sanitizeImport}${identityImport}${jobImport}${safetyImport}${schemasBody}`;
 
 const schemasModule = await import(
   `data:text/javascript;base64,${Buffer.from(schemasBundled, 'utf8').toString('base64')}`
@@ -220,3 +228,7 @@ console.log(`seoP6EntityAuthorityTrust: ${count} checks passed`);
 if (count < 55) {
   throw new Error(`Expected at least 55 checks, got ${count}`);
 }
+const _stripImportFromUnused = (source, fromPath) => source.replace(
+  new RegExp("^import(?:(?!;)[\\s\\S])*?from\\s*'" + fromPath.replace(/[^\\w]/g, '\\\\$&') + "';\\r?\\n?", 'm'),
+  ''
+);

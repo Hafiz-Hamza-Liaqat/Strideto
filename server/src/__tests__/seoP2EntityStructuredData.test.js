@@ -73,6 +73,10 @@ const schemasModule = await import(
         `'${fileUrl('shared/seo/jobPostingEligibility.js')}'`
       )
       .replace(
+        /'\.\.\/\.\.\/\.\.\/shared\/seo\/schemaSafety\.js'/,
+        `'${fileUrl('shared/seo/schemaSafety.js')}'`
+      )
+      .replace(
         /'@shared\/jobs\/jobSkills\.js'/,
         `'${fileUrl('shared/jobs/jobSkills.js')}'`
       )
@@ -549,5 +553,55 @@ check(
   !JSON.stringify(courseNoProvider).includes('Strideto'),
   'SEO-P2-PROVIDER-10: missing-provider course JSON-LD has no Strideto provider fabrication'
 );
+
+// ---------------------------------------------------------------------------
+// P8-B3 — factual field normalization
+// ---------------------------------------------------------------------------
+const freeTextAmount = scholarshipSchema({
+  title: 'Global Award',
+  slug: 'global-award',
+  provider: 'Global Foundation',
+  amount: 'Fully funded / amount varies',
+  deadline: '2027-04-01',
+});
+check(!freeTextAmount.amount, 'P8-B3-S1: free-text amount emits no monetary schema');
+check(freeTextAmount.provider?.name === 'Global Foundation', 'P8-B3-S4: scholarship provider remains factual');
+check(freeTextAmount.applicationDeadline === '2027-04-01T00:00:00.000Z', 'P8-B3-S4: valid scholarship deadline remains factual');
+check(freeTextAmount.url === `${ORIGIN}/scholarships/global-award`, 'P8-B3-S4: scholarship canonical URL remains production-owned');
+
+const amountWithoutCurrency = scholarshipSchema({
+  title: 'Unpriced Award', slug: 'unpriced-award', amount: '1000', currency: undefined,
+});
+check(!amountWithoutCurrency.amount, 'P8-B3-S2: amount without explicit currency is omitted');
+
+const explicitMoney = scholarshipSchema({
+  title: 'Explicit Award', slug: 'explicit-award', amount: 1000, currency: 'usd',
+});
+check(explicitMoney.amount?.currency === 'USD' && explicitMoney.amount?.value === 1000, 'P8-B3-S3: explicit numeric amount and currency are normalized');
+check(!JSON.stringify(freeTextAmount).includes('_id'), 'P8-B3-S5: scholarship JSON-LD has no internal ID');
+
+const malformedSource = scholarshipSchema({
+  title: 'Bad Link Award', slug: 'bad-link-award', link: 'javascript:alert(1)',
+});
+check(!malformedSource.url?.includes('javascript'), 'P8-B3-S6: malformed scholarship URL cannot enter JSON-LD');
+
+const invalidBlogImage = blogPostingSchema({
+  title: 'Invalid image', slug: 'invalid-image', imageUrl: 'javascript:alert(1)', publishedAt: 'not-a-date',
+});
+check(!invalidBlogImage.image, 'P8-B3-B3: invalid Blog image is omitted');
+check(!invalidBlogImage.datePublished && !invalidBlogImage.dateModified, 'P8-B3-B5: invalid Blog dates are omitted');
+const validBlogImage = blogPostingSchema({
+  title: 'Valid image', slug: 'valid-image', imageUrl: 'https://cdn.example.test/blog.png',
+  author: 'Public Author', publishedAt: '2026-01-01', updatedAt: '2026-02-01',
+});
+check(validBlogImage.image === 'https://cdn.example.test/blog.png', 'P8-B3-B4: valid public Blog image is emitted');
+check(validBlogImage.author?.name === 'Public Author', 'P8-B3-B2: Blog author is display identity only');
+check(validBlogImage.datePublished === '2026-01-01T00:00:00.000Z', 'P8-B3-B5: valid Blog publication date is emitted');
+check(!JSON.stringify(validBlogImage).includes('_id'), 'P8-B3-B6: Blog JSON-LD has no internal fields');
+
+const courseWithoutDescription = courseSchema({ name: 'Factual Course', slug: 'factual-course', durationMonths: '12' });
+check(courseWithoutDescription.description === undefined, 'P8-B3-P2/P4: Course omits unsupported marketing fallback copy');
+check(!courseWithoutDescription.timeRequired, 'P8-B3-P2: ambiguous duration is omitted');
+check(courseSchema({ name: 'Factual Course', slug: 'factual-course', durationMonths: 12 }).url === `${ORIGIN}/exam-prep/factual-course`, 'P8-B3-P5: Course URL remains production-owned');
 
 console.log(`seoP2EntityStructuredData: ${count} checks passed`);
