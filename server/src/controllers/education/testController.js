@@ -17,6 +17,10 @@ import { sanitizeString } from '../../utils/sanitize.js';
 import {
   projectPublicCanonicalInstitution,
   projectPublicProgram,
+  projectPublicTest,
+  projectPublicTestAlert,
+  projectPublicTestPrepGuide,
+  projectPublicTestResource,
 } from '../../../../shared/publicDiscovery/projectPublicDiscovery.js';
 import { withFixtureExclusion } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 import { isTestPubliclyPromotable } from '../../../../shared/education/testPublicationPolicy.js';
@@ -60,7 +64,7 @@ export const listTests = asyncHandler(async (req, res) => {
   ]);
 
   const eligibleData = rawData.filter((test) => isTestPubliclyPromotable(test));
-  const data = eligibleData.slice(skip, skip + limit);
+  const data = eligibleData.slice(skip, skip + limit).map(projectPublicTest);
   const total = eligibleData.length;
   res.json({ data, total, page, limit, pages: Math.ceil(total / limit) });
 });
@@ -104,7 +108,7 @@ export const compareTests = asyncHandler(async (req, res) => {
 
   res.json({
     data: eligible.map((test) => ({
-      ...test,
+      ...projectPublicTest(test),
       prepGuideAvailable: guideIds.has(String(test._id)),
       resourceCount: resourceCounts.get(String(test._id)) || 0,
       verifiedAcceptanceCount: acceptanceByTest.get(String(test._id)) || 0,
@@ -139,7 +143,12 @@ export const getTest = asyncHandler(async (req, res) => {
       .lean(),
   ]);
 
-  res.json({ test, prepGuide: prepGuide || null, resources, alerts });
+  res.json({
+    test: projectPublicTest(test),
+    prepGuide: projectPublicTestPrepGuide(prepGuide),
+    resources: resources.map(projectPublicTestResource).filter(Boolean),
+    alerts: alerts.map(projectPublicTestAlert).filter(Boolean),
+  });
 });
 
 export const getTestPrepGuide = asyncHandler(async (req, res) => {
@@ -151,7 +160,7 @@ export const getTestPrepGuide = asyncHandler(async (req, res) => {
   const guide = await TestPrepGuide.findOne({ testId: test._id, status: 'published' }).lean();
   if (!guide) return res.status(404).json({ error: 'Preparation guide not found' });
 
-  res.json(guide);
+  res.json(projectPublicTestPrepGuide(guide));
 });
 
 export const getTestResources = asyncHandler(async (req, res) => {
@@ -169,7 +178,7 @@ export const getTestResources = asyncHandler(async (req, res) => {
     .sort({ trustLevel: 1, resourceType: 1, title: 1 })
     .lean();
 
-  res.json({ data });
+  res.json({ data: data.map(projectPublicTestResource).filter(Boolean) });
 });
 
 export const getTestAlerts = asyncHandler(async (req, res) => {
@@ -186,7 +195,7 @@ export const getTestAlerts = asyncHandler(async (req, res) => {
     .sort({ importance: -1, effectiveDate: -1 })
     .lean();
 
-  res.json({ data });
+  res.json({ data: data.map(projectPublicTestAlert).filter(Boolean) });
 });
 
 // ── Providers ────────────────────────────────────────────────────────────────

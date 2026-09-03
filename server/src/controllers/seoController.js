@@ -49,6 +49,7 @@ import { withFixtureExclusion } from '../../../shared/publicDiscovery/fixtureExc
 import { listEligibleMarketplaceSitemapPaths } from '../services/gbs/gbsMarketplaceService.js';
 import { isTestPubliclyPromotable } from '../../../shared/education/testPublicationPolicy.js';
 import { publicHttpUrlOrNull } from '../../../shared/publicDiscovery/safePublicUrl.js';
+import { projectPublicBlog, projectPublicTest } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 
 const NON_JOB_SEO_TYPES = new Set(['scholarship', 'blog', 'institution', 'test', 'program']);
 
@@ -102,21 +103,22 @@ export const getSeoEntityBySlug = asyncHandler(async (req, res) => {
     };
   } else if (type === 'blog') {
     const doc = await findLocalizedBySlug(Blog, slug, { status: 'published' }, getRequestLocale(req));
-    if (doc) entity = {
+    const blog = projectPublicBlog(doc);
+    if (blog) entity = {
       type,
-      slug: doc.slug,
-      title: doc.title,
-      excerpt: doc.excerpt || '',
-      description: doc.excerpt || '',
-      seoTitle: doc.seoTitle || '',
-      metaDescription: doc.metaDescription || '',
-      author: doc.authorName || (doc.author && typeof doc.author === 'object' ? doc.author.name : ''),
-      publishedAt: doc.publishedAt,
-      updatedAt: doc.updatedAt,
+      slug: blog.slug,
+      title: blog.title,
+      excerpt: blog.excerpt,
+      description: blog.excerpt,
+      seoTitle: blog.seoTitle,
+      metaDescription: blog.metaDescription,
+      author: blog.authorDisplay || '',
+      publishedAt: blog.publishedAt,
+      updatedAt: blog.updatedAt,
       facts: seoFacts(
-        { label: 'Category', value: doc.category },
-        { label: 'Author', value: doc.authorName || (doc.author && typeof doc.author === 'object' ? doc.author.name : '') },
-        { label: 'Published', value: doc.publishedAt },
+        { label: 'Category', value: blog.category },
+        { label: 'Author', value: blog.authorDisplay },
+        { label: 'Published', value: blog.publishedAt },
       ),
     };
   } else if (type === 'institution') {
@@ -146,18 +148,19 @@ export const getSeoEntityBySlug = asyncHandler(async (req, res) => {
       .populate('providerId', 'name officialWebsite status')
       .select('slug name shortName category description overview purposes deliveryModes totalDurationMinutes scoreScale officialWebsite providerId status')
       .lean();
-    if (doc && isTestPubliclyPromotable(doc)) entity = {
+    const test = projectPublicTest(doc);
+    if (test && isTestPubliclyPromotable(doc)) entity = {
       type,
-      slug: doc.slug,
-      name: doc.name,
-      description: doc.description || doc.overview || '',
-      provider: doc.providerId?.name || '',
+      slug: test.slug,
+      name: test.name,
+      description: test.description || test.overview || '',
+      provider: test.providerId?.name || '',
       facts: seoFacts(
-        { label: 'Provider', value: doc.providerId?.name },
-        { label: 'Purpose', value: Array.isArray(doc.purposes) ? doc.purposes.join(', ') : '' },
-        { label: 'Format', value: Array.isArray(doc.deliveryModes) ? doc.deliveryModes.join(', ') : '' },
-        { label: 'Score scale', value: doc.scoreScale },
-        { label: 'Duration', value: doc.totalDurationMinutes ? `${doc.totalDurationMinutes} minutes` : '' },
+        { label: 'Provider', value: test.providerId?.name },
+        { label: 'Purpose', value: Array.isArray(test.purposes) ? test.purposes.join(', ') : '' },
+        { label: 'Format', value: Array.isArray(test.deliveryModes) ? test.deliveryModes.join(', ') : '' },
+        { label: 'Score scale', value: test.scoreScale },
+        { label: 'Duration', value: test.totalDurationMinutes ? `${test.totalDurationMinutes} minutes` : '' },
       ),
     };
   } else if (type === 'program') {

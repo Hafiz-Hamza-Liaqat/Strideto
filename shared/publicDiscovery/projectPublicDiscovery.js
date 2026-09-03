@@ -356,3 +356,142 @@ export function publicSearchMetadata(metadata = {}) {
   const { adminEditUrl: _admin, ...rest } = metadata;
   return rest;
 }
+
+/** Public Blog DTOs. `_id` remains only for existing UI telemetry and keys. */
+export function projectPublicBlogAuthor(blog = {}) {
+  const name = blog.authorName || (blog.author && typeof blog.author === 'object' ? blog.author.name : '');
+  return typeof name === 'string' && name.trim() ? name.trim() : undefined;
+}
+
+export function projectPublicBlogListItem(blog) {
+  if (!blog) return null;
+  return {
+    _id: blog._id,
+    title: blog.title,
+    slug: blog.slug,
+    excerpt: blog.excerpt || '',
+    category: blog.category || '',
+    tags: Array.isArray(blog.tags) ? blog.tags : [],
+    publishedAt: blog.publishedAt || null,
+    updatedAt: blog.updatedAt || null,
+    createdAt: blog.createdAt || null,
+    canonicalUrl: blog.canonicalUrl || null,
+    authorDisplay: projectPublicBlogAuthor(blog),
+    imageUrl: blog.imageUrl || null,
+    imageAlt: blog.imageAlt || '',
+    readingTime: blog.readingTime ?? null,
+  };
+}
+
+export function projectPublicBlog(blog) {
+  if (!blog) return null;
+  return {
+    ...projectPublicBlogListItem(blog),
+    content: blog.content || '',
+    seoTitle: blog.seoTitle || '',
+    metaDescription: blog.metaDescription || '',
+    ogImageUrl: blog.ogImageUrl || null,
+    gallery: Array.isArray(blog.gallery) ? blog.gallery : [],
+    isFeatured: blog.isFeatured === true,
+  };
+}
+
+function projectPublicTestProvider(provider) {
+  if (!provider || typeof provider !== 'object') return null;
+  return {
+    name: provider.name || '',
+    slug: provider.slug || '',
+    officialWebsite: publicHttpUrlOrNull(provider.officialWebsite),
+    registrationUrl: publicHttpUrlOrNull(provider.registrationUrl),
+  };
+}
+
+function projectPublicEvidence(evidence) {
+  if (!evidence || typeof evidence !== 'object') return null;
+  return {
+    sourceType: evidence.sourceType || '',
+    sourceUrl: publicHttpUrlOrNull(evidence.sourceUrl),
+    publisher: evidence.publisher || '',
+    retrievedAt: evidence.retrievedAt || null,
+    verifiedAt: evidence.verifiedAt || null,
+  };
+}
+
+/** Public Test DTO. `_id` remains for existing collection/detail UI keys. */
+export function projectPublicTest(test) {
+  if (!test) return null;
+  return {
+    _id: test._id,
+    stableId: test.stableId || '',
+    slug: test.slug,
+    name: test.name,
+    shortName: test.shortName || '',
+    category: test.category,
+    providerId: projectPublicTestProvider(test.providerId),
+    description: test.description || '',
+    overview: test.overview || '',
+    purposes: Array.isArray(test.purposes) ? test.purposes : [],
+    countryCodes: Array.isArray(test.countryCodes) ? test.countryCodes : [],
+    deliveryModes: Array.isArray(test.deliveryModes) ? test.deliveryModes : [],
+    sections: Array.isArray(test.sections) ? test.sections.map((section) => ({
+      name: section.name || '',
+      description: section.description || '',
+      durationMinutes: section.durationMinutes ?? null,
+      weight: section.weight || '',
+    })) : [],
+    totalDurationMinutes: test.totalDurationMinutes ?? null,
+    scoreScale: test.scoreScale || '',
+    validityMonths: test.validityMonths ?? null,
+    registrationUrl: publicHttpUrlOrNull(test.registrationUrl),
+    officialWebsite: publicHttpUrlOrNull(test.officialWebsite),
+    sources: Array.isArray(test.sources) ? test.sources.map(projectPublicEvidence).filter(Boolean) : [],
+  };
+}
+
+export function projectPublicTestPrepGuide(guide) {
+  if (!guide) return null;
+  return {
+    title: guide.title || '',
+    overview: guide.overview || '',
+    prepSequence: Array.isArray(guide.prepSequence) ? guide.prepSequence.map((step) => ({ order: step.order, title: step.title || '', description: step.description || '' })) : [],
+    recommendedDurationMinWeeks: guide.recommendedDurationMinWeeks ?? null,
+    recommendedDurationMaxWeeks: guide.recommendedDurationMaxWeeks ?? null,
+    sectionPrep: Array.isArray(guide.sectionPrep) ? guide.sectionPrep.map((section) => ({ sectionName: section.sectionName || '', tips: Array.isArray(section.tips) ? section.tips : [] })) : [],
+    testDayGuidance: guide.testDayGuidance || '',
+    registrationGuidance: guide.registrationGuidance || '',
+    sources: Array.isArray(guide.sources) ? guide.sources.map(projectPublicEvidence).filter(Boolean) : [],
+  };
+}
+
+export function projectPublicTestResource(resource) {
+  if (!resource) return null;
+  return {
+    _id: resource._id,
+    provider: resource.provider || '',
+    title: resource.title || '',
+    url: publicHttpUrlOrNull(resource.url),
+    resourceType: resource.resourceType,
+    trustLevel: resource.trustLevel,
+    isFree: resource.isFree === true,
+    isPaid: resource.isPaid === true,
+    platformType: resource.platformType || '',
+    description: resource.description || '',
+    sources: Array.isArray(resource.sources) ? resource.sources.map(projectPublicEvidence).filter(Boolean) : [],
+  };
+}
+
+export function projectPublicTestAlert(alert) {
+  if (!alert) return null;
+  return {
+    _id: alert._id,
+    title: alert.title || '',
+    alertType: alert.alertType,
+    effectiveDate: alert.effectiveDate || null,
+    startDate: alert.startDate || null,
+    endDate: alert.endDate || null,
+    countryCodes: Array.isArray(alert.countryCodes) ? alert.countryCodes : [],
+    officialSourceUrl: publicHttpUrlOrNull(alert.officialSourceUrl),
+    importance: alert.importance,
+    sources: Array.isArray(alert.sources) ? alert.sources.map(projectPublicEvidence).filter(Boolean) : [],
+  };
+}

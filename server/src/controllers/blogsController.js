@@ -10,15 +10,13 @@ import {
   findLocalizedById,
   isObjectIdParam,
 } from '../utils/localeQuery.js';
+import {
+  projectPublicBlog,
+  projectPublicBlogListItem,
+} from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
-
-function projectPublicBlogAuthor(blog) {
-  if (blog.authorName) return blog.authorName;
-  if (blog.author && typeof blog.author === 'object' && blog.author.name) return blog.author.name;
-  return undefined;
-}
 
 function buildQuery(q) {
   const filter = { status: 'published' };
@@ -44,10 +42,7 @@ export const getBlogs = asyncHandler(async (req, res) => {
     Blog.find(query).sort(sort).skip(skip).limit(limit).populate('author', 'name').lean(),
     Blog.countDocuments(query),
   ]);
-  const data = rows.map((row) => ({
-    ...row,
-    authorDisplay: projectPublicBlogAuthor(row),
-  }));
+  const data = rows.map(projectPublicBlogListItem);
   res.json(listResponse(data, paginate(page, limit, total), req.query));
 });
 
@@ -96,10 +91,8 @@ export const getBlogByIdOrSlug = asyncHandler(async (req, res) => {
   });
   await Blog.findByIdAndUpdate(blog._id, { $inc: { views: 1 } });
   res.json({
-    ...blog,
-    views: (blog.views || 0) + 1,
-    authorDisplay: projectPublicBlogAuthor(blog),
-    relatedPosts: relatedResult.items,
+    ...projectPublicBlog(blog),
+    relatedPosts: relatedResult.items.map(projectPublicBlogListItem).filter(Boolean),
     relatedPostsMeta: {
       relation: relatedResult.relation,
       usedFallback: relatedResult.usedFallback,
