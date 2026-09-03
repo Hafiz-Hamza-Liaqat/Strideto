@@ -83,10 +83,40 @@ test('C3B-01 through C3B-06: contextual entity and location intent is parsed', (
 test('C3B-07 through C3B-12: explicit filters and safe fallback contracts remain', () => {
   const service = read('server/src/services/search/SearchIndexService.js');
   assert.match(service, /!params\.types\?\.length \? resolveSearchIntent/);
-  assert.match(service, /intent\?\.contextual && !params\.country/);
+  assert.match(service, /intent\?\.contextual/);
   assert.match(service, /buildLocationFilter/);
   assert.match(service, /clampPublicSearchTypes/);
   assert.equal(resolveSearchIntent('jobs in zzqxv987xyz').entityTypes[0], 'job');
   assert.equal(resolveSearchIntent('Master of Information Technology').entityTypes, null);
   assert.deepEqual(resolveSearchIntent('jobs').entityTypes, ['job']);
+});
+
+test('C3C-04 through C3C-08: common Job role phrases retain the role query', () => {
+  for (const query of [
+    'jobs of software engineer',
+    'jobs for software engineer',
+    'software engineer jobs',
+    'software engineering jobs',
+  ]) {
+    const intent = resolveSearchIntent(query);
+    assert.deepEqual(intent.entityTypes, ['job'], query);
+    assert.match(intent.roleQuery, /software engineer/);
+    assert.equal(intent.contextual, true);
+  }
+  const combined = resolveSearchIntent('jobs for software engineers in canada');
+  assert.deepEqual(combined.entityTypes, ['job']);
+  assert.equal(combined.roleQuery, 'software engineers');
+  assert.equal(combined.locationText, 'canada');
+  assert.equal(resolveSearchIntent('how to get a software engineering job').entityTypes, null);
+  assert.equal(resolveSearchIntent('job interview guide').entityTypes, null);
+});
+
+test('C3C-01 through C3C-03 and C3C-09: country context is strict and explicit filters remain separate', () => {
+  const service = read('server/src/services/search/SearchIndexService.js');
+  assert.match(service, /if \(LOCATION_ALIASES\.has/);
+  assert.match(service, /return \{ country: re \}/);
+  assert.match(service, /if \(intent\.locationText && !params\.country\)/);
+  assert.match(service, /options\.country/);
+  assert.equal(resolveSearchIntent('jobs in canada').locationIsKnownCountry, true);
+  assert.equal(resolveSearchIntent('jobs in nonexistent-location').locationIsKnownCountry, false);
 });

@@ -16,7 +16,7 @@ import {
   searchCacheSet,
 } from './searchCache.js';
 import { withLaunchSearchFilter } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
-import { resolveSearchIntent } from '../../../../shared/search/queryIntent.js';
+import { resolveSearchIntent, LOCATION_ALIASES } from '../../../../shared/search/queryIntent.js';
 
 function buildMongoFilter(params) {
   const filter = {};
@@ -54,6 +54,9 @@ function buildTextFilter(q) {
 function buildLocationFilter(locationText, aliases = []) {
   const terms = aliases.length ? aliases : [locationText];
   const re = new RegExp(terms.map((term) => String(term).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'i');
+  if (LOCATION_ALIASES.has(String(locationText || '').toLowerCase())) {
+    return { country: re };
+  }
   return {
     $or: [
       { country: re },
@@ -119,8 +122,11 @@ export async function searchIndex(params, options = {}) {
   if (cached) return { ...cached, elapsedTime: Date.now() - started, cached: true };
 
   const filter = { ...buildMongoFilter(params) };
-  if (intent?.contextual && !params.country) {
-    filter.$and = [buildLocationFilter(intent.locationText, intent.locationAliases)];
+  if (intent?.contextual) {
+    const contextualFilters = [];
+    if (intent.locationText && !params.country) contextualFilters.push(buildLocationFilter(intent.locationText, intent.locationAliases));
+    if (intent.roleQuery) contextualFilters.push(buildTextFilter(intent.roleQuery));
+    if (contextualFilters.length) filter.$and = contextualFilters;
   } else if (!intent?.entityTypes) Object.assign(filter, buildTextFilter(params.q));
 
   let types = params.types?.length ? params.types : (intent?.entityTypes || null);
@@ -137,8 +143,8 @@ export async function searchIndex(params, options = {}) {
   }
 
   const candidates = await SearchDocument.find(filter).limit(500).lean();
-  const rankingQuery = intent?.contextual && !params.country
-    ? intent.locationText
+  const rankingQuery = intent?.contextual
+    ? (intent.roleQuery || (params.country ? '' : intent.locationText))
     : (intent?.entityTypes ? '' : params.q);
   const ranked = rankingQuery
     ? rankSearchResults(candidates, rankingQuery, params.sort)
@@ -189,14 +195,17 @@ export async function searchSuggestions(q, options = {}) {
   };
 
   const filter = { ...buildMongoFilter(params) };
-  if (intent?.contextual && !params.country) {
-    filter.$and = [buildLocationFilter(intent.locationText, intent.locationAliases)];
+  if (intent?.contextual) {
+    const contextualFilters = [];
+    if (intent.locationText && !params.country) contextualFilters.push(buildLocationFilter(intent.locationText, intent.locationAliases));
+    if (intent.roleQuery) contextualFilters.push(buildTextFilter(intent.roleQuery));
+    if (contextualFilters.length) filter.$and = contextualFilters;
   } else if (!intent?.entityTypes) Object.assign(filter, buildTextFilter(q));
   filter.entityType = { $in: intent?.entityTypes || (explicitTypes.length ? explicitTypes : SUGGESTION_ENTITY_TYPES) };
 
   const candidates = await SearchDocument.find(filter).limit(100).lean();
-  const rankingQuery = intent?.contextual && !params.country
-    ? intent.locationText
+  const rankingQuery = intent?.contextual
+    ? (intent.roleQuery || (params.country ? '' : intent.locationText))
     : (intent?.entityTypes ? '' : q);
   const ranked = rankSearchResults(candidates, rankingQuery, 'relevance');
 
