@@ -70,6 +70,16 @@ try {
   assert.equal(failed.statusCode, 502);
   assert.equal(failed.headers['Cache-Control'], 'no-store');
 
+  globalThis.fetch = async (url) => {
+    if (String(url).endsWith('/index.html')) return response(200, '<!doctype html><html><head><link rel="stylesheet" href="/_next/static/test.css"></head><body><h1>Log in to Vercel</h1><a href="/sso-api">Continue</a></body></html>');
+    return response(200, JSON.stringify({ type: 'blog', slug: 'safe-post', title: 'Should not render' }));
+  };
+  const protectedShell = mockRes();
+  await handler({ method: 'GET', query: { type: 'blog', slug: 'safe-post' } }, protectedShell);
+  assert.equal(protectedShell.statusCode, 502);
+  assert.equal(protectedShell.headers['Cache-Control'], 'no-store');
+  assert.doesNotMatch(protectedShell.body, /rel="canonical"|seo-discovery|application\/ld\+json/);
+
   for (const type of ['scholarship', 'institution', 'test', 'program']) {
     globalThis.fetch = async (url) => {
       if (String(url).endsWith('/index.html')) return response(200, baseHtml);
@@ -132,6 +142,14 @@ try {
   assert.equal(readFileSync(new URL('../../../client/api/seo/jobs.js', import.meta.url), 'utf8').includes("req.query?.slug"), true);
   assert.equal(readFileSync(new URL('../../../client/api/seo/entity.js', import.meta.url), 'utf8').includes("req.query?.type"), true);
   assert.equal(readFileSync(new URL('../../../client/api/seo/entity.js', import.meta.url), 'utf8').includes("req.query?.slug"), true);
+  const shellHelper = readFileSync(new URL('../../../client/api/seo/_shared/publicSpaShell.js', import.meta.url), 'utf8');
+  assert.match(shellHelper, /PRODUCTION_PUBLIC_ORIGIN/);
+  assert.match(shellHelper, /PUBLIC_SPA_SHELL_URL = `\$\{PRODUCTION_PUBLIC_ORIGIN\}\/index\.html`/);
+  assert.ok(shellHelper.includes('\\bid\\s*=\\s*["\']root'), 'root marker validation');
+  assert.ok(shellHelper.includes('\\/assets\\/'), 'Vite asset marker validation');
+  assert.ok(shellHelper.includes('\\/_next\\/'), 'Next marker rejection');
+  assert.match(shellHelper, /sso-api/);
+  assert.doesNotMatch(shellHelper, /VERCEL_URL|VERCEL_PROJECT_PRODUCTION_URL|x-forwarded-host|req\.headers\.host/);
   assert.equal(existsSync(new URL('../../../client/api/seo/jobs/[slug].js', import.meta.url)), false, 'obsolete dynamic Job handler removed');
   assert.equal(existsSync(new URL('../../../client/api/seo/entity/[type]/[slug].js', import.meta.url)), false, 'obsolete dynamic Entity handler removed');
   const seoController = readFileSync(new URL('../controllers/seoController.js', import.meta.url), 'utf8');

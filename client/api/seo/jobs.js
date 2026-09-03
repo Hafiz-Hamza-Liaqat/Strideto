@@ -1,16 +1,9 @@
 /* global process */
 
 import { renderJobShell, renderSeoShell } from '../../../shared/seo/jobHtmlShell.js';
+import { fetchPublicSpaShell } from './_shared/publicSpaShell.js';
 
 const API_ORIGIN = (process.env.STRIDETO_PUBLIC_API_ORIGIN || 'https://api.strideto.com').replace(/\/$/, '');
-
-function requestOrigin() {
-  const host = process.env.VERCEL_URL
-    || process.env.VERCEL_BRANCH_URL
-    || process.env.VERCEL_PROJECT_PRODUCTION_URL
-    || 'www.strideto.com';
-  return `https://${String(host).replace(/^https?:\/\//, '').replace(/\/$/, '')}`;
-}
 
 async function fetchWithTimeout(url, options, timeoutMs = 5000) {
   return fetch(url, { ...options, signal: AbortSignal.timeout(timeoutMs) });
@@ -33,20 +26,14 @@ export async function handler(req, res) {
   const slug = String(req.query?.slug || '').trim();
   if (!slug || /[\\/?#]/.test(slug)) return res.status(404).end('Not Found');
 
-  const origin = requestOrigin();
   const [shellResult, jobResult] = await Promise.allSettled([
-    fetchWithTimeout(`${origin}/index.html`, { headers: { accept: 'text/html' } }),
+    fetchPublicSpaShell(),
     fetchWithTimeout(`${API_ORIGIN}/api/seo/jobs/${encodeURIComponent(slug)}`, { headers: { accept: 'application/json' } }),
   ]);
   if (shellResult.status === 'rejected') {
-    res.statusCode = 502;
-    return res.end('Job page temporarily unavailable');
+    return writeShell(res, 'Job page temporarily unavailable', 502, 'no-store');
   }
-  const shellResponse = shellResult.value;
-  const baseHtml = await shellResponse.text();
-  if (!shellResponse.ok) {
-    return writeShell(res, baseHtml, 502, 'public, s-maxage=30, stale-while-revalidate=60');
-  }
+  const baseHtml = shellResult.value;
 
   if (jobResult.status === 'rejected') {
     return writeShell(res, baseHtml, 502, 'public, s-maxage=30, stale-while-revalidate=60');
