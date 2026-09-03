@@ -12,6 +12,8 @@ import { TalentProfile } from '../models/career/TalentProfile.js';
 import { CanonicalScholarship } from '../models/education/CanonicalScholarship.js';
 import { ScholarshipCycle as _ScholarshipCycle } from '../models/education/ScholarshipCycle.js';
 import { Program } from '../models/education/Program.js';
+import { CanonicalInstitution } from '../models/education/CanonicalInstitution.js';
+import { UserChecklist } from '../models/action/UserChecklist.js';
 import { ProgramRequirement } from '../models/education/ProgramRequirement.js';
 import { TestAcceptance } from '../models/education/TestAcceptance.js';
 import { Test } from '../models/education/Test.js';
@@ -39,6 +41,8 @@ import {
 } from '../../../shared/education/eligibilityEngine.js';
 import { PROGRAM_REQUIREMENT_TYPES, REQUIREMENT_SEMANTICS } from '../../../shared/education/scholarshipIntelligence.js';
 import { FRESHNESS_STATES } from '../../../shared/trust/sourceVerification.js';
+import { buildStudentContextSummary, buildReadinessPlan, buildApplicationReadiness, summarizeGuidanceFreshness } from '../../../shared/education/studentGuidance.js';
+import { isCanonicalInstitutionDetailEligible, resolveInstitutionDetailPath } from '../../../shared/seo/entityDetailSeoPolicy.js';
 
 const PUB_PUBLISHED = 'published';
 
@@ -466,6 +470,107 @@ export async function getProfileGapAnalysis(userId) {
   }
 
   return { gaps };
+}
+
+function projectGuidanceRecommendation(recommendation, type) {
+  const opportunity = recommendation?.opportunity || {};
+  const id = opportunity._id != null ? String(opportunity._id) : null;
+  const slug = opportunity.slug || null;
+  const url = type === 'program' && slug ? `/program-explorer/${slug}`
+    : type === 'scholarship' && slug ? `/scholarships/${slug}` : null;
+  return {
+    id, title: opportunity.name || opportunity.title || null, slug, url,
+    country: opportunity.country || null, field: opportunity.field || null,
+    degreeLevel: opportunity.degreeLevel || null,
+    eligibility: recommendation.eligibility || { state: 'insufficient_information' },
+    match: recommendation.match ? { score: recommendation.match.score, note: recommendation.match.note } : null,
+    reasons: Array.isArray(recommendation.whyRecommended) ? recommendation.whyRecommended.slice(0, 3) : [],
+    gaps: Array.isArray(recommendation.gaps) ? recommendation.gaps.slice(0, 5) : [],
+    evaluatedAt: recommendation.evaluatedAt || null,
+  };
+}
+
+async function recommendCanonicalInstitutions(profile, limit = 5) {
+  const snap = buildProfileSnapshot(profile);
+  const goals = (snap.studyGoals || []).filter((goal) => goal.status === 'active' || goal.status == null);
+  const preferences = snap.studentPreferences || {};
+  const destinations = [...new Set([
+    ...goals.flatMap((goal) => goal.destinationCountries || []),
+    ...(preferences.destinationCountries || []),
+  ].map((country) => String(country).trim().toUpperCase()).filter(Boolean))];
+  const filter = { status: 'published', isFixture: { $ne: true }, demoOnly: { $ne: true } };
+  if (destinations.length) filter.countryCode = { $in: destinations };
+  const institutions = await CanonicalInstitution.find(filter).sort({ officialName: 1 }).limit(Math.min(20, Math.max(1, limit * 3))).lean();
+  const ids = institutions.map((institution) => institution._id);
+  const counts = ids.length
+    ? await Program.aggregate([{ $match: { institutionId: { $in: ids }, status: PUB_PUBLISHED, isFixture: { $ne: true } } }, { $group: { _id: '$institutionId', count: { $sum: 1 } } }])
+    : [];
+  const countById = new Map(counts.map((row) => [String(row._id), row.count]));
+  return institutions
+    .filter((institution) => isCanonicalInstitutionDetailEligible(institution, { programCount: countById.get(String(institution._id)) || 0 }))
+    .map((institution) => {
+      const programCount = countById.get(String(institution._id)) || 0;
+      const destinationMatch = destinations.includes(String(institution.countryCode || '').toUpperCase());
+      const reasons = [];
+      if (destinationMatch) reasons.push('matches a preferred destination');
+      if (programCount) reasons.push(`has ${programCount} published program${programCount === 1 ? '' : 's'}`);
+      return {
+        id: String(institution._id), title: institution.officialName, slug: institution.slug,
+        url: resolveInstitutionDetailPath(institution), country: institution.countryCode,
+        city: institution.city || null, institutionType: institution.institutionType,
+        programCount, reasons: reasons.slice(0, 3), evidence: {
+          publishedProgramCount: programCount,
+          publicProfileEligible: true,
+        },
+      };
+    })
+    .sort((a, b) => (b.reasons.length - a.reasons.length) || a.title.localeCompare(b.title))
+    .slice(0, limit);
+}
+
+export async function getStudentGuidance(userId) {
+  const profile = await loadProfileForUser(userId);
+  if (!profile) return { error: 'profile_not_found' };
+  const [programs, scholarships, gapResult, institutions] = await Promise.all([
+    recommendPrograms(userId, { page: 1, limit: 5 }),
+    recommendScholarships(userId, { page: 1, limit: 5 }),
+    getProfileGapAnalysis(userId),
+    recommendCanonicalInstitutions(profile, 5),
+  ]);
+  const [{ getActionDashboard }, { DocumentService }] = await Promise.all([
+    import('./actionEngineService.js'),
+    import('./career/DocumentService.js'),
+  ]);
+  const [journey, documents] = await Promise.all([
+    getActionDashboard(userId),
+    DocumentService.listForUser(userId, { parentType: 'talent_profile' }),
+  ]);
+  const checklistIds = (journey.activeApplications || []).map((application) => application.checklistId).filter(Boolean);
+  const checklists = checklistIds.length ? await UserChecklist.find({ _id: { $in: checklistIds }, userId }).select('items').lean() : [];
+  const gaps = gapResult.gaps || [];
+  const context = buildStudentContextSummary(profile);
+  const records = [
+    ...(programs.results || []).map((item) => item?.opportunity || {}),
+    ...(scholarships.results || []).map((item) => item?.opportunity || {}),
+    ...institutions,
+  ];
+  return {
+    studentContextSummary: context,
+    recommendations: {
+      programs: (programs.results || []).map((item) => projectGuidanceRecommendation(item, 'program')),
+      scholarships: (scholarships.results || []).map((item) => projectGuidanceRecommendation(item, 'scholarship')),
+      institutions,
+    },
+    eligibility: { evaluated: (programs.results || []).length + (scholarships.results || []).length },
+    readiness: buildReadinessPlan({ profile, gaps }),
+    applicationReadiness: buildApplicationReadiness({
+      documents, checklists, applications: journey.activeApplications,
+      deadlines: journey.upcomingDeadlines, pendingActions: journey.pendingActions,
+    }),
+    nextActions: gaps.slice(0, 8).map((gap) => ({ key: gap.key, label: gap.label, reason: gap.reason })),
+    dataFreshness: summarizeGuidanceFreshness(records),
+    disclaimer: 'Guidance reflects recorded information and is not an admission, scholarship, visa, or funding guarantee.',
+  };
 }
 
 // ── Profile-aware test guidance ────────────────────────────────────────────────

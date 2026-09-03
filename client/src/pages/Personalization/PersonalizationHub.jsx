@@ -46,6 +46,81 @@ const GAP_SEVERITY_LABELS = {
   info: 'Info',
 };
 
+function GuidanceOverview() {
+  const { isAuthenticated, hasStudentCapability: studentCapable, loading: authLoading } = useAuth();
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  useEffect(() => {
+    if (!isAuthenticated || authLoading || !studentCapable) {
+      setLoading(false);
+      return undefined;
+    }
+    personalizationApi.guidance()
+      .then((res) => setData(res.data))
+      .catch(() => setError('Could not load your guidance overview.'))
+      .finally(() => setLoading(false));
+  }, [isAuthenticated, authLoading, studentCapable]);
+
+  if (loading) return <div className="py-10 text-center text-sm text-gray-500">Loading your guidance overview…</div>;
+  if (error) return <div className="py-6 text-sm text-red-600 dark:text-red-400">{error}</div>;
+  if (!data) return null;
+
+  const context = data.studentContextSummary || {};
+  const readiness = data.readiness?.items || [];
+  const applicationReadiness = data.applicationReadiness || {};
+  const actions = data.nextActions || [];
+  const recommendations = [
+    ...(data.recommendations?.programs || []).slice(0, 3),
+    ...(data.recommendations?.scholarships || []).slice(0, 2),
+    ...(data.recommendations?.institutions || []).slice(0, 2),
+  ];
+  return (
+    <div className="space-y-6">
+      <section className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-5">
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white">Your guidance snapshot</h2>
+        <div className="mt-3 flex flex-wrap gap-2 text-xs text-gray-600 dark:text-gray-400">
+          {context.known?.studyLevel && <span className="rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-1">Level: {context.known.studyLevel}</span>}
+          {context.known?.fieldsOfStudy?.map((field) => <span key={field} className="rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-1">Field: {field}</span>)}
+          {context.known?.destinations?.map((country) => <span key={country} className="rounded-full bg-gray-100 dark:bg-gray-700 px-2 py-1">Destination: {country}</span>)}
+        </div>
+        {context.missing?.length > 0 && <p className="mt-3 text-sm text-gray-600 dark:text-gray-400">Still unknown: {context.missing.join(', ').replace(/_/g, ' ')}.</p>}
+      </section>
+
+      <section>
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-3">Next actions</h2>
+        {actions.length === 0 ? <p className="text-sm text-gray-600 dark:text-gray-400">No profile actions are currently identified.</p> : (
+          <div className="space-y-2">{actions.map((action) => <GapItem key={action.key} gap={action} />)}</div>
+        )}
+      </section>
+
+      <section>
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-3">Readiness</h2>
+        {readiness.length === 0 ? <p className="text-sm text-gray-600 dark:text-gray-400">Readiness remains unknown until more profile and opportunity requirements are available.</p> : (
+          <div className="space-y-2">{readiness.map((item) => <div key={item.key} className="flex items-center justify-between rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3 text-sm"><span className="text-gray-800 dark:text-gray-200">{item.label}</span><span className="text-xs text-gray-500 dark:text-gray-400">{item.status}</span></div>)}</div>
+        )}
+      </section>
+
+      <section>
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-3">Applications and deadlines</h2>
+        <div className="space-y-2 text-sm">
+          {(applicationReadiness.applications || []).length > 0 && <p className="text-gray-600 dark:text-gray-400">Active applications: {applicationReadiness.applications.length}</p>}
+          {(applicationReadiness.hardDeadlines || []).length > 0 && <div className="space-y-2">{applicationReadiness.hardDeadlines.slice(0, 5).map((deadline, index) => <div key={`${deadline.title}-${index}`} className="rounded-lg border border-gray-200 dark:border-gray-700 px-4 py-3"><span className="font-medium text-gray-900 dark:text-white">{deadline.title || 'Application deadline'}</span><span className="ml-2 text-xs text-gray-500 dark:text-gray-400">{deadline.deadlineAt ? new Date(deadline.deadlineAt).toLocaleDateString() : 'Date unknown'}</span></div>)}</div>}
+          {(applicationReadiness.documents || []).length === 0 && (applicationReadiness.unknownRequirements || []).length === 0 && (applicationReadiness.hardDeadlines || []).length === 0 && <p className="text-gray-600 dark:text-gray-400">Application requirements and deadlines are unknown until a supported application or checklist provides them.</p>}
+        </div>
+      </section>
+
+      <section>
+        <h2 className="text-base font-semibold text-gray-900 dark:text-white mb-3">Recommended starting points</h2>
+        {recommendations.length === 0 ? <p className="text-sm text-gray-600 dark:text-gray-400">No recommendations can be calculated from the recorded information yet.</p> : (
+          <div className="grid gap-3 sm:grid-cols-2">{recommendations.map((item) => <Link key={`${item.id}-${item.url}`} to={item.url || ROUTES.TALENT_PROFILE} className="rounded-lg border border-gray-200 dark:border-gray-700 p-4 hover:border-blue-400"><span className="text-xs text-gray-500 dark:text-gray-400">{item.degreeLevel || 'Opportunity'}</span><span className="mt-1 block font-medium text-gray-900 dark:text-white line-clamp-2">{item.title}</span>{item.match?.score != null && <span className="mt-2 block text-xs text-gray-600 dark:text-gray-400">Preference alignment: {item.match.score}%</span>}</Link>)}</div>
+        )}
+      </section>
+    </div>
+  );
+}
+
 // ── Match score badge ─────────────────────────────────────────────────────────
 
 function MatchScoreBadge({ score }) {
@@ -341,9 +416,10 @@ function ScholarshipTab() {
 // ── Main hub ─────────────────────────────────────────────────────────────────
 
 export default function PersonalizationHub() {
-  const [activeTab, setActiveTab] = useState('programs');
+  const [activeTab, setActiveTab] = useState('overview');
 
   const tabs = [
+    { key: 'overview', label: 'Overview' },
     { key: 'programs', label: 'Programs' },
     { key: 'scholarships', label: 'Scholarships' },
     { key: 'gaps', label: 'Profile Gaps' },
@@ -387,6 +463,7 @@ export default function PersonalizationHub() {
         </div>
 
         {/* Tab content */}
+        {activeTab === 'overview' && <GuidanceOverview />}
         {activeTab === 'programs' && <ProgramTab />}
         {activeTab === 'scholarships' && <ScholarshipTab />}
         {activeTab === 'gaps' && (

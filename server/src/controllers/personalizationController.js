@@ -12,12 +12,24 @@ import {
   recommendScholarships,
   getProfileGapAnalysis,
   getProfileTestGuidance,
+  getStudentGuidance,
 } from '../services/personalizationService.js';
 
 function parsePageParams(query) {
   const page = Math.max(1, parseInt(query.page, 10) || 1);
   const limit = Math.min(50, Math.max(1, parseInt(query.limit, 10) || 20));
   return { page, limit };
+}
+
+export async function getGuidance(req, res) {
+  try {
+    const result = await getStudentGuidance(req.user.userId);
+    if (result.error) return res.status(404).json({ error: result.error });
+    return res.json(result);
+  } catch (err) {
+    console.error('[personalization] getGuidance error', err?.message);
+    return res.status(500).json({ error: 'guidance_failed' });
+  }
 }
 
 // GET /api/personalization/programs/:programId/eligibility

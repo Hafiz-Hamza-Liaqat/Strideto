@@ -14,11 +14,14 @@ import {
   getScholarshipRecommendations,
   getGapAnalysis,
   getProgramTestGuidance,
+  getGuidance,
 } from '../controllers/personalizationController.js';
 
 export const personalizationRouter = Router();
 
 const auth = [...studentProductAuth];
+
+personalizationRouter.get('/personalization/guidance', ...auth, getGuidance);
 
 // Recommendations
 personalizationRouter.get('/personalization/recommendations/programs', ...auth, getProgramRecommendations);

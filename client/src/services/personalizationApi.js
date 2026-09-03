@@ -16,6 +16,7 @@ function buildParams(params) {
 }
 
 export const personalizationApi = {
+  guidance: () => axiosInstance.get('/personalization/guidance'),
   // Recommendations
   programRecommendations: (params) =>
     axiosInstance.get(`/personalization/recommendations/programs${buildParams(params)}`),
