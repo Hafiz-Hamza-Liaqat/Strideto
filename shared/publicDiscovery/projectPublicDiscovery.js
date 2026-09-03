@@ -353,8 +353,21 @@ export function projectPublicProgram(doc) {
 
 export function publicSearchMetadata(metadata = {}) {
   if (!metadata || typeof metadata !== 'object') return {};
-  const { adminEditUrl: _admin, ...rest } = metadata;
-  return rest;
+  const PUBLIC_SEARCH_METADATA_KEYS = [
+    'icon',
+    'provider',
+    'company',
+    'headline',
+    'workMode',
+    'issuer',
+    'score',
+    'skillName',
+  ];
+  return Object.fromEntries(
+    PUBLIC_SEARCH_METADATA_KEYS
+      .filter((key) => Object.prototype.hasOwnProperty.call(metadata, key))
+      .map((key) => [key, metadata[key]])
+  );
 }
 
 /** Public Blog DTOs. `_id` remains only for existing UI telemetry and keys. */
