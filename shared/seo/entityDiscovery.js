@@ -138,7 +138,7 @@ export function renderEntitySeoShell(baseHtml, discovery) {
   html = html.replace(/<div id="seo-discovery"[\s\S]*?<\/div>\s*/i, '');
   const facts = (safe.facts || []).map((fact) => `<dt>${escapeHtml(fact.label)}</dt><dd>${escapeHtml(fact.value)}</dd>`).join('');
   const jsonLd = safe.jsonLd ? `<script type="application/ld+json">${escapeJson(safe.jsonLd)}</script>` : '';
-  const discoveryHtml = `<div id="seo-discovery"><main><h1>${escapeHtml(safe.heading)}</h1><p>${escapeHtml(safe.summary)}</p>${facts ? `<dl>${facts}</dl>` : ''}</main>${jsonLd}</div>`;
+  const discoveryHtml = `<div id="seo-discovery" style="display:none" aria-hidden="true"><main><h1>${escapeHtml(safe.heading)}</h1><p>${escapeHtml(safe.summary)}</p>${facts ? `<dl>${facts}</dl>` : ''}</main>${jsonLd}</div>`;
   if (html.includes('<div id="root"></div>')) return html.replace('<div id="root"></div>', `${discoveryHtml}<div id="root"></div>`);
   if (html.includes('<div id="root">')) return html.replace('<div id="root">', `${discoveryHtml}<div id="root">`);
   return html.replace('<body>', `<body>${discoveryHtml}`);

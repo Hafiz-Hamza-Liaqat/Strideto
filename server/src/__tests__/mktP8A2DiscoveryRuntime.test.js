@@ -41,8 +41,11 @@ try {
   assert.equal(res.statusCode, 200);
   assert.match(res.body, /<title>&lt;\/script&gt;&lt;script&gt;alert\(1\)&lt;\/script&gt;<\/title>/);
   assert.match(res.body, /https:\/\/www\.strideto\.com\/blog\/safe-post/);
-  assert.match(res.body, /id="seo-discovery"/);
+  assert.match(res.body, /<div id="seo-discovery" style="display:none" aria-hidden="true">/);
   assert.match(res.body, /A &amp; useful &lt;summary&gt;/);
+  assert.match(res.body, /<div id="seo-discovery"[\s\S]*A &amp; useful &lt;summary&gt;/);
+  assert.match(res.body, /<div id="root"><\/div>/);
+  assert.match(res.body, /<script type="application\/ld\+json">/);
   assert.doesNotMatch(res.body, /<script>alert\(1\)<\/script>/);
   assert.doesNotMatch(res.body, /<meta name="robots" content="index">/);
   assert.ok(calls.some((url) => url.endsWith('/index.html')));
@@ -88,7 +91,7 @@ try {
     const successfulType = mockRes();
     await handler({ method: 'GET', query: { type, slug: 'safe-post' } }, successfulType);
     assert.equal(successfulType.statusCode, 200, `${type} SEO success`);
-    assert.match(successfulType.body, /id="seo-discovery"/);
+    assert.match(successfulType.body, /<div id="seo-discovery" style="display:none" aria-hidden="true">/);
   }
 
   globalThis.fetch = async (url) => {
