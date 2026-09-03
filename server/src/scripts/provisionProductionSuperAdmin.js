@@ -327,11 +327,12 @@ async function createRuntime() {
     async audit({ action, targetId, previousRole, newRole, bootstrapMechanism, guardId }) {
       await auditModule.logAudit({
         action,
-        actor: { userId: 'system:production_bootstrap', role: 'system' },
+        actor: { userId: null, role: 'system' },
         targetType: 'user',
         targetId,
         status: 'success',
         metadata: {
+          systemActor: 'system:production_bootstrap',
           previousRole,
           newRole,
           bootstrapMechanism,
@@ -339,6 +340,7 @@ async function createRuntime() {
           timestamp: new Date().toISOString(),
         },
         reason: 'production_first_superadmin_bootstrap',
+        throwOnError: true,
       });
     },
   };

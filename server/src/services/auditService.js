@@ -12,6 +12,7 @@ export async function logAudit({
   before = undefined,
   after = undefined,
   reason = '',
+  throwOnError = false,
 }) {
   try {
     await AuditLog.create({
@@ -31,6 +32,11 @@ export async function logAudit({
     });
   } catch (err) {
     console.error('[audit] failed to write log:', err.message);
+    if (throwOnError) {
+      throw Object.assign(new Error('Audit persistence failed'), {
+        code: 'AUDIT_PERSIST_FAILED',
+      });
+    }
   }
 }
 

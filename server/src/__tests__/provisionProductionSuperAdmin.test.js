@@ -524,6 +524,8 @@ process.stdout.write('\nD. audit failure after confirmed promotion:\n');
   check(result.ok === false, 'D: ok=false (truthful partial outcome)');
   check(result.finalRole === 'SuperAdmin', 'D: finalRole=SuperAdmin (role WAS promoted)');
   check(result.manualReviewRequired === true, 'D: manualReviewRequired=true');
+  check(rt.calls.changeRole.length === 1, 'D: audit failure does not retry role mutation');
+  check(rt.calls.acquireBootstrapClaim.length === 1, 'D: audit failure does not reacquire/remove bootstrap claim');
 }
 
 // ─── E: audit-failure output clearly says finalRole=SuperAdmin ──────────────
