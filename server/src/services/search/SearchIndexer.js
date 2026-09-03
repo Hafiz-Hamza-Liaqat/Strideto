@@ -14,6 +14,10 @@ import { MediaAsset } from '../../models/MediaAsset.js';
 import { TalentProfile } from '../../models/career/TalentProfile.js';
 import { Credential } from '../../models/career/Credential.js';
 import { Test } from '../../models/education/Test.js';
+import { Program } from '../../models/education/Program.js';
+import { IntlScholarship } from '../../models/IntlScholarship.js';
+import { Institution } from '../../models/Institution.js';
+import { Company } from '../../models/Company.js';
 import { SearchDocument } from '../../models/SearchDocument.js';
 import { SEARCH_ENTITY_TYPES } from '../../../../shared/search/entityTypes.js';
 import { SEARCH_DOCUMENT_MAPPERS } from './documentMappers.js';
@@ -34,6 +38,10 @@ const ENTITY_MODELS = {
   'talent-profile': TalentProfile,
   credential: Credential,
   test: Test,
+  program: Program,
+  'intl-scholarship': IntlScholarship,
+  'legacy-institution': Institution,
+  company: Company,
 };
 
 export async function removeStaleTestSearchDocuments(eligibleIds, SearchDocumentModel = SearchDocument) {

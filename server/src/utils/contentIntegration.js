@@ -33,6 +33,14 @@ export const CONTENT_TO_SEARCH_ENTITY = {
   form: 'form',
   forms: 'form',
   media: 'media',
+  program: 'program',
+  programs: 'program',
+  'intl-scholarship': 'intl-scholarship',
+  'intl-scholarships': 'intl-scholarship',
+  'legacy-institution': 'legacy-institution',
+  'legacy-institutions': 'legacy-institution',
+  company: 'company',
+  companies: 'company',
 };
 
 /** Career domain entity types → search index type (C.8.0.2A) */

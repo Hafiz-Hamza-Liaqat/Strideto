@@ -7,6 +7,13 @@ import { normalizeLocale } from '../../../../shared/localization/localeResolver.
 import { isPubliclyLaunchVisible } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 import { isTestPubliclyPromotable } from '../../../../shared/education/testPublicationPolicy.js';
 import { buildJobDiscoverySummary } from '../../../../shared/jobs/jobDiscovery.js';
+import {
+  projectPublicProgram,
+  projectPublicIntlScholarship,
+  projectPublicLegacyInstitution,
+  projectPublicCompany,
+} from '../../../../shared/publicDiscovery/projectPublicDiscovery.js';
+import { isProgramDetailIndexable } from '../../../../shared/seo/entityDetailSeoPolicy.js';
 
 function docLocale(doc) {
   return normalizeLocale(doc?.locale || 'en');
@@ -363,6 +370,98 @@ export function mapTestToSearchDocument(doc) {
   });
 }
 
+export function mapProgramToSearchDocument(doc) {
+  if (!doc || !isProgramDetailIndexable(doc) || !isPubliclyLaunchVisible(doc)) return null;
+  const publicProgram = projectPublicProgram(doc);
+  return normalizeSearchDocument({
+    entityType: 'program',
+    entityId: String(doc._id),
+    title: publicProgram.name,
+    slug: publicProgram.slug,
+    url: buildLocalizedSlugUrl('/program-explorer', publicProgram.slug, docLocale(doc)),
+    summary: [publicProgram.name, publicProgram.field, publicProgram.degreeLevel, publicProgram.description].filter(Boolean).join(' ').slice(0, 500),
+    keywords: [publicProgram.field, publicProgram.degreeLevel, publicProgram.studyMode, publicProgram.language].filter(Boolean),
+    category: publicProgram.field,
+    country: publicProgram.country,
+    tags: [publicProgram.degreeLevel, publicProgram.studyMode].filter(Boolean),
+    publishedAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+    status: 'published',
+    searchable: true,
+    locale: docLocale(doc),
+    metadata: { icon: 'program', launchEligible: true },
+  });
+}
+
+export function mapIntlScholarshipToSearchDocument(doc) {
+  if (!doc || doc.status !== 'active' || !doc.slug) return null;
+  const item = projectPublicIntlScholarship(doc);
+  return normalizeSearchDocument({
+    entityType: 'intl-scholarship',
+    entityId: String(doc._id),
+    title: item.title,
+    slug: item.slug,
+    url: buildLocalizedSlugUrl('/intl-scholarships', item.slug, docLocale(doc)),
+    summary: [item.provider, item.country, item.degreeLevel, item.fundingType, item.description].filter(Boolean).join(' ').slice(0, 500),
+    keywords: [item.provider, item.country, item.degreeLevel, item.fundingType].filter(Boolean),
+    category: item.degreeLevel,
+    country: item.country,
+    tags: [],
+    publishedAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+    status: 'active',
+    searchable: true,
+    locale: docLocale(doc),
+  });
+}
+
+export function mapLegacyInstitutionToSearchDocument(doc) {
+  if (!doc || doc.status !== 'active' || !doc.slug) return null;
+  const item = projectPublicLegacyInstitution(doc);
+  return normalizeSearchDocument({
+    entityType: 'legacy-institution',
+    entityId: String(doc._id),
+    title: item.name,
+    slug: item.slug,
+    url: buildLocalizedSlugUrl('/schools-and-colleges', item.slug, docLocale(doc)),
+    summary: [item.name, item.type, item.city, item.province, item.country, item.description].filter(Boolean).join(' ').slice(0, 500),
+    keywords: [item.type, item.city, item.province, item.country].filter(Boolean),
+    category: item.type,
+    province: item.province,
+    country: item.country,
+    tags: [],
+    publishedAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+    status: 'active',
+    searchable: true,
+    locale: docLocale(doc),
+  });
+}
+
+export function mapCompanyToSearchDocument(doc) {
+  if (!doc || doc.status !== 'active' || !doc.slug) return null;
+  const item = projectPublicCompany(doc);
+  return normalizeSearchDocument({
+    entityType: 'company',
+    entityId: String(doc._id),
+    title: item.name,
+    slug: item.slug,
+    url: buildLocalizedSlugUrl('/company', item.slug, docLocale(doc)),
+    summary: [item.name, item.industry, item.location, item.city, item.province, item.country, item.description].filter(Boolean).join(' ').slice(0, 500),
+    keywords: [item.industry, item.location, item.city, item.province, item.country].filter(Boolean),
+    category: item.industry,
+    province: item.province,
+    country: item.country,
+    tags: [],
+    publishedAt: doc.createdAt,
+    updatedAt: doc.updatedAt,
+    featured: item.isFeatured,
+    status: 'active',
+    searchable: true,
+    locale: docLocale(doc),
+  });
+}
+
 export const SEARCH_DOCUMENT_MAPPERS = {
   job: mapJobToSearchDocument,
   scholarship: mapScholarshipToSearchDocument,
@@ -377,4 +476,8 @@ export const SEARCH_DOCUMENT_MAPPERS = {
   'talent-profile': mapTalentProfileToSearchDocument,
   credential: mapCredentialToSearchDocument,
   test: mapTestToSearchDocument,
+  program: mapProgramToSearchDocument,
+  'intl-scholarship': mapIntlScholarshipToSearchDocument,
+  'legacy-institution': mapLegacyInstitutionToSearchDocument,
+  company: mapCompanyToSearchDocument,
 };

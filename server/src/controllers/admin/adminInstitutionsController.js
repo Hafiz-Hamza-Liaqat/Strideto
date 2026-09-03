@@ -10,6 +10,7 @@ import { runBulkAction, duplicateDoc } from '../../utils/adminBulkHelper.js';
 import { syncWorkflowAfterSave } from '../../services/workflow/workflowIntegration.js';
 import { freeTextCountryRegex } from '../../../../shared/international/location.js';
 import { coerceCountryCode, countryDisplayName } from '../../../../shared/international/country.js';
+import { onContentSaved, onContentDeleted, onContentBulkDeleted, onContentBulkUpdated } from '../../utils/contentIntegration.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -98,6 +99,7 @@ export const create = asyncHandler(async (req, res) => {
   const slugErr = await applyResolvedSlug('institution', doc, body, true);
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();
+  onContentSaved('legacy-institutions', doc);
   await syncWorkflowAfterSave('universities', doc).catch(() => {});
   await logAudit({ ...auditFromRequest(req), action: 'institution.create', targetType: 'institution', targetId: doc._id, targetLabel: doc.name });
   res.status(201).json(doc);
@@ -112,6 +114,7 @@ export const update = asyncHandler(async (req, res) => {
   const slugErr = await applyResolvedSlug('institution', doc, req.body || {}, false);
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();
+  onContentSaved('legacy-institutions', doc);
   await syncWorkflowAfterSave('universities', doc).catch(() => {});
   await logAudit({ ...auditFromRequest(req), action: 'institution.update', targetType: 'institution', targetId: doc._id });
   res.json(doc);
@@ -122,6 +125,7 @@ export const remove = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
   const doc = await Institution.findByIdAndDelete(id);
   if (!doc) return res.status(404).json({ error: 'Institution not found' });
+  onContentDeleted('legacy-institutions', id);
   await logAudit({ ...auditFromRequest(req), action: 'institution.delete', targetType: 'institution', targetId: id });
   res.status(204).send();
 });
@@ -141,5 +145,10 @@ export const duplicate = asyncHandler(async (req, res) => {
 
 export const bulkAction = asyncHandler(async (req, res) => {
   const result = await runBulkAction(Institution, req.body, req);
+  const ids = Array.isArray(req.body?.ids) ? req.body.ids.filter((id) => mongoose.Types.ObjectId.isValid(id)) : [];
+  if (result.status === 200 && ids.length) {
+    if (req.body?.action === 'delete') onContentBulkDeleted('legacy-institutions', ids);
+    else onContentBulkUpdated('legacy-institutions', ids);
+  }
   res.json(result);
 });

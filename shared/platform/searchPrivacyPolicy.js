@@ -40,6 +40,10 @@ export const SEARCH_PRIVACY_ALLOWED_PUBLIC_DOMAINS = Object.freeze([
   'test',
   'agent_public',
   'service_public',
+  'intl-scholarship',
+  'legacy-institution',
+  'company',
+  'program',
 ]);
 
 export const SEARCH_PRIVACY_ALLOWED_PUBLIC_SET = new Set(

@@ -132,6 +132,7 @@ export const createScholarship = asyncHandler(async (req, res) => {
   const slugErr = await applyResolvedSlug('intl-scholarship', doc, body, true);
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();
+  onContentSaved('intl-scholarships', doc);
   scheduleSeoChangeNotification({
     entityType: 'intl-scholarship',
     next: doc,
@@ -151,6 +152,7 @@ export const updateScholarship = asyncHandler(async (req, res) => {
   const slugErr = await applyResolvedSlug('intl-scholarship', doc, req.body || {}, false);
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();
+  onContentSaved('intl-scholarships', doc);
   scheduleSeoChangeNotification({
     entityType: 'intl-scholarship',
     previous: before,
@@ -186,6 +188,10 @@ export const bulkScholarships = asyncHandler(async (req, res) => {
     ? await IntlScholarship.find({ _id: { $in: idsValid } }).lean()
     : [];
   const result = await runBulkAction({ req, Model: IntlScholarship, ids, action, auditType: 'intl_scholarship' });
+  if (result.status === 200 && idsValid.length) {
+    if (action === 'delete') onContentBulkDeleted('intl-scholarships', idsValid);
+    else onContentBulkUpdated('intl-scholarships', idsValid);
+  }
   if (result.status === 200 && beforeDocs.length) {
     if (action === 'delete') {
       for (const previous of beforeDocs) {
@@ -219,6 +225,7 @@ export const removeScholarship = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
   const doc = await IntlScholarship.findByIdAndDelete(id);
   if (!doc) return res.status(404).json({ error: 'Scholarship not found' });
+  onContentDeleted('intl-scholarships', id);
   scheduleSeoChangeNotification({
     entityType: 'intl-scholarship',
     previous: doc.toObject ? doc.toObject() : doc,

@@ -9,6 +9,7 @@ import { applyResolvedSlug, slugErrorResponse } from '../../utils/adminSlugHelpe
 import { runBulkAction, duplicateDoc } from '../../utils/adminBulkHelper.js';
 import { coerceCountryCode, countryDisplayName } from '../../../../shared/international/country.js';
 import { freeTextCountryRegex } from '../../../../shared/international/location.js';
+import { onContentSaved, onContentDeleted, onContentBulkDeleted, onContentBulkUpdated } from '../../utils/contentIntegration.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -94,6 +95,7 @@ export const create = asyncHandler(async (req, res) => {
   const slugErr = await applyResolvedSlug('company', doc, body, true);
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();
+  onContentSaved('companies', doc);
   await logAudit({ ...auditFromRequest(req), action: 'company.create', targetType: 'company', targetId: doc._id, targetLabel: doc.name });
   res.status(201).json(doc);
 });
@@ -105,6 +107,7 @@ export const update = asyncHandler(async (req, res) => {
   const slugErr = await applyResolvedSlug('company', doc, req.body || {}, false);
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();
+  onContentSaved('companies', doc);
   await logAudit({ ...auditFromRequest(req), action: 'company.update', targetType: 'company', targetId: doc._id, targetLabel: doc.name });
   res.json(doc);
 });
@@ -126,12 +129,18 @@ export const duplicate = asyncHandler(async (req, res) => {
 export const bulkAction = asyncHandler(async (req, res) => {
   const { action, ids } = req.body || {};
   const result = await runBulkAction({ req, Model: Company, ids, action, auditType: 'company' });
+  if (result.status === 200 && Array.isArray(ids)) {
+    const valid = ids.filter((id) => mongoose.Types.ObjectId.isValid(id));
+    if (action === 'delete') onContentBulkDeleted('companies', valid);
+    else if (action === 'publish' || action === 'activate' || action === 'update') onContentBulkUpdated('companies', valid);
+  }
   res.status(result.status).json(result.body);
 });
 
 export const remove = asyncHandler(async (req, res) => {
   const doc = await Company.findByIdAndDelete(req.params.id);
   if (!doc) return res.status(404).json({ error: 'Company not found' });
+  onContentDeleted('companies', req.params.id);
   await logAudit({ ...auditFromRequest(req), action: 'company.delete', targetType: 'company', targetId: req.params.id, targetLabel: doc.name });
   res.status(204).send();
 });

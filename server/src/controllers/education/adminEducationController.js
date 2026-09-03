@@ -40,6 +40,7 @@ import { assignLaunchEligibleOnAuthorityPublish } from '../../../../shared/publi
 import { currentAcceptanceMongoFilter } from '../../../../shared/publicDiscovery/publicTruth.js';
 import { scheduleSeoChangeNotification } from '../../services/seo/seoChangeNotificationService.js';
 import { deriveEditorialFreshness } from '../../../../shared/education/editorialFreshness.js';
+import { onContentSaved } from '../../utils/contentIntegration.js';
 
 const INSTITUTION_POPULATE = 'officialName slug countryCode city region status institutionType';
 
@@ -987,6 +988,7 @@ export const adminCreateProgram = asyncHandler(async (req, res) => {
     next: doc,
     action: 'save',
   });
+  onContentSaved('programs', doc);
 
   res.status(201).json(doc);
 });
@@ -1047,5 +1049,6 @@ export const adminUpdateProgram = asyncHandler(async (req, res) => {
     next: doc,
     action: 'save',
   });
+  onContentSaved('programs', doc);
   res.json(doc);
 });
