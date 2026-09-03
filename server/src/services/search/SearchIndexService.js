@@ -16,6 +16,7 @@ import {
   searchCacheSet,
 } from './searchCache.js';
 import { withLaunchSearchFilter } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
+import { resolveSearchIntent } from '../../../../shared/search/queryIntent.js';
 
 function buildMongoFilter(params) {
   const filter = {};
@@ -93,18 +94,20 @@ function buildFacets(docs) {
  */
 export async function searchIndex(params, options = {}) {
   const started = Date.now();
-  const cacheKey = buildSearchCacheKey({ ...params, mode: options.admin ? 'admin' : 'public' });
+  const intent = !params.types?.length ? resolveSearchIntent(params.q) : null;
+  const cacheKey = buildSearchCacheKey({
+    ...params,
+    inferredTypes: intent?.entityTypes || [],
+    mode: options.admin ? 'admin' : 'public',
+  });
   const cached = await searchCacheGet(cacheKey);
   if (cached) return { ...cached, elapsedTime: Date.now() - started, cached: true };
 
-  const filter = {
-    ...buildMongoFilter(params),
-    ...buildTextFilter(params.q),
-  };
+  const filter = { ...buildMongoFilter(params) };
+  if (!intent?.entityTypes) Object.assign(filter, buildTextFilter(params.q));
 
-  let types = params.types?.length
-    ? params.types
-    : (options.admin ? null : PUBLIC_SEARCH_ENTITY_TYPES);
+  let types = params.types?.length ? params.types : (intent?.entityTypes || null);
+  if (!types) types = options.admin ? null : PUBLIC_SEARCH_ENTITY_TYPES;
   if (!options.admin && types?.length) {
     types = clampPublicSearchTypes(types).allowed;
     if (!types.length) types = PUBLIC_SEARCH_ENTITY_TYPES;
@@ -148,9 +151,11 @@ export async function searchIndex(params, options = {}) {
  * @param {object} [options]
  */
 export async function searchSuggestions(q, options = {}) {
+  const explicitTypes = Array.isArray(options.types) ? options.types.filter(Boolean) : [];
+  const intent = explicitTypes.length ? null : resolveSearchIntent(q, { includeNavigation: true });
   const params = {
     q,
-    types: SUGGESTION_ENTITY_TYPES,
+    types: explicitTypes.length ? explicitTypes : SUGGESTION_ENTITY_TYPES,
     locale: options.locale || 'en',
     limit: SEARCH_SUGGESTION_LIMIT * SUGGESTION_ENTITY_TYPES.length,
     page: 1,
@@ -163,14 +168,12 @@ export async function searchSuggestions(q, options = {}) {
     country: '',
   };
 
-  const filter = {
-    ...buildMongoFilter(params),
-    ...buildTextFilter(q),
-    entityType: { $in: SUGGESTION_ENTITY_TYPES },
-  };
+  const filter = { ...buildMongoFilter(params) };
+  if (!intent.entityTypes) Object.assign(filter, buildTextFilter(q));
+  filter.entityType = { $in: intent?.entityTypes || (explicitTypes.length ? explicitTypes : SUGGESTION_ENTITY_TYPES) };
 
   const candidates = await SearchDocument.find(filter).limit(100).lean();
-  const ranked = rankSearchResults(candidates, q, 'relevance');
+  const ranked = rankSearchResults(candidates, intent?.entityTypes ? '' : q, 'relevance');
 
   /** @type {Record<string, object[]>} */
   const groups = {};
@@ -183,7 +186,7 @@ export async function searchSuggestions(q, options = {}) {
     }
   }
 
-  return { query: q, groups, elapsedTime: 0 };
+  return { query: q, groups, quickLinks: intent?.navigation ? [intent.navigation] : [], elapsedTime: 0 };
 }
 
 /**

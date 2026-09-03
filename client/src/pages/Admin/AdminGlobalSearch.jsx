@@ -150,7 +150,7 @@ export default function AdminGlobalSearch() {
         />
         <select className={`${adminFieldClass} w-full sm:w-56 shrink-0`} value={type} onChange={(e) => setType(e.target.value)} aria-label="Filter by type">
           <option value="">All types</option>
-          {['job', 'scholarship', 'admission', 'university', 'blog', 'career-guidance', 'cms-page', 'page-builder-page', 'form', 'media'].map((et) => (
+          {['job', 'scholarship', 'intl-scholarship', 'admission', 'university', 'blog', 'career-guidance', 'program', 'legacy-institution', 'company', 'test', 'cms-page', 'page-builder-page', 'form', 'media'].map((et) => (
             <option key={et} value={et}>{entityTypeLabel(et)}</option>
           ))}
         </select>
@@ -179,6 +179,7 @@ export default function AdminGlobalSearch() {
                     {entityTypeLabel(item.entityType)} · {item.status}
                     {item.updatedAt ? ` · ${new Date(item.updatedAt).toLocaleDateString()}` : ''}
                   </p>
+                  {item.summary ? <p className="text-sm text-gray-600 dark:text-gray-300 line-clamp-2 mt-1">{item.summary}</p> : null}
                 </div>
               </div>
               <div className="flex gap-2 shrink-0">

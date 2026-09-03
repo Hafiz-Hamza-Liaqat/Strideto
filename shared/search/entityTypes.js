@@ -44,8 +44,10 @@ export const PUBLIC_SEARCH_ENTITY_TYPES = [
 export const SUGGESTION_ENTITY_TYPES = [
   'job',
   'scholarship',
+  'admission',
   'university',
   'blog',
+  'career-guidance',
   'intl-scholarship',
   'legacy-institution',
   'company',

@@ -35,19 +35,24 @@ export function GlobalSearch({
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [groups, setGroups] = useState({});
+  const [quickLinks, setQuickLinks] = useState([]);
   const [activeIndex, setActiveIndex] = useState(-1);
   const [announce, setAnnounce] = useState('');
   const inputRef = useRef(null);
   const listRef = useRef(null);
   const debounceRef = useRef(null);
 
-  const flatItems = Object.entries(groups).flatMap(([type, items]) =>
-    (items || []).map((item) => ({ ...item, groupType: type })),
-  );
+  const flatItems = [
+    ...quickLinks.map((item) => ({ ...item, entityType: 'navigation', navigation: true })),
+    ...Object.entries(groups).flatMap(([type, items]) =>
+      (items || []).map((item) => ({ ...item, groupType: type })),
+    ),
+  ];
 
   const fetchSuggestions = useCallback((q) => {
     if (!q || q.length < 2) {
       setGroups({});
+      setQuickLinks([]);
       setLoading(false);
       return;
     }
@@ -59,12 +64,14 @@ export function GlobalSearch({
     searchApi.suggestions(q, params)
       .then(({ data }) => {
         setGroups(data?.groups || {});
+        setQuickLinks(Array.isArray(data?.quickLinks) ? data.quickLinks : []);
         const count = Object.values(data?.groups || {}).reduce((n, g) => n + g.length, 0);
         setAnnounce(count ? `${count} suggestions` : 'No results');
         setActiveIndex(-1);
       })
       .catch(() => {
         setGroups({});
+        setQuickLinks([]);
         setAnnounce('Search unavailable');
       })
       .finally(() => setLoading(false));
@@ -92,6 +99,10 @@ export function GlobalSearch({
   const selectItem = (item) => {
     if (!item) return;
     setOpen(false);
+    if (item.navigation && item.url) {
+      navigate(item.url);
+      return;
+    }
     void searchApi.click({ query, entityType: item.entityType, entityId: item.id, url: item.url });
     if (item.url) navigate(item.url);
     else goToSearch(query);
@@ -186,6 +197,25 @@ export function GlobalSearch({
               role="listbox"
               className="absolute z-50 mt-1 left-0 right-0 w-full max-h-80 overflow-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg py-1 text-left"
             >
+              {quickLinks.length ? (
+                <li className="list-none">
+                  <div className="px-3 py-1.5 text-xs font-semibold text-gray-500 uppercase tracking-wide">Quick links</div>
+                  {quickLinks.map((item, index) => (
+                    <div
+                      key={`quick-${item.url}`}
+                      id={`gs-opt-${index}`}
+                      role="option"
+                      aria-selected={index === activeIndex}
+                      className={`px-4 py-2 cursor-pointer text-sm ${index === activeIndex ? 'bg-primary/10 text-primary' : 'hover:bg-gray-50 dark:hover:bg-gray-800'}`}
+                      onMouseDown={(e) => e.preventDefault()}
+                      onClick={() => selectItem({ ...item, navigation: true })}
+                    >
+                      <span className="font-medium text-gray-900 dark:text-white">{item.label}</span>
+                      <span className="block text-xs text-gray-500">Open {item.url}</span>
+                    </div>
+                  ))}
+                </li>
+              ) : null}
               {flatItems.length === 0 && !loading ? (
                 <li className="px-4 py-3 text-sm text-gray-500" role="option">No matches — press Enter to search all</li>
               ) : null}
@@ -198,7 +228,7 @@ export function GlobalSearch({
                     </div>
                     <ul className="list-none">
                       {items.map((item) => {
-                        const idx = flatItems.findIndex((f) => f.id === item.id && f.entityType === item.entityType);
+                        const idx = flatItems.findIndex((f) => f.id === item.id && f.entityType === item.entityType && !f.navigation);
                         const active = idx === activeIndex;
                         return (
                           <li

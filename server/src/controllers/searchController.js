@@ -48,8 +48,23 @@ export const getSuggestions = asyncHandler(async (req, res) => {
     return res.json({ query: q, groups: {}, elapsedTime: 0 });
   }
 
+  const requestedTypes = String(req.query.type || '').split(',').map((type) => type.trim()).filter(Boolean);
+  if (requestedTypes.length) {
+    const clamped = clampPublicSearchTypes(requestedTypes);
+    if (clamped.denied.length) {
+      return res.status(400).json({
+        error: 'Invalid search query',
+        details: clamped.denied.map((type) => `Search domain denied: ${type}`),
+      });
+    }
+    req.query.type = clamped.allowed.join(',');
+  }
+
   const started = Date.now();
-  const result = await searchSuggestions(q, { locale: req.query.locale || 'en' });
+  const result = await searchSuggestions(q, {
+    locale: req.query.locale || 'en',
+    types: requestedTypes.length ? req.query.type.split(',') : [],
+  });
   const elapsed = Date.now() - started;
 
   void logSearchQuery({
