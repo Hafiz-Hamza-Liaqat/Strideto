@@ -3,6 +3,10 @@ import { Institution } from '../models/Institution.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { listResponse, paginate } from '../utils/apiResponse.js';
 import { freeTextCountryRegex } from '../../../shared/international/location.js';
+import {
+  projectPublicLegacyInstitution,
+  projectPublicLegacyInstitutionListItem,
+} from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 
 const DEFAULT_LIMIT = 12;
 const MAX_LIMIT = 50;
@@ -31,7 +35,7 @@ export const getInstitutions = asyncHandler(async (req, res) => {
     Institution.find(query).sort({ name: 1 }).skip(skip).limit(limit).lean(),
     Institution.countDocuments(query),
   ]);
-  res.json(listResponse(data, paginate(page, limit, total), req.query));
+  res.json(listResponse(data.map(projectPublicLegacyInstitutionListItem), paginate(page, limit, total), req.query));
 });
 
 export const getInstitutionBySlug = asyncHandler(async (req, res) => {
@@ -47,7 +51,7 @@ export const getInstitutionBySlug = asyncHandler(async (req, res) => {
     _id: { $ne: doc._id },
     $or: [{ type: doc.type }, { province: doc.province }],
   }).limit(4).lean();
-  res.json({ ...doc, related });
+  res.json(projectPublicLegacyInstitution(doc, { related }));
 });
 
 export const getInstitutionFilters = asyncHandler(async (_req, res) => {

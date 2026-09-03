@@ -572,3 +572,198 @@ export function projectPublicCareerArticle(article) {
     metaDescription: article.metaDescription || '',
   };
 }
+
+function projectPublicSocialLinks(links) {
+  if (!links || typeof links !== 'object') return {};
+  return {
+    linkedin: publicHttpUrlOrNull(links.linkedin),
+    twitter: publicHttpUrlOrNull(links.twitter),
+    facebook: publicHttpUrlOrNull(links.facebook),
+  };
+}
+
+/** Public legacy school/college list DTO. `_id` remains for existing UI keys. */
+export function projectPublicLegacyInstitutionListItem(institution) {
+  if (!institution) return null;
+  return {
+    _id: institution._id,
+    slug: institution.slug || '',
+    name: institution.name || '',
+    type: institution.type || '',
+    country: institution.country || '',
+    city: institution.city || '',
+    province: institution.province || '',
+    logoUrl: publicHttpUrlOrNull(institution.logoUrl),
+  };
+}
+
+/** Public legacy school/college detail DTO. Organization contacts are intentional public fields. */
+export function projectPublicLegacyInstitution(institution, options = {}) {
+  if (!institution) return null;
+  return {
+    ...projectPublicLegacyInstitutionListItem(institution),
+    address: institution.address || '',
+    phone: institution.phone || '',
+    email: institution.email || '',
+    website: publicHttpUrlOrNull(institution.website),
+    imageUrl: publicHttpUrlOrNull(institution.imageUrl),
+    description: institution.description || '',
+    programs: Array.isArray(institution.programs) ? institution.programs : [],
+    facilities: Array.isArray(institution.facilities) ? institution.facilities : [],
+    accreditation: institution.accreditation || '',
+    establishedYear: institution.establishedYear ?? null,
+    seoTitle: institution.seoTitle || '',
+    metaDescription: institution.metaDescription || '',
+    related: Array.isArray(options.related)
+      ? options.related.map(projectPublicLegacyInstitutionListItem).filter(Boolean)
+      : [],
+  };
+}
+
+export function projectPublicAdmissionListItem(admission) {
+  if (!admission) return null;
+  return {
+    _id: admission._id,
+    slug: admission.slug || '',
+    program: admission.program || '',
+    session: admission.session || '',
+  };
+}
+
+export function projectPublicScholarshipListItem(scholarship) {
+  if (!scholarship) return null;
+  return {
+    _id: scholarship._id,
+    slug: scholarship.slug || '',
+    title: scholarship.title || '',
+    provider: scholarship.provider || '',
+  };
+}
+
+export function projectPublicForeignStudyListItem(foreignStudy) {
+  if (!foreignStudy) return null;
+  return {
+    _id: foreignStudy._id,
+    program: foreignStudy.program || '',
+    country: foreignStudy.country || '',
+  };
+}
+
+/** Public University profile DTO; this remains separate from both Institution datasets. */
+export function projectPublicUniversity(university, extras = {}) {
+  if (!university) return null;
+  return {
+    _id: university._id,
+    name: university.name || '',
+    slug: university.slug || '',
+    country: university.country || '',
+    city: university.city || '',
+    province: university.province || '',
+    website: publicHttpUrlOrNull(university.website),
+    description: university.description || '',
+    logoUrl: publicHttpUrlOrNull(university.logoUrl),
+    ranking: university.ranking ?? null,
+    type: university.type || '',
+    programs: Array.isArray(university.programs) ? university.programs.map((p) => ({
+      name: p?.name || '', degree: p?.degree || '', duration: p?.duration || '',
+    })) : [],
+    gallery: Array.isArray(university.gallery) ? university.gallery.map(publicHttpUrlOrNull).filter(Boolean) : [],
+    reviewSummary: university.reviewSummary || '',
+    isFeatured: university.isFeatured === true,
+    bannerUrl: publicHttpUrlOrNull(university.bannerUrl),
+    establishedYear: university.establishedYear ?? null,
+    contact: university.contact || '',
+    socialLinks: projectPublicSocialLinks(university.socialLinks),
+    seoTitle: university.seoTitle || '',
+    metaDescription: university.metaDescription || '',
+    admissions: Array.isArray(extras.admissions) ? extras.admissions.map(projectPublicAdmissionListItem).filter(Boolean) : [],
+    scholarships: Array.isArray(extras.scholarships) ? extras.scholarships.map(projectPublicScholarshipListItem).filter(Boolean) : [],
+    foreignStudies: Array.isArray(extras.foreignStudies) ? extras.foreignStudies.map(projectPublicForeignStudyListItem).filter(Boolean) : [],
+  };
+}
+
+export function projectPublicUniversityListItem(university) {
+  if (!university) return null;
+  return {
+    _id: university._id,
+    name: university.name || '',
+    slug: university.slug || '',
+    country: university.country || '',
+    city: university.city || '',
+    province: university.province || '',
+    website: publicHttpUrlOrNull(university.website),
+    logoUrl: publicHttpUrlOrNull(university.logoUrl),
+    ranking: university.ranking ?? null,
+    type: university.type || '',
+    isFeatured: university.isFeatured === true,
+  };
+}
+
+/** Public Company profile DTO; employer linkage is public identity only. */
+export function projectPublicCompany(company) {
+  if (!company) return null;
+  return {
+    _id: company._id,
+    name: company.name || '',
+    slug: company.slug || '',
+    description: company.description || '',
+    website: publicHttpUrlOrNull(company.website),
+    industry: company.industry || '',
+    companySize: company.companySize || '',
+    location: company.location || '',
+    city: company.city || '',
+    province: company.province || '',
+    country: company.country || '',
+    logoUrl: publicHttpUrlOrNull(company.logoUrl),
+    bannerUrl: publicHttpUrlOrNull(company.bannerUrl),
+    socialLinks: projectPublicSocialLinks(company.socialLinks),
+    verified: company.verified === true,
+    verificationLevel: company.verificationLevel || 'basic',
+    benefits: Array.isArray(company.benefits) ? company.benefits : [],
+    gallery: Array.isArray(company.gallery) ? company.gallery.map(publicHttpUrlOrNull).filter(Boolean) : [],
+    officeLocations: Array.isArray(company.officeLocations) ? company.officeLocations.map((loc) => ({
+      city: loc?.city || '', province: loc?.province || '', address: loc?.address || '',
+    })) : [],
+    isFeatured: company.isFeatured === true,
+    seoTitle: company.seoTitle || '',
+    metaDescription: company.metaDescription || '',
+  };
+}
+
+export function projectPublicCompanyListItem(company) {
+  if (!company) return null;
+  return {
+    _id: company._id,
+    name: company.name || '',
+    slug: company.slug || '',
+    industry: company.industry || '',
+    location: company.location || '',
+    country: company.country || '',
+    logoUrl: publicHttpUrlOrNull(company.logoUrl),
+    verified: company.verified === true,
+    verificationLevel: company.verificationLevel || 'basic',
+    isFeatured: company.isFeatured === true,
+  };
+}
+
+/** Public employer organization profile. Account/workspace fields are deliberately absent. */
+export function projectPublicEmployer(employer) {
+  if (!employer) return null;
+  return {
+    _id: employer._id,
+    companyName: employer.companyName || '',
+    slug: employer.slug || '',
+    website: publicHttpUrlOrNull(employer.website),
+    companyDescription: employer.companyDescription || '',
+    logoUrl: publicHttpUrlOrNull(employer.logoUrl),
+    bannerUrl: publicHttpUrlOrNull(employer.bannerUrl),
+    industry: employer.industry || '',
+    companySize: employer.companySize || '',
+    location: employer.location || '',
+    city: employer.city || '',
+    province: employer.province || '',
+    socialLinks: projectPublicSocialLinks(employer.socialLinks),
+    verified: employer.verified === true,
+    verificationLevel: employer.verificationLevel || (employer.verified ? 'verified' : 'basic'),
+  };
+}

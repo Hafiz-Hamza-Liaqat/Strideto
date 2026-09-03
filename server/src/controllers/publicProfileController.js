@@ -12,28 +12,17 @@ import {
   withListLocaleFilter,
 } from '../utils/localeQuery.js';
 import { freeTextCountryRegex } from '../../../shared/international/location.js';
-
-function employerPublicFields(e) {
-  return {
-    _id: e._id,
-    companyName: e.companyName,
-    slug: e.slug,
-    website: e.website,
-    companyDescription: e.companyDescription,
-    logoUrl: e.logoUrl,
-    bannerUrl: e.bannerUrl,
-    industry: e.industry,
-    companySize: e.companySize,
-    location: e.location,
-    city: e.city,
-    province: e.province,
-    socialLinks: e.socialLinks,
-    verified: e.verified,
-    verificationLevel: e.verificationLevel || (e.verified ? 'verified' : 'basic'),
-    totalJobsPosted: e.totalJobsPosted,
-    createdAt: e.createdAt,
-  };
-}
+import {
+  projectPublicCompany,
+  projectPublicCompanyListItem,
+  projectPublicEmployer,
+  projectPublicJobListItem,
+  projectPublicAdmissionListItem,
+  projectPublicForeignStudyListItem,
+  projectPublicScholarshipListItem,
+  projectPublicUniversity,
+  projectPublicUniversityListItem,
+} from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 
 // A job is publicly listable only when admin-approved. Legacy rows predating
 // the approvalStatus field (absent) are treated as approved, matching the
@@ -74,7 +63,7 @@ export const getEmployerProfile = asyncHandler(async (req, res) => {
   const allCompanyJobs = await Job.find(ownerScope).select('status approvalStatus').lean();
 
   res.json({
-    profile: employerPublicFields(employer),
+    profile: projectPublicEmployer(employer),
     stats: {
       totalJobs: allCompanyJobs.length,
       // Public "active jobs" count reflects only what a visitor can actually
@@ -82,12 +71,12 @@ export const getEmployerProfile = asyncHandler(async (req, res) => {
       activeJobs: allCompanyJobs.filter((j) => j.status === 'active' && isPubliclyApproved(j)).length,
       closedJobs: allCompanyJobs.filter((j) => j.status === 'closed').length,
     },
-    activeJobs,
-    recentJobs,
+    activeJobs: activeJobs.map(projectPublicJobListItem),
+    recentJobs: recentJobs.map(projectPublicJobListItem),
     // `pastPositions` is the truthful name; `hiringHistory` retained as a
     // backwards-compatible alias for any existing consumer.
-    pastPositions: closedJobs,
-    hiringHistory: closedJobs,
+    pastPositions: closedJobs.map(projectPublicJobListItem),
+    hiringHistory: closedJobs.map(projectPublicJobListItem),
   });
 });
 
@@ -106,16 +95,16 @@ export const getCompanyProfile = asyncHandler(async (req, res) => {
   const allJobs = await Job.find({ company: company.name }).select('status createdAt').lean();
 
   res.json({
-    company,
-    employer,
+    company: projectPublicCompany(company),
+    employer: projectPublicEmployer(employer),
     stats: {
       totalJobs: allJobs.length,
       activeJobs: allJobs.filter((j) => j.status === 'active').length,
       closedJobs: allJobs.filter((j) => j.status === 'closed').length,
     },
-    activeJobs: jobs,
-    openPositions: jobs,
-    recentJobs: jobs.slice(0, 10),
+    activeJobs: jobs.map(projectPublicJobListItem),
+    openPositions: jobs.map(projectPublicJobListItem),
+    recentJobs: jobs.slice(0, 10).map(projectPublicJobListItem),
   });
 });
 
@@ -146,10 +135,10 @@ export const getUniversityProfile = asyncHandler(async (req, res) => {
   ]);
 
   res.json({
-    university,
-    admissions,
-    scholarships,
-    foreignStudies,
+    university: projectPublicUniversity(university),
+    admissions: admissions.map(projectPublicAdmissionListItem),
+    scholarships: scholarships.map(projectPublicScholarshipListItem),
+    foreignStudies: foreignStudies.map(projectPublicForeignStudyListItem),
   });
 });
 
@@ -164,7 +153,7 @@ export const listCompanies = asyncHandler(async (req, res) => {
     Company.countDocuments(filter),
   ]);
 
-  res.json({ data, page, limit, total, pages: Math.ceil(total / limit) });
+  res.json({ data: data.map(projectPublicCompanyListItem), page, limit, total, pages: Math.ceil(total / limit) });
 });
 
 export const listUniversities = asyncHandler(async (req, res) => {
@@ -179,5 +168,5 @@ export const listUniversities = asyncHandler(async (req, res) => {
     University.countDocuments(filter),
   ]);
 
-  res.json({ data, page, limit, total, pages: Math.ceil(total / limit) });
+  res.json({ data: data.map(projectPublicUniversityListItem), page, limit, total, pages: Math.ceil(total / limit) });
 });
