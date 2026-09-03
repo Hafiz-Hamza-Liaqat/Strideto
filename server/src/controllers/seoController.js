@@ -10,7 +10,6 @@ import { Program } from '../models/education/Program.js';
 import { CanonicalInstitution } from '../models/education/CanonicalInstitution.js';
 import { CanonicalScholarship } from '../models/education/CanonicalScholarship.js';
 import { Test } from '../models/education/Test.js';
-import { TestAcceptance } from '../models/education/TestAcceptance.js';
 import { AgentProfile } from '../models/agent/AgentProfile.js';
 import { AgentMarketplacePost } from '../models/agent/AgentMarketplacePost.js';
 import { OrganizationVerification } from '../models/OrganizationVerification.js';
@@ -34,7 +33,6 @@ import {
   isIntlScholarshipDetailEligible,
   isProgramDetailIndexable,
 } from '../../../shared/seo/entityDetailSeoPolicy.js';
-import { currentAcceptanceMongoFilter } from '../../../shared/publicDiscovery/publicTruth.js';
 import { buildPublicJobFilter } from './jobsController.js';
 import { projectPublicJob } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 import { getRequestLocale, findLocalizedBySlug } from '../utils/localeQuery.js';
@@ -50,6 +48,10 @@ import { listEligibleMarketplaceSitemapPaths } from '../services/gbs/gbsMarketpl
 import { isTestPubliclyPromotable } from '../../../shared/education/testPublicationPolicy.js';
 import { publicHttpUrlOrNull } from '../../../shared/publicDiscovery/safePublicUrl.js';
 import { projectPublicBlog, projectPublicTest } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
+import {
+  canonicalInstitutionEligibilityFacts,
+  getCanonicalInstitutionEligibilityContext,
+} from '../utils/canonicalInstitutionEligibility.js';
 
 const NON_JOB_SEO_TYPES = new Set(['scholarship', 'blog', 'institution', 'test', 'program']);
 
@@ -125,8 +127,16 @@ export const getSeoEntityBySlug = asyncHandler(async (req, res) => {
     const doc = await CanonicalInstitution.findOne(withFixtureExclusion({ slug, status: PUB_STATUSES.PUBLISHED }))
       .select('officialName slug countryCode city region officialWebsite institutionType status sources')
       .lean();
-    const programCount = doc ? await Program.countDocuments(withFixtureExclusion({ institutionId: doc._id, status: PUB_STATUSES.PUBLISHED })) : 0;
-    if (doc && isCanonicalInstitutionDetailEligible(doc, { programCount })) entity = {
+    // Uses the same program + current TestAcceptance fact builder as sitemap;
+    // that builder applies currentAcceptanceMongoFilter().
+    const context = doc ? await getCanonicalInstitutionEligibilityContext([doc._id]) : null;
+    const eligibilityFacts = context
+      ? canonicalInstitutionEligibilityFacts(context, doc._id)
+      : { programCount: 0, acceptedTestCount: 0 };
+    if (doc && isCanonicalInstitutionDetailEligible(
+      doc,
+      eligibilityFacts,
+    )) entity = {
       type,
       slug: doc.slug,
       name: doc.officialName,
@@ -140,7 +150,7 @@ export const getSeoEntityBySlug = asyncHandler(async (req, res) => {
       facts: seoFacts(
         { label: 'Type', value: doc.institutionType },
         { label: 'Location', value: [doc.city, doc.region, doc.countryCode].filter(Boolean).join(', ') },
-        { label: 'Programs', value: programCount ? String(programCount) : '' },
+        { label: 'Programs', value: eligibilityFacts.programCount ? String(eligibilityFacts.programCount) : '' },
       ),
     };
   } else if (type === 'test') {
@@ -315,35 +325,8 @@ export const getSitemap = asyncHandler(async (_req, res) => {
     : [];
 
   const canonicalInstitutionIds = canonicalInstitutions.map((i) => i._id);
-  const institutionProgramCounts = canonicalInstitutionIds.length
-    ? await Program.aggregate([
-      {
-        $match: withFixtureExclusion({
-          status: PUB_STATUSES.PUBLISHED,
-          institutionId: { $in: canonicalInstitutionIds },
-        }),
-      },
-      { $group: { _id: '$institutionId', count: { $sum: 1 } } },
-    ])
-    : [];
-  const programCountByInstitutionId = new Map(
-    institutionProgramCounts.map((row) => [String(row._id), row.count])
-  );
-
-  const institutionAcceptanceCounts = canonicalInstitutionIds.length
-    ? await TestAcceptance.aggregate([
-      {
-        $match: {
-          institutionId: { $in: canonicalInstitutionIds },
-          ...currentAcceptanceMongoFilter(),
-        },
-      },
-      { $group: { _id: '$institutionId', count: { $sum: 1 } } },
-    ])
-    : [];
-  const acceptedTestCountByInstitutionId = new Map(
-    institutionAcceptanceCounts.map((row) => [String(row._id), row.count])
-  );
+  const institutionEligibilityContext = await getCanonicalInstitutionEligibilityContext(canonicalInstitutionIds);
+  const { programCountByInstitutionId, acceptedTestCountByInstitutionId } = institutionEligibilityContext;
 
   jobs.filter(isJobDetailPubliclyEligible).forEach((j) =>
     addUrl(`/jobs/${j.slug}`, { entityType: SEO_ENTITY_TYPES.JOB, doc: j })
