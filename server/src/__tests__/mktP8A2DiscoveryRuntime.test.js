@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { handler } from '../../../client/api/seo/entity/[type]/[slug].js';
+import { existsSync, readFileSync } from 'node:fs';
+import { handler } from '../../../client/api/seo/entity.js';
 import { buildEntityDiscovery, buildEntityJsonLd, renderEntitySeoShell } from '../../../shared/seo/entityDiscovery.js';
 
 const baseHtml = '<!doctype html><html><head><title>STRIDETO</title><meta name="description" content="Generic"><meta name="robots" content="index, follow"></head><body><div id="root"></div><script type="module" src="/assets/app.js"></script></body></html>';
@@ -70,6 +70,17 @@ try {
   assert.equal(failed.statusCode, 502);
   assert.equal(failed.headers['Cache-Control'], 'no-store');
 
+  for (const type of ['scholarship', 'institution', 'test', 'program']) {
+    globalThis.fetch = async (url) => {
+      if (String(url).endsWith('/index.html')) return response(200, baseHtml);
+      return response(200, JSON.stringify({ type, slug: 'safe-post', name: `Safe ${type}`, description: `Public ${type}` }));
+    };
+    const successfulType = mockRes();
+    await handler({ method: 'GET', query: { type, slug: 'safe-post' } }, successfulType);
+    assert.equal(successfulType.statusCode, 200, `${type} SEO success`);
+    assert.match(successfulType.body, /id="seo-discovery"/);
+  }
+
   globalThis.fetch = async (url) => {
     if (String(url).endsWith('/index.html')) return response(200, baseHtml);
     return response(200, '{not-json');
@@ -107,9 +118,31 @@ try {
   const compareIndex = vercel.rewrites.findIndex((rule) => rule.source === '/tests/compare');
   const testDetailIndex = vercel.rewrites.findIndex((rule) => rule.source === '/tests/:slug');
   assert.ok(compareIndex >= 0 && compareIndex < testDetailIndex);
+  const seoRules = new Map(vercel.rewrites.map((rule) => [rule.source, rule.destination]));
+  assert.equal(seoRules.get('/jobs/:slug'), '/api/seo/jobs?slug=:slug');
+  assert.equal(seoRules.get('/scholarships/:slug'), '/api/seo/entity?type=scholarship&slug=:slug');
+  assert.equal(seoRules.get('/blog/:slug'), '/api/seo/entity?type=blog&slug=:slug');
+  assert.equal(seoRules.get('/institutions/:slug'), '/api/seo/entity?type=institution&slug=:slug');
+  assert.equal(seoRules.get('/tests/:slug'), '/api/seo/entity?type=test&slug=:slug');
+  assert.equal(seoRules.get('/program-explorer/:slug'), '/api/seo/entity?type=program&slug=:slug');
+  const catchAllIndex = vercel.rewrites.findIndex((rule) => rule.destination === '/index.html' && rule.source.includes('((?!assets/).*)'));
+  assert.ok(catchAllIndex > testDetailIndex);
+  assert.ok(catchAllIndex > vercel.rewrites.findIndex((rule) => rule.source === '/jobs/:slug'));
+  assert.ok(catchAllIndex > vercel.rewrites.findIndex((rule) => rule.source === '/program-explorer/:slug'));
+  assert.equal(readFileSync(new URL('../../../client/api/seo/jobs.js', import.meta.url), 'utf8').includes("req.query?.slug"), true);
+  assert.equal(readFileSync(new URL('../../../client/api/seo/entity.js', import.meta.url), 'utf8').includes("req.query?.type"), true);
+  assert.equal(readFileSync(new URL('../../../client/api/seo/entity.js', import.meta.url), 'utf8').includes("req.query?.slug"), true);
+  assert.equal(existsSync(new URL('../../../client/api/seo/jobs/[slug].js', import.meta.url)), false, 'obsolete dynamic Job handler removed');
+  assert.equal(existsSync(new URL('../../../client/api/seo/entity/[type]/[slug].js', import.meta.url)), false, 'obsolete dynamic Entity handler removed');
   const seoController = readFileSync(new URL('../controllers/seoController.js', import.meta.url), 'utf8');
   assert.match(seoController, /if \(doc\) entity = \{/);
   assert.doesNotMatch(seoController, /entity = \{\.\.\.doc/);
+  assert.match(seoController, /findLocalizedBySlug\(Blog, slug, \{ status: 'published' \}/);
+  assert.match(seoController, /Test\.findOne\(\{ slug, status: PUB_STATUSES\.PUBLISHED \}\)/);
+  assert.match(seoController, /isTestPubliclyPromotable\(doc\)/);
+  assert.match(seoController, /withFixtureExclusion\(\{ status: 'active' \}\)/);
+  assert.match(seoController, /withFixtureExclusion\(\{ slug, status: PUB_STATUSES\.PUBLISHED \}\)/);
+  assert.doesNotMatch(vercel.rewrites.map((rule) => rule.source).join('\n'), /\/api/);
   console.log('mktP8A2DiscoveryRuntime: 45 checks passed');
 } finally {
   globalThis.fetch = originalFetch;

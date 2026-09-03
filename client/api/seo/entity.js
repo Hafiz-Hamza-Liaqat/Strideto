@@ -5,7 +5,7 @@ import {
   buildEntityJsonLd,
   buildNotFoundDiscovery,
   renderEntitySeoShell,
-} from '../../../../../shared/seo/entityDiscovery.js';
+} from '../../../shared/seo/entityDiscovery.js';
 
 const API_ORIGIN = (process.env.STRIDETO_PUBLIC_API_ORIGIN || 'https://api.strideto.com').replace(/\/$/, '');
 const CACHE = 'public, max-age=0, s-maxage=60, stale-while-revalidate=300';

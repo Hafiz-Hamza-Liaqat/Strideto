@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict';
 import fs from 'node:fs';
-import { handler } from '../../../client/api/seo/jobs/[slug].js';
+import { handler } from '../../../client/api/seo/jobs.js';
 
 const baseHtml = '<html><head><title>App</title><meta name="description" content="App"><meta name="robots" content="index, follow"></head><body><div id="root"></div><script type="module" src="/assets/app.js"></script></body></html>';
 const eligibleJob = {
@@ -92,4 +92,7 @@ const seoController = fs.readFileSync(new URL('../controllers/seoController.js',
 const seoEndpoint = seoController.slice(seoController.indexOf('export const getSeoJobBySlug'), seoController.indexOf('export const getSeoJobBySlug') + 1200);
 assert.doesNotMatch(seoEndpoint, /findByIdAndUpdate|updateOne|insert|deleteOne/);
 
-console.log('jobDynamicSeoRuntime.test.js: dynamic current-data rendering assertions passed');
+assert.match(fs.readFileSync(new URL('../../../client/api/seo/jobs.js', import.meta.url), 'utf8'), /req\.query\?\.slug/);
+assert.equal(fs.existsSync(new URL('../../../client/api/seo/jobs/[slug].js', import.meta.url)), false);
+
+console.log('jobDynamicSeoRuntime.test.js: static current-data rendering assertions passed');

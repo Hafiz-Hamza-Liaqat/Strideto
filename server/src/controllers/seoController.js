@@ -101,7 +101,7 @@ export const getSeoEntityBySlug = asyncHandler(async (req, res) => {
       ),
     };
   } else if (type === 'blog') {
-    const doc = await findLocalizedBySlug(Blog, slug, withFixtureExclusion({ status: 'published' }), getRequestLocale(req));
+    const doc = await findLocalizedBySlug(Blog, slug, { status: 'published' }, getRequestLocale(req));
     if (doc) entity = {
       type,
       slug: doc.slug,
@@ -142,7 +142,7 @@ export const getSeoEntityBySlug = asyncHandler(async (req, res) => {
       ),
     };
   } else if (type === 'test') {
-    const doc = await Test.findOne(withFixtureExclusion({ slug, status: PUB_STATUSES.PUBLISHED }))
+    const doc = await Test.findOne({ slug, status: PUB_STATUSES.PUBLISHED })
       .populate('providerId', 'name officialWebsite status')
       .select('slug name shortName category description overview purposes deliveryModes totalDurationMinutes scoreScale officialWebsite providerId status')
       .lean();

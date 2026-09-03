@@ -1,6 +1,6 @@
 /* global process */
 
-import { renderJobShell, renderSeoShell } from '../../../../shared/seo/jobHtmlShell.js';
+import { renderJobShell, renderSeoShell } from '../../../shared/seo/jobHtmlShell.js';
 
 const API_ORIGIN = (process.env.STRIDETO_PUBLIC_API_ORIGIN || 'https://api.strideto.com').replace(/\/$/, '');
 
