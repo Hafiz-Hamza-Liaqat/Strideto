@@ -29,10 +29,17 @@ export const adminSearch = asyncHandler(async (req, res) => {
 
 export const adminReindex = asyncHandler(async (req, res) => {
   const { entityType } = req.body || {};
+  const dryRun = req.body?.dryRun === true;
   const results = entityType
-    ? [await SearchIndexer.rebuildEntityType(entityType)]
-    : await SearchIndexer.rebuildAll();
-  res.json({ ok: true, results });
+    ? [await SearchIndexer.rebuildEntityType(entityType, { dryRun })]
+    : await SearchIndexer.rebuildAll({ dryRun });
+  const failed = results.reduce((count, result) => count + (result.failed || 0), 0);
+  res.json({
+    ok: results.every((result) => result.ok !== false),
+    dryRun,
+    failed,
+    results,
+  });
 });
 
 export const adminIndexStats = asyncHandler(async (_req, res) => {

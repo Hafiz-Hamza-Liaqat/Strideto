@@ -189,13 +189,16 @@ export async function searchSuggestions(q, options = {}) {
 /**
  * @param {object} normalizedDoc
  */
-export async function upsertSearchDocument(normalizedDoc) {
+export async function upsertSearchDocument(normalizedDoc, options = {}) {
   if (!normalizedDoc?.entityType || !normalizedDoc?.entityId) return null;
   if (!isSearchDomainAllowed(normalizedDoc.entityType, 'public')) {
     return null;
   }
 
-  const doc = await SearchDocument.findOneAndUpdate(
+  const SearchDocumentModel = options.SearchDocumentModel || SearchDocument;
+  const invalidate = options.invalidateCache || searchCacheInvalidatePrefix;
+
+  const doc = await SearchDocumentModel.findOneAndUpdate(
     {
       entityType: normalizedDoc.entityType,
       entityId: normalizedDoc.entityId,
@@ -225,13 +228,15 @@ export async function upsertSearchDocument(normalizedDoc) {
     { upsert: true, new: true },
   );
 
-  await searchCacheInvalidatePrefix('');
+  await invalidate('');
   return doc;
 }
 
-export async function deleteSearchDocument(entityType, entityId, locale = 'en') {
-  await SearchDocument.deleteOne({ entityType, entityId, locale });
-  await searchCacheInvalidatePrefix('');
+export async function deleteSearchDocument(entityType, entityId, locale = 'en', options = {}) {
+  const SearchDocumentModel = options.SearchDocumentModel || SearchDocument;
+  const invalidate = options.invalidateCache || searchCacheInvalidatePrefix;
+  await SearchDocumentModel.deleteOne({ entityType, entityId, locale });
+  await invalidate('');
 }
 
 export async function logSearchQuery({

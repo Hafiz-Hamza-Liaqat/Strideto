@@ -3,6 +3,7 @@
  */
 import { SearchIndexer } from '../services/search/SearchIndexer.js';
 import { searchCacheInvalidatePrefix } from '../services/search/searchCache.js';
+import { logger } from './logger.js';
 
 const ENTITY_TYPE_ALIASES = {
   job: 'job',
@@ -33,8 +34,14 @@ const ENTITY_TYPE_ALIASES = {
 export function scheduleSearchIndexUpdate(entity, entityId, locale = 'en') {
   const entityType = ENTITY_TYPE_ALIASES[entity] || entity;
   if (!entityType || !entityId) return;
-  void SearchIndexer.indexEntity(entityType, String(entityId), locale).catch(() => {});
+  const operation = SearchIndexer.indexEntity(entityType, String(entityId), locale);
+  void operation.catch((error) => {
+    logger.error('search_index_update_failed', {
+      entityType, entityId: String(entityId), locale, error: error?.name || 'index_failed',
+    });
+  });
   searchCacheInvalidatePrefix('search:');
+  return operation;
 }
 
 /**
@@ -45,6 +52,12 @@ export function scheduleSearchIndexUpdate(entity, entityId, locale = 'en') {
 export function scheduleSearchIndexRemoval(entity, entityId, locale = 'en') {
   const entityType = ENTITY_TYPE_ALIASES[entity] || entity;
   if (!entityType || !entityId) return;
-  void SearchIndexer.removeEntity(entityType, String(entityId), locale).catch(() => {});
+  const operation = SearchIndexer.removeEntity(entityType, String(entityId), locale);
+  void operation.catch((error) => {
+    logger.error('search_index_removal_failed', {
+      entityType, entityId: String(entityId), locale, error: error?.name || 'removal_failed',
+    });
+  });
   searchCacheInvalidatePrefix('search:');
+  return operation;
 }

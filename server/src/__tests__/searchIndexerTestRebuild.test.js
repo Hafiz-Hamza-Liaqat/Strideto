@@ -3,7 +3,9 @@ import { readFileSync } from 'node:fs';
 import { removeStaleTestSearchDocuments } from '../services/search/SearchIndexer.js';
 
 const source = readFileSync(new URL('../services/search/SearchIndexer.js', import.meta.url), 'utf8');
-assert.match(source, /if \(entityType === 'test'\) eligibleIds\.push/);
+assert.match(source, /const eligibleIds = new Set\(\)/);
+assert.match(source, /result\.scanComplete && result\.failed === 0/);
+assert.match(source, /staleFound/);
 assert.match(source, /SearchDocumentModel\.deleteMany\(\{[\s\S]*entityType: 'test'/);
 assert.match(source, /entityId: \{ \$nin: eligibleIds \}/);
 assert.match(source, /return result\.deletedCount \|\| 0/);
