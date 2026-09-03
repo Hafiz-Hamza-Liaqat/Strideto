@@ -495,3 +495,80 @@ export function projectPublicTestAlert(alert) {
     sources: Array.isArray(alert.sources) ? alert.sources.map(projectPublicEvidence).filter(Boolean) : [],
   };
 }
+
+/** Public international scholarship list DTO. `_id` remains for save actions and UI keys. */
+export function projectPublicIntlScholarshipListItem(scholarship) {
+  if (!scholarship) return null;
+  return {
+    _id: scholarship._id,
+    title: scholarship.title || '',
+    slug: scholarship.slug || '',
+    country: scholarship.country || '',
+    university: scholarship.university || '',
+    provider: scholarship.provider || '',
+    fundingType: scholarship.fundingType || '',
+    degreeLevel: scholarship.degreeLevel || '',
+    amount: scholarship.amount || '',
+    deadline: scholarship.deadline || null,
+    applicationDeadline: scholarship.applicationDeadline || null,
+    visaRequirements: scholarship.visaRequirements || '',
+    link: publicHttpUrlOrNull(scholarship.link),
+    isFeatured: scholarship.isFeatured === true,
+  };
+}
+
+/** Public international scholarship detail DTO. */
+export function projectPublicIntlScholarship(scholarship, options = {}) {
+  if (!scholarship) return null;
+  return {
+    ...projectPublicIntlScholarshipListItem(scholarship),
+    description: scholarship.description || '',
+    eligibility: Array.isArray(scholarship.eligibility) ? scholarship.eligibility : [],
+    seoTitle: scholarship.seoTitle || '',
+    metaDescription: scholarship.metaDescription || '',
+    related: Array.isArray(options.related)
+      ? options.related.map(projectPublicIntlScholarshipListItem).filter(Boolean)
+      : [],
+    relatedResources: Array.isArray(options.relatedResources) ? options.relatedResources : [],
+    ...(scholarship.universityId && typeof scholarship.universityId === 'object'
+      ? {
+          universityDetails: {
+            name: scholarship.universityId.name || '',
+            country: scholarship.universityId.country || '',
+            website: publicHttpUrlOrNull(scholarship.universityId.website),
+            description: scholarship.universityId.description || '',
+          },
+        }
+      : {}),
+    ...(options.canonicalSlug ? { canonicalSlug: options.canonicalSlug } : {}),
+  };
+}
+
+/** Public career article list DTO. `_id` remains for existing UI keys and view telemetry. */
+export function projectPublicCareerArticleListItem(article) {
+  if (!article) return null;
+  return {
+    _id: article._id,
+    title: article.title || '',
+    slug: article.slug || '',
+    summary: article.excerpt || '',
+    excerpt: article.excerpt || '',
+    category: article.category || '',
+    tags: Array.isArray(article.tags) ? article.tags : [],
+    publishedAt: article.publishedAt || null,
+    updatedAt: article.updatedAt || null,
+    imageUrl: publicHttpUrlOrNull(article.imageUrl),
+    isFeatured: article.isFeatured === true,
+  };
+}
+
+/** Public career article detail DTO. */
+export function projectPublicCareerArticle(article) {
+  if (!article) return null;
+  return {
+    ...projectPublicCareerArticleListItem(article),
+    content: article.content || '',
+    seoTitle: article.seoTitle || '',
+    metaDescription: article.metaDescription || '',
+  };
+}

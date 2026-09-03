@@ -8,6 +8,10 @@ import {
   findLocalizedById,
   isObjectIdParam,
 } from '../utils/localeQuery.js';
+import {
+  projectPublicCareerArticle,
+  projectPublicCareerArticleListItem,
+} from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 
 const DEFAULT_LIMIT = 12;
 const MAX_LIMIT = 50;
@@ -32,7 +36,7 @@ export const getCareerArticles = asyncHandler(async (req, res) => {
     CareerArticle.find(query).sort(sort).skip(skip).limit(limit).lean(),
     CareerArticle.countDocuments(query),
   ]);
-  res.json(listResponse(data, paginate(page, limit, total), req.query));
+  res.json(listResponse(data.map(projectPublicCareerArticleListItem), paginate(page, limit, total), req.query));
 });
 
 export const getCareerArticleBySlug = asyncHandler(async (req, res) => {
@@ -44,5 +48,5 @@ export const getCareerArticleBySlug = asyncHandler(async (req, res) => {
     : await findLocalizedBySlug(CareerArticle, slug, baseFilter, locale);
   if (!article) return res.status(404).json({ error: 'Career article not found' });
   await CareerArticle.findByIdAndUpdate(article._id, { $inc: { views: 1 } });
-  res.json({ ...article, views: (article.views || 0) + 1 });
+  res.json(projectPublicCareerArticle(article));
 });

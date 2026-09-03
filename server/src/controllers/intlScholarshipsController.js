@@ -7,6 +7,10 @@ import { sanitizeString } from '../utils/sanitize.js';
 import { freeTextCountryRegex } from '../../../shared/international/location.js';
 import { isObjectIdParam } from '../utils/localeQuery.js';
 import { clusterResourceLinks } from '../../../shared/seo/contentClusters.js';
+import {
+  projectPublicIntlScholarship,
+  projectPublicIntlScholarshipListItem,
+} from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
@@ -45,7 +49,7 @@ export const listIntlScholarships = asyncHandler(async (req, res) => {
     IntlScholarship.countDocuments(query),
   ]);
   const pagination = paginate(page, limit, total);
-  res.json(listResponse(data, pagination, req.query));
+  res.json(listResponse(data.map(projectPublicIntlScholarshipListItem), pagination, req.query));
 });
 
 export const getIntlScholarshipByIdOrSlug = asyncHandler(async (req, res) => {
@@ -82,11 +86,11 @@ export const getIntlScholarshipByIdOrSlug = asyncHandler(async (req, res) => {
     currentPath: `/intl-scholarships/${slugPath}`,
   });
 
-  const payload = { ...doc, related, relatedResources };
-  if (isObjectIdParam(key) && doc.slug) {
-    payload.canonicalSlug = doc.slug;
-  }
-  res.json(payload);
+  res.json(projectPublicIntlScholarship(doc, {
+    related,
+    relatedResources,
+    canonicalSlug: isObjectIdParam(key) && doc.slug ? doc.slug : undefined,
+  }));
 });
 
 /** @deprecated alias — use getIntlScholarshipByIdOrSlug */
