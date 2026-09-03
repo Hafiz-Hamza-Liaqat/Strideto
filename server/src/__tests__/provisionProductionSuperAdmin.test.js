@@ -45,15 +45,19 @@ const PROD_ENV = Object.freeze({
 
 function makeRuntime({
   superAdminCount = 0,
+  claimedSuperAdminCount = 0,
   finalSuperAdminCount = 1,
   accountRole = 'Admin',
   accountStatus = 'active',
   accountMissing = false,
+  duplicateTarget = false,
   mutationCode = 'SUBJECT_STATE_UPDATED',
   connectError = false,
   closeError = false,
   mutationError = false,
   auditError = false,
+  claimAcquired = true,
+  claimError = false,
   finalRoles = null,
 } = {}) {
   const calls = {
@@ -61,6 +65,7 @@ function makeRuntime({
     close: 0,
     countSuperAdmins: [],
     findTargetAccount: [],
+    acquireBootstrapClaim: [],
     changeRole: [],
     audit: [],
     order: [], // call-order log for ordering assertions
@@ -81,19 +86,37 @@ function makeRuntime({
         if (closeError) throw new Error('db close failed');
       },
       async countSuperAdmins() {
-        const count = countCallIndex === 0 ? superAdminCount : finalSuperAdminCount;
+        const count = countCallIndex === 0
+          ? superAdminCount
+          : countCallIndex === 1
+            ? claimedSuperAdminCount
+            : finalSuperAdminCount;
         countCallIndex += 1;
         calls.countSuperAdmins.push(count);
         calls.order.push('countSuperAdmins');
         return count;
       },
-      async findTargetAccount(email) {
+      async findTargetAccounts(email) {
         calls.findTargetAccount.push(email);
         calls.order.push('findTargetAccount');
-        if (accountMissing) return null;
-        const role = allFinalRoles[Math.min(findCallIndex, allFinalRoles.length - 1)];
+        if (accountMissing) return [];
+        if (duplicateTarget) {
+          return [
+            { _id: ACCOUNT_ID, role: accountRole, accountStatus },
+            { _id: '507f1f77bcf86cd799439023', role: accountRole, accountStatus },
+          ];
+        }
+        const role = findCallIndex < 2
+          ? accountRole
+          : allFinalRoles[Math.min(findCallIndex - 1, allFinalRoles.length - 1)];
         findCallIndex += 1;
-        return { _id: ACCOUNT_ID, role, accountStatus };
+        return [{ _id: ACCOUNT_ID, role, accountStatus }];
+      },
+      async acquireBootstrapClaim(args) {
+        calls.acquireBootstrapClaim.push(args);
+        calls.order.push('acquireBootstrapClaim');
+        if (claimError) throw new Error('claim failure');
+        return { acquired: claimAcquired };
       },
       async changeRole(args) {
         calls.changeRole.push(args);
@@ -585,6 +608,62 @@ process.stdout.write('\nH. verify never mutates:\n');
   check(rt.calls.audit.length === 0, 'H: audit not called in verify mode');
   check(rt.calls.order.filter((c) => c === 'changeRole' || c === 'audit').length === 0,
     'H: no mutation operations appear in call order log during verify');
+}
+
+process.stdout.write('\nSA. bootstrap hardening:\n');
+{
+  const rt = makeRuntime();
+  const result = await runProductionSuperAdminProvisioning({ argv: ['--apply'], env: PROD_ENV, runtimeFactory: rt.factory, write: () => {} });
+  check(result.code === 'SUPERADMIN_PROVISIONED', 'SA-01: exactly one target is accepted');
+  check(rt.calls.acquireBootstrapClaim.length === 1, 'SA-01: one atomic claim is acquired');
+}
+{
+  const rt = makeRuntime({ finalSuperAdminCount: 2 });
+  const result = await runProductionSuperAdminProvisioning({ argv: ['--apply'], env: PROD_ENV, runtimeFactory: rt.factory, write: () => {} });
+  check(result.code === 'FINAL_COUNT_VERIFICATION_FAILED', 'SA-01: final census must verify exactly one SuperAdmin');
+  check(rt.calls.audit.length === 0, 'SA-01: non-singular final census is not audited as success');
+}
+{
+  const rt = makeRuntime({ duplicateTarget: true });
+  const result = await runProductionSuperAdminProvisioning({ argv: ['--apply'], env: PROD_ENV, runtimeFactory: rt.factory, write: () => {} });
+  check(result.code === 'TARGET_ACCOUNT_AMBIGUOUS', 'SA-02: duplicate target is refused');
+  check(rt.calls.changeRole.length === 0, 'SA-02: duplicate target cannot mutate');
+}
+{
+  const rt = makeRuntime({ claimAcquired: false });
+  const result = await runProductionSuperAdminProvisioning({ argv: ['--apply'], env: PROD_ENV, runtimeFactory: rt.factory, write: () => {} });
+  check(result.code === 'BOOTSTRAP_CLAIM_EXISTS', 'SA-03: existing claim refuses retry');
+  check(rt.calls.changeRole.length === 0, 'SA-03: losing claimant performs zero role changes');
+}
+{
+  const rt = makeRuntime({ claimedSuperAdminCount: 1 });
+  const result = await runProductionSuperAdminProvisioning({ argv: ['--apply'], env: PROD_ENV, runtimeFactory: rt.factory, write: () => {} });
+  check(result.code === 'SUPERADMIN_ALREADY_EXISTS_AFTER_CLAIM', 'SA-04: post-claim census blocks mutation');
+  check(rt.calls.changeRole.length === 0, 'SA-04: post-claim census performs zero role changes');
+}
+{
+  const shared = { claimed: false, role: 'Admin', changeCalls: 0 };
+  const factory = async () => ({
+    async connect() {},
+    async close() {},
+    async findTargetAccounts() { return [{ _id: ACCOUNT_ID, role: shared.role, accountStatus: 'active' }]; },
+    async countSuperAdmins() { return shared.role === 'SuperAdmin' ? 1 : 0; },
+    async acquireBootstrapClaim() { if (shared.claimed) return { acquired: false }; shared.claimed = true; return { acquired: true }; },
+    async changeRole() { shared.changeCalls += 1; shared.role = 'SuperAdmin'; return { code: 'SUBJECT_STATE_UPDATED' }; },
+    async audit() {},
+  });
+  const results = await Promise.all([
+    runProductionSuperAdminProvisioning({ argv: ['--apply'], env: PROD_ENV, runtimeFactory: factory, write: () => {} }),
+    runProductionSuperAdminProvisioning({ argv: ['--apply'], env: PROD_ENV, runtimeFactory: factory, write: () => {} }),
+  ]);
+  check(results.filter((r) => r.code === 'SUPERADMIN_PROVISIONED').length === 1, 'SA-05: one concurrent claimant wins');
+  check(shared.changeCalls === 1, 'SA-05: concurrent loser performs zero role mutations');
+}
+{
+  const rt = makeRuntime();
+  const result = await runProductionSuperAdminProvisioning({ argv: ['--apply'], env: PROD_ENV, runtimeFactory: rt.factory, write: () => {} });
+  check(rt.calls.audit[0].guardId === 'production-first-superadmin-v1', 'SA-06: audit includes bounded guard identity');
+  check(result.code === 'SUPERADMIN_PROVISIONED', 'SA-06: successful bootstrap remains verified');
 }
 
 // ─── Summary ─────────────────────────────────────────────────────────────────

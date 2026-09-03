@@ -16,10 +16,12 @@
  * change must use the audited SuperAdmin role-management flow.
  */
 import { pathToFileURL } from 'node:url';
+import mongoose from 'mongoose';
 
 const CURRENT_ROLE = 'Admin';
 const DESIRED_ROLE = 'SuperAdmin';
 const PRODUCTION_CONFIRM_TOKEN = 'PROVISION_FIRST_SUPERADMIN';
+const BOOTSTRAP_GUARD_ID = 'production-first-superadmin-v1';
 const HELP_TEXT =
   'Usage: provisionProductionSuperAdmin.js [--help|--verify|--apply] (default: --verify)';
 
@@ -44,6 +46,7 @@ function safeLine(result) {
       `currentRole=${result.currentRole ?? 'Absent'}`,
       `accountStatus=${result.accountStatus ?? 'unknown'}`,
       `promotionRequired=${String(result.promotionRequired)}`,
+      `targetMatchCount=${result.targetMatchCount}`,
     ].join('\n');
   }
   if (result.code === 'SUPERADMIN_PROVISIONED') {
@@ -123,28 +126,34 @@ export async function runProductionSuperAdminProvisioning({
     runtime = await runtimeFactory();
     await runtime.connect();
 
-    const superAdminCount = await runtime.countSuperAdmins();
+    const accounts = await runtime.findTargetAccounts(targetEmail);
+    const targetMatchCount = Array.isArray(accounts) ? accounts.length : 0;
 
-    if (mode === 'verify') {
-      const account = await runtime.findTargetAccount(targetEmail);
+    if (targetMatchCount !== 1) {
+      result = safeResult(
+        targetMatchCount === 0 ? 'ACCOUNT_NOT_FOUND' : 'TARGET_ACCOUNT_AMBIGUOUS',
+        { targetMatchCount }
+      );
+    } else if (mode === 'verify') {
+      const superAdminCount = await runtime.countSuperAdmins();
+      const account = accounts[0];
       result = Object.freeze({
         ok: true,
         code: 'VERIFIED',
         superAdminCount,
-        accountFound: Boolean(account),
+        accountFound: true,
         currentRole: account?.role ?? null,
         accountStatus: account?.accountStatus ?? null,
         promotionRequired: account?.role === CURRENT_ROLE && superAdminCount === 0,
+        targetMatchCount,
       });
     } else {
+      const superAdminCount = await runtime.countSuperAdmins();
       if (superAdminCount > 0) {
         result = safeResult('SUPERADMIN_ALREADY_EXISTS');
       } else {
-        const account = await runtime.findTargetAccount(targetEmail);
-
-        if (!account) {
-          result = safeResult('ACCOUNT_NOT_FOUND');
-        } else if (account.accountStatus !== 'active') {
+        const account = accounts[0];
+        if (account.accountStatus !== 'active') {
           result = safeResult('ACCOUNT_NOT_ACTIVE');
         } else if (account.role === DESIRED_ROLE) {
           result = Object.freeze({ ok: true, code: 'ALREADY_SUPERADMIN' });
@@ -152,44 +161,69 @@ export async function runProductionSuperAdminProvisioning({
           result = safeResult('ROLE_NOT_ADMIN');
         } else {
           const subjectId = account._id.toString();
-          const mutation = await runtime.changeRole({
-            subjectId,
-            expectedPriorRole: CURRENT_ROLE,
-            newRole: DESIRED_ROLE,
+          const claim = await runtime.acquireBootstrapClaim({
+            guardId: BOOTSTRAP_GUARD_ID,
+            targetId: subjectId,
           });
-
-          if (mutation?.code !== 'SUBJECT_STATE_UPDATED') {
-            result = safeResult('SECURITY_MUTATION_FAILED');
+          if (!claim?.acquired) {
+            result = safeResult('BOOTSTRAP_CLAIM_EXISTS');
           } else {
-            // Step 1: re-read target account to confirm role before any audit write.
-            const finalAccount = await runtime.findTargetAccount(targetEmail);
-            if (finalAccount?.role !== DESIRED_ROLE) {
-              result = safeResult('FINAL_VERIFICATION_FAILED');
+            const claimedSuperAdminCount = await runtime.countSuperAdmins();
+            if (claimedSuperAdminCount > 0) {
+              result = safeResult('SUPERADMIN_ALREADY_EXISTS_AFTER_CLAIM');
             } else {
-              // Step 2: count SuperAdmins to confirm DB consistency.
-              const finalCount = await runtime.countSuperAdmins();
-              if (finalCount < 1) {
-                result = safeResult('FINAL_COUNT_VERIFICATION_FAILED');
+              const claimedAccounts = await runtime.findTargetAccounts(targetEmail);
+              const claimedAccount = claimedAccounts.length === 1 ? claimedAccounts[0] : null;
+              if (
+                !claimedAccount ||
+                String(claimedAccount._id) !== subjectId ||
+                claimedAccount.accountStatus !== 'active' ||
+                claimedAccount.role !== CURRENT_ROLE
+              ) {
+                result = safeResult('TARGET_STATE_CHANGED_AFTER_CLAIM');
               } else {
-                // Step 3: role confirmed SuperAdmin — write success audit.
-                provisioningConfirmed = true;
-                try {
-                  await runtime.audit({
-                    action: 'production.superadmin_bootstrap',
-                    targetId: subjectId,
-                    previousRole: CURRENT_ROLE,
-                    newRole: DESIRED_ROLE,
-                    bootstrapMechanism: 'production_first_superadmin',
-                  });
-                  result = Object.freeze({ ok: true, code: 'SUPERADMIN_PROVISIONED' });
-                } catch {
-                  // Role IS SuperAdmin — audit persistence failed. Do not rollback.
-                  result = Object.freeze({
-                    ok: false,
-                    code: 'SUPERADMIN_PROVISIONED_AUDIT_FAILED',
-                    finalRole: DESIRED_ROLE,
-                    manualReviewRequired: true,
-                  });
+                const mutation = await runtime.changeRole({
+                  subjectId,
+                  expectedPriorRole: CURRENT_ROLE,
+                  newRole: DESIRED_ROLE,
+                });
+                if (mutation?.code !== 'SUBJECT_STATE_UPDATED') {
+                  result = safeResult('SECURITY_MUTATION_FAILED');
+                } else {
+                  // Step 1: re-read target account to confirm role before any audit write.
+                  const finalAccounts = await runtime.findTargetAccounts(targetEmail);
+                  const finalAccount = finalAccounts.length === 1 ? finalAccounts[0] : null;
+                  if (finalAccount?.role !== DESIRED_ROLE) {
+                    result = safeResult('FINAL_VERIFICATION_FAILED');
+                  } else {
+                    // Step 2: count SuperAdmins to confirm DB consistency.
+                    const finalCount = await runtime.countSuperAdmins();
+                    if (finalCount !== 1) {
+                      result = safeResult('FINAL_COUNT_VERIFICATION_FAILED');
+                    } else {
+                      // Step 3: role confirmed SuperAdmin — write success audit.
+                      provisioningConfirmed = true;
+                      try {
+                        await runtime.audit({
+                          action: 'production.superadmin_bootstrap',
+                          targetId: subjectId,
+                          previousRole: CURRENT_ROLE,
+                          newRole: DESIRED_ROLE,
+                          bootstrapMechanism: 'production_first_superadmin',
+                          guardId: BOOTSTRAP_GUARD_ID,
+                        });
+                        result = Object.freeze({ ok: true, code: 'SUPERADMIN_PROVISIONED' });
+                      } catch {
+                        // Role IS SuperAdmin — audit persistence failed. Do not rollback.
+                        result = Object.freeze({
+                          ok: false,
+                          code: 'SUPERADMIN_PROVISIONED_AUDIT_FAILED',
+                          finalRole: DESIRED_ROLE,
+                          manualReviewRequired: true,
+                        });
+                      }
+                    }
+                  }
                 }
               }
             }
@@ -270,11 +304,27 @@ async function createRuntime() {
     countSuperAdmins() {
       return User.countDocuments({ role: DESIRED_ROLE });
     },
-    findTargetAccount(email) {
-      return User.findOne({ email }).select('_id role accountStatus').lean();
+    findTargetAccounts(email) {
+      return User.find({ email }).select('_id role accountStatus').limit(2).lean();
+    },
+    async acquireBootstrapClaim({ guardId, targetId }) {
+      try {
+        await mongoose.connection.db.collection('superadmin_bootstrap_claims').insertOne({
+          _id: guardId,
+          status: 'claimed',
+          targetId,
+          claimedAt: new Date(),
+        });
+        return { acquired: true };
+      } catch (error) {
+        if (error?.code === 11000) {
+          return { acquired: false, code: 'BOOTSTRAP_CLAIM_EXISTS' };
+        }
+        throw error;
+      }
     },
     changeRole: flows.changeUserRole,
-    async audit({ action, targetId, previousRole, newRole, bootstrapMechanism }) {
+    async audit({ action, targetId, previousRole, newRole, bootstrapMechanism, guardId }) {
       await auditModule.logAudit({
         action,
         actor: { userId: 'system:production_bootstrap', role: 'system' },
@@ -285,6 +335,7 @@ async function createRuntime() {
           previousRole,
           newRole,
           bootstrapMechanism,
+          guardId,
           timestamp: new Date().toISOString(),
         },
         reason: 'production_first_superadmin_bootstrap',
