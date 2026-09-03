@@ -201,8 +201,8 @@ check(
 check(resolveHomepageHeroCtas(null) === null, 'MKT-P0B-HARDEN: empty CMS CTAs use fallback hierarchy');
 
 const heroVisual = read('components/home/HomeHeroVisual.jsx');
-check(heroVisual.includes('aria-hidden="true"'), 'MKT-P0B-HARDEN: hero visual is decorative');
-check(heroVisual.includes('pointer-events-none'), 'MKT-P0B-HARDEN: hero visual not pointer-interactive');
-check(!heroVisual.includes('<Link'), 'MKT-P0B-HARDEN: hero visual has no faux links');
+check(heroVisual.includes('<Link'), 'MKT-P0B-HARDEN: hero visual uses semantic navigation links');
+check(heroVisual.includes('aria-hidden="true"'), 'MKT-P0B-HARDEN: decorative hero layers remain hidden');
+check(!heroVisual.includes('pointer-events-none'), 'MKT-P0B-HARDEN: hero visual links remain pointer-interactive');
 
 console.log(`mktP0bPositioning.test.js: ${count} checks passed`);
