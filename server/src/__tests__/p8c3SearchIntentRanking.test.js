@@ -60,3 +60,33 @@ test('public navigation aliases are separate quick links, never SearchDocuments'
   assert.match(service, /quickLinks/);
   assert.match(service, /intent\.navigation/);
 });
+
+test('C3B-01 through C3B-06: contextual entity and location intent is parsed', () => {
+  const cases = [
+    ['jobs in pakistan', ['job'], 'pakistan'],
+    ['jobs in usa', ['job'], 'usa'],
+    ['jobs in UAE', ['job'], 'uae'],
+    ['programs in canada', ['program'], 'canada'],
+    ['universities in australia', ['university'], 'australia'],
+    ['scholarships in germany', ['scholarship', 'intl-scholarship'], 'germany'],
+  ];
+  for (const [query, types, location] of cases) {
+    const intent = resolveSearchIntent(query);
+    assert.deepEqual(intent.entityTypes, types, query);
+    assert.equal(intent.locationText, location, query);
+    assert.equal(intent.contextual, true, query);
+  }
+  assert.ok(resolveSearchIntent('jobs in usa').locationAliases.includes('united states'));
+  assert.ok(resolveSearchIntent('jobs in UAE').locationAliases.includes('ae'));
+});
+
+test('C3B-07 through C3B-12: explicit filters and safe fallback contracts remain', () => {
+  const service = read('server/src/services/search/SearchIndexService.js');
+  assert.match(service, /!params\.types\?\.length \? resolveSearchIntent/);
+  assert.match(service, /intent\?\.contextual && !params\.country/);
+  assert.match(service, /buildLocationFilter/);
+  assert.match(service, /clampPublicSearchTypes/);
+  assert.equal(resolveSearchIntent('jobs in zzqxv987xyz').entityTypes[0], 'job');
+  assert.equal(resolveSearchIntent('Master of Information Technology').entityTypes, null);
+  assert.deepEqual(resolveSearchIntent('jobs').entityTypes, ['job']);
+});

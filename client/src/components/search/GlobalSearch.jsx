@@ -195,7 +195,7 @@ export function GlobalSearch({
               id={listboxId}
               ref={listRef}
               role="listbox"
-              className="absolute z-50 mt-1 left-0 right-0 w-full max-h-80 overflow-auto rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg py-1 text-left"
+              className="absolute z-50 mt-1 left-0 w-[min(42rem,calc(100vw-2rem))] max-w-[calc(100vw-2rem)] max-h-[min(70vh,20rem)] overflow-y-auto overflow-x-hidden rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg py-1 text-left"
             >
               {quickLinks.length ? (
                 <li className="list-none">

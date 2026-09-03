@@ -51,6 +51,21 @@ function buildTextFilter(q) {
   };
 }
 
+function buildLocationFilter(locationText, aliases = []) {
+  const terms = aliases.length ? aliases : [locationText];
+  const re = new RegExp(terms.map((term) => String(term).replace(/[.*+?^${}()|[\]\\]/g, '\\$&')).join('|'), 'i');
+  return {
+    $or: [
+      { country: re },
+      { province: re },
+      { summary: re },
+      { searchText: re },
+      { tags: re },
+      { keywords: re },
+    ],
+  };
+}
+
 function toResultDto(doc, { publicProjection = true } = {}) {
   return {
     id: doc.entityId,
@@ -104,7 +119,9 @@ export async function searchIndex(params, options = {}) {
   if (cached) return { ...cached, elapsedTime: Date.now() - started, cached: true };
 
   const filter = { ...buildMongoFilter(params) };
-  if (!intent?.entityTypes) Object.assign(filter, buildTextFilter(params.q));
+  if (intent?.contextual && !params.country) {
+    filter.$and = [buildLocationFilter(intent.locationText, intent.locationAliases)];
+  } else if (!intent?.entityTypes) Object.assign(filter, buildTextFilter(params.q));
 
   let types = params.types?.length ? params.types : (intent?.entityTypes || null);
   if (!types) types = options.admin ? null : PUBLIC_SEARCH_ENTITY_TYPES;
@@ -120,8 +137,11 @@ export async function searchIndex(params, options = {}) {
   }
 
   const candidates = await SearchDocument.find(filter).limit(500).lean();
-  const ranked = params.q
-    ? rankSearchResults(candidates, params.q, params.sort)
+  const rankingQuery = intent?.contextual && !params.country
+    ? intent.locationText
+    : (intent?.entityTypes ? '' : params.q);
+  const ranked = rankingQuery
+    ? rankSearchResults(candidates, rankingQuery, params.sort)
     : rankSearchResults(candidates, '', params.sort === 'relevance' ? 'newest' : params.sort);
   const total = ranked.length;
   const pageResults = ranked.slice(params.skip, params.skip + params.limit)
@@ -164,16 +184,21 @@ export async function searchSuggestions(q, options = {}) {
     includeDraft: false,
     featured: false,
     category: '',
-    province: '',
-    country: '',
+    province: options.province || '',
+    country: options.country || '',
   };
 
   const filter = { ...buildMongoFilter(params) };
-  if (!intent.entityTypes) Object.assign(filter, buildTextFilter(q));
+  if (intent?.contextual && !params.country) {
+    filter.$and = [buildLocationFilter(intent.locationText, intent.locationAliases)];
+  } else if (!intent?.entityTypes) Object.assign(filter, buildTextFilter(q));
   filter.entityType = { $in: intent?.entityTypes || (explicitTypes.length ? explicitTypes : SUGGESTION_ENTITY_TYPES) };
 
   const candidates = await SearchDocument.find(filter).limit(100).lean();
-  const ranked = rankSearchResults(candidates, intent?.entityTypes ? '' : q, 'relevance');
+  const rankingQuery = intent?.contextual && !params.country
+    ? intent.locationText
+    : (intent?.entityTypes ? '' : q);
+  const ranked = rankSearchResults(candidates, rankingQuery, 'relevance');
 
   /** @type {Record<string, object[]>} */
   const groups = {};

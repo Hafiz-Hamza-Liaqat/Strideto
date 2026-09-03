@@ -64,6 +64,8 @@ export const getSuggestions = asyncHandler(async (req, res) => {
   const result = await searchSuggestions(q, {
     locale: req.query.locale || 'en',
     types: requestedTypes.length ? req.query.type.split(',') : [],
+    country: req.query.country || req.query.countryCode || '',
+    province: req.query.province || '',
   });
   const elapsed = Date.now() - started;
 

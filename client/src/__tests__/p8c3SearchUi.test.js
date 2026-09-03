@@ -39,3 +39,32 @@ test('C3-UI-10 through C3-UI-14: public navigation links and empty state are exp
   assert.match(source, /No matches/);
   assert.match(source, /onKeyDown/);
 });
+
+test('C3B-UI-01 through C3B-UI-02: contextual queries use the existing suggestions/search flow', () => {
+  const source = read('client/src/components/search/GlobalSearch.jsx');
+  const results = read('client/src/pages/Search/SearchResults.jsx');
+  assert.match(source, /searchApi\.suggestions\(q, params\)/);
+  assert.match(source, /new URLSearchParams\(\{ q: term \}\)/);
+  assert.match(results, /searchApi\.search\(\{ q/);
+});
+
+test('C3B-UI-03 through C3B-UI-08: dropdown layering and previews are bounded', () => {
+  const source = read('client/src/components/search/GlobalSearch.jsx');
+  const home = read('client/src/pages/Home/Home.jsx');
+  assert.match(home, /overflow-visible bg-gradient-to-br/);
+  assert.match(source, /z-50/);
+  assert.match(source, /max-h-\[min\(70vh,20rem\)\]/);
+  assert.match(source, /overflow-y-auto/);
+  assert.match(source, /w-\[min\(42rem,calc\(100vw-2rem\)\)\]/);
+  assert.match(source, /line-clamp-2/);
+  assert.match(source, /truncate/);
+});
+
+test('C3B-UI-09 through C3B-UI-10: hero links and canonical result URLs remain intact', () => {
+  const hero = read('client/src/components/home/HomeHeroVisual.jsx');
+  const source = read('client/src/components/search/GlobalSearch.jsx');
+  const results = read('client/src/pages/Search/SearchResults.jsx');
+  assert.match(hero, /<Link/);
+  assert.match(source, /if \(item\.url\) navigate\(item\.url\)/);
+  assert.match(results, /to=\{item\.url \|\| '#'/);
+});

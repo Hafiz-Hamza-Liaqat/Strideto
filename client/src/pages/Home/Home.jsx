@@ -299,7 +299,7 @@ export default function Home() {
           )}
 
           <section
-            className="relative overflow-hidden bg-gradient-to-br from-primary via-primary-hover to-secondary px-4 py-12 sm:px-6 sm:py-14 md:py-20 dark:from-secondary dark:via-primary dark:to-secondary"
+            className="relative overflow-visible bg-gradient-to-br from-primary via-primary-hover to-secondary px-4 py-12 sm:px-6 sm:py-14 md:py-20 dark:from-secondary dark:via-primary dark:to-secondary"
             style={
               heroBg
                 ? {

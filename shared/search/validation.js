@@ -53,7 +53,7 @@ export function parseSearchParams(query = {}) {
     types,
     category: String(query.category || '').trim(),
     province: String(query.province || '').trim(),
-    country: String(query.country || '').trim(),
+    country: String(query.country || query.countryCode || '').trim(),
     featured: query.featured === 'true' || query.featured === true,
     sort: SEARCH_SORT_OPTIONS.includes(query.sort) ? query.sort : 'relevance',
     limit,
