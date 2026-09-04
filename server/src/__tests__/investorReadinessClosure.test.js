@@ -220,11 +220,35 @@ test('IR-83..100 dashboard states, currency separation, and fundraising boundary
   assert.match(page, /NOT YET MEASURED/);
   assert.match(page, /metric\.state|replaceAll\('_', ' '\)/);
   assert.match(page, /revenueByCurrency/);
-  assert.match(page, /not_tracked|NOT_TRACKED/);
+  assert.match(page, /fundraisingReadiness\?\.items|item\.state/);
+  assert.match(page, /displayStatus/);
+  assert.match(page, /zeroResultRate.*100/si);
+  assert.match(page, /Monetization Model/);
+  assert.match(page, /CAC/);
+  assert.match(page, /LTV/);
+  assert.doesNotMatch(page, /\$\{value\}/);
   assert.match(page, /loading/);
   assert.match(page, /role="alert"/);
   assert.doesNotMatch(page, /localStorage/);
   assert.doesNotMatch(page, /search.*query.*map/i);
+});
+
+test('UI-IR-01..17 investor presentation contract handles structured coverage and fundraising items', async () => {
+  const fixtures = investorFixtures();
+  const result = await withMethods(fixtures.overrides, () => getInvestorReadiness({ range: 30 }));
+  const page = read('client/src/pages/Admin/InvestorReadinessDashboard.jsx');
+  assert.match(page, /displayStatus/);
+  assert.match(page, /value\.state \|\| value\.status/);
+  assert.match(page, /key === 'zeroResultRate'/);
+  assert.match(page, /metric\.value \* 100/);
+  assert.equal(result.coverage.activity.state, 'PARTIAL_COVERAGE');
+  assert.equal(result.coverage.historicalActivation.state, 'NOT_YET_MEASURED');
+  assert.equal(result.coverage.attribution.state, 'NOT_YET_MEASURED');
+  assert.equal(result.coverage.opportunityEvents.state, 'PARTIAL_COVERAGE');
+  assert.equal(result.fundraisingReadiness.items.length, 14);
+  assert.ok(result.fundraisingReadiness.items.every((item) => item.state === 'NOT_TRACKED'));
+  assert.doesNotMatch(page, /localStorage/);
+  assert.doesNotMatch(page, /\$\{value\}/);
 });
 
 test('IR-101..104 investor service uses bounded server-side aggregation without per-user loops', () => {

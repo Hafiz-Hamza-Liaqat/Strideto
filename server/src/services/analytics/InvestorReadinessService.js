@@ -11,6 +11,7 @@ import {
   INVESTOR_METRIC_DEFINITIONS,
   boundedInvestorRange,
   metricState,
+  INVESTOR_FUNDRAISING_CHECKLIST,
 } from '../../../../shared/analytics/investorMetrics.js';
 
 const STAFF_ROLES = ['Editor', 'Moderator', 'Admin', 'SuperAdmin'];
@@ -179,7 +180,10 @@ export async function getInvestorReadiness({ range = 30 } = {}) {
       employerValidation: employersWithJobs.length ? 'PARTIAL' : 'NOT_MEASURED', marketplaceValidation: internalApplications ? 'PARTIAL' : 'NOT_MEASURED',
       repeatBehavior: 'NOT_MEASURED', revenueReadiness: paymentSummaryRows.length ? 'PARTIAL' : 'NOT_MEASURED', cac: 'NOT_MEASURED', ltv: 'NOT_MEASURED', dataQuality: 'PARTIAL',
     },
-    fundraisingReadiness: { state: 'NOT_TRACKED', items: [] },
+    fundraisingReadiness: {
+      state: 'NOT_TRACKED',
+      items: INVESTOR_FUNDRAISING_CHECKLIST.map((label) => ({ label, state: 'NOT_TRACKED' })),
+    },
   };
 }
 

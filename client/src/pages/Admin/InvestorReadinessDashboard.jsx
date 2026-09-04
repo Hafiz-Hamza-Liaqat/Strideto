@@ -6,19 +6,49 @@ import { PERMISSIONS } from '../../config/rbac';
 
 const TABS = ['Overview', 'Traction', 'Business Readiness', 'Fundraising Readiness'];
 
-function displayValue(metric) {
-  if (!metric || metric.value == null) return 'NOT YET MEASURED';
-  if (typeof metric.value === 'number') return metric.value.toLocaleString();
-  if (Array.isArray(metric.value)) return metric.value.length ? `${metric.value.length} currencies` : 'NOT YET MEASURED';
-  return String(metric.value);
+const DISPLAY_LABELS = Object.freeze({
+  monetizationModel: 'Monetization Model',
+  pricingValidation: 'Pricing Validation',
+  paidValidation: 'Paid Validation',
+  employerValidation: 'Employer Validation',
+  marketplaceValidation: 'Marketplace Validation',
+  repeatBehavior: 'Repeat Behavior',
+  revenueReadiness: 'Revenue Readiness',
+  cac: 'CAC',
+  ltv: 'LTV',
+  dataQuality: 'Data Quality',
+});
+
+function displayLabel(key) {
+  return DISPLAY_LABELS[key] || key.replaceAll(/([A-Z])/g, ' $1').trim();
 }
 
-function MetricCard({ label, metric, definition }) {
+function displayStatus(value) {
+  if (value == null) return 'NOT YET MEASURED';
+  if (typeof value === 'string') return value.replaceAll('_', ' ');
+  if (Array.isArray(value)) return value.length ? value.join(' • ') : 'NOT YET MEASURED';
+  if (typeof value !== 'object') return String(value);
+  const status = value.state || value.status || 'NOT YET MEASURED';
+  const detail = value.detail || value.message || value.reason || '';
+  return [status.replaceAll('_', ' '), detail].filter(Boolean).join(' — ');
+}
+
+function formatMetricValue(key, metric) {
+  if (!metric || metric.value == null) return 'NOT YET MEASURED';
+  if (key === 'zeroResultRate' && typeof metric.value === 'number') {
+    return `${(metric.value * 100).toFixed(1).replace(/\.0$/, '')}%`;
+  }
+  if (typeof metric.value === 'number') return metric.value.toLocaleString();
+  if (Array.isArray(metric.value)) return metric.value.length ? `${metric.value.length} currencies` : 'NOT YET MEASURED';
+  return displayStatus(metric.value);
+}
+
+function MetricCard({ label, metric, definition, metricKey }) {
   return (
     <article className="min-w-0 rounded-xl border border-gray-200 bg-white p-4 dark:border-gray-700 dark:bg-gray-800">
       <p className="text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400">{label}</p>
-      <p className="mt-2 break-words text-xl font-bold text-gray-900 dark:text-white">{displayValue(metric)}</p>
-      {metric?.state && <p className="mt-1 text-[11px] font-semibold text-primary dark:text-mint">{metric.state.replaceAll('_', ' ')}</p>}
+      <p className="mt-2 break-words text-xl font-bold text-gray-900 dark:text-white">{formatMetricValue(metricKey, metric)}</p>
+      {metric?.state && <p className="mt-1 text-[11px] font-semibold text-primary dark:text-mint">{displayStatus(metric.state)}</p>}
       {definition && <p className="mt-2 text-xs leading-5 text-gray-500 dark:text-gray-400">{definition}</p>}
     </article>
   );
@@ -31,8 +61,8 @@ function StatusList({ title, values = {} }) {
       <div className="mt-4 grid min-w-0 gap-3 sm:grid-cols-2">
         {Object.entries(values).map(([key, value]) => (
           <div key={key} className="min-w-0 rounded-lg bg-gray-50 p-3 dark:bg-gray-900/40">
-            <p className="break-words text-sm font-medium text-gray-800 dark:text-gray-200">{key.replaceAll(/([A-Z])/g, ' $1')}</p>
-            <p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">{typeof value === 'string' ? value.replaceAll('_', ' ') : String(value)}</p>
+            <p className="break-words text-sm font-medium text-gray-800 dark:text-gray-200">{displayLabel(key)}</p>
+            <p className="mt-1 break-words text-xs font-semibold text-gray-500 dark:text-gray-400">{displayStatus(value)}</p>
           </div>
         ))}
       </div>
@@ -74,18 +104,18 @@ export default function InvestorReadinessDashboard() {
 
         {tab === 'Overview' && <>
           <div className="grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <MetricCard label="Registered Users" metric={cards.registeredUsers} definition="Eligible non-staff accounts in the selected period." />
-            <MetricCard label="Verified Users" metric={cards.verifiedUsers} definition="Eligible accounts with verified email status." />
-            <MetricCard label="Activated Users" metric={cards.activatedUsers} definition="No numeric value is shown until activation history is proven." />
-            <MetricCard label="WAU" metric={cards.wau} definition="Unique eligible users with qualifying activity; historical coverage is partial." />
-            <MetricCard label="MAU" metric={cards.mau} definition="Unique eligible users with qualifying activity; historical coverage is partial." />
-            <MetricCard label="Verified Employers" metric={cards.verifiedEmployers} />
-            <MetricCard label="Published Jobs" metric={cards.publishedJobs} />
-            <MetricCard label="Internal Applications" metric={cards.internalApplications} definition="Application records created inside STRIDETO." />
-            <MetricCard label="External Apply Clicks" metric={cards.externalApplyClicks} definition="Tracked outbound actions, not completed applications." />
-            <MetricCard label="Search Volume" metric={cards.searchVolume} />
-            <MetricCard label="Zero-result Rate" metric={cards.zeroResultRate} />
-            <MetricCard label="Investor Readiness Score" metric={{ value: null, state: 'NOT_YET_MEASURED' }} definition="Scoring is withheld until all weighted evidence is auditable." />
+            <MetricCard metricKey="registeredUsers" label="Registered Users" metric={cards.registeredUsers} definition="Eligible non-staff accounts in the selected period." />
+            <MetricCard metricKey="verifiedUsers" label="Verified Users" metric={cards.verifiedUsers} definition="Eligible accounts with verified email status." />
+            <MetricCard metricKey="activatedUsers" label="Activated Users" metric={cards.activatedUsers} definition="No numeric value is shown until activation history is proven." />
+            <MetricCard metricKey="wau" label="WAU" metric={cards.wau} definition="Unique eligible users with qualifying activity; historical coverage is partial." />
+            <MetricCard metricKey="mau" label="MAU" metric={cards.mau} definition="Unique eligible users with qualifying activity; historical coverage is partial." />
+            <MetricCard metricKey="verifiedEmployers" label="Verified Employers" metric={cards.verifiedEmployers} />
+            <MetricCard metricKey="publishedJobs" label="Published Jobs" metric={cards.publishedJobs} />
+            <MetricCard metricKey="internalApplications" label="Internal Applications" metric={cards.internalApplications} definition="Application records created inside STRIDETO." />
+            <MetricCard metricKey="externalApplyClicks" label="External Apply Clicks" metric={cards.externalApplyClicks} definition="Tracked outbound actions, not completed applications." />
+            <MetricCard metricKey="searchVolume" label="Search Volume" metric={cards.searchVolume} />
+            <MetricCard metricKey="zeroResultRate" label="Zero-result Rate" metric={cards.zeroResultRate} />
+            <MetricCard metricKey="readinessScore" label="Investor Readiness Score" metric={{ value: null, state: 'NOT_YET_MEASURED' }} definition="Scoring is withheld until all weighted evidence is auditable." />
           </div>
           <section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800" aria-labelledby="investor-revenue-heading">
             <h2 id="investor-revenue-heading" className="text-lg font-semibold text-gray-900 dark:text-white">Completed payments by currency</h2>
@@ -99,7 +129,7 @@ export default function InvestorReadinessDashboard() {
         </>}
         {tab === 'Traction' && <div className="space-y-4"><StatusList title="Traction coverage" values={{ registrations: 'available', activeUsers: data?.traction?.activeUsers?.wau?.state || 'partial_coverage', retention: 'not_yet_measured', acquisition: data?.traction?.acquisition?.state || 'not_yet_measured' }} /><StatusList title="Coverage warnings" values={data?.coverage} /></div>}
         {tab === 'Business Readiness' && <StatusList title="Business readiness" values={data?.businessReadiness} />}
-        {tab === 'Fundraising Readiness' && <StatusList title="Fundraising evidence" values={{ status: data?.fundraisingReadiness?.state || 'not_tracked', note: 'Use approved fundraising materials outside this metrics view until persistence is authorized.' }} />}
+        {tab === 'Fundraising Readiness' && <section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800"><h2 className="text-lg font-semibold text-gray-900 dark:text-white">Fundraising evidence</h2><p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Use approved fundraising materials outside this metrics view until persistence is authorized.</p><div className="mt-4 grid min-w-0 gap-3 sm:grid-cols-2">{(data?.fundraisingReadiness?.items || []).map((item) => <div key={item.label} className="min-w-0 rounded-lg bg-gray-50 p-3 dark:bg-gray-900/40"><p className="break-words text-sm font-medium text-gray-800 dark:text-gray-200">{item.label}</p><p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">{displayStatus(item.state)}</p></div>)}</div></section>}
       </div>
     </AdminRouteGuard>
   );

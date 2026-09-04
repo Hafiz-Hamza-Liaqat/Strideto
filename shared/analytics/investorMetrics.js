@@ -42,6 +42,23 @@ export const INVESTOR_METRIC_DEFINITIONS = Object.freeze({
 
 export const INVESTOR_RANGE_DAYS = Object.freeze([7, 30, 90]);
 
+export const INVESTOR_FUNDRAISING_CHECKLIST = Object.freeze([
+  'Pitch Deck',
+  'One-Pager',
+  'Financial Model',
+  'Traction Sheet',
+  'Market Sizing',
+  'Competitor Analysis',
+  'Business Model',
+  'Use of Funds',
+  'Fundraising Ask',
+  'Cap Table',
+  'Incorporation Documents',
+  'Data Room',
+  'Investor Target List',
+  'Outreach Messaging',
+]);
+
 export function metricState(state, coverage = 'complete', detail = '') {
   return { state, coverage, detail };
 }
