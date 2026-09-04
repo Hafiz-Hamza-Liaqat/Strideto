@@ -67,6 +67,7 @@ export const updateProfile = asyncHandler(async (req, res) => {
     ['en', 'ur', 'ar'].includes(req.body.preferredLanguage)
   )
     user.preferredLanguage = req.body.preferredLanguage;
+  const onboardingWasComplete = user.onboardingCompleted === true;
   if (typeof req.body.onboardingCompleted === 'boolean')
     user.onboardingCompleted = req.body.onboardingCompleted;
   if (req.body.onboardingGoal !== undefined) {
@@ -152,5 +153,9 @@ export const updateProfile = asyncHandler(async (req, res) => {
     }
   }
   await user.save();
+  if (!onboardingWasComplete && user.onboardingCompleted === true) {
+    const { evaluateUserActivation } = await import('../services/analytics/acquisitionEvents.js');
+    void evaluateUserActivation(user._id, 'onboarding_completed').catch(() => {});
+  }
   res.json({ user: toSafeUser(user) });
 });

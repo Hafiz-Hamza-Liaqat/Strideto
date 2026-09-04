@@ -29,6 +29,7 @@ import { normalizeCountryCode } from '../../../../shared/international/country.j
 import { parseOpeningsCount } from '../../../../shared/employer/openingsCount.js';
 import { normalizeJobSkills } from '../../../../shared/jobs/jobSkills.js';
 import { normalizeJobTextList } from '../../../../shared/jobs/jobTextLists.js';
+import { ACQUISITION_EVENTS, evaluateEmployerActivation, scheduleCanonicalEvent } from '../../services/analytics/acquisitionEvents.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -258,6 +259,10 @@ export const create = asyncHandler(async (req, res) => {
   const slugErr = await applyResolvedSlug('job', doc, body, true);
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();
+  if (doc.status === 'active' && doc.approvalStatus === 'approved') {
+    scheduleCanonicalEvent({ eventType: ACQUISITION_EVENTS.jobPublished, eventId: `${ACQUISITION_EVENTS.jobPublished}:${String(doc._id)}:v1`, schemaVersion: '3', entityType: 'job', entityId: String(doc._id), metadata: { conversion: ACQUISITION_EVENTS.jobPublished, employerId: doc.employerId ? String(doc.employerId) : null } });
+    if (doc.employerId) void evaluateEmployerActivation(doc.employerId).catch(() => {});
+  }
   onContentSaved('jobs', doc);
   await invalidateJobCaches();
   await logAudit({
@@ -284,6 +289,10 @@ export const update = asyncHandler(async (req, res) => {
   const slugErr = await applyResolvedSlug('job', doc, body, false);
   if (slugErr) return slugErrorResponse(res, slugErr);
   await doc.save();
+  if (!(before.status === 'active' && before.approvalStatus === 'approved') && doc.status === 'active' && doc.approvalStatus === 'approved') {
+    scheduleCanonicalEvent({ eventType: ACQUISITION_EVENTS.jobPublished, eventId: `${ACQUISITION_EVENTS.jobPublished}:${String(doc._id)}:v1`, schemaVersion: '3', entityType: 'job', entityId: String(doc._id), metadata: { conversion: ACQUISITION_EVENTS.jobPublished, employerId: doc.employerId ? String(doc.employerId) : null } });
+    if (doc.employerId) void evaluateEmployerActivation(doc.employerId).catch(() => {});
+  }
   onContentSaved('jobs', doc, { previous: before });
   await invalidateJobCaches();
   await logAudit({
@@ -429,6 +438,10 @@ export const bulkAction = asyncHandler(async (req, res) => {
         }
         await Job.updateOne({ _id: job._id }, { $set: set });
         approvedIds.push(job._id);
+        if (!(job.status === 'active' && job.approvalStatus === 'approved')) {
+          scheduleCanonicalEvent({ eventType: ACQUISITION_EVENTS.jobPublished, eventId: `${ACQUISITION_EVENTS.jobPublished}:${String(job._id)}:v1`, schemaVersion: '3', entityType: 'job', entityId: String(job._id), metadata: { conversion: ACQUISITION_EVENTS.jobPublished, employerId: job.employerId ? String(job.employerId) : null } });
+          if (job.employerId) void evaluateEmployerActivation(job.employerId).catch(() => {});
+        }
         if (consumes && Number.isFinite(remaining)) remaining -= 1;
       }
     }
@@ -488,6 +501,10 @@ export const approveJob = asyncHandler(async (req, res) => {
 
   const doc = await Job.findByIdAndUpdate(id, set, { new: true });
   if (!doc) return res.status(404).json({ error: 'Job not found' });
+  if (!(existing.status === 'active' && existing.approvalStatus === 'approved')) {
+    scheduleCanonicalEvent({ eventType: ACQUISITION_EVENTS.jobPublished, eventId: `${ACQUISITION_EVENTS.jobPublished}:${String(doc._id)}:v1`, schemaVersion: '3', entityType: 'job', entityId: String(doc._id), metadata: { conversion: ACQUISITION_EVENTS.jobPublished, employerId: doc.employerId ? String(doc.employerId) : null } });
+    if (doc.employerId) void evaluateEmployerActivation(doc.employerId).catch(() => {});
+  }
 
   if (existing.employerId && jobWouldConsumeFreeActiveSlot(existing, snapshot)) {
     const after = await loadEmployerPublishingUsage(existing.employerId);

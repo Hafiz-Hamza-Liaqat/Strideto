@@ -11,6 +11,7 @@ import { TalentProfileReadService } from '../services/career/TalentProfileReadSe
 import { ApplicationMigrationService } from '../services/career/migration/ApplicationMigrationService.js';
 import { JobVacancyService } from '../services/career/JobVacancyService.js';
 import { skillVerificationService } from '../services/career/SkillVerificationService.js';
+import { evaluateUserActivation, scheduleCanonicalEvent, ACQUISITION_EVENTS } from '../services/analytics/acquisitionEvents.js';
 
 export const applyToJob = asyncHandler(async (req, res) => {
   const userId = req.user.userId;
@@ -85,6 +86,13 @@ export const applyToJob = asyncHandler(async (req, res) => {
     throw err;
   }
   await Job.findByIdAndUpdate(jobId, { $inc: { applicationsCount: 1 } });
+  scheduleCanonicalEvent({
+    eventType: ACQUISITION_EVENTS.internalApplicationCreated,
+    eventId: `${ACQUISITION_EVENTS.internalApplicationCreated}:${String(application._id)}:v1`,
+    schemaVersion: '3', entityType: 'job', entityId: String(jobId), userId,
+    metadata: { conversion: ACQUISITION_EVENTS.internalApplicationCreated },
+  }, { userId });
+  void evaluateUserActivation(userId, 'internal_application_created').catch(() => {});
 
   // L.2.6 — await dual-write so Apply → Tracker redirect can use OA id
   const dualWrite = await ApplicationMigrationService.dualWriteFromLegacyJobApplication(

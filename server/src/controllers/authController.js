@@ -28,6 +28,8 @@ import {
 } from '../utils/emailVerification.js';
 import { secureAuthConfig } from '../services/auth/secureAuthConfig.js';
 import { userSecureAuthFlows } from '../services/auth/userSecureAuthFlows.js';
+import { normalizeAttribution } from '../../../shared/seo/measurement/landingAttribution.js';
+import { safeRecordRegistrationEvent } from '../services/analytics/acquisitionEvents.js';
 
 /**
  * SEC-3E.1 — trusted-origin enforcement is composed at the route level
@@ -128,6 +130,7 @@ export const register = asyncHandler(async (req, res) => {
     capabilityInitializationState: 'pending',
     ...legalAcceptanceMetadata(),
   });
+  await safeRecordRegistrationEvent({ realm: 'user', subjectId: user._id, attribution: normalizeAttribution(req.body?.attribution) });
   const { getUserCapabilityService } = await import('../services/capability/userCapabilityRuntime.js');
   await getUserCapabilityService().initializeCustomerUser(user, {
     grantedBy: 'system:registration',

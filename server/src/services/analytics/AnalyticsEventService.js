@@ -45,9 +45,9 @@ export async function recordAnalyticsEvent(input = {}, context = {}) {
   const parsed = parseUserAgent(ua);
   const eventType = resolveCanonicalEventType(input.eventType, input.listingType || input.entityType);
 
-  const entityType = input.entityType || input.listingType || null;
-  const entityId = input.entityId
-    ? String(input.entityId)
+  const entityType = context.entityType || input.entityType || input.listingType || null;
+  const entityId = (context.entityId || input.entityId)
+    ? String(context.entityId || input.entityId)
     : (input.listingId ? String(input.listingId) : null);
 
   const doc = await AnalyticsEvent.create({
@@ -59,7 +59,9 @@ export async function recordAnalyticsEvent(input = {}, context = {}) {
     eventType,
     entityType,
     entityId,
-    userId: context.userId || input.userId || undefined,
+    // Identity is always established by the authenticated server context.
+    // A public client may never assign an event to another user.
+    userId: context.userId || undefined,
     listingType: input.listingType || (['job', 'scholarship', 'admission', 'blog', 'foreign_study'].includes(entityType) ? entityType : null),
     listingId: input.listingId || undefined,
     page: String(input.page || input.metadata?.page || '').slice(0, 500),

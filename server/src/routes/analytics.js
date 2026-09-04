@@ -1,6 +1,7 @@
 import { Router } from 'express';
 import { searchLimiter } from '../middleware/rateLimit.js';
 import * as analytics from '../controllers/analyticsController.js';
+import { optionalAuth } from '../middleware/auth.js';
 
 /**
  * Additive public analytics ingest (C.7.0.5).
@@ -8,4 +9,4 @@ import * as analytics from '../controllers/analyticsController.js';
  */
 export const analyticsRouter = Router();
 
-analyticsRouter.post('/analytics/event', searchLimiter, analytics.recordEvent);
+analyticsRouter.post('/analytics/event', searchLimiter, optionalAuth, analytics.recordEvent);

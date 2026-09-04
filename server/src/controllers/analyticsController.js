@@ -14,6 +14,8 @@ export const recordEvent = asyncHandler(async (req, res) => {
     const doc = await recordAnalyticsEvent(req.body || {}, {
       userId: req.user?.userId,
       userAgent: req.headers['user-agent'] || '',
+      entityType: req.employer?.employerId ? 'employer' : undefined,
+      entityId: req.employer?.employerId || undefined,
     });
     res.status(201).json({ id: doc._id });
   } catch (e) {

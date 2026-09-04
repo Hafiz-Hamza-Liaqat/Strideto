@@ -35,7 +35,7 @@ function displayStatus(value) {
 
 function formatMetricValue(key, metric) {
   if (!metric || metric.value == null) return 'NOT YET MEASURED';
-  if (key === 'zeroResultRate' && typeof metric.value === 'number') {
+  if ((key === 'zeroResultRate' || key === 'coverageRate') && typeof metric.value === 'number') {
     return `${(metric.value * 100).toFixed(1).replace(/\.0$/, '')}%`;
   }
   if (typeof metric.value === 'number') return metric.value.toLocaleString();
@@ -127,7 +127,29 @@ export default function InvestorReadinessDashboard() {
           </section>
           <StatusList title="Data Quality" values={data?.dataQuality} />
         </>}
-        {tab === 'Traction' && <div className="space-y-4"><StatusList title="Traction coverage" values={{ registrations: 'available', activeUsers: data?.traction?.activeUsers?.wau?.state || 'partial_coverage', retention: 'not_yet_measured', acquisition: data?.traction?.acquisition?.state || 'not_yet_measured' }} /><StatusList title="Coverage warnings" values={data?.coverage} /></div>}
+        {tab === 'Traction' && <div className="space-y-4">
+          <StatusList title="Traction coverage" values={{ registrations: 'available', activeUsers: data?.traction?.activeUsers?.wau?.state || 'partial_coverage', retention: 'not_yet_measured', acquisition: data?.traction?.acquisition?.state || 'not_yet_measured' }} />
+          <section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">Acquisition conversions</h2>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">Server-recorded production conversions only. Historical events are not backfilled.</p>
+            <div className="mt-4 grid min-w-0 gap-3 sm:grid-cols-2 xl:grid-cols-4">
+              {[
+                ['Attributed Registrations', 'attributedRegistrations', 'Registrations with approved first-touch attribution.'],
+                ['Attribution Coverage', 'coverageRate', 'Attributed registrations divided by canonical registrations.'],
+                ['Verified Registrations', 'verifiedRegistrations', 'Canonical account-verification transitions.'],
+                ['Activated Users', 'activatedUsers', 'Verified users reaching a canonical activation milestone.'],
+                ['Employer Registrations', 'employerRegistrations', 'Canonical employer account creations.'],
+                ['Employer Activations', 'employerActivations', 'Verified employers reaching their first published Job.'],
+                ['First Published Jobs', 'firstPublishedJobs', 'Canonical publication transitions recorded by the server.'],
+                ['Primary Candidate Conversions', 'primaryCandidateConversions', 'Internal Application records created inside STRIDETO.'],
+              ].map(([label, key, definition]) => <MetricCard key={key} label={label} metricKey={key} metric={{ value: data?.traction?.acquisition?.[key], state: data?.traction?.acquisition?.state || 'NOT_YET_MEASURED' }} definition={definition} />)}
+            </div>
+            <StatusList title="Registrations by source" values={data?.traction?.acquisition?.bySource} />
+            <StatusList title="Registrations by medium" values={data?.traction?.acquisition?.byMedium} />
+            <StatusList title="Registrations by campaign" values={data?.traction?.acquisition?.byCampaign} />
+          </section>
+          <StatusList title="Coverage warnings" values={data?.coverage} />
+        </div>}
         {tab === 'Business Readiness' && <StatusList title="Business readiness" values={data?.businessReadiness} />}
         {tab === 'Fundraising Readiness' && <section className="rounded-xl border border-gray-200 bg-white p-5 dark:border-gray-700 dark:bg-gray-800"><h2 className="text-lg font-semibold text-gray-900 dark:text-white">Fundraising evidence</h2><p className="mt-2 text-sm text-gray-500 dark:text-gray-400">Use approved fundraising materials outside this metrics view until persistence is authorized.</p><div className="mt-4 grid min-w-0 gap-3 sm:grid-cols-2">{(data?.fundraisingReadiness?.items || []).map((item) => <div key={item.label} className="min-w-0 rounded-lg bg-gray-50 p-3 dark:bg-gray-900/40"><p className="break-words text-sm font-medium text-gray-800 dark:text-gray-200">{item.label}</p><p className="mt-1 text-xs font-semibold text-gray-500 dark:text-gray-400">{displayStatus(item.state)}</p></div>)}</div></section>}
       </div>

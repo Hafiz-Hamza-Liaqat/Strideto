@@ -18,6 +18,7 @@ import { pendingVerifyPath } from '../../utils/authUrls.js';
 import { AuthCard } from '../../layouts/AuthLayout.jsx';
 import { clearAuthFormDraft, useAuthFormDraft } from '../../hooks/useAuthFormDraft.js';
 import { googleSignInEnabled, startGoogleSignIn } from '../../auth/googleSignIn.js';
+import { getRegistrationAttribution } from '../../utils/platformAnalytics.js';
 
 export default function Register() {
   const navigate = useNavigate();
@@ -56,7 +57,7 @@ export default function Register() {
     setErrors({});
     setSubmitting(true);
     try {
-      const result = await register({ name: name.trim(), email: email.trim().toLowerCase(), password, referralCode: refCode || undefined, acceptedTerms: true });
+      const result = await register({ name: name.trim(), email: email.trim().toLowerCase(), password, referralCode: refCode || undefined, attribution: getRegistrationAttribution(), acceptedTerms: true });
       if (result?.requiresVerification) {
         clearAuthFormDraft('user');
         const path = pendingVerifyPath('user');

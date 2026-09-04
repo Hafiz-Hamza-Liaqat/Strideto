@@ -43,12 +43,21 @@ function getSessionAcquisitionMetadata() {
     const landing = buildLandingAttributionMetadata(
       window.location.pathname,
       window.location.search,
+      document.referrer || '',
     );
     sessionStorage.setItem(ACQUISITION_KEY, JSON.stringify(landing));
     return landing;
   } catch {
     return {};
   }
+}
+
+export function getRegistrationAttribution() {
+  if (!allowsAnalytics()) return undefined;
+  const value = getSessionAcquisitionMetadata();
+  const keys = ['utm_source', 'utm_medium', 'utm_campaign', 'utm_content', 'landingPage', 'referrerCategory'];
+  const result = Object.fromEntries(keys.filter((key) => value?.[key]).map((key) => [key, value[key]]));
+  return Object.keys(result).length ? result : undefined;
 }
 
 /**

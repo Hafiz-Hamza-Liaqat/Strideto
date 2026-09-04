@@ -14,6 +14,7 @@ import { pendingVerifyPath } from '../../utils/authUrls.js';
 import { AuthCard } from '../../layouts/AuthLayout.jsx';
 import { inputControlClassName, textareaControlClassName } from '../../components/forms/controlClasses.js';
 import { clearAuthFormDraft, useAuthFormDraft } from '../../hooks/useAuthFormDraft.js';
+import { getRegistrationAttribution } from '../../utils/platformAnalytics.js';
 
 export default function EmployerRegister() {
   const { t } = useTranslation(['employer', 'common', 'forms', 'validation']);
@@ -54,6 +55,7 @@ export default function EmployerRegister() {
         ...form,
         phone: form.phone || '',
         acceptedTerms: true,
+        attribution: getRegistrationAttribution(),
       });
       if (result?.requiresVerification || !result?._id) {
         clearAuthFormDraft('employer');

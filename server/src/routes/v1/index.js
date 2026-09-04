@@ -11,7 +11,7 @@ import { getLandingPage } from '../../controllers/landingPagesController.js';
 import { recordEvent, getDashboard as getAnalyticsDashboard } from '../../controllers/analyticsController.js';
 import { getNotificationsForUser } from '../../controllers/notificationsListController.js';
 import { saveJob, unsaveJob, saveScholarship, unsaveScholarship, saveAdmission, unsaveAdmission } from '../../controllers/savedController.js';
-import { requireAuth, requireUserAuth } from '../../middleware/auth.js';
+import { requireAuth, requireUserAuth, optionalAuth } from '../../middleware/auth.js';
 import { studentProductAuth } from '../../middleware/requireUserCapability.js';
 import { requireStaff, requirePermission } from '../../middleware/rbac.js';
 import { PERMISSIONS } from '../../config/rbac.js';
@@ -49,7 +49,7 @@ v1Router.post('/alerts/whatsapp/send', requireAuth, requireStaff, requirePermiss
 
 v1Router.get('/landing-pages/:type/:slug', getLandingPage);
 
-v1Router.post('/analytics/event', recordEvent);
+v1Router.post('/analytics/event', optionalAuth, recordEvent);
 v1Router.get('/analytics/dashboard', requireAuth, requireStaff, requirePermission(PERMISSIONS.ANALYTICS_READ), getAnalyticsDashboard);
 
 v1Router.get('/', (_req, res) => {

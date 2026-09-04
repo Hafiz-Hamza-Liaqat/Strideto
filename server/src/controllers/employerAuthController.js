@@ -24,6 +24,8 @@ import {
   issueRealmVerification,
   reissueUnverifiedIfAllowed,
 } from '../services/auth/realmEmailVerification.js';
+import { normalizeAttribution } from '../../../shared/seo/measurement/landingAttribution.js';
+import { safeRecordRegistrationEvent } from '../services/analytics/acquisitionEvents.js';
 
 /**
  * SEC-3E.1 — trusted-origin enforcement is composed at the route level
@@ -146,6 +148,7 @@ export const employerRegister = asyncHandler(async (req, res) => {
     }
   }
   const freshEmployer = await Employer.findById(employer._id);
+  await safeRecordRegistrationEvent({ realm: 'employer', subjectId: freshEmployer._id, attribution: normalizeAttribution(req.body?.attribution) });
   await issueRealmVerification(freshEmployer, 'employer', freshEmployer.companyName);
   return res.status(201).json(await genericRegistrationResponse());
 });

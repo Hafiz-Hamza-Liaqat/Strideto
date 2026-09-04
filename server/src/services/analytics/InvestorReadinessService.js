@@ -60,6 +60,35 @@ async function distinctEventCount(match) {
   return rows[0]?.value || 0;
 }
 
+async function acquisitionSummary(bounds) {
+  const rows = await AnalyticsEvent.aggregate([
+    { $match: { createdAt: { $gte: bounds.start, $lt: bounds.end }, environment: 'production', eventType: { $in: [
+      'user_registered', 'employer_registered', 'user_verified', 'user_activated',
+      'employer_activated', 'job_published', 'internal_application_created',
+    ] } } },
+    { $group: { _id: { $ifNull: ['$eventId', '$_id'] }, eventType: { $first: '$eventType' }, attribution: { $first: '$metadata.attribution' } } },
+  ]);
+  const result = { registrations: 0, attributedRegistrations: 0, bySource: {}, byMedium: {}, byCampaign: {}, verifiedRegistrations: 0, activatedUsers: 0, employerRegistrations: 0, employerActivations: 0, firstPublishedJobs: 0, primaryCandidateConversions: 0 };
+  for (const row of rows || []) {
+    const attribution = row.attribution && typeof row.attribution === 'object' ? row.attribution : null;
+    if (row.eventType === 'user_registered') result.registrations += 1;
+    if (row.eventType === 'user_verified') result.verifiedRegistrations += 1;
+    if (row.eventType === 'user_activated') result.activatedUsers += 1;
+    if (row.eventType === 'employer_registered') result.employerRegistrations += 1;
+    if (row.eventType === 'employer_activated') result.employerActivations += 1;
+    if (row.eventType === 'job_published') result.firstPublishedJobs += 1;
+    if (row.eventType === 'internal_application_created') result.primaryCandidateConversions += 1;
+    if (row.eventType === 'user_registered' && attribution) {
+      result.attributedRegistrations += 1;
+      for (const [key, target] of [['utm_source', result.bySource], ['utm_medium', result.byMedium], ['utm_campaign', result.byCampaign]]) {
+        if (attribution[key]) target[attribution[key]] = (target[attribution[key]] || 0) + 1;
+      }
+    }
+  }
+  result.attributionCoverage = result.registrations ? result.attributedRegistrations / result.registrations : null;
+  return result;
+}
+
 async function trend(Model, match, days, field = 'createdAt') {
   const { start, end } = rangeBounds(days);
   const rows = await Model.aggregate([
@@ -105,7 +134,6 @@ export async function getInvestorReadiness({ range = 30 } = {}) {
     distinctEventCount({ ...eventFilter, eventType: 'application_click' }),
     SearchQueryLog.countDocuments({ createdAt: { $gte: bounds.start, $lt: bounds.end }, source: { $in: ['public', 'suggestions'] } }),
     SearchQueryLog.countDocuments({ createdAt: { $gte: bounds.start, $lt: bounds.end }, source: { $in: ['public', 'suggestions'] }, resultCount: 0 }),
-    // Durable attribution is not yet present on User; remain truthful.
     User.countDocuments({ ...userFilter, 'attribution.utmSource': { $exists: true, $ne: '' } }),
     paymentSummary(bounds),
     trend(User, userFilter, days),
@@ -118,10 +146,17 @@ export async function getInvestorReadiness({ range = 30 } = {}) {
     demoOnly: { $ne: true },
     updatedAt: { $gte: bounds.start, $lt: bounds.end },
   });
+  const acquisition = await acquisitionSummary(bounds);
+  if (!acquisition.registrations) {
+    acquisition.attributedRegistrations = attributedRegistrations;
+    acquisition.totalRegistrations = registeredUsers;
+    acquisition.attributionCoverage = registeredUsers ? attributedRegistrations / registeredUsers : null;
+  }
 
   const metric = (value, state = 'CONDITIONAL', coverage = 'complete', detail = '') => ({ value, ...metricState(state, coverage, detail) });
   const activityState = coverageForEvents();
-  const attributionCoverage = registeredUsers ? attributedRegistrations / registeredUsers : null;
+  const acquisitionTotal = acquisition.registrations || registeredUsers;
+  const acquisitionAttributed = acquisition.registrations ? acquisition.attributedRegistrations : attributedRegistrations;
 
   return {
     generatedAt: new Date().toISOString(),
@@ -173,7 +208,7 @@ export async function getInvestorReadiness({ range = 30 } = {}) {
       internalApplications: await trend(Application, {}, days),
       externalApplyClicks: await trend(AnalyticsEvent, { ...eventFilter, eventType: 'application_click' }, days),
       searchVolume: await trend(SearchQueryLog, { source: { $in: ['public', 'suggestions'] } }, days),
-      acquisition: { state: 'NOT_YET_MEASURED', coverage: 'none', attributedRegistrations, totalRegistrations: registeredUsers, coverageRate: attributionCoverage },
+      acquisition: { state: acquisition.registrations ? 'CONDITIONAL' : 'NOT_YET_MEASURED', coverage: acquisition.registrations ? 'canonical-events' : 'none', detail: 'Only server-recorded production conversion events are included; historical conversions are not backfilled.', attributedRegistrations: acquisitionAttributed, totalRegistrations: acquisitionTotal, coverageRate: acquisitionTotal ? acquisitionAttributed / acquisitionTotal : null, bySource: acquisition.bySource, byMedium: acquisition.byMedium, byCampaign: acquisition.byCampaign, verifiedRegistrations: acquisition.verifiedRegistrations, activatedUsers: acquisition.activatedUsers, employerRegistrations: acquisition.employerRegistrations, employerActivations: acquisition.employerActivations, firstPublishedJobs: acquisition.firstPublishedJobs, primaryCandidateConversions: acquisition.primaryCandidateConversions },
     },
     businessReadiness: {
       monetizationModel: 'PARTIAL', pricingValidation: 'PARTIAL', paidValidation: paymentSummaryRows.length ? 'PARTIAL' : 'NOT_MEASURED',

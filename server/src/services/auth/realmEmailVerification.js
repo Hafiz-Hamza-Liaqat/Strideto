@@ -181,10 +181,15 @@ export async function consumeRealmVerificationToken(realm, rawToken) {
     emailVerificationExpires: { $gt: new Date() },
   }).select('+emailVerificationToken +emailVerificationExpires');
   if (live) {
+    const wasVerified = live.emailVerified === true;
     live.emailVerified = true;
     live.emailVerifiedAt = new Date();
     clearVerificationTokenFields(live);
     await live.save({ validateBeforeSave: false });
+    if (!wasVerified && (realm === 'user' || realm === 'employer')) {
+      const { safeEmitVerificationEvent } = await import('../analytics/acquisitionEvents.js');
+      await safeEmitVerificationEvent({ realm, subjectId: live._id });
+    }
     logAuthOutcome({ realm, outcome: 'VERIFICATION_COMPLETED', accountId: live._id });
     return { ok: true, realm, code: 'VERIFICATION_COMPLETED', accountId: live._id };
   }

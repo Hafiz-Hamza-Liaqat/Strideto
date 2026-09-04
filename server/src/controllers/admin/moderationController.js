@@ -6,6 +6,7 @@ import { asyncHandler } from '../../utils/asyncHandler.js';
 import { logAudit, auditFromRequest } from '../../services/auditService.js';
 import { onJobApproved, onJobRejected, onEmployerVerificationChange } from '../../services/automationService.js';
 import { assignLaunchEligibleOnAuthorityPublish } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
+import { ACQUISITION_EVENTS, evaluateEmployerActivation, scheduleCanonicalEvent } from '../../services/analytics/acquisitionEvents.js';
 
 const MAX_REJECTION_REASON_LENGTH = 500;
 
@@ -55,6 +56,13 @@ export const bulkApproveJobs = asyncHandler(async (req, res) => {
   });
   const approvedJobs = await Job.find({ _id: { $in: ids }, approvalStatus: 'approved' }).select('title employerId').lean();
   for (const job of approvedJobs) {
+    scheduleCanonicalEvent({
+      eventType: ACQUISITION_EVENTS.jobPublished,
+      eventId: `${ACQUISITION_EVENTS.jobPublished}:${String(job._id)}:v1`,
+      schemaVersion: '3', entityType: 'job', entityId: String(job._id),
+      metadata: { conversion: ACQUISITION_EVENTS.jobPublished, employerId: job.employerId ? String(job.employerId) : null },
+    });
+    if (job.employerId) void evaluateEmployerActivation(job.employerId).catch(() => {});
     onJobApproved({ jobId: job._id, employerId: job.employerId, jobTitle: job.title }).catch(() => {});
   }
   res.json({ approved: result.modifiedCount });
@@ -89,12 +97,20 @@ export const verifyEmployer = asyncHandler(async (req, res) => {
   if (!['verified', 'trusted', 'basic'].includes(level)) {
     return res.status(400).json({ error: 'Invalid verification level' });
   }
+  const before = await Employer.findById(id).select('verificationLevel verified');
   const employer = await Employer.findByIdAndUpdate(
     id,
     { $set: { verificationLevel: level, verified: level !== 'basic' } },
     { new: true }
   ).select('-password');
   if (!employer) return res.status(404).json({ error: 'Employer not found' });
+  if (level !== 'basic' && !(before?.verified === true || ['verified', 'trusted'].includes(before?.verificationLevel))) {
+    scheduleCanonicalEvent({ eventType: ACQUISITION_EVENTS.employerVerified, eventId: `${ACQUISITION_EVENTS.employerVerified}:${String(employer._id)}:v1`, schemaVersion: '3', entityType: 'employer', entityId: String(employer._id), metadata: { conversion: ACQUISITION_EVENTS.employerVerified, verificationLevel: level } });
+  }
+  if (level !== 'basic') {
+    const hasPublishedJob = await Job.exists({ employerId: employer._id, status: 'active', approvalStatus: 'approved' });
+    if (hasPublishedJob) void evaluateEmployerActivation(employer._id).catch(() => {});
+  }
   onEmployerVerificationChange({
     employerId: employer._id,
     verificationLevel: level,
