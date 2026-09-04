@@ -348,8 +348,8 @@ export function mammothHtmlToCanonicalBlogHtml(html) {
 export function extractContentSectionFromFullDocxHtml(docxHtml) {
   const html = String(docxHtml || '');
   if (!html) return '';
-  const startRe = /<p[^>]*>\s*Content\s*<\/p>/i;
-  const endRe = /<p[^>]*>\s*Tags\s*<\/p>/i;
+  const startRe = /<p[^>]*>\s*(?:Content|Article Content|Blog Content|Body)\s*<\/p>/i;
+  const endRe = /<p[^>]*>\s*(?:Title|Blog Title|Article Title|Post Title|Category|Blog Category|Author|Author Name|Summary|Summary \/ Excerpt|Excerpt|Short Description|Tags|Keywords|Topics|Published At|Publish Date|Publication Date|Status|Publication Status|SEO Slug|Slug|URL Slug|SEO Title|Meta Title|Meta Description|SEO Description|Canonical URL|Canonical Link|Featured|Is Featured|Featured Image URL|Featured Image|Image Alt Text|OG Image|OG Image URL)\s*<\/p>/i;
   const startMatch = html.search(startRe);
   if (startMatch < 0) return '';
   const afterStart = html.slice(startMatch).replace(startRe, '');

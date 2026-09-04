@@ -4,12 +4,13 @@ const MAX_SIZE = 5 * 1024 * 1024;
 
 const ALLOWED_MIMES = new Set([
   'text/plain',
+  'application/pdf',
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
 ]);
 
-const ALLOWED_EXTENSIONS = new Set(['txt', 'docx']);
+const ALLOWED_EXTENSIONS = new Set(['txt', 'pdf', 'docx']);
 
-const REJECTED_EXTENSIONS = new Set(['doc', 'docm', 'pdf', 'zip', 'rar', '7z', 'html', 'htm', 'exe', 'js']);
+const REJECTED_EXTENSIONS = new Set(['doc', 'docm', 'zip', 'rar', '7z', 'html', 'htm', 'exe', 'js']);
 
 function extensionOf(name) {
   const parts = String(name || '').toLowerCase().split('.');
@@ -93,6 +94,13 @@ export async function validateCmsDocumentBuffer(buffer, declaredMime, originalna
     throw err;
   }
 
+  if (ext === 'pdf' && detected !== 'application/pdf') {
+    const err = new Error('File is not a valid PDF document');
+    err.code = 'invalid_file_content';
+    err.status = 400;
+    throw err;
+  }
+
   if (detected === 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' && ext !== 'docx') {
     const err = new Error('Unsupported file format');
     err.code = 'unsupported_format';
@@ -107,7 +115,7 @@ export async function validateCmsDocumentBuffer(buffer, declaredMime, originalna
     throw err;
   }
 
-  const format = mime === 'text/plain' ? 'txt' : 'docx';
+  const format = mime === 'text/plain' ? 'txt' : mime === 'application/pdf' ? 'pdf' : 'docx';
   return { mime, format };
 }
 

@@ -37,7 +37,7 @@ function suggestionStatusClass(sug) {
 
 export function CmsDocumentUploadPanel({
   title = 'Import blog document',
-  hint = 'Structured DOCX or TXT · maximum 5 MB',
+  hint = 'Structured DOCX, PDF or TXT · maximum 5 MB',
   uploadFn,
   form,
   onApply,
@@ -158,7 +158,7 @@ export function CmsDocumentUploadPanel({
           <input
             ref={fileRef}
             type="file"
-            accept=".txt,.docx,text/plain,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+            accept=".txt,.pdf,.docx,text/plain,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document"
             className="hidden"
             aria-label={`${title} file input`}
             onChange={(e) => handleFile(e.target.files?.[0])}
@@ -169,7 +169,7 @@ export function CmsDocumentUploadPanel({
             onClick={() => fileRef.current?.click()}
             className="px-3 py-2 rounded-lg bg-primary text-white text-sm font-medium hover:bg-primary/90 disabled:opacity-50 min-h-[40px] focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 dark:focus-visible:ring-offset-gray-900"
           >
-            {status === STATUS.uploading ? 'Uploading…' : status === STATUS.parsing ? 'Parsing…' : 'Upload DOCX'}
+            {status === STATUS.uploading ? 'Uploading…' : status === STATUS.parsing ? 'Parsing…' : 'Upload document'}
           </button>
         </div>
       </div>

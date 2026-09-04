@@ -5,7 +5,7 @@ const WORKER_FILE = fileURLToPath(new URL('../workers/cmsDocumentParse.worker.js
 export const CMS_DOCUMENT_PARSE_TIMEOUT_MS = 30_000;
 
 /**
- * Extract raw text + optional HTML from CMS DOCX/TXT in worker thread.
+ * Extract raw text + optional HTML from CMS DOCX/PDF/TXT in worker thread.
  */
 export function extractCmsDocumentBounded(format, buffer, timeoutMs = CMS_DOCUMENT_PARSE_TIMEOUT_MS) {
   if (format === 'txt') {
@@ -13,7 +13,7 @@ export function extractCmsDocumentBounded(format, buffer, timeoutMs = CMS_DOCUME
     return Promise.resolve({ text, html: '' });
   }
 
-  if (format !== 'docx') {
+  if (!['docx', 'pdf'].includes(format)) {
     const err = new Error('Unsupported format');
     err.code = 'unsupported_format';
     return Promise.reject(err);
