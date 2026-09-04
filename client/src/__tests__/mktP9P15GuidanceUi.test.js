@@ -20,3 +20,13 @@ test('guidance overview uses the authenticated bounded API contract', () => {
   assert.match(hub, /Preference alignment/);
   assert.match(hub, /does not guarantee admission, scholarship awards, or visa outcomes/);
 });
+
+test('personalization tabs use a mobile-safe two-column layout and preserve all labels', () => {
+  assert.match(hub, /grid grid-cols-2[^"]*sm:flex/);
+  assert.match(hub, /w-full[^"]*sm:w-auto/);
+  for (const label of ['Overview', 'Programs', 'Scholarships', 'Profile Gaps']) {
+    assert.match(hub, new RegExp(`label: '${label}'`));
+  }
+  assert.match(hub, /activeTab === tab\.key/);
+  assert.doesNotMatch(hub, /overflow-x-scroll|whitespace-nowrap/);
+});

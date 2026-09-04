@@ -446,12 +446,12 @@ export default function PersonalizationHub() {
         </div>
 
         {/* Tabs */}
-        <div className="flex gap-1 border-b border-gray-200 dark:border-gray-700 mb-6">
+        <div className="grid grid-cols-2 gap-1 border-b border-gray-200 dark:border-gray-700 mb-6 sm:flex">
           {tabs.map((tab) => (
             <button
               key={tab.key}
               onClick={() => setActiveTab(tab.key)}
-              className={`px-4 py-2 text-sm font-medium rounded-t transition-colors ${
+              className={`w-full px-3 py-3 text-sm font-medium rounded-t transition-colors sm:w-auto sm:px-4 sm:py-2 ${
                 activeTab === tab.key
                   ? 'text-blue-600 dark:text-blue-400 border-b-2 border-blue-600 dark:border-blue-400'
                   : 'text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white'
