@@ -6,6 +6,11 @@ import mongoose from 'mongoose';
  */
 const analyticsSchema = new mongoose.Schema(
   {
+    // Additive V2 envelope fields. Historical events may omit these fields.
+    eventId: { type: String, trim: true, maxlength: 120 },
+    schemaVersion: { type: String, trim: true, maxlength: 20, default: '1' },
+    source: { type: String, enum: ['client', 'server', 'system'], default: 'client' },
+    environment: { type: String, enum: ['production', 'development', 'test', 'staging', 'preview'], default: null },
     eventType: { type: String, required: true, index: true },
     entityType: { type: String, default: null, index: true },
     entityId: { type: String, default: null, index: true },

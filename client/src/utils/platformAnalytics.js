@@ -9,6 +9,14 @@ import { buildLandingAttributionMetadata } from '@shared/seo/measurement/landing
 
 const SESSION_KEY = 'er_analytics_session';
 const ACQUISITION_KEY = 'er_acquisition_attribution';
+function eventId() {
+  try {
+    const id = globalThis.crypto?.randomUUID?.() || `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    return id;
+  } catch {
+    return `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+  }
+}
 
 function getSessionId() {
   try {
@@ -70,6 +78,10 @@ export function trackPlatformEvent(payload = {}) {
     referrer: payload.referrer || document.referrer || '',
     sessionId: payload.sessionId || getSessionId(),
     metadata,
+    eventId: payload.eventId || eventId(),
+    schemaVersion: '2',
+    source: 'client',
+    environment: import.meta?.env?.MODE === 'production' ? 'production' : (import.meta?.env?.MODE || 'development'),
   };
   analyticsEventApi.record(body).catch(() => {});
 }

@@ -71,6 +71,7 @@ import { adminFreshnessRouter } from './adminFreshness.js';
 import { adminAgentMarketplaceRouter } from './adminAgentMarketplace.js';
 import { adminSuperControlRouter } from './adminSuperControl.js';
 import { adminVerifiedLaunchRouter } from './adminVerifiedLaunch.js';
+import { getInvestorReadiness } from '../controllers/admin/investorReadinessController.js';
 
 export const adminRouter = Router();
 
@@ -118,6 +119,7 @@ adminRouter.get('/slugs/check', slugCtrl.checkSlug);
 
 adminRouter.get('/executive-dashboard', requirePermission(PERMISSIONS.ANALYTICS_READ), getExecutiveDashboard);
 adminRouter.get('/growth-dashboard', requirePermission(PERMISSIONS.ANALYTICS_READ), getGrowthDashboard);
+adminRouter.get('/investor-readiness', requirePermission(PERMISSIONS.INVESTOR_READ), getInvestorReadiness);
 adminRouter.get('/platform-health', requirePermission(PERMISSIONS.SYSTEM_SETTINGS, PERMISSIONS.ANALYTICS_READ), getPlatformHealth);
 adminRouter.get('/monitoring', requirePermission(PERMISSIONS.ANALYTICS_READ), monitoring.getMonitoringDashboard);
 adminRouter.get('/queue/status', requirePermission(PERMISSIONS.ANALYTICS_READ), queueCtrl.getQueueStatus);

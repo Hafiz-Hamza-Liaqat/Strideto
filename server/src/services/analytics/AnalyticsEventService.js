@@ -3,6 +3,7 @@
  * Single write path for all platform analytics events.
  */
 import { AnalyticsEvent } from '../../models/AnalyticsEvent.js';
+import crypto from 'crypto';
 import { resolveCanonicalEventType } from '../../../../shared/analytics/eventTypes.js';
 import { validateAnalyticsEvent } from '../../../../shared/analytics/validation.js';
 import { analyticsCacheClear } from './analyticsCache.js';
@@ -50,6 +51,11 @@ export async function recordAnalyticsEvent(input = {}, context = {}) {
     : (input.listingId ? String(input.listingId) : null);
 
   const doc = await AnalyticsEvent.create({
+    eventId: input.eventId || crypto.randomUUID(),
+    schemaVersion: input.schemaVersion || '2',
+    // These fields describe the receiving runtime, not client-asserted data.
+    source: context.source || (context.userAgent ? 'client' : 'server'),
+    environment: context.environment || process.env.NODE_ENV || 'development',
     eventType,
     entityType,
     entityId,

@@ -65,6 +65,7 @@ export const ADMIN_NAV_GROUPS = /** @type {AdminNavGroup[]} */ ([
       { path: `${ROUTES.ADMIN}/monitoring`, labelKey: 'monitoring', perm: PERMISSIONS.ANALYTICS_READ, icon: 'pulse' },
       { path: `${ROUTES.ADMIN}/platform-ops`, labelKey: 'platformHealth', perm: PERMISSIONS.ANALYTICS_READ, icon: 'health' },
       { path: `${ROUTES.ADMIN}/growth-dashboard`, labelKey: 'platformOperations', perm: PERMISSIONS.ANALYTICS_READ, icon: 'ops' },
+      { path: `${ROUTES.ADMIN}/investor-readiness`, labelKey: 'investorReadiness', perm: PERMISSIONS.INVESTOR_READ, icon: 'chart' },
     ],
   },
   {

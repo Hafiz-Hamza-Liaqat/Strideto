@@ -51,6 +51,7 @@ const AnalyticsDashboard = lazyLoad(() => import('../pages/Admin/AnalyticsDashbo
 const AdminSeoMeasurement = lazyLoad(() => import('../pages/Admin/AdminSeoMeasurement'));
 const GrowthDashboard = lazyLoad(() => import('../pages/Admin/GrowthDashboard'));
 const ExecutiveDashboard = lazyLoad(() => import('../pages/Admin/ExecutiveDashboard'));
+const InvestorReadinessDashboard = lazyLoad(() => import('../pages/Admin/InvestorReadinessDashboard'));
 const ModerationQueue = lazyLoad(() => import('../pages/Admin/ModerationQueue'));
 const AdminReviewQueue = lazyLoad(() => import('../pages/Admin/AdminReviewQueue'));
 const AdminVerificationQueue = lazyLoad(() => import('../pages/Admin/AdminVerificationQueue'));
@@ -768,6 +769,7 @@ export const routes = [
             </AdminRouteGuard>
           ) },
           { path: 'growth-dashboard', element: <GrowthDashboard /> },
+          { path: 'investor-readiness', element: <AdminRouteGuard permission={PERMISSIONS.INVESTOR_READ}><InvestorReadinessDashboard /></AdminRouteGuard> },
           { path: 'ai-job-generator', element: <AIJobGenerator /> },
           { path: 'analytics', element: <AnalyticsDashboard /> },
           { path: 'seo-measurement', element: <AdminSeoMeasurement /> },

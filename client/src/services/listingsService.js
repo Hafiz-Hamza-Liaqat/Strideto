@@ -202,6 +202,7 @@ export const supportApi = {
 export const adminApi = {
   growthDashboard: () => axiosInstance.get('/admin/growth-dashboard'),
   executiveDashboard: () => axiosInstance.get('/admin/executive-dashboard'),
+  investorReadiness: (params) => axiosInstance.get('/admin/investor-readiness', { params }),
   platformHealth: () => axiosInstance.get('/admin/platform-health'),
   monitoring: () => axiosInstance.get('/admin/monitoring'),
   permissions: () => axiosInstance.get('/admin/permissions'),
