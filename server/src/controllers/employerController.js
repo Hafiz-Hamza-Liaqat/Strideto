@@ -37,6 +37,7 @@ import { isValidJobFamily, isValidSpecialization } from '../../../shared/career/
 import { hiringOwnerIdFrom } from '../services/employer/employerOrganizationService.js';
 import {
   assertChargedSubmissionAllowed,
+  assertEmployerSubmissionEligible,
   recordChargedSubmission,
   loadEmployerPublishingUsage,
 } from '../services/employer/employerPublishingQuota.js';
@@ -173,7 +174,10 @@ export const getMyJobs = asyncHandler(async (req, res) => {
     return res.status(400).json({ error: 'Invalid sort', code: 'INVALID_SORT' });
   }
   const filter = { employerId };
-  if (status === 'pending') filter.approvalStatus = 'pending';
+  if (status === 'pending') {
+    filter.approvalStatus = 'pending';
+    filter.submittedAt = { $exists: true, $ne: null };
+  }
   else if (status && ['draft', 'active', 'closed'].includes(status)) filter.status = status;
   else if (status) return res.status(400).json({ error: 'Invalid status filter', field: 'status' });
   const q = String(req.query.q || '').trim().slice(0, 200);
@@ -269,7 +273,6 @@ export const createJob = asyncHandler(async (req, res) => {
   const finalSlug = existingSlug ? `${slug}-${Date.now()}` : slug;
 
   const isFirstJob = (employer.totalJobsPosted || 0) === 0;
-  const approvalStatus = 'pending';
   const geo = resolveJobGeoFields(body);
   const taxonomy = resolveJobTaxonomyFields(body);
   if (!taxonomy.ok) {
@@ -318,7 +321,9 @@ export const createJob = asyncHandler(async (req, res) => {
     // is public at all, and the detail page re-checks required fields.
     jobsGraphEligible: true,
     status: 'draft',
-    approvalStatus,
+    // A newly saved Employer job is private draft work. Moderation begins
+    // only when the explicit activation/submit action is called.
+    approvalStatus: null,
     planType: isFirstJob ? 'free' : null,
     openingsCount: openings.value,
   });
@@ -489,6 +494,9 @@ export const updateJob = asyncHandler(async (req, res) => {
   if (job.status === 'active' && job.approvalStatus === 'approved') {
     job.approvalStatus = 'pending';
   }
+  if (job.source === 'employer' && job.status === 'draft' && !job.submittedAt) {
+    job.approvalStatus = null;
+  }
   await job.save();
   scheduleSeoChangeNotification({
     entityType: 'job',
@@ -527,7 +535,7 @@ export const reopenJob = asyncHandler(async (req, res) => {
   if (job.status !== 'closed') return res.status(400).json({ error: 'Only closed jobs can be reopened' });
   job.status = 'draft';
   await job.save();
-  res.json({ job, message: 'Job reopened as draft. Activate when ready to publish.' });
+  res.json({ job, message: 'Job reopened as draft. Submit it for approval when ready.' });
 });
 
 /** GET /employer/plans - List job posting plans */
@@ -536,14 +544,23 @@ export const getPlans = asyncHandler(async (_req, res) => {
   res.json({ data: plans });
 });
 
-/** POST /employer/jobs/:id/activate - Activate job (free or after verified payment) */
+/** POST /employer/jobs/:id/activate - Submit a draft for Admin approval. */
 export const activateJob = asyncHandler(async (req, res) => {
   if (invalidObjectId(req.params.id)) return res.status(404).json({ error: 'Job not found' });
   const employerId = scopeEmployerId(req);
   const job = await Job.findOne({ _id: req.params.id, employerId });
   if (!job) return res.status(404).json({ error: 'Job not found' });
-  if (job.status === 'active') return res.status(400).json({ error: 'Job is already active' });
+  if (job.status !== 'draft' || job.submittedAt) {
+    return res.status(400).json({ error: 'Only an unsubmitted draft can be submitted for approval' });
+  }
   const previous = job.toObject();
+
+  try {
+    await assertEmployerSubmissionEligible(employerId);
+  } catch (err) {
+    if (err.status) return res.status(err.status).json(err.body || { error: err.message, code: err.code });
+    throw err;
+  }
 
   const { planId, paymentId } = req.body;
   const plan = planId ? await JobPlan.findById(planId) : null;
@@ -587,6 +604,7 @@ export const activateJob = asyncHandler(async (req, res) => {
   job.expiresAt = expiresAt;
   job.paidUntil = expiresAt;
   job.approvalStatus = 'pending';
+  job.submittedAt = new Date();
   if (isFreeJob) recordChargedSubmission(job);
   await job.save();
 

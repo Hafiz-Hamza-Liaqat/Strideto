@@ -87,7 +87,7 @@ export default function EmployerJobs() {
     try {
       if (action === 'close') await employerApi.closeJob(id);
       else if (action === 'reopen') await employerApi.reopenJob(id);
-      else if (action === 'activate') await employerApi.activateJob(id, {});
+      else if (action === 'submit') await employerApi.activateJob(id, {});
       await loadJobs();
     } catch (err) {
       setError(err.response?.data?.error || t('employer:jobActionFailed'));
@@ -96,8 +96,8 @@ export default function EmployerJobs() {
     }
   };
 
-  const handleActivate = (job) => {
-    runJobAction(job._id, 'activate');
+  const handleSubmit = (job) => {
+    runJobAction(job._id, 'submit');
   };
 
   const JobActions = ({ j }) => (
@@ -116,14 +116,14 @@ export default function EmployerJobs() {
           {t('employer:reopenJob')}
         </button>
       )}
-      {j.status === 'draft' ? (
+      {j.status === 'draft' && (!j.approvalStatus || j.approvalStatus === 'rejected') ? (
         <button
           type="button"
           disabled={actionJobId === j._id}
-          onClick={() => handleActivate(j)}
+          onClick={() => handleSubmit(j)}
           className="text-sm text-slate-700 dark:text-gray-300 hover:underline min-h-[44px]"
         >
-          {t('employer:activateJob')}
+          {t('employer:submitForApproval')}
         </button>
       ) : null}
       {j.status !== 'closed' ? (
@@ -145,6 +145,19 @@ export default function EmployerJobs() {
     if (!s) return t('common:all');
     const key = s === 'active' ? 'active' : s === 'draft' ? 'draft' : s === 'closed' ? 'closed' : s;
     return t(`common:${key}`, { defaultValue: s });
+  };
+
+  const jobStatusLabel = (job) => (
+    job?.approvalStatus === 'pending' && job?.submittedAt
+      ? t('employer:approval_pending')
+      : statusLabel(job?.status)
+  );
+
+  const jobStatusClass = (job) => {
+    if (job?.approvalStatus === 'pending' && job?.submittedAt) return 'bg-slate-100 text-slate-700';
+    if (job?.status === 'active') return 'bg-green-100 text-green-800';
+    if (job?.status === 'draft') return 'bg-amber-100 text-amber-800';
+    return 'bg-slate-100 text-slate-600';
   };
 
   return (
@@ -243,15 +256,9 @@ export default function EmployerJobs() {
                   </Link>
                   <div className="flex flex-wrap items-center gap-2 text-sm text-slate-600 dark:text-gray-300">
                     <span
-                      className={`inline-block px-2 py-0.5 text-xs rounded ${
-                        j.status === 'active'
-                          ? 'bg-green-100 text-green-800'
-                          : j.status === 'draft'
-                            ? 'bg-amber-100 text-amber-800'
-                            : 'bg-slate-100 text-slate-600'
-                      }`}
+                      className={`inline-block px-2 py-0.5 text-xs rounded ${jobStatusClass(j)}`}
                     >
-                      {statusLabel(j.status)}
+                      {jobStatusLabel(j)}
                     </span>
                     {j.approvalStatus && j.approvalStatus !== 'approved' ? (
                       <span className="inline-block px-2 py-0.5 text-xs rounded bg-slate-100 text-slate-700">
@@ -343,15 +350,9 @@ export default function EmployerJobs() {
                       </td>
                       <td className="py-3 px-4">
                         <span
-                          className={`inline-block px-2 py-0.5 text-xs rounded ${
-                            j.status === 'active'
-                              ? 'bg-green-100 text-green-800'
-                              : j.status === 'draft'
-                                ? 'bg-amber-100 text-amber-800'
-                                : 'bg-slate-100 text-slate-600'
-                          }`}
+                          className={`inline-block px-2 py-0.5 text-xs rounded ${jobStatusClass(j)}`}
                         >
-                          {statusLabel(j.status)}
+                          {jobStatusLabel(j)}
                         </span>
                       </td>
                       <td className="py-3 px-4 text-sm text-slate-600 dark:text-gray-300">

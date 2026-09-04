@@ -30,6 +30,7 @@ import { parseOpeningsCount } from '../../../../shared/employer/openingsCount.js
 import { normalizeJobSkills } from '../../../../shared/jobs/jobSkills.js';
 import { normalizeJobTextList } from '../../../../shared/jobs/jobTextLists.js';
 import { ACQUISITION_EVENTS, evaluateEmployerActivation, scheduleCanonicalEvent } from '../../services/analytics/acquisitionEvents.js';
+import { isModerationPendingJob } from '../../services/publishing/employerJobSubmissionState.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -39,7 +40,15 @@ function buildQuery(q) {
   const filter = {};
   const extraAnd = [];
   if (q.status) filter.status = q.status;
-  if (q.approvalStatus) filter.approvalStatus = q.approvalStatus;
+  if (q.approvalStatus) {
+    filter.approvalStatus = q.approvalStatus;
+    if (q.approvalStatus === 'pending') {
+      extraAnd.push({ $or: [
+        { source: { $ne: 'employer' } },
+        { source: 'employer', submittedAt: { $exists: true, $ne: null } },
+      ] });
+    }
+  }
   const countryCode = normalizeCountryCode(q.countryCode || q.country);
   if (countryCode) filter.countryCode = countryCode;
   if (q.province || q.region) {
@@ -285,6 +294,15 @@ export const update = asyncHandler(async (req, res) => {
   const before = doc.toObject();
   const validationError = applyJobBody(doc, body);
   if (validationError) return res.status(validationError.status).json({ error: validationError.error, field: validationError.field });
+  if (
+    before.source === 'employer'
+    && before.status === 'draft'
+    && !before.submittedAt
+    && doc.status === 'active'
+    && doc.approvalStatus === 'approved'
+  ) {
+    return res.status(409).json({ error: 'An Employer draft must be submitted before approval', code: 'JOB_NOT_SUBMITTED' });
+  }
   syncJobLaunchEligible(doc, before);
   const slugErr = await applyResolvedSlug('job', doc, body, false);
   if (slugErr) return slugErrorResponse(res, slugErr);
@@ -398,7 +416,8 @@ export const bulkAction = asyncHandler(async (req, res) => {
   }
 
   if (action === 'publish' || action === 'approve') {
-    const pending = await Job.find({ _id: { $in: validIds } }).lean();
+    const pending = (await Job.find({ _id: { $in: validIds } }).lean())
+      .filter(isModerationPendingJob);
     const byEmployer = new Map();
     for (const job of pending) {
       const key = job.employerId ? String(job.employerId) : '';
@@ -455,6 +474,27 @@ export const bulkAction = asyncHandler(async (req, res) => {
     });
     return res.json({ action, affected: approvedIds.length, skipped });
   }
+  if (action === 'reject') {
+    const pending = (await Job.find({ _id: { $in: validIds } }).lean())
+      .filter(isModerationPendingJob);
+    const pendingIds = pending.map((job) => job._id);
+    const result = await Job.updateMany(
+      { _id: { $in: pendingIds }, approvalStatus: 'pending' },
+      { $set: updates }
+    );
+    const employerIds = pending.filter((job) => job.source === 'employer').map((job) => job._id);
+    if (employerIds.length) {
+      await Job.updateMany({ _id: { $in: employerIds } }, { $set: { status: 'draft', submittedAt: null } });
+    }
+    await invalidateJobCaches();
+    await logAudit({
+      ...auditFromRequest(req),
+      action: auditAction,
+      targetType: 'job',
+      metadata: { ids: validIds, modified: result.modifiedCount },
+    });
+    return res.json({ action, affected: result.modifiedCount });
+  }
   const result = await Job.updateMany({ _id: { $in: validIds } }, { $set: updates });
   await invalidateJobCaches();
   await logAudit({
@@ -471,6 +511,9 @@ export const approveJob = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
   const existing = await Job.findById(id).lean();
   if (!existing) return res.status(404).json({ error: 'Job not found' });
+  if (!isModerationPendingJob(existing)) {
+    return res.status(409).json({ error: 'Only a submitted pending job can be approved', code: 'JOB_NOT_SUBMITTED' });
+  }
 
   let snapshot = null;
   if (existing.employerId) {
@@ -538,8 +581,16 @@ export const rejectJob = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
   const existing = await Job.findById(id).lean();
   if (!existing) return res.status(404).json({ error: 'Job not found' });
+  if (!isModerationPendingJob(existing)) {
+    return res.status(409).json({ error: 'Only a submitted pending job can be rejected', code: 'JOB_NOT_SUBMITTED' });
+  }
   const doc = await Job.findByIdAndUpdate(id, { approvalStatus: 'rejected', launchEligible: false }, { new: true });
   if (!doc) return res.status(404).json({ error: 'Job not found' });
+  if (existing.source === 'employer') {
+    doc.status = 'draft';
+    doc.submittedAt = null;
+    await doc.save();
+  }
   await logAudit({
     ...auditFromRequest(req),
     action: 'job.reject',

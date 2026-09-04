@@ -7,12 +7,16 @@ import { logAudit, auditFromRequest } from '../../services/auditService.js';
 import { onJobApproved, onJobRejected, onEmployerVerificationChange } from '../../services/automationService.js';
 import { assignLaunchEligibleOnAuthorityPublish } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 import { ACQUISITION_EVENTS, evaluateEmployerActivation, scheduleCanonicalEvent } from '../../services/analytics/acquisitionEvents.js';
+import { isModerationPendingJob } from '../../services/publishing/employerJobSubmissionState.js';
 
 const MAX_REJECTION_REASON_LENGTH = 500;
 
 export const getModerationQueues = asyncHandler(async (_req, res) => {
   const [pendingJobs, pendingEmployers, reportedContent, advertisements, verificationRequests] = await Promise.all([
-    Job.find({ approvalStatus: 'pending' }).sort({ createdAt: -1 }).limit(50).lean(),
+    Job.find({ approvalStatus: 'pending', $or: [
+      { source: { $ne: 'employer' } },
+      { source: 'employer', submittedAt: { $exists: true, $ne: null } },
+    ] }).sort({ createdAt: -1 }).limit(50).lean(),
     Employer.find({ verificationLevel: 'basic', totalJobsPosted: { $gt: 0 } }).sort({ createdAt: -1 }).limit(50).lean(),
     ContentReport.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(50).lean(),
     AdSlotConfig.find().sort({ updatedAt: -1 }).limit(20).lean(),
@@ -38,7 +42,8 @@ export const getModerationQueues = asyncHandler(async (_req, res) => {
 export const bulkApproveJobs = asyncHandler(async (req, res) => {
   const ids = Array.isArray(req.body?.ids) ? req.body.ids : [];
   if (!ids.length) return res.status(400).json({ error: 'ids array required' });
-  const pending = await Job.find({ _id: { $in: ids }, approvalStatus: 'pending' }).lean();
+  const pending = (await Job.find({ _id: { $in: ids }, approvalStatus: 'pending' }).lean())
+    .filter(isModerationPendingJob);
   const eligibleIds = pending.filter((d) => assignLaunchEligibleOnAuthorityPublish(d)).map((d) => d._id);
   const ineligibleIds = pending.filter((d) => !assignLaunchEligibleOnAuthorityPublish(d)).map((d) => d._id);
   if (eligibleIds.length) {
@@ -54,7 +59,8 @@ export const bulkApproveJobs = asyncHandler(async (req, res) => {
     targetType: 'job',
     metadata: { ids, modified: result.modifiedCount },
   });
-  const approvedJobs = await Job.find({ _id: { $in: ids }, approvalStatus: 'approved' }).select('title employerId').lean();
+  const approvedIds = pending.map((job) => job._id);
+  const approvedJobs = await Job.find({ _id: { $in: approvedIds }, approvalStatus: 'approved' }).select('title employerId').lean();
   for (const job of approvedJobs) {
     scheduleCanonicalEvent({
       eventType: ACQUISITION_EVENTS.jobPublished,
@@ -74,10 +80,22 @@ export const bulkRejectJobs = asyncHandler(async (req, res) => {
   const reason = typeof req.body?.reason === 'string'
     ? req.body.reason.trim().slice(0, MAX_REJECTION_REASON_LENGTH)
     : '';
+  const pending = (await Job.find({ _id: { $in: ids }, approvalStatus: 'pending' })
+    .select('_id source submittedAt').lean()).filter(isModerationPendingJob);
+  const pendingIds = pending.map((job) => job._id);
   const result = await Job.updateMany(
-    { _id: { $in: ids }, approvalStatus: 'pending' },
+    { _id: { $in: pendingIds }, approvalStatus: 'pending' },
     { $set: { approvalStatus: 'rejected' } }
   );
+  const employerPendingIds = pending
+    .filter((job) => job.source === 'employer')
+    .map((job) => job._id);
+  if (employerPendingIds.length) {
+    await Job.updateMany(
+      { _id: { $in: employerPendingIds } },
+      { $set: { status: 'draft', submittedAt: null } }
+    );
+  }
   await logAudit({
     ...auditFromRequest(req),
     action: 'jobs.bulk_reject',

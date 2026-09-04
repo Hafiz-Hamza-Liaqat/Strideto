@@ -386,7 +386,7 @@ export default function EmployerPostJob() {
       <>
         <SeoHead title={t('employer:choosePlanSeoTitle')} description={t('employer:choosePlanSeoDesc')} noindex />
         <h1 className="text-2xl font-semibold tracking-tight text-gray-900 dark:text-white mb-2">
-          {paidPublishingEnabled ? t('employer:choosePlan') : 'Submit for review'}
+          {paidPublishingEnabled ? t('employer:choosePlan') : t('employer:submitForApproval')}
         </h1>
         <p className="text-gray-600 dark:text-gray-300 mb-6">
           {t('employer:draftSavedPlan', { title: createdJob.title })}

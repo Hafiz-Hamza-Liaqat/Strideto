@@ -227,7 +227,11 @@ export default function AdminContentJobs() {
     {
       key: 'approvalStatus',
       label: t('admin:colApproval'),
-      render: (row) => <AdminStatusBadge value={row.approvalStatus} />,
+      render: (row) => (
+        row.source === 'employer' && row.status === 'draft' && !row.submittedAt
+          ? <span className="text-xs text-slate-500">—</span>
+          : <AdminStatusBadge value={row.approvalStatus} />
+      ),
     },
     {
       key: 'employerEntitlement',
@@ -268,6 +272,8 @@ export default function AdminContentJobs() {
             <AdminViewPublicLink type="job" record={row} href={`${ROUTES.JOBS}/${row.slug}`} label={t('admin:viewPublic')} />
           )}
           {canModerate && row.approvalStatus === 'pending' && (
+            row.source !== 'employer' || Boolean(row.submittedAt)
+          ) && (
             <>
               <button type="button" onClick={() => runAction('approve', row._id)} className="text-xs text-green-600">{t('admin:approve')}</button>
               <button type="button" onClick={() => runAction('reject', row._id)} className="text-xs text-amber-600">{t('admin:reject')}</button>

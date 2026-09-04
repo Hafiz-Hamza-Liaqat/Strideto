@@ -8,6 +8,7 @@ import { evaluateEmployerSubmissionEligibility } from '../publishing/EmployerSub
 import { Employer } from '../../models/Employer.js';
 import { Organization } from '../../models/Organization.js';
 import { OrganizationVerification } from '../../models/OrganizationVerification.js';
+import { isModerationPendingJob } from '../publishing/employerJobSubmissionState.js';
 
 async function overlayOrganizationVerification(employer, employerId) {
   if (!employer) return employer;
@@ -56,7 +57,7 @@ export async function loadEmployerPublishingUsage(employerId, { now = new Date()
       approvalStatus: 'approved',
       planType: 'free',
     }),
-    Job.countDocuments({ employerId: eid, approvalStatus: 'pending' }),
+    Job.find({ employerId: eid, approvalStatus: 'pending' }).select('source submittedAt').lean(),
     Job.find({ employerId: eid, chargedSubmissionAt: { $exists: true, $ne: [] } })
       .select('chargedSubmissionAt')
       .lean(),
@@ -87,7 +88,7 @@ export async function loadEmployerPublishingUsage(employerId, { now = new Date()
     },
     drafts: { count: drafts, consumesQuota: false, unlimited: true },
     closedJobs: closed,
-    pendingReview,
+    pendingReview: pendingReview.filter(isModerationPendingJob).length,
     verification: {
       required: true,
       eligible: eligibility.eligible,
@@ -121,6 +122,16 @@ export async function assertChargedSubmissionAllowed(employerId, { now = new Dat
       blockers: snapshot.usage.submissionBlockers,
       daily: snapshot.usage.daily,
       rolling30Days: snapshot.usage.rolling30Days,
+    });
+  }
+  return snapshot;
+}
+
+export async function assertEmployerSubmissionEligible(employerId, { now = new Date() } = {}) {
+  const snapshot = await loadEmployerPublishingUsage(employerId, { now });
+  if (!snapshot.verification.eligible) {
+    throw quotaError(403, 'EMPLOYER_NOT_ELIGIBLE', 'Employer verification is required before submitting a job', {
+      blockers: snapshot.verification.blockers,
     });
   }
   return snapshot;
