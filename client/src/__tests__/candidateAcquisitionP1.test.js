@@ -79,7 +79,6 @@ test('CA-01 shared contract keeps approved fields and excludes unknown/raw query
 });
 
 test('CA-02 validated return intent survives Login → Register → verification → Login', () => {
-  const original = '/jobs/example-job?source=pilot#apply';
   assert.equal(resolveRealmReturnPath({ pathname: '/jobs/example-job', search: '?source=pilot', hash: '#apply' }, '/', 'student'), '/jobs/example-job?source=pilot');
 });
 
