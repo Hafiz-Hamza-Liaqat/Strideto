@@ -463,7 +463,7 @@ export default function JobDetail() {
         <div className="lg:grid lg:grid-cols-[minmax(0,1fr)_minmax(16rem,22rem)] lg:gap-8 lg:items-start">
           <div className="min-w-0">
             <header className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800 p-4 sm:p-6 shadow-sm">
-              <div className="flex flex-wrap items-start gap-3">
+              <div className="flex flex-col lg:flex-row items-start gap-3">
                 <PublicListingLogo
                   logoUrl={job.logoUrl}
                   label={job.organization || job.company || job.title}
@@ -485,7 +485,7 @@ export default function JobDetail() {
               <div className="mt-2 flex flex-wrap gap-2">
                 <PublicTrustBadge kind={job.authorityKind} label={job.authorityLabel} />
               </div>
-              <div className="mt-4 lg:hidden space-y-4">
+              <div className="mt-4 lg:hidden space-y-4 border-t border-gray-200 dark:border-gray-700 pt-4 w-full">
                 {summaryFacts}
                 {actions}
               </div>
