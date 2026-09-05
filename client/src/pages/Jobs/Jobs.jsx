@@ -5,7 +5,7 @@ import { SeoHead } from '../../components/seo';
 import { useCollectionSeo } from '../../seo/collectionSeo';
 import { breadcrumbSchema, collectionPageSchema, combineSchemas } from '../../seo/schemas';
 import { jobsApi, savedApi, recommendationsApi } from '../../services/listingsService';
-import { trackSearchQuery } from '../../utils/platformAnalytics';
+import { initializeLandingAttribution, trackSearchQuery } from '../../utils/platformAnalytics';
 import { useListings } from '../../hooks/useListings';
 import { ROUTES } from '../../constants';
 import {
@@ -47,6 +47,11 @@ export default function Jobs() {
   const [geoFacets, setGeoFacets] = useState({ countries: [], regions: [], cities: [] });
 
   const location = useLocation();
+
+  useEffect(() => {
+    initializeLandingAttribution();
+  }, []);
+
   const initialParams = {
     limit: PER_PAGE,
     sort: 'newest',

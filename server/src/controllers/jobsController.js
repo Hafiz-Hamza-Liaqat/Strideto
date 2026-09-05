@@ -24,6 +24,7 @@ import {
 } from '../utils/employerLogoProjection.js';
 import { rankRelatedJobs } from '../../../shared/seo/relatedRanking.js';
 import { clusterResourceLinks } from '../../../shared/seo/contentClusters.js';
+import { logSearchQuery } from '../services/search/SearchIndexService.js';
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
@@ -37,6 +38,27 @@ const PUBLIC_PUBLICATION_OR = [
   { publicationState: { $exists: false } },
   { publicationState: 'active' },
 ];
+
+const JOB_SEARCH_INTENT_KEYS = Object.freeze([
+  'search', 'countryCode', 'region', 'province', 'city', 'jobFamily',
+  'specialization', 'category', 'organization', 'deadline', 'type',
+  'applyType', 'workMode',
+]);
+
+export function hasJobSearchIntent(query = {}) {
+  return JOB_SEARCH_INTENT_KEYS.some((key) => String(query[key] || '').trim().length > 0);
+}
+
+export function buildJobsSearchMeasurement({ query = {}, total, responseTimeMs = 0, userId = null } = {}) {
+  return {
+    query: String(query.search || '').trim().slice(0, 200),
+    entityTypes: ['job'],
+    resultCount: total,
+    responseTimeMs,
+    source: 'public',
+    userId,
+  };
+}
 
 export function buildPublicJobFilter({ allowHistorical = false } = {}) {
   const now = new Date();
@@ -186,6 +208,7 @@ export const getJobGeoFacets = asyncHandler(async (req, res) => {
 });
 
 export const getJobs = asyncHandler(async (req, res) => {
+  const started = Date.now();
   const page = Math.max(1, parseInt(req.query.page, 10) || 1);
   const limit = Math.min(MAX_LIMIT, Math.max(1, parseInt(req.query.limit, 10) || DEFAULT_LIMIT));
   const skip = (page - 1) * limit;
@@ -195,6 +218,16 @@ export const getJobs = asyncHandler(async (req, res) => {
     Job.find(query).sort(buildJobSort(sort)).skip(skip).limit(limit).lean(),
     Job.countDocuments(query),
   ]);
+  // A completed first-page Jobs search is the measurement boundary. The
+  // server's count is authoritative; pagination is not a second search.
+  if (page === 1 && hasJobSearchIntent(req.query)) {
+    void logSearchQuery(buildJobsSearchMeasurement({
+      query: req.query,
+      total,
+      responseTimeMs: Date.now() - started,
+      userId: req.user?.userId || null,
+    }));
+  }
   const logoMap = await fetchEmployerLogoMap(collectEmployerIdsForLogoFallback(data));
   const rowsWithLogos = attachEmployerLogos(data, logoMap);
   const items = [];

@@ -52,6 +52,15 @@ function getSessionAcquisitionMetadata() {
   }
 }
 
+/**
+ * Initialize first-touch attribution at an eligible public landing entry.
+ * Storage remains consent-gated; callers do not need to emit an event.
+ */
+export function initializeLandingAttribution() {
+  if (!allowsAnalytics()) return {};
+  return getSessionAcquisitionMetadata();
+}
+
 export function getRegistrationAttribution() {
   if (!allowsAnalytics()) return undefined;
   const value = getSessionAcquisitionMetadata();

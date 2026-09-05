@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useAuth } from '../../context/AuthContext';
 import { ROUTES } from '../../constants';
@@ -19,13 +19,16 @@ import { AuthCard } from '../../layouts/AuthLayout.jsx';
 import { clearAuthFormDraft, useAuthFormDraft } from '../../hooks/useAuthFormDraft.js';
 import { googleSignInEnabled, startGoogleSignIn } from '../../auth/googleSignIn.js';
 import { getRegistrationAttribution } from '../../utils/platformAnalytics.js';
+import { LOGIN_REALMS, rememberLoginReturnPath, resolveLoginReturnPath } from '../../utils/loginReturn.js';
 
 export default function Register() {
   const navigate = useNavigate();
+  const location = useLocation();
   const [searchParams] = useSearchParams();
   const refCode = searchParams.get('ref') || '';
   const { register, error, setError } = useAuth();
   const googleEnabled = googleSignInEnabled();
+  const returnPath = resolveLoginReturnPath(location.state?.from, ROUTES.HOME, LOGIN_REALMS.STUDENT);
   const { t } = useTranslation(['forms', 'common', 'validation']);
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
@@ -59,6 +62,7 @@ export default function Register() {
     try {
       const result = await register({ name: name.trim(), email: email.trim().toLowerCase(), password, referralCode: refCode || undefined, attribution: getRegistrationAttribution(), acceptedTerms: true });
       if (result?.requiresVerification) {
+        rememberLoginReturnPath(returnPath === ROUTES.HOME ? null : returnPath);
         clearAuthFormDraft('user');
         const path = pendingVerifyPath('user');
         navigate(result.emailMode === 'unavailable' ? `${path}&delivery=unavailable` : path, { replace: true });
@@ -69,7 +73,8 @@ export default function Register() {
       if (!isOnboardingComplete({ userId: uid, userFlag: user?.onboardingCompleted })) {
         markOnboardingPending();
       }
-      navigate(ROUTES.HOME, { replace: true });
+      rememberLoginReturnPath(null);
+      navigate(returnPath, { replace: true });
     } catch (err) {
       const data = err.response?.data;
       const msg = data?.error || t('forms:register.failed');
@@ -165,7 +170,11 @@ export default function Register() {
 
         <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
           {t('common:alreadyHaveAccount')}{' '}
-          <Link to={ROUTES.LOGIN} className="text-primary dark:text-mint font-medium hover:underline link-hover">
+          <Link
+            to={ROUTES.LOGIN}
+            state={location.state}
+            className="text-primary dark:text-mint font-medium hover:underline link-hover"
+          >
             {t('common:login')}
           </Link>
         </p>

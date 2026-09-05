@@ -8,6 +8,7 @@ import { FormField } from '../../components/common/FormField';
 import { Alert } from '../../components/ui/Alerts';
 import { useSecretQueryToken } from '../../hooks/useSecretQueryToken.js';
 import { realmLoginPath, realmDashboardPath } from '../../utils/authUrls.js';
+import { loginStateFromPath, takeLoginReturnPath } from '../../utils/loginReturn.js';
 import { AuthCard } from '../../layouts/AuthLayout.jsx';
 import {
   VERIFY_EMAIL_STATES,
@@ -44,6 +45,7 @@ export default function VerifyEmail() {
   const pending = captured.pending;
   const deliveryUnavailable = captured.deliveryUnavailable;
   const capturedToken = captured.token;
+  const [returnState] = useState(() => loginStateFromPath(takeLoginReturnPath()));
   const { t } = useTranslation(['forms', 'common']);
   const [status, setStatus] = useState(() => initialVerifyEmailStatus({
     token: capturedToken,
@@ -198,6 +200,7 @@ export default function VerifyEmail() {
               <div className="flex flex-col sm:flex-row gap-3 justify-center">
                 <Link
                   to={nextLogin}
+                  state={returnState}
                   className="inline-flex items-center justify-center gap-2 px-5 py-2.5 rounded-lg font-semibold text-sm bg-primary text-white hover:bg-primary-hover"
                 >
                   {t('common:signIn', { defaultValue: 'Sign in' })}

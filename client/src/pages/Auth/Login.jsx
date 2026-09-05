@@ -159,7 +159,11 @@ export default function Login() {
 
         <p className="mt-6 text-center text-sm text-gray-600 dark:text-gray-400">
           {t('common:dontHaveAccount')}{' '}
-          <Link to={ROUTES.REGISTER} className="text-primary dark:text-mint font-medium hover:underline link-hover">
+          <Link
+            to={ROUTES.REGISTER}
+            state={requestedFrom ? { from: requestedFrom } : undefined}
+            className="text-primary dark:text-mint font-medium hover:underline link-hover"
+          >
             {t('common:register')}
           </Link>
         </p>
