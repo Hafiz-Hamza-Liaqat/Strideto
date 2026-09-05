@@ -26,8 +26,8 @@ import {
 } from '@shared/seo/sourceAuthority.js';
 import { formatDate } from '../../utils/formatDate';
 import { useContentView } from '../../hooks/usePageView';
-import { trackApplicationClick } from '../../utils/applicationClickTracking.js';
 import { loginLocationState } from '../../utils/loginReturn.js';
+import { ProtectedExternalApplicationLink } from '../../components/public/ProtectedExternalApplicationLink.jsx';
 import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
 import {
   APPLICATION_MODE_LABELS,
@@ -327,32 +327,27 @@ export default function JobDetail() {
         </p>
       )}
       {isExternal && accepting && applicationLink && (
-        <a
-          href={applicationLink}
+        <ProtectedExternalApplicationLink
+          destination={applicationLink}
+          entityType="job"
+          entityId={job._id}
           className={ACTION_PRIMARY}
           target="_blank"
           rel="noopener noreferrer"
-          onClick={() => trackApplicationClick({
-            entityType: 'job',
-            entityId: job._id,
-            destinationType: 'external_url',
-          })}
         >
           {t('applyOfficialWebsite', { ns: 'jobs' })}
-        </a>
+        </ProtectedExternalApplicationLink>
       )}
       {isExternal && accepting && !applicationLink && applyEmail && (
-        <a
-          href={`mailto:${applyEmail}`}
+        <ProtectedExternalApplicationLink
+          destination={`mailto:${applyEmail}`}
+          entityType="job"
+          entityId={job._id}
+          destinationType="email"
           className={ACTION_PRIMARY}
-          onClick={() => trackApplicationClick({
-            entityType: 'job',
-            entityId: job._id,
-            destinationType: 'email',
-          })}
         >
           {t('applyByEmail', { ns: 'jobs', defaultValue: 'Apply by email' })}
-        </a>
+        </ProtectedExternalApplicationLink>
       )}
       {!isExternal && canActAsStudent && accepting && (
         applied || applySuccess ? (

@@ -29,7 +29,7 @@ import {
 import { WORK_MODE_LABELS } from '@shared/publicDiscovery/publicTruth.js';
 import { Alert } from '../../components/ui/Alerts';
 import { RelatedResources } from '../../components/seo/RelatedResources';
-import { trackApplicationClick } from '../../utils/applicationClickTracking.js';
+import { ProtectedExternalApplicationLink } from '../../components/public/ProtectedExternalApplicationLink.jsx';
 
 export default function InternshipDetail() {
   const { t } = useTranslation(['internships', 'common', 'navbar']);
@@ -238,19 +238,16 @@ export default function InternshipDetail() {
             </button>
           )}
           {publicHttpUrlOrNull(internship.applicationLink) && (
-            <a
-              href={applicationLink}
+            <ProtectedExternalApplicationLink
+              destination={applicationLink}
+              entityType="internship"
+              entityId={internship._id}
               target="_blank"
               rel="noopener noreferrer"
               className="inline-flex items-center min-h-[44px] px-4 py-2 rounded-lg border-2 border-primary text-primary dark:text-mint hover:bg-mint/20 dark:hover:bg-mint/10 btn-theme"
-              onClick={() => trackApplicationClick({
-                entityType: 'internship',
-                entityId: internship._id,
-                destinationType: 'external_url',
-              })}
             >
               {t('applyCompanyPortal', { ns: 'internships' })}
-            </a>
+            </ProtectedExternalApplicationLink>
           )}
           {canActAsStudent && isOpportunityApplicationEnabled() && (
             <button

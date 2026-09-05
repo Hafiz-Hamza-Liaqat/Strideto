@@ -18,6 +18,7 @@ import { formatMoney } from '@shared/international/dateDisplay.js';
 import { countryDisplayName } from '@shared/international/country.js';
 import { formatPublicDateOnly, APPLICATION_MODE_LABELS, NO_GUARANTEE_DISCLAIMER, NOT_SPECIFIED } from '@shared/publicDiscovery/publicTruth.js';
 import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
+import { ProtectedExternalApplicationLink } from '../../components/public/ProtectedExternalApplicationLink.jsx';
 import { ProvenanceStrip } from '../../components/public/ProvenanceStrip';
 import { KeyFacts } from '../../components/public/KeyFacts';
 import { PublicSourceLink } from '../../components/public/PublicSourceLink.jsx';
@@ -399,9 +400,9 @@ function ProgramApplyActions({ programId, intake, isAuthenticated, loginReturnPa
         )
       ) : null}
       {showExternal ? (
-        <a href={applyUrl} target="_blank" rel="noopener noreferrer" className={APPLY_BTN_SECONDARY}>
+        <ProtectedExternalApplicationLink destination={applyUrl} entityType="program" entityId={programId} target="_blank" rel="noopener noreferrer" className={APPLY_BTN_SECONDARY}>
           Apply on the Institution&apos;s official website ↗
-        </a>
+        </ProtectedExternalApplicationLink>
       ) : null}
     </div>
   );

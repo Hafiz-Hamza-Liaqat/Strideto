@@ -19,7 +19,7 @@ import {
   resolveIntlScholarshipLink,
   sourceSectionTitle,
 } from '@shared/seo/sourceAuthority.js';
-import { trackApplicationClick } from '../../utils/applicationClickTracking.js';
+import { ProtectedExternalApplicationLink } from '../../components/public/ProtectedExternalApplicationLink.jsx';
 
 function isObjectIdParam(value) {
   return /^[a-f\d]{24}$/i.test(String(value || ''));
@@ -162,19 +162,16 @@ export default function IntlScholarshipDetail() {
         )}
 
         {officialLink && (
-          <a
-            href={officialLink}
+          <ProtectedExternalApplicationLink
+            destination={officialLink}
+            entityType="scholarship"
+            entityId={item._id}
             target="_blank"
             rel="noopener noreferrer"
             className="inline-block mt-6 px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover btn-theme"
-            onClick={() => trackApplicationClick({
-              entityType: 'scholarship',
-              entityId: item._id,
-              destinationType: 'external_url',
-            })}
           >
             {t('scholarships:applyOfficialSite')}
-          </a>
+          </ProtectedExternalApplicationLink>
         )}
 
         <PublicSourceSection title={sourceSectionTitle(intlSource?.level)}>

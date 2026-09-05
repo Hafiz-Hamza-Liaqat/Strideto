@@ -27,6 +27,7 @@ import {
 import { publicHttpUrlOrNull } from '@shared/publicDiscovery/safePublicUrl.js';
 import { APPLICATION_MODE_LABELS, EXTERNAL_APPLY_DISCLOSURE, NO_GUARANTEE_DISCLAIMER } from '@shared/publicDiscovery/publicTruth.js';
 import { formatLocationDisplay } from '@shared/international/location.js';
+import { ProtectedExternalApplicationLink } from '../../components/public/ProtectedExternalApplicationLink.jsx';
 
 export default function AdmissionDetail() {
   const { t } = useTranslation(['admissions', 'common', 'navbar', 'applications']);
@@ -159,7 +160,16 @@ export default function AdmissionDetail() {
             <div className="flex flex-wrap gap-2">
               <SaveButton type="admission" id={item._id} saved={savedIds.has(item._id)} onToggle={handleSaveToggle} />
               {officialLink && (
-                <a href={officialLink} className="inline-flex items-center min-h-[44px] px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover btn-theme" target="_blank" rel="noopener noreferrer">{t('applyOfficialWebsite', { ns: 'jobs', defaultValue: 'Apply on official website' })}</a>
+                <ProtectedExternalApplicationLink
+                  destination={officialLink}
+                  entityType="admission"
+                  entityId={item._id}
+                  className="inline-flex items-center min-h-[44px] px-4 py-2 rounded-lg bg-primary text-white font-medium hover:bg-primary-hover btn-theme"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  {t('applyOfficialWebsite', { ns: 'jobs', defaultValue: 'Apply on official website' })}
+                </ProtectedExternalApplicationLink>
               )}
               {studentProductEnabled && isOpportunityApplicationEnabled() && (
                 <button
