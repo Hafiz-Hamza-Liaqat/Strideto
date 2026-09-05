@@ -19,6 +19,7 @@ import { validateApplicationLink, validateApplyEmail } from '../../utils/jobAppl
 import {
   loadEmployerPublishingUsage,
   projectAdminEntitlementSnapshot,
+  projectJobPublishingEntitlement,
   assertActiveFreeApprovalAllowed,
   jobWouldConsumeFreeActiveSlot,
 } from '../../services/employer/employerPublishingQuota.js';
@@ -34,6 +35,7 @@ import {
   employerPrivateDraftExclusion,
   isModerationPendingJob,
 } from '../../services/publishing/employerJobSubmissionState.js';
+import { runWithSerializedPublishingQuota } from '../../services/publishing/SerializedQuotaGuard.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -215,6 +217,9 @@ export const list = asyncHandler(async (req, res) => {
     const snap = row.employerId ? snapshots[String(row.employerId)] : null;
     return {
       ...row,
+      publishingAccess: snap
+        ? projectJobPublishingEntitlement(row, snap)
+        : null,
       employerEntitlement: snap
         ? {
           type: snap.type,
@@ -521,34 +526,43 @@ export const approveJob = asyncHandler(async (req, res) => {
     return res.status(409).json({ error: 'Only a submitted pending job can be approved', code: 'JOB_NOT_SUBMITTED' });
   }
 
-  let snapshot = null;
-  if (existing.employerId) {
-    try {
-      snapshot = await loadEmployerPublishingUsage(existing.employerId);
-      if (jobWouldConsumeFreeActiveSlot(existing, snapshot)) {
-        await assertActiveFreeApprovalAllowed(existing.employerId, { additionalSlots: 1 });
-      }
-    } catch (err) {
-      if (err.status === 409) {
-        return res.status(409).json(err.body || {
-          error: err.message,
-          code: err.code || PUBLISHING_QUOTA_RESULT_CODES.ACTIVE_LIMIT_REACHED_AT_APPROVAL,
-        });
-      }
-      throw err;
-    }
-  }
-
   const set = {
     status: 'active',
     approvalStatus: 'approved',
     launchEligible: assignLaunchEligibleOnAuthorityPublish(existing),
   };
-  if (snapshot && snapshot.policy?.paidPublishingEnabled !== true && !existing.planType) {
-    set.planType = 'free';
+  let snapshot = null;
+  let doc;
+  const approve = async (session = null) => {
+    snapshot = existing.employerId
+      ? await loadEmployerPublishingUsage(existing.employerId, { session })
+      : null;
+    if (existing.employerId && jobWouldConsumeFreeActiveSlot(existing, snapshot)) {
+      await assertActiveFreeApprovalAllowed(existing.employerId, { additionalSlots: 1, session });
+    }
+    if (snapshot && snapshot.policy?.paidPublishingEnabled !== true && !existing.planType) {
+      set.planType = 'free';
+    }
+    const options = { new: true };
+    if (session) options.session = session;
+    return Job.findByIdAndUpdate(id, set, options);
+  };
+  try {
+    doc = existing.employerId
+      ? await runWithSerializedPublishingQuota(
+        { ownerType: 'employer', ownerId: existing.employerId },
+        ({ session }) => approve(session)
+      )
+      : await approve();
+  } catch (err) {
+    if (err.status === 409) {
+      return res.status(409).json(err.body || {
+        error: err.message,
+        code: err.code || PUBLISHING_QUOTA_RESULT_CODES.ACTIVE_LIMIT_REACHED_AT_APPROVAL,
+      });
+    }
+    throw err;
   }
-
-  const doc = await Job.findByIdAndUpdate(id, set, { new: true });
   if (!doc) return res.status(404).json({ error: 'Job not found' });
   if (!(existing.status === 'active' && existing.approvalStatus === 'approved')) {
     scheduleCanonicalEvent({ eventType: ACQUISITION_EVENTS.jobPublished, eventId: `${ACQUISITION_EVENTS.jobPublished}:${String(doc._id)}:v1`, schemaVersion: '3', entityType: 'job', entityId: String(doc._id), metadata: { conversion: ACQUISITION_EVENTS.jobPublished, employerId: doc.employerId ? String(doc.employerId) : null } });

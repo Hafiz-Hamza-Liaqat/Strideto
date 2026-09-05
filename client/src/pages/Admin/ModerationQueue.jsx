@@ -7,6 +7,31 @@ import { PERMISSIONS } from '../../config/rbac';
 import { AdminRouteGuard } from '../../components/admin/AdminRouteGuard';
 import { VerificationBadge } from '../../components/common/VerificationBadge';
 
+function PostingAccess({ access }) {
+  if (!access) return null;
+  if (access.type === 'paid') {
+    return (
+      <div className="mt-1 text-[11px] leading-tight text-emerald-700 dark:text-emerald-300">
+        <div className="font-semibold">{access.label || 'Paid Job Posting'}</div>
+        <div>Entitlement: {access.entitlement || 'configured'}</div>
+      </div>
+    );
+  }
+  const free = access.freeBeta;
+  if (!free) return null;
+  return (
+    <div className="mt-1 text-[11px] leading-tight text-amber-700 dark:text-amber-300">
+      <div className="font-semibold">{access.label || 'Free Beta'}</div>
+      <div>Active now: {free.active}/{free.limit} · Pending: {free.pending}</div>
+      {free.canApprove ? (
+        <div>If approved: {free.activeAfterApproval}/{free.limit} active · {free.remainingAfterApproval} remaining</div>
+      ) : (
+        <div>Approval impact: blocked · no Free Beta capacity</div>
+      )}
+    </div>
+  );
+}
+
 export default function ModerationQueue() {
   const { t } = useTranslation(['admin', 'common']);
   const { can, role } = usePermissions();
@@ -153,6 +178,8 @@ export default function ModerationQueue() {
                     <div className="flex-1 min-w-0">
                       <p className="font-medium truncate">{job.title}</p>
                       <p className="text-xs text-gray-500">{job.company || job.organization}</p>
+                      {job.submittedAt ? <p className="text-[11px] text-gray-400">Submitted {new Date(job.submittedAt).toLocaleString()}</p> : null}
+                      <PostingAccess access={job.publishingAccess} />
                     </div>
                   </li>
                 ))}

@@ -11,6 +11,13 @@ import {
   employerPrivateDraftExclusion,
   isModerationPendingJob,
 } from '../../services/publishing/employerJobSubmissionState.js';
+import {
+  loadEmployerPublishingUsage,
+  projectJobPublishingEntitlement,
+  assertActiveFreeApprovalAllowed,
+  jobWouldConsumeFreeActiveSlot,
+} from '../../services/employer/employerPublishingQuota.js';
+import { runWithSerializedPublishingQuota } from '../../services/publishing/SerializedQuotaGuard.js';
 
 const MAX_REJECTION_REASON_LENGTH = 500;
 
@@ -24,8 +31,24 @@ export const getModerationQueues = asyncHandler(async (_req, res) => {
     Employer.find({ verificationLevel: 'verified', verified: true }).sort({ updatedAt: -1 }).limit(20).select('companyName slug verificationLevel verified').lean(),
   ]);
 
+  const employerIds = [...new Set(pendingJobs.map((job) => job.employerId && String(job.employerId)).filter(Boolean))];
+  const snapshots = {};
+  await Promise.all(employerIds.map(async (employerId) => {
+    try {
+      snapshots[employerId] = await loadEmployerPublishingUsage(employerId);
+    } catch {
+      snapshots[employerId] = null;
+    }
+  }));
+  const pendingJobsWithEntitlement = pendingJobs.map((job) => ({
+    ...job,
+    publishingAccess: job.employerId
+      ? projectJobPublishingEntitlement(job, snapshots[String(job.employerId)])
+      : null,
+  }));
+
   res.json({
-    pendingJobs,
+    pendingJobs: pendingJobsWithEntitlement,
     pendingEmployers,
     reportedContent,
     advertisements,
@@ -45,22 +68,59 @@ export const bulkApproveJobs = asyncHandler(async (req, res) => {
   if (!ids.length) return res.status(400).json({ error: 'ids array required' });
   const pending = (await Job.find({ _id: { $in: ids }, approvalStatus: 'pending' }).lean())
     .filter(isModerationPendingJob);
-  const eligibleIds = pending.filter((d) => assignLaunchEligibleOnAuthorityPublish(d)).map((d) => d._id);
-  const ineligibleIds = pending.filter((d) => !assignLaunchEligibleOnAuthorityPublish(d)).map((d) => d._id);
-  if (eligibleIds.length) {
-    await Job.updateMany({ _id: { $in: eligibleIds } }, { $set: { approvalStatus: 'approved', status: 'active', launchEligible: true } });
+  const approvedIds = [];
+  const skipped = [];
+  for (const job of pending.sort((a, b) => new Date(a.createdAt || 0) - new Date(b.createdAt || 0))) {
+    try {
+      const approve = async (session = null) => {
+        const snapshot = job.employerId
+          ? await loadEmployerPublishingUsage(job.employerId, { session })
+          : null;
+        if (job.employerId && jobWouldConsumeFreeActiveSlot(job, snapshot)) {
+          await assertActiveFreeApprovalAllowed(job.employerId, { additionalSlots: 1, session });
+        }
+        const options = session ? { session } : undefined;
+        return Job.updateOne(
+          { _id: job._id, approvalStatus: 'pending' },
+          {
+            $set: {
+              approvalStatus: 'approved',
+              status: 'active',
+              launchEligible: assignLaunchEligibleOnAuthorityPublish(job),
+            },
+          },
+          options
+        );
+      };
+      let transitionResult;
+      if (job.employerId) {
+        transitionResult = await runWithSerializedPublishingQuota(
+          { ownerType: 'employer', ownerId: job.employerId },
+          ({ session }) => approve(session)
+        );
+      } else {
+        transitionResult = await approve();
+      }
+      if ((transitionResult?.modifiedCount ?? 1) !== 1) {
+        skipped.push({ id: String(job._id), code: 'JOB_NO_LONGER_PENDING' });
+        continue;
+      }
+      approvedIds.push(job._id);
+    } catch (err) {
+      if (err.status === 409) {
+        skipped.push({ id: String(job._id), code: err.code });
+        continue;
+      }
+      throw err;
+    }
   }
-  if (ineligibleIds.length) {
-    await Job.updateMany({ _id: { $in: ineligibleIds } }, { $set: { approvalStatus: 'approved', status: 'active', launchEligible: false } });
-  }
-  const result = { modifiedCount: pending.length };
+  const result = { modifiedCount: approvedIds.length };
   await logAudit({
     ...auditFromRequest(req),
     action: 'jobs.bulk_approve',
     targetType: 'job',
-    metadata: { ids, modified: result.modifiedCount },
+    metadata: { ids, modified: result.modifiedCount, skipped },
   });
-  const approvedIds = pending.map((job) => job._id);
   const approvedJobs = await Job.find({ _id: { $in: approvedIds }, approvalStatus: 'approved' }).select('title employerId').lean();
   for (const job of approvedJobs) {
     scheduleCanonicalEvent({
@@ -72,7 +132,7 @@ export const bulkApproveJobs = asyncHandler(async (req, res) => {
     if (job.employerId) void evaluateEmployerActivation(job.employerId).catch(() => {});
     onJobApproved({ jobId: job._id, employerId: job.employerId, jobTitle: job.title }).catch(() => {});
   }
-  res.json({ approved: result.modifiedCount });
+  res.json({ approved: result.modifiedCount, skipped });
 });
 
 export const bulkRejectJobs = asyncHandler(async (req, res) => {

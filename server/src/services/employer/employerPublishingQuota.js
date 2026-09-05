@@ -11,22 +11,28 @@ import { OrganizationVerification } from '../../models/OrganizationVerification.
 import { EmployerMembership } from '../../models/employer/EmployerMembership.js';
 import { isModerationPendingJob } from '../publishing/employerJobSubmissionState.js';
 
-async function overlayOrganizationVerification(employer, employerId) {
+async function overlayOrganizationVerification(employer, employerId, session) {
   if (!employer) return employer;
   // The active membership is the live Employer-realm organization link. The
   // legacyEmployerId link is retained only as a backward-compatible fallback;
   // it must not win over a current membership when both exist.
-  const membership = await EmployerMembership.findOne({ employerId, active: true })
+  let membershipQuery = EmployerMembership.findOne({ employerId, active: true })
     .select('organizationId')
     .lean();
-  const org = membership?.organizationId
-    ? await Organization.findById(membership.organizationId).select('_id').lean()
-    : await Organization.findOne({ legacyEmployerId: employerId }).select('_id').lean();
+  if (session) membershipQuery = membershipQuery.session(session);
+  const membership = await membershipQuery;
+  let orgQuery = membership?.organizationId
+    ? Organization.findById(membership.organizationId).select('_id').lean()
+    : Organization.findOne({ legacyEmployerId: employerId }).select('_id').lean();
+  if (session) orgQuery = orgQuery.session(session);
+  const org = await orgQuery;
   if (!org) return employer;
-  const ver = await OrganizationVerification.findOne({ organizationId: org._id })
+  let verificationQuery = OrganizationVerification.findOne({ organizationId: org._id })
     .sort({ updatedAt: -1, _id: -1 })
     .select('status')
     .lean();
+  if (session) verificationQuery = verificationQuery.session(session);
+  const ver = await verificationQuery;
   if (ver?.status === 'approved') {
     return {
       ...employer,
@@ -58,22 +64,27 @@ export function derivePublishingEntitlementType(snapshot) {
   return 'not_configured';
 }
 
-export async function loadEmployerPublishingUsage(employerId, { now = new Date() } = {}) {
+export async function loadEmployerPublishingUsage(employerId, { now = new Date(), session = null } = {}) {
   const eid = employerId;
+  const count = (filter) => {
+    const query = Job.countDocuments(filter);
+    return session ? query.session(session) : query;
+  };
+  const find = (query) => (session ? query.session(session) : query);
   const [drafts, closed, activeFree, pendingReview, chargedJobs, employer] = await Promise.all([
-    Job.countDocuments({ employerId: eid, status: 'draft' }),
-    Job.countDocuments({ employerId: eid, status: 'closed' }),
-    Job.countDocuments({
+    count({ employerId: eid, status: 'draft' }),
+    count({ employerId: eid, status: 'closed' }),
+    count({
       employerId: eid,
       status: 'active',
       approvalStatus: 'approved',
       planType: 'free',
     }),
-    Job.find({ employerId: eid, approvalStatus: 'pending' }).select('source submittedAt').lean(),
-    Job.find({ employerId: eid, chargedSubmissionAt: { $exists: true, $ne: [] } })
+    find(Job.find({ employerId: eid, approvalStatus: 'pending' }).select('source submittedAt').lean()),
+    find(Job.find({ employerId: eid, chargedSubmissionAt: { $exists: true, $ne: [] } })
       .select('chargedSubmissionAt')
-      .lean(),
-    Employer.findById(eid).select('verified verificationLevel accountStatus companyName email companyDescription industry location city province').lean(),
+      .lean()),
+    find(Employer.findById(eid).select('verified verificationLevel accountStatus companyName email companyDescription industry location city province').lean()),
   ]);
 
   const chargedAcceptedAt = chargedJobs.flatMap((job) =>
@@ -84,7 +95,7 @@ export async function loadEmployerPublishingUsage(employerId, { now = new Date()
     activeFreeJobsUsed: activeFree,
     now,
   });
-  const eligibilityEmployer = await overlayOrganizationVerification(employer, eid);
+  const eligibilityEmployer = await overlayOrganizationVerification(employer, eid, session);
   const eligibility = evaluateEmployerSubmissionEligibility(eligibilityEmployer || {});
 
   const payload = {
@@ -211,14 +222,54 @@ export function projectAdminEntitlementSnapshot(snapshot) {
   };
 }
 
+/**
+ * Build the live posting-access context shown to Admin reviewers. This is a
+ * projection only: pending jobs never increment active usage and the approval
+ * endpoint remains the authority that rechecks capacity.
+ */
+export function projectJobPublishingEntitlement(job, snapshot) {
+  if (!job?.employerId) return null;
+
+  const isPaid = Boolean(job.planType && job.planType !== 'free');
+  if (isPaid) {
+    return {
+      type: 'paid',
+      label: 'Paid Job Posting',
+      entitlement: snapshot?.policy?.paidPublishingEnabled === true ? 'confirmed' : 'configured',
+      freeBeta: { impact: 'none' },
+    };
+  }
+
+  const active = snapshot?.usage?.activeFreeJobs?.used ?? 0;
+  const limit = snapshot?.usage?.activeFreeJobs?.limit
+    ?? FREE_BETA_PUBLISHING_POLICY.maximumActiveFreeJobs;
+  const remaining = Math.max(0, limit - active);
+  const pending = snapshot?.pendingReview ?? 0;
+  const canApprove = remaining > 0;
+  return {
+    type: 'free_beta',
+    label: 'Free Beta',
+    freeBeta: {
+      active,
+      limit,
+      remaining,
+      pending,
+      activeAfterApproval: canApprove ? active + 1 : active,
+      remainingAfterApproval: canApprove ? remaining - 1 : 0,
+      canApprove,
+      approvalImpact: canApprove ? 'available' : 'blocked',
+    },
+  };
+}
+
 export async function assertActiveFreeApprovalAllowed(
   employerId,
-  { additionalSlots = 1, now = new Date() } = {}
+  { additionalSlots = 1, now = new Date(), session = null } = {}
 ) {
   if (!employerId) {
     return { entitlement: { type: 'not_configured' }, usage: null };
   }
-  const snapshot = await loadEmployerPublishingUsage(employerId, { now });
+  const snapshot = await loadEmployerPublishingUsage(employerId, { now, session });
   if (
     snapshot.policy.paidPublishingEnabled === true
     && FREE_BETA_PUBLISHING_POLICY.paidJobsConsumeFreeActiveCapacity !== true

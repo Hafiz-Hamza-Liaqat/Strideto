@@ -239,6 +239,25 @@ export default function AdminContentJobs() {
       render: (row) => {
         const ent = row.employerEntitlement;
         if (!ent) return '—';
+        const access = row.publishingAccess;
+        if (access?.type === 'paid') {
+          return (
+            <span className="inline-flex flex-col gap-0.5 text-[11px] leading-tight text-emerald-700 dark:text-emerald-300">
+              <span className="font-semibold">{access.label || 'Paid Job Posting'}</span>
+              <span>Entitlement: {access.entitlement || 'configured'}</span>
+            </span>
+          );
+        }
+        if (access?.freeBeta) {
+          const free = access.freeBeta;
+          return (
+            <span className="inline-flex flex-col gap-0.5 text-[11px] leading-tight text-amber-700 dark:text-amber-300">
+              <span className="font-semibold">{access.label || 'Free Beta'}</span>
+              <span>Active: {free.active}/{free.limit} · Pending: {free.pending}</span>
+              <span>{free.canApprove ? `Approval: ${free.activeAfterApproval}/${free.limit} · ${free.remainingAfterApproval} left` : 'Approval blocked · no capacity'}</span>
+            </span>
+          );
+        }
         const paid = ent.paidPublishingEnabled === true;
         const remaining = ent.activeFreeJobs?.remaining;
         const used = ent.activeFreeJobs?.used;

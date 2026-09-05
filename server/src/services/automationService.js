@@ -6,6 +6,10 @@ import { notifyStaff } from './notificationService.js';
 import { enqueueJob } from './jobQueueService.js';
 import { isSmtpConfigured, isVerificationMailReady, sendTemplatedEmail, sendEmail } from './emailService.js';
 import { formatAppointmentTime } from '../utils/appointmentTime.js';
+import {
+  loadEmployerPublishingUsage,
+  projectJobPublishingEntitlement,
+} from './employer/employerPublishingQuota.js';
 
 /** Templates that embed one-time secrets in `vars.url` — never persist raw URLs in BackgroundJob. */
 const SENSITIVE_EMAIL_TEMPLATES = new Set(['emailVerification', 'passwordReset', 'staffInvitation']);
@@ -440,11 +444,31 @@ export async function onJobRejected({ jobId, employerId, jobTitle, reason }) {
 export async function onJobSubmitted({ jobId, jobTitle, companyName, employerId }) {
   if (!jobId) return;
 
+  let publishingAccess = null;
+  if (employerId) {
+    try {
+      const job = await Job.findById(jobId).select('employerId planType').lean();
+      const snapshot = await loadEmployerPublishingUsage(employerId);
+      publishingAccess = projectJobPublishingEntitlement(job, snapshot);
+    } catch {
+      // Notification delivery must remain best-effort if quota context is unavailable.
+    }
+  }
+  const entitlementLabel = publishingAccess?.type === 'paid'
+    ? 'Paid Job Posting'
+    : publishingAccess?.type === 'free_beta'
+      ? 'Free Beta'
+      : null;
+  const freeBeta = publishingAccess?.freeBeta;
+  const entitlementSuffix = entitlementLabel
+    ? ` ${entitlementLabel}${freeBeta?.canApprove ? ` (${freeBeta.active}/${freeBeta.limit} active; approval would become ${freeBeta.activeAfterApproval}/${freeBeta.limit})` : ''}.`
+    : '';
+
   await notifyStaff({
     category: 'job',
     type: 'job.submitted',
     title: `New job pending review: ${jobTitle}`,
-    body: companyName ? `Submitted by ${companyName}.` : 'A new job listing needs moderation.',
+    body: `${companyName ? `Submitted by ${companyName}.` : 'A new job listing needs moderation.'}${entitlementSuffix}`,
     link: '/admin/moderation',
     metadata: { jobId },
   });

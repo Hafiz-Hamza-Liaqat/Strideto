@@ -123,8 +123,8 @@ const onJobRejectedBody = fnBody(automation, 'export async function onJobRejecte
   check(/export async function onJobApproved\(\{ jobId, employerId, jobTitle \}\) \{/.test(automation), 'onJobApproved unchanged');
   check(/export async function onJobSubmitted\(\{ jobId, jobTitle, companyName, employerId \}\)/.test(automation), 'onJobSubmitted (incl. PF-J2 employer pending ack) unchanged');
   check(
-    /await Job\.updateMany\(\s*\{ _id: \{ \$in: ids \}, approvalStatus: 'pending' \},\s*\{ \$set: \{ approvalStatus: 'approved', status: 'active' \} \}\s*\);/.test(moderation),
-    'bulkApproveJobs status-transition logic unchanged'
+    /assertActiveFreeApprovalAllowed/.test(moderation) && /jobWouldConsumeFreeActiveSlot/.test(moderation),
+    'bulkApproveJobs rechecks live Free Beta capacity before each approval'
   );
 }
 

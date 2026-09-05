@@ -30,18 +30,20 @@ function fnBody(src, exportSig) {
   return src.slice(start, end === -1 ? undefined : end);
 }
 
-// --- 1/3/15/16/17. Job persists before onJobSubmitted; employerId threaded through; fire-and-forget unchanged; response unchanged ---
+// --- Explicit Submit-for-Approval persists before onJobSubmitted; draft creation is silent ---
 {
   const createIdx = controller.indexOf('const job = await Job.create({');
   const onJobSubmittedIdx = controller.indexOf('onJobSubmitted({');
-  check(createIdx > -1 && onJobSubmittedIdx > createIdx, 'createJob: onJobSubmitted still called only after Job.create()');
+  const draftResponseIdx = controller.indexOf('res.status(201).json({', createIdx);
+  check(createIdx > -1 && draftResponseIdx > createIdx, 'createJob: draft persists before response');
+  check(onJobSubmittedIdx > draftResponseIdx, 'submit-for-approval: notification is not part of draft creation');
   check(
-    /onJobSubmitted\(\{\s*jobId: job\._id,\s*jobTitle: job\.title,\s*companyName,\s*employerId,\s*\}\)\.catch\(\(\) => \{\}\);/.test(controller),
-    'createJob: employerId is now threaded through to onJobSubmitted, call remains fire-and-forget'
+    /onJobSubmitted\(\{\s*jobId: job\._id,\s*jobTitle: job\.title,\s*companyName: job\.company,\s*employerId,\s*\}\)\.catch\(\(\) => \{\}\);/.test(controller),
+    'submit-for-approval: employerId is threaded through and call remains fire-and-forget'
   );
   check(
-    /res\.status\(201\)\.json\(\{ job, isFirstJobFree: isFirstJob \}\);/.test(controller),
-    'createJob: Employer response body is unchanged'
+    /res\.json\(\{ job, message: 'Job submitted for review\./.test(controller),
+    'submit-for-approval: response remains the pending-review contract'
   );
 }
 

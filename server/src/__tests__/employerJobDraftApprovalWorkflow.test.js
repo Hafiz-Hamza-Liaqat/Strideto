@@ -170,7 +170,7 @@ const checks = [
   ['EJ-34 active membership verification is authoritative over legacy fallback', () => {
     const quota = fs.readFileSync(new URL('../services/employer/employerPublishingQuota.js', import.meta.url), 'utf8');
     assert.match(quota, /EmployerMembership\.findOne\(\{ employerId, active: true \}\)/);
-    assert.match(quota, /membership\?\.organizationId\s*\n\s*\? await Organization\.findById/);
+    assert.match(quota, /membership\?\.organizationId\s*\n\s*\? Organization\.findById/);
     assert.match(quota, /sort\(\{ updatedAt: -1, _id: -1 \}\)/);
   }],
   ['EJ-35 verification errors link to the authoritative Employer verification page', () => {

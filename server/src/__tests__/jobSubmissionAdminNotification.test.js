@@ -27,28 +27,28 @@ const employerController = read('controllers/employerController.js');
 const automationService = read('services/automationService.js');
 const emailTemplates = read('templates/emailTemplates.js');
 
-// --- 1/11. onJobSubmitted is only called after Job.create() succeeds, fire-and-forget ---
+// --- Explicit Submit-for-Approval is the only path that calls onJobSubmitted ---
 {
   const createIdx = employerController.indexOf('const job = await Job.create({');
   const submittedIdx = employerController.indexOf('onJobSubmitted({');
-  const responseIdx = employerController.indexOf('res.status(201).json({ job, isFirstJobFree: isFirstJob });');
-  check(createIdx > -1 && submittedIdx > createIdx, 'createJob: onJobSubmitted is called only after Job.create() in source order');
-  check(submittedIdx > -1 && responseIdx > submittedIdx, 'createJob: onJobSubmitted is invoked before the response is sent (not blocking a later step)');
+  const responseIdx = employerController.indexOf('res.status(201).json({', createIdx);
+  check(createIdx > -1 && responseIdx > createIdx, 'createJob: draft creation persists before its response');
+  check(submittedIdx > responseIdx, 'submit-for-approval: onJobSubmitted is separate from draft creation');
   check(
-    /onJobSubmitted\(\{\s*jobId: job\._id,\s*jobTitle: job\.title,\s*companyName,\s*employerId,\s*\}\)\.catch\(\(\) => \{\}\);/.test(employerController),
-    'createJob: onJobSubmitted is fire-and-forget (not awaited), matching the existing onJobApplication pattern (PF-J2 added employerId for the Employer acknowledgement)'
+    /onJobSubmitted\(\{\s*jobId: job\._id,\s*jobTitle: job\.title,\s*companyName: job\.company,\s*employerId,\s*\}\)\.catch\(\(\) => \{\}\);/.test(employerController),
+    'submit-for-approval: onJobSubmitted is fire-and-forget (not awaited)'
   );
   check(
     !/await onJobSubmitted/.test(employerController),
-    'createJob: does not await onJobSubmitted (no added response latency)'
+    'submit-for-approval: does not await onJobSubmitted (no added response latency)'
   );
 }
 
 // --- 12. Employer response unchanged: no admin/email info added ---
 {
   check(
-    /res\.status\(201\)\.json\(\{ job, isFirstJobFree: isFirstJob \}\);/.test(employerController),
-    'createJob: Employer response body is unchanged (job + isFirstJobFree only)'
+    /res\.json\(\{ job, message: 'Job submitted for review\./.test(employerController),
+    'submit-for-approval: response remains the existing pending-review contract'
   );
 }
 
