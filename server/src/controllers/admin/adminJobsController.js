@@ -30,7 +30,10 @@ import { parseOpeningsCount } from '../../../../shared/employer/openingsCount.js
 import { normalizeJobSkills } from '../../../../shared/jobs/jobSkills.js';
 import { normalizeJobTextList } from '../../../../shared/jobs/jobTextLists.js';
 import { ACQUISITION_EVENTS, evaluateEmployerActivation, scheduleCanonicalEvent } from '../../services/analytics/acquisitionEvents.js';
-import { isModerationPendingJob } from '../../services/publishing/employerJobSubmissionState.js';
+import {
+  employerPrivateDraftExclusion,
+  isModerationPendingJob,
+} from '../../services/publishing/employerJobSubmissionState.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -38,7 +41,7 @@ const WORK_MODES = new Set(['remote', 'hybrid', 'on_site']);
 
 function buildQuery(q) {
   const filter = {};
-  const extraAnd = [];
+  const extraAnd = [employerPrivateDraftExclusion()];
   if (q.status) filter.status = q.status;
   if (q.approvalStatus) {
     filter.approvalStatus = q.approvalStatus;
@@ -233,6 +236,9 @@ export const getOne = asyncHandler(async (req, res) => {
   if (!mongoose.Types.ObjectId.isValid(id)) return res.status(400).json({ error: 'Invalid id' });
   const doc = await Job.findById(id).lean();
   if (!doc) return res.status(404).json({ error: 'Job not found' });
+  if (doc.source === 'employer' && doc.status === 'draft') {
+    return res.status(404).json({ error: 'Job not found' });
+  }
 
   let employerEntitlement = { type: 'not_configured', payment: { state: 'not_configured' } };
   if (doc.employerId) {

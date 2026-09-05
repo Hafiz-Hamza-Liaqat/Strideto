@@ -7,16 +7,17 @@ import { logAudit, auditFromRequest } from '../../services/auditService.js';
 import { onJobApproved, onJobRejected, onEmployerVerificationChange } from '../../services/automationService.js';
 import { assignLaunchEligibleOnAuthorityPublish } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 import { ACQUISITION_EVENTS, evaluateEmployerActivation, scheduleCanonicalEvent } from '../../services/analytics/acquisitionEvents.js';
-import { isModerationPendingJob } from '../../services/publishing/employerJobSubmissionState.js';
+import {
+  employerPrivateDraftExclusion,
+  isModerationPendingJob,
+} from '../../services/publishing/employerJobSubmissionState.js';
 
 const MAX_REJECTION_REASON_LENGTH = 500;
 
 export const getModerationQueues = asyncHandler(async (_req, res) => {
   const [pendingJobs, pendingEmployers, reportedContent, advertisements, verificationRequests] = await Promise.all([
-    Job.find({ approvalStatus: 'pending', $or: [
-      { source: { $ne: 'employer' } },
-      { source: 'employer', submittedAt: { $exists: true, $ne: null } },
-    ] }).sort({ createdAt: -1 }).limit(50).lean(),
+    Job.find({ approvalStatus: 'pending', ...employerPrivateDraftExclusion() })
+      .sort({ createdAt: -1 }).limit(50).lean(),
     Employer.find({ verificationLevel: 'basic', totalJobsPosted: { $gt: 0 } }).sort({ createdAt: -1 }).limit(50).lean(),
     ContentReport.find({ status: 'pending' }).sort({ createdAt: -1 }).limit(50).lean(),
     AdSlotConfig.find().sort({ updatedAt: -1 }).limit(20).lean(),

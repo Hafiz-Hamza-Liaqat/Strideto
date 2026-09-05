@@ -8,11 +8,20 @@ import { evaluateEmployerSubmissionEligibility } from '../publishing/EmployerSub
 import { Employer } from '../../models/Employer.js';
 import { Organization } from '../../models/Organization.js';
 import { OrganizationVerification } from '../../models/OrganizationVerification.js';
+import { EmployerMembership } from '../../models/employer/EmployerMembership.js';
 import { isModerationPendingJob } from '../publishing/employerJobSubmissionState.js';
 
 async function overlayOrganizationVerification(employer, employerId) {
   if (!employer) return employer;
-  const org = await Organization.findOne({ legacyEmployerId: employerId }).select('_id').lean();
+  const org = await Organization.findOne({ legacyEmployerId: employerId }).select('_id').lean()
+    || await (async () => {
+      const membership = await EmployerMembership.findOne({ employerId, active: true })
+        .select('organizationId')
+        .lean();
+      return membership?.organizationId
+        ? Organization.findById(membership.organizationId).select('_id').lean()
+        : null;
+    })();
   if (!org) return employer;
   const ver = await OrganizationVerification.findOne({ organizationId: org._id }).select('status').lean();
   if (ver?.status === 'approved') {

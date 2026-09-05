@@ -21,11 +21,12 @@ import { logAudit, auditFromRequest } from '../../services/auditService.js';
 import { collectExecutiveMetrics } from './executiveDashboardController.js';
 import { getPlatformInsightsDashboard } from '../../services/analytics/AnalyticsAggregator.js';
 import { flattenDashboardForExport } from '../../../../shared/analytics/exportHelpers.js';
+import { employerPrivateDraftExclusion } from '../../services/publishing/employerJobSubmissionState.js';
 
 const EXPORTERS = {
   users: async () => User.find().select('-password -fcmToken').lean(),
   employers: async () => Employer.find().select('-password').lean(),
-  jobs: async () => Job.find().lean(),
+  jobs: async () => Job.find(employerPrivateDraftExclusion()).lean(),
   scholarships: async () => Scholarship.find().lean(),
   admissions: async () => Admission.find().lean(),
   blogs: async () => Blog.find().lean(),

@@ -116,7 +116,7 @@ export default function EmployerJobs() {
           {t('employer:reopenJob')}
         </button>
       )}
-      {j.status === 'draft' && (!j.approvalStatus || j.approvalStatus === 'rejected') ? (
+      {j.status === 'draft' ? (
         <button
           type="button"
           disabled={actionJobId === j._id}
@@ -260,7 +260,7 @@ export default function EmployerJobs() {
                     >
                       {jobStatusLabel(j)}
                     </span>
-                    {j.approvalStatus && j.approvalStatus !== 'approved' ? (
+                    {j.approvalStatus && j.approvalStatus !== 'approved' && (j.approvalStatus !== 'pending' || j.submittedAt) ? (
                       <span className="inline-block px-2 py-0.5 text-xs rounded bg-slate-100 text-slate-700">
                         {t(`employer:approval_${j.approvalStatus}`, { defaultValue: j.approvalStatus })}
                       </span>

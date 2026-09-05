@@ -17,6 +17,10 @@ export function isModerationPendingJob(job) {
 
 export function isPrivateEmployerDraft(job) {
   return job?.source === 'employer'
-    && job?.status === 'draft'
-    && !job?.submittedAt;
+    && job?.status === 'draft';
+}
+
+/** Mongo predicate used by Admin inventory/export queries. */
+export function employerPrivateDraftExclusion() {
+  return { $nor: [{ source: 'employer', status: 'draft' }] };
 }

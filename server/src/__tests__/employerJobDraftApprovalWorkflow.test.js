@@ -4,6 +4,7 @@ import {
   isExplicitlySubmittedEmployerJob,
   isModerationPendingJob,
   isPrivateEmployerDraft,
+  employerPrivateDraftExclusion,
 } from '../services/publishing/employerJobSubmissionState.js';
 import { jobWouldConsumeFreeActiveSlot } from '../services/employer/employerPublishingQuota.js';
 
@@ -39,6 +40,7 @@ const checks = [
   }],
   ['EJ-05 legacy draft has no moderation eligibility', () => {
     assert.equal(isExplicitlySubmittedEmployerJob(legacyBadDraft), false);
+    assert.equal(isPrivateEmployerDraft(legacyBadDraft), true);
   }],
   ['EJ-06 draft does not consume an active slot', () => {
     assert.equal(jobWouldConsumeFreeActiveSlot(draft, { policy: {}, usage: {} }), true);
@@ -95,7 +97,8 @@ const checks = [
   }],
   ['EJ-21 no broad draft moderation query remains', () => {
     const moderation = fs.readFileSync(new URL('../controllers/admin/moderationController.js', import.meta.url), 'utf8');
-    assert.match(moderation, /submittedAt:\s*\{\s*\$exists:\s*true/);
+    assert.match(moderation, /employerPrivateDraftExclusion\(\)/);
+    assert.match(moderation, /filter\(isModerationPendingJob\)/);
   }],
   ['EJ-22 admin single approve checks submission predicate', () => {
     const admin = fs.readFileSync(new URL('../controllers/admin/adminJobsController.js', import.meta.url), 'utf8');
@@ -137,6 +140,32 @@ const checks = [
   ['EJ-30 frozen Job Autofill files are not part of this workflow contract', () => {
     const source = fs.readFileSync(new URL('../../../client/src/pages/Employer/EmployerJobs.jsx', import.meta.url), 'utf8');
     assert.doesNotMatch(source, /JobDescriptionUploadPanel|extract-from-document/);
+  }],
+  ['EJ-31 Admin inventory/export predicate excludes every Employer draft', () => {
+    assert.deepEqual(employerPrivateDraftExclusion(), { $nor: [{ source: 'employer', status: 'draft' }] });
+    const admin = fs.readFileSync(new URL('../controllers/admin/adminJobsController.js', import.meta.url), 'utf8');
+    const exports = fs.readFileSync(new URL('../controllers/admin/exportController.js', import.meta.url), 'utf8');
+    assert.match(admin, /employerPrivateDraftExclusion\(\)/);
+    assert.match(exports, /Job\.find\(employerPrivateDraftExclusion\(\)\)/);
+  }],
+  ['EJ-31b fifty Employer drafts remain private and excluded', () => {
+    const drafts = Array.from({ length: 50 }, (_, index) => ({
+      ...legacyBadDraft,
+      _id: `legacy-draft-${index}`,
+    }));
+    assert.equal(drafts.length, 50);
+    assert.equal(drafts.every(isPrivateEmployerDraft), true);
+    assert.equal(drafts.filter(isModerationPendingJob).length, 0);
+  }],
+  ['EJ-32 legacy draft approval metadata cannot hide the submit action', () => {
+    const source = fs.readFileSync(new URL('../../../client/src/pages/Employer/EmployerJobs.jsx', import.meta.url), 'utf8');
+    assert.match(source, /j\.status === 'draft' \?/);
+    assert.doesNotMatch(source, /j\.status === 'draft' && \(!j\.approvalStatus/);
+    assert.match(source, /j\.approvalStatus !== 'pending' \|\| j\.submittedAt/);
+  }],
+  ['EJ-33 employer dashboard pending count uses submitted moderation predicate', () => {
+    const source = fs.readFileSync(new URL('../services/employerDashboardMetrics.js', import.meta.url), 'utf8');
+    assert.match(source, /filter\(isModerationPendingJob\)/);
   }],
 ];
 

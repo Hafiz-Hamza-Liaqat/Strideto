@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { Job } from '../models/Job.js';
 import { Application } from '../models/Application.js';
 import { resolveJobApplyType } from './employerApplicationCounts.js';
+import { isModerationPendingJob } from './publishing/employerJobSubmissionState.js';
 
 const NEW_APPLICATION_DAYS = 7;
 
@@ -62,7 +63,8 @@ export async function computeEmployerDashboardMetrics(employerId, { now = new Da
     Job.countDocuments(employerFilter),
     Job.countDocuments({ ...employerFilter, status: 'active', approvalStatus: 'approved' }),
     Job.countDocuments(draftJobsFilter(employerFilter)),
-    Job.countDocuments({ ...employerFilter, approvalStatus: 'pending' }),
+    Job.find({ ...employerFilter, approvalStatus: 'pending' }).select('source submittedAt').lean()
+      .then((rows) => rows.filter(isModerationPendingJob).length),
     Job.countDocuments({ ...employerFilter, status: 'closed' }),
     Job.find(employerFilter)
       .select('_id title views applyType applicationLink applyEmail status approvalStatus applicationsCount')
