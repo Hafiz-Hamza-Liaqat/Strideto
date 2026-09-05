@@ -167,6 +167,17 @@ const checks = [
     const source = fs.readFileSync(new URL('../services/employerDashboardMetrics.js', import.meta.url), 'utf8');
     assert.match(source, /filter\(isModerationPendingJob\)/);
   }],
+  ['EJ-34 active membership verification is authoritative over legacy fallback', () => {
+    const quota = fs.readFileSync(new URL('../services/employer/employerPublishingQuota.js', import.meta.url), 'utf8');
+    assert.match(quota, /EmployerMembership\.findOne\(\{ employerId, active: true \}\)/);
+    assert.match(quota, /membership\?\.organizationId\s*\n\s*\? await Organization\.findById/);
+    assert.match(quota, /sort\(\{ updatedAt: -1, _id: -1 \}\)/);
+  }],
+  ['EJ-35 verification errors link to the authoritative Employer verification page', () => {
+    const source = fs.readFileSync(new URL('../../../client/src/pages/Employer/EmployerJobs.jsx', import.meta.url), 'utf8');
+    assert.match(source, /EMPLOYER_NOT_ELIGIBLE/);
+    assert.match(source, /ROUTES\.EMPLOYER_VERIFICATION/);
+  }],
 ];
 
 for (const [name, fn] of checks) {

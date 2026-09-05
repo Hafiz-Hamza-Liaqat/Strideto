@@ -40,6 +40,7 @@ export default function EmployerJobs() {
   const [status, setStatus] = useState(() => searchParams.get('status') || '');
   const [q, setQ] = useState('');
   const [error, setError] = useState('');
+  const [verificationError, setVerificationError] = useState(false);
   const [notice, setNotice] = useState('');
   const [actionJobId, setActionJobId] = useState('');
   const [usage, setUsage] = useState(null);
@@ -84,12 +85,14 @@ export default function EmployerJobs() {
   const runJobAction = async (id, action) => {
     if (actionJobId) return;
     setActionJobId(id);
+    setVerificationError(false);
     try {
       if (action === 'close') await employerApi.closeJob(id);
       else if (action === 'reopen') await employerApi.reopenJob(id);
       else if (action === 'submit') await employerApi.activateJob(id, {});
       await loadJobs();
     } catch (err) {
+      setVerificationError(err.response?.data?.code === 'EMPLOYER_NOT_ELIGIBLE');
       setError(err.response?.data?.error || t('employer:jobActionFailed'));
     } finally {
       setActionJobId('');
@@ -223,6 +226,11 @@ export default function EmployerJobs() {
       {error ? (
         <div className="mb-4 p-3 rounded-lg bg-red-50 dark:bg-red-950/40 text-red-700 dark:text-red-300 text-sm" role="alert">
           {error}
+          {verificationError ? (
+            <Link to={ROUTES.EMPLOYER_VERIFICATION} className="ml-2 font-medium underline">
+              {t('employer:navVerification')}
+            </Link>
+          ) : null}
         </div>
       ) : null}
       <div className="bg-white dark:bg-gray-800 rounded-xl border border-gray-200 dark:border-gray-700 overflow-hidden min-w-0">

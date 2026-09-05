@@ -13,17 +13,20 @@ import { isModerationPendingJob } from '../publishing/employerJobSubmissionState
 
 async function overlayOrganizationVerification(employer, employerId) {
   if (!employer) return employer;
-  const org = await Organization.findOne({ legacyEmployerId: employerId }).select('_id').lean()
-    || await (async () => {
-      const membership = await EmployerMembership.findOne({ employerId, active: true })
-        .select('organizationId')
-        .lean();
-      return membership?.organizationId
-        ? Organization.findById(membership.organizationId).select('_id').lean()
-        : null;
-    })();
+  // The active membership is the live Employer-realm organization link. The
+  // legacyEmployerId link is retained only as a backward-compatible fallback;
+  // it must not win over a current membership when both exist.
+  const membership = await EmployerMembership.findOne({ employerId, active: true })
+    .select('organizationId')
+    .lean();
+  const org = membership?.organizationId
+    ? await Organization.findById(membership.organizationId).select('_id').lean()
+    : await Organization.findOne({ legacyEmployerId: employerId }).select('_id').lean();
   if (!org) return employer;
-  const ver = await OrganizationVerification.findOne({ organizationId: org._id }).select('status').lean();
+  const ver = await OrganizationVerification.findOne({ organizationId: org._id })
+    .sort({ updatedAt: -1, _id: -1 })
+    .select('status')
+    .lean();
   if (ver?.status === 'approved') {
     return {
       ...employer,

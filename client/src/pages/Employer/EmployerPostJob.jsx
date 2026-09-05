@@ -328,11 +328,9 @@ export default function EmployerPostJob() {
   };
 
   const profileReadiness = evaluateEmployerProfileCompleteness(employer);
-  const organizationVerificationReady =
-    employer?.verified === true && ['verified', 'trusted'].includes(employer?.verificationLevel);
   const accountEmailVerified = employer?.emailVerified === true;
   const publishBlocked =
-    !profileReadiness.complete || !organizationVerificationReady || !accountEmailVerified;
+    !profileReadiness.complete || !accountEmailVerified;
 
   if (step === 'success' && publishedJob) {
     const isInternal = publishedJob.applyMethod === 'internal';
@@ -415,14 +413,6 @@ export default function EmployerPostJob() {
                 {t('employer:publishReadinessProfile')}{' '}
                 <Link to={ROUTES.EMPLOYER_SETTINGS} className="underline font-medium">
                   {t('employer:zeroJobsProfileCta')}
-                </Link>
-              </li>
-            ) : null}
-            {!organizationVerificationReady ? (
-              <li>
-                {t('employer:publishReadinessOrgVerification')}{' '}
-                <Link to={ROUTES.EMPLOYER_VERIFICATION} className="underline font-medium">
-                  {t('employer:navVerification')}
                 </Link>
               </li>
             ) : null}
