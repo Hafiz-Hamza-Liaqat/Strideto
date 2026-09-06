@@ -63,18 +63,15 @@ export function AdminTableFilters({ filters, values, onChange, fields = [] }) {
       )}
       {fields.includes('status') && (
         <AdminSelectBare
-          aria-label={t('filterAll')}
-          value={currentFilters.status || currentFilters.approvalStatus || ''}
-          onChange={(e) => update(fields.includes('approvalStatus') ? 'approvalStatus' : 'status', e.target.value)}
+          aria-label={t('filterStatus', { defaultValue: 'Job status' })}
+          value={currentFilters.status || ''}
+          onChange={(e) => update('status', e.target.value)}
           className={adminFieldClass}
         >
           <option value="">{t('filterAll')}</option>
           <option value="draft">{t('statusDraft')}</option>
           <option value="active">{t('statusActive')}</option>
           <option value="closed">{t('statusClosed')}</option>
-          <option value="pending">{t('filterPending')}</option>
-          <option value="approved">{t('filterApproved')}</option>
-          <option value="rejected">{t('filterRejected')}</option>
           <option value="completed">{t('statusCompleted')}</option>
           <option value="failed">{t('statusFailed')}</option>
           <option value="refunded">{t('statusRefunded')}</option>
@@ -83,7 +80,20 @@ export function AdminTableFilters({ filters, values, onChange, fields = [] }) {
       )}
       {fields.includes('approvalStatus') && !fields.includes('status') && (
         <AdminSelectBare
-          aria-label={t('filterAll')}
+          aria-label={t('filterApprovalStatus', { defaultValue: 'Approval status' })}
+          value={currentFilters.approvalStatus || ''}
+          onChange={(e) => update('approvalStatus', e.target.value)}
+          className={adminFieldClass}
+        >
+          <option value="">{t('filterAll')}</option>
+          <option value="pending">{t('filterPending')}</option>
+          <option value="approved">{t('filterApproved')}</option>
+          <option value="rejected">{t('filterRejected')}</option>
+        </AdminSelectBare>
+      )}
+      {fields.includes('approvalStatus') && fields.includes('status') && (
+        <AdminSelectBare
+          aria-label={t('filterApprovalStatus', { defaultValue: 'Approval status' })}
           value={currentFilters.approvalStatus || ''}
           onChange={(e) => update('approvalStatus', e.target.value)}
           className={adminFieldClass}
