@@ -132,6 +132,16 @@ check('INST-CAT-ADM-08 Catalog creation does not approve verification', () => {
   assert.ok(page.includes('catalog-trust-hint') || page.includes('does not approve'));
 });
 
+check('INST-CAT-ADM-08b Narrow draft repair preserves source evidence and rejects launch enablement', () => {
+  const updateSlice = adminCtrl.slice(
+    adminCtrl.indexOf('export const adminUpdateInstitution'),
+    adminCtrl.indexOf('export const adminListPrograms')
+  );
+  assert.ok(updateSlice.includes('parseSources(body.sources, { strict: true })'));
+  assert.ok(updateSlice.includes('body.launchEligible !== false'));
+  assert.ok(updateSlice.includes('update.launchEligible = false'));
+});
+
 check('INST-CAT-ADM-09 Catalog creation does not approve claim', () => {
   const createSlice = adminCtrl.slice(
     adminCtrl.indexOf('export const adminCreateInstitution'),

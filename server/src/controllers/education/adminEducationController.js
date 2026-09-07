@@ -880,9 +880,15 @@ export const adminUpdateInstitution = asyncHandler(async (req, res) => {
 
   const willPublish = body.status === 'published';
   if (body.sources !== undefined) {
-    const sourcesResult = parseSources(body.sources, { strict: willPublish });
+    const sourcesResult = parseSources(body.sources, { strict: true });
     if (!sourcesResult.ok) return res.status(400).json({ error: sourcesResult.errors.join('; ') });
     update.sources = sourcesResult.sources;
+  }
+  if (body.launchEligible !== undefined) {
+    if (body.launchEligible !== false) {
+      return res.status(400).json({ error: 'launchEligible can only be explicitly set to false through this route' });
+    }
+    update.launchEligible = false;
   }
   if (body.status !== undefined && isValidPubStatus(body.status)) {
     if (willPublish) {
