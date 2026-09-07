@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import axiosInstance from '../services/axiosBase';
+import { normalizeAdminPagination } from './adminPagination';
 
 const DEFAULT_LIMIT = 25;
 
@@ -47,11 +48,7 @@ export function useAdminList(endpoint, { initialFilters = {}, limit = DEFAULT_LI
         if (controller.signal.aborted) return;
         const body = res.data || {};
         setData(body.data || []);
-        setPagination((p) => ({
-          ...p,
-          total: body.pagination?.total ?? body.total ?? 0,
-          pages: body.pagination?.pages ?? body.pages ?? 0,
-        }));
+        setPagination((p) => ({ ...p, ...normalizeAdminPagination(body, p) }));
       })
       .catch((err) => {
         if (controller.signal.aborted || err.code === 'ERR_CANCELED') return;
