@@ -5,6 +5,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { sanitizeString } from '../utils/sanitize.js';
 import { withFixtureExclusion } from '../../../shared/publicDiscovery/fixtureExclusion.js';
 import { SCHOOLS_COLLEGES_INSTITUTION_TYPES } from '../../../shared/education/taxonomy.js';
+import { isLegacyInstitutionIndexable } from '../../../shared/seo/legacyInstitutionSeoPolicy.js';
 import {
   projectPublicLegacyInstitution,
   projectPublicLegacyInstitutionListItem,
@@ -185,10 +186,10 @@ export const getSchoolOrCollege = asyncHandler(async (req, res) => {
   if (doc) {
     const programs = await Program.find(withFixtureExclusion({ status: 'published', institutionId: doc._id }))
       .sort({ name: 1 }).lean();
-    return res.json({ ...mapCanonical(doc, programs.length, programs), programs: programs.map(projectPublicProgram) });
+    return res.json({ ...mapCanonical(doc, programs.length, programs), programs: programs.map(projectPublicProgram), seoIndexable: true });
   }
 
   const legacy = await Institution.findOne({ slug, status: 'active' }).lean();
   if (!legacy) return res.status(404).json({ error: 'Institution not found' });
-  return res.json(projectPublicLegacyInstitution(legacy));
+  return res.json({ ...projectPublicLegacyInstitution(legacy), seoIndexable: isLegacyInstitutionIndexable(legacy) });
 });

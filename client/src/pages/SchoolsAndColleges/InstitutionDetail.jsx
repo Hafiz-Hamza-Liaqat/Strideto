@@ -41,6 +41,8 @@ export default function InstitutionDetail() {
         title={item.seoTitle || item.name}
         description={item.metaDescription || item.description}
         canonical={canonical}
+        noindex={item.seoIndexable === false}
+        robots={item.seoIndexable === false ? 'noindex, follow' : 'index, follow'}
         jsonLd={combineSchemas(breadcrumbSchema([
           { name: t('navbar:home'), url: ROUTES.HOME },
           { name: t('static:schoolsHeading'), url: ROUTES.SCHOOLS_AND_COLLEGES },

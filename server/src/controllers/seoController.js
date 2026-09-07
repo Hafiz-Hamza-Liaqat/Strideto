@@ -37,6 +37,7 @@ import { buildPublicJobFilter } from './jobsController.js';
 import { projectPublicJob } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 import { getRequestLocale, findLocalizedBySlug } from '../utils/localeQuery.js';
 import { PUB_STATUSES, SCHOOLS_COLLEGES_INSTITUTION_TYPES } from '../../../shared/education/taxonomy.js';
+import { isLegacyInstitutionIndexable } from '../../../shared/seo/legacyInstitutionSeoPolicy.js';
 import { VERIFICATION_STATUSES } from '../../../shared/international/verification.js';
 import {
   MARKETPLACE_PUBLICATION_STATUSES,
@@ -288,7 +289,7 @@ export const getSitemap = asyncHandler(async (_req, res) => {
     Blog.find({ status: 'published', ...slugFilter }).select('slug updatedAt publishedAt').limit(2000).lean(),
     Internship.find(withFixtureExclusion({ status: 'active', ...slugFilter })).select('slug updatedAt').limit(1000).lean(),
     IntlScholarship.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(500).lean(),
-    Institution.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(1000).lean(),
+    Institution.find({ status: 'active', ...slugFilter }).select('slug updatedAt name website description country province city address programs').limit(1000).lean(),
     ForeignStudy.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(500).lean(),
     Program.find(withFixtureExclusion({ status: PUB_STATUSES.PUBLISHED, ...slugFilter }))
       .select('slug name institutionId description degreeLevels fields updatedAt status')
@@ -346,7 +347,7 @@ export const getSitemap = asyncHandler(async (_req, res) => {
   intlScholarships.filter(isIntlScholarshipDetailEligible).forEach((s) =>
     addUrl(`/intl-scholarships/${s.slug}`, { entityType: SEO_ENTITY_TYPES.INTL_SCHOLARSHIP, doc: s })
   );
-  institutions.filter(hasSlug).forEach((i) => addUrl(`/schools-and-colleges/${i.slug}`, { lastmod: i.updatedAt }));
+  institutions.filter(isLegacyInstitutionIndexable).forEach((i) => addUrl(`/schools-and-colleges/${i.slug}`, { lastmod: i.updatedAt }));
   canonicalInstitutions
     .filter((i) =>
       !(i.countryCode === 'PK' && SCHOOLS_COLLEGES_INSTITUTION_TYPES.includes(i.institutionType)) &&

@@ -18,6 +18,8 @@ export const SEO_ROUTES = [
   { path: '/jobs', title: 'Jobs & Career Opportunities | STRIDETO', description: 'Browse jobs and career opportunities by location, work mode, category, skills, and employment type on STRIDETO.', robots: 'index, follow' },
   { path: '/scholarships', title: 'Scholarships in Pakistan', description: 'Find scholarships for Pakistani students.', robots: 'index, follow' },
   { path: '/admissions', title: 'Admissions in Pakistan', description: 'University and college admissions.', robots: 'index, follow' },
+  { path: '/schools-and-colleges', title: 'Schools & Colleges in Pakistan | STRIDETO', description: 'Find verified schools, colleges, and institutes across Pakistan.', robots: 'index, follow', contentHtml: '<article><h1>Schools &amp; Colleges in Pakistan</h1><p>Explore schools, colleges, and institutes across Pakistan.</p></article>' },
+  { path: '/institutions', title: 'Universities & Institutions | STRIDETO', description: 'Explore verified universities and education institutions by country, region, and city.', robots: 'index, follow', contentHtml: '<article><h1>Universities &amp; Institutions</h1><p>Explore verified universities and education institutions.</p></article>' },
   { path: '/about', title: 'About Strideto', description: 'About Strideto student-first mission.', robots: 'index, follow' },
   { path: '/contact', title: 'Contact Strideto', description: 'Contact Strideto support.', robots: 'index, follow' },
   { path: '/tests', title: 'International Tests for Study & Admissions | Strideto', description: 'International tests for study, admissions and career pathways. Find the right test, understand acceptance and scores, and prepare with trusted resources.', robots: 'index, follow' },
