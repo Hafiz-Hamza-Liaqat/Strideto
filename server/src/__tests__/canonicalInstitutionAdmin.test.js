@@ -127,6 +127,7 @@ check('INST-CAT-ADM-08 Catalog creation does not approve verification', () => {
   );
   assert.ok(!createSlice.includes('OrganizationVerification.create'));
   assert.ok(!createSlice.includes('status: \'approved\''));
+  assert.ok(createSlice.includes(': false'), 'draft catalog records explicitly remain launch-ineligible');
   assert.ok(page.includes('catalog-trust-hint') || page.includes('does not approve'));
 });
 

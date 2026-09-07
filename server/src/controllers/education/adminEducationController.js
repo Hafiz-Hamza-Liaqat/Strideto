@@ -844,7 +844,7 @@ export const adminCreateInstitution = asyncHandler(async (req, res) => {
     status,
     launchEligible: willPublish
       ? assignLaunchEligibleOnAuthorityPublish({ isFixture: false })
-      : undefined,
+      : false,
   });
 
   scheduleSeoChangeNotification({

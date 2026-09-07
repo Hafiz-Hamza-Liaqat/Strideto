@@ -33,7 +33,7 @@ export function buildReadHeaders({ token = '', cookie = '' } = {}) {
   };
 }
 
-async function authenticate(base, token, requestAudit) {
+export async function authenticateProductionAdmin(base, token, requestAudit, { probePath = '/admin/jobs?limit=1&page=1' } = {}) {
   if (token) return { mode: 'env-token', token, cookie: '' };
   const rl = readline.createInterface({ input, output });
   let email;
@@ -45,8 +45,8 @@ async function authenticate(base, token, requestAudit) {
   if (!email) throw new Error('Production admin email is required.');
   let password = await promptSecurePassword();
   try {
-    const probe = await fetch(`${base}/admin/jobs?limit=1&page=1`, { headers: { accept: 'application/json', origin: ORIGIN, referer: `${ORIGIN}/` } });
-    requestAudit.push({ method: 'GET', path: '/admin/jobs?limit=1&page=1', purpose: 'unauthenticated auth-contract probe', status: probe.status });
+    const probe = await fetch(`${base}${probePath}`, { headers: { accept: 'application/json', origin: ORIGIN, referer: `${ORIGIN}/` } });
+    requestAudit.push({ method: 'GET', path: probePath, purpose: 'unauthenticated auth-contract probe', status: probe.status });
     if (probe.status !== 401) throw new Error(`Unauthenticated admin probe returned HTTP ${probe.status}; refusing to continue.`);
     const login = await fetch(`${base}/auth/login`, {
       method: 'POST',
@@ -68,7 +68,7 @@ export async function createProductionReadClient({ base = DEFAULT_BASE, allowedP
   const normalizedBase = base.replace(/\/$/, '');
   let token = process.env.STRIDETO_ADMIN_TOKEN || '';
   const requestAudit = [];
-  const authentication = await authenticate(normalizedBase, token, requestAudit);
+  const authentication = await authenticateProductionAdmin(normalizedBase, token, requestAudit);
   token = authentication.token;
   const cookie = authentication.cookie;
   const get = async (path) => {
