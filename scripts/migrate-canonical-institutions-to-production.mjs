@@ -20,6 +20,7 @@ const INSTITUTION_PATH = '/admin/education/institutions';
 const MAX_BATCH = 10;
 const ALLOWED_TYPES = new Set(['school', 'college', 'institute']);
 const ALLOWED_STATUS = 'draft';
+const OPTIONAL_EMPTY_STRING_FIELDS = new Set(['officialWebsite', 'officialDomain']);
 const ALLOWED_FIELDS = [
   'officialName', 'slug', 'countryCode', 'city', 'region', 'description',
   'address', 'district', 'officialWebsite', 'officialDomain', 'logoUrl',
@@ -118,6 +119,7 @@ export function buildPayload(candidate) {
 }
 
 function normalizedReadbackValue(field, value) {
+  if (OPTIONAL_EMPTY_STRING_FIELDS.has(field) && (value === null || value === undefined || (typeof value === 'string' && value.trim() === ''))) return '';
   if (typeof value !== 'string') return value;
   const trimmed = value.trim();
   if (field === 'slug' || field === 'institutionType' || field === 'status') return trimmed.toLowerCase();
@@ -189,16 +191,24 @@ function identityMatches(candidate, existing) {
   return { candidateDomain, existingDomain, candidateWebsite, existingWebsite, candidateNameCity, existingNameCity, candidateNameAddress, existingNameAddress };
 }
 
-export function classifyDuplicate(candidate, existingRecords = []) {
+export function findCanonicalMatches(candidate, existingRecords = []) {
+  const matches = [];
   for (const existing of existingRecords) {
     const m = identityMatches(candidate, existing);
-    if (m.candidateDomain && m.candidateDomain === m.existingDomain) return { status: 'DUPLICATE_SKIP', basis: 'officialDomain', existing };
-    if (m.candidateWebsite && m.candidateWebsite === m.existingWebsite) return { status: 'DUPLICATE_SKIP', basis: 'officialWebsite', existing };
-    if (normalizeIdentity(candidate.slug) && normalizeIdentity(candidate.slug) === normalizeIdentity(existing.slug)) return { status: 'DUPLICATE_SKIP', basis: 'slug', existing };
-    if (m.candidateNameCity !== '|' && m.candidateNameCity === m.existingNameCity) return { status: 'REVIEW_REQUIRED', basis: 'officialName+city', existing };
-    if (m.candidateNameAddress !== '|' && m.candidateNameAddress === m.existingNameAddress) return { status: 'REVIEW_REQUIRED', basis: 'officialName+address', existing };
+    let basis = null;
+    let status = null;
+    if (m.candidateDomain && m.candidateDomain === m.existingDomain) { basis = 'officialDomain'; status = 'DUPLICATE_SKIP'; }
+    else if (m.candidateWebsite && m.candidateWebsite === m.existingWebsite) { basis = 'officialWebsite'; status = 'DUPLICATE_SKIP'; }
+    else if (normalizeIdentity(candidate.slug) && normalizeIdentity(candidate.slug) === normalizeIdentity(existing.slug)) { basis = 'slug'; status = 'DUPLICATE_SKIP'; }
+    else if (m.candidateNameCity !== '|' && m.candidateNameCity === m.existingNameCity) { basis = 'officialName+city'; status = 'REVIEW_REQUIRED'; }
+    else if (m.candidateNameAddress !== '|' && m.candidateNameAddress === m.existingNameAddress) { basis = 'officialName+address'; status = 'REVIEW_REQUIRED'; }
+    if (status) matches.push({ status, basis, existing });
   }
-  return { status: 'SAFE_TO_CREATE', basis: null, existing: null };
+  return matches;
+}
+
+export function classifyDuplicate(candidate, existingRecords = []) {
+  return findCanonicalMatches(candidate, existingRecords)[0] || { status: 'SAFE_TO_CREATE', basis: null, existing: null };
 }
 
 export function validateBatchSize(count) {
@@ -295,6 +305,7 @@ export async function runMigration({ inputPath = DEFAULT_INPUT, reportPath, base
   const client = await createAdminReadClient(base);
   report.authenticatedProductionPreflight = true;
   let inventory = await listAllInstitutions(client);
+  const safePlans = [];
   for (const candidate of candidates) {
     const duplicate = classifyDuplicate(candidate, inventory);
     const result = { candidate: candidate.officialName, slug: candidate.slug, duplicateStatus: duplicate.status, duplicateBasis: duplicate.basis, validationStatus: 'PASS', plannedAction: duplicate.status === 'SAFE_TO_CREATE' ? (live ? 'CREATE_DRAFT' : 'WOULD_CREATE_DRAFT') : 'SKIP' };
@@ -302,7 +313,13 @@ export async function runMigration({ inputPath = DEFAULT_INPUT, reportPath, base
     if (duplicate.status === 'REVIEW_REQUIRED') { report.reviewRequired += 1; report.results.push(result); continue; }
     report.safeCount += 1;
     if (!live) { report.results.push(result); continue; }
-    if (!await confirmMigration()) { report.stopped = true; report.results.push({ ...result, plannedAction: 'STOPPED_NO_CONFIRMATION' }); break; }
+    safePlans.push({ candidate, result });
+  }
+  if (live && safePlans.length && !await confirmMigration()) {
+    report.stopped = true;
+    report.results.push(...safePlans.map(({ result }) => ({ ...result, plannedAction: 'STOPPED_NO_CONFIRMATION' })));
+  }
+  if (live && !report.stopped) for (const { candidate, result } of safePlans) {
     const response = await fetch(`${base}${INSTITUTION_PATH}`, { method: 'POST', headers: { ...buildReadHeaders({ token: client.token, cookie: client.cookie }), 'content-type': 'application/json' }, body: JSON.stringify(buildPayload(candidate)) });
     if (!response.ok) { report.failed += 1; report.stopped = true; report.results.push({ ...result, plannedAction: 'POST_FAILED', error: `HTTP ${response.status}`, postSucceeded: false }); break; }
     report.postSucceeded += 1;

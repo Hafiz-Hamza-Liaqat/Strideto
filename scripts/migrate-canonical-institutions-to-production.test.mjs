@@ -84,6 +84,19 @@ test('readback comparator accepts exact and safe string normalization', () => {
   assert.ok(normalized.fields.some((field) => field.classification === 'NORMALIZED_EQUIVALENT'));
 });
 
+test('optional empty website/domain values normalize only null, undefined, and empty strings', () => {
+  const website = compareReadback({ ...base, officialWebsite: null, officialDomain: null }, {
+    ...base, officialWebsite: '', officialDomain: '', sources: base.sources,
+  });
+  assert.equal(website.ok, true);
+  assert.equal(website.fields.find((field) => field.field === 'officialWebsite').classification, 'NORMALIZED_EQUIVALENT');
+  assert.equal(website.fields.find((field) => field.field === 'officialDomain').classification, 'NORMALIZED_EQUIVALENT');
+
+  const missingWebsite = compareReadback(base, { ...base, officialWebsite: '', officialDomain: '', sources: base.sources });
+  assert.equal(missingWebsite.ok, false);
+  assert.equal(missingWebsite.fields.find((field) => field.field === 'officialWebsite').classification, 'MISMATCH_REAL');
+});
+
 test('readback comparator retains genuine mismatches and required field absence', () => {
   const comparison = compareReadback(base, { officialName: 'Example College', slug: 'example-college', institutionType: 'college', countryCode: 'PK', city: 'Lahore', officialWebsite: 'https://example.edu.pk/', officialDomain: 'example.edu.pk', sources: base.sources, status: 'draft' });
   assert.equal(comparison.ok, false);
@@ -130,4 +143,6 @@ test('live path requires explicit MIGRATE confirmation and stops on readback mis
   assert.match(source, /report\.stopped = true/);
   assert.match(source, /if \(!live\) \{ report\.results\.push\(result\); continue; \}/);
   assert.match(source, /method: 'POST'/);
+  assert.match(source, /const safePlans = \[\]/);
+  assert.match(source, /if \(live && safePlans\.length && !await confirmMigration\(\)\)/);
 });
