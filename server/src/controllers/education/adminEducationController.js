@@ -816,7 +816,7 @@ export const adminCreateInstitution = asyncHandler(async (req, res) => {
 
   const status = isValidPubStatus(body.status) ? body.status : 'draft';
   const willPublish = status === 'published';
-  const sourcesResult = parseSources(body.sources, { strict: willPublish });
+  const sourcesResult = parseSources(body.sources, { strict: true });
   if (!sourcesResult.ok) return res.status(400).json({ error: sourcesResult.errors.join('; ') });
   if (willPublish && sourcesResult.sources.length === 0) {
     return res.status(400).json({ error: 'Published institutions require at least one valid source' });

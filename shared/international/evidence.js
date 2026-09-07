@@ -12,6 +12,10 @@
 /** Coarse source classification. Extended by later missions, never renamed. */
 export const SOURCE_TYPES = Object.freeze({
   OFFICIAL: 'official', // primary authority (gov / institution / employer)
+  INSTITUTION_HOMEPAGE: 'institution_homepage', // institution-owned homepage/about source
+  INSTITUTION_CONTACT: 'institution_contact', // institution-owned contact/location source
+  INSTITUTION_PROFILE: 'institution_profile', // institution-owned profile/about source
+  GOVERNMENT_COLLEGE_DIRECTORY: 'government_college_directory', // official government directory source
   DOCUMENT: 'document', // an uploaded/attached document
   THIRD_PARTY: 'third_party', // aggregator / press / directory
   USER_SUBMITTED: 'user_submitted',

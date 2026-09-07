@@ -12,6 +12,7 @@ import crypto from 'node:crypto';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { buildReadHeaders, authenticateProductionAdmin } from './lib/productionReadAuth.mjs';
+import { isValidSourceType } from '../shared/international/evidence.js';
 
 const DEFAULT_INPUT = 'qa-artifacts/schools-colleges-pakistan-batch01a-ready.json';
 const DEFAULT_BASE = 'https://api.strideto.com/api';
@@ -28,7 +29,7 @@ const ALLOWED_FIELDS = [
 
 const text = (value) => typeof value === 'string' ? value.trim() : '';
 
-function parseArgs(argv = process.argv.slice(2)) {
+export function parseArgs(argv = process.argv.slice(2)) {
   const args = { input: DEFAULT_INPUT, base: DEFAULT_BASE, dryRun: true, live: false, report: '' };
   for (const arg of argv) {
     if (arg === '--live') { args.live = true; args.dryRun = false; continue; }
@@ -77,6 +78,7 @@ function validateSource(source, index) {
   for (const field of ['sourceType', 'sourceUrl', 'publisher', 'retrievedAt', 'verifiedAt']) {
     if (!text(source[field])) errors.push(`sources[${index}].${field} is required`);
   }
+  if (source.sourceType && !isValidSourceType(source.sourceType)) errors.push(`sources[${index}].sourceType is unsupported`);
   if (source.sourceUrl && !isHttpUrl(source.sourceUrl)) errors.push(`sources[${index}].sourceUrl must be http(s)`);
   for (const field of ['retrievedAt', 'verifiedAt']) {
     if (source[field] && Number.isNaN(new Date(source[field]).getTime())) errors.push(`sources[${index}].${field} is invalid`);
@@ -113,6 +115,66 @@ export function buildPayload(candidate) {
   payload.status = 'draft';
   payload.launchEligible = false;
   return payload;
+}
+
+function normalizedReadbackValue(field, value) {
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  if (field === 'slug' || field === 'institutionType' || field === 'status') return trimmed.toLowerCase();
+  if (field === 'countryCode') return trimmed.toUpperCase();
+  if (field === 'officialDomain') return normalizeDomain(trimmed);
+  if (field === 'officialWebsite') return normalizeUrl(trimmed);
+  if (field === 'city' || field === 'region') return normalizeIdentity(trimmed);
+  return trimmed;
+}
+
+function normalizedDate(value) {
+  if (!value) return '';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? String(value).trim() : date.toISOString();
+}
+
+function normalizedSources(sources) {
+  return (Array.isArray(sources) ? sources : []).map((source) => ({
+    sourceType: text(source?.sourceType).toLowerCase(),
+    sourceUrl: normalizeUrl(source?.sourceUrl),
+    publisher: normalizeIdentity(source?.publisher),
+    retrievedAt: normalizedDate(source?.retrievedAt),
+    verifiedAt: normalizedDate(source?.verifiedAt),
+    evidenceRef: text(source?.evidenceRef),
+  })).sort((a, b) => JSON.stringify(a).localeCompare(JSON.stringify(b)));
+}
+
+export function compareReadback(candidate, row) {
+  const fields = [
+    ['officialName', candidate.officialName, row?.officialName],
+    ['slug', candidate.slug, row?.slug],
+    ['institutionType', candidate.institutionType, row?.institutionType],
+    ['countryCode', 'PK', row?.countryCode],
+    ['region', candidate.region, row?.region],
+    ['city', candidate.city, row?.city],
+    ['officialWebsite', candidate.officialWebsite, row?.officialWebsite],
+    ['officialDomain', candidate.officialDomain, row?.officialDomain],
+    ['sources', normalizedSources(candidate.sources), normalizedSources(row?.sources)],
+    ['status', 'draft', row?.status],
+    ['launchEligible', false, row?.launchEligible],
+  ].map(([field, expected, actual]) => {
+    const normalizedExpected = field === 'sources' ? expected : normalizedReadbackValue(field, expected);
+    const normalizedActual = field === 'sources' ? actual : normalizedReadbackValue(field, actual);
+    const equal = field === 'sources'
+      ? JSON.stringify(normalizedExpected) === JSON.stringify(normalizedActual)
+      : normalizedExpected === normalizedActual;
+    return {
+      field,
+      expected,
+      actual,
+      normalization: normalizedExpected !== expected || normalizedActual !== actual ? 'canonical-semantic' : 'none',
+      classification: equal
+        ? (normalizedExpected === expected && normalizedActual === actual ? 'MATCH' : 'NORMALIZED_EQUIVALENT')
+        : 'MISMATCH_REAL',
+    };
+  });
+  return { ok: fields.every((field) => field.classification !== 'MISMATCH_REAL'), fields };
 }
 
 function identityMatches(candidate, existing) {
@@ -194,10 +256,14 @@ async function createAdminReadClient(base) {
   return { get, token: authentication.token, cookie: authentication.cookie, requestAudit };
 }
 
-async function confirmMigration() {
+export function isMigrationConfirmation(value) {
+  return String(value ?? '').trim() === 'MIGRATE';
+}
+
+export async function confirmMigration({ input = process.stdin, output = process.stdout } = {}) {
   const { createInterface } = await import('node:readline/promises');
-  const rl = createInterface({ input: process.stdin, output: process.stdout });
-  try { return (await rl.question('Type MIGRATE to create draft records: ')).trim() === 'MIGRATE'; }
+  const rl = createInterface({ input, output });
+  try { return isMigrationConfirmation(await rl.question('Type MIGRATE to create draft records: ')); }
   finally { rl.close(); }
 }
 
@@ -217,6 +283,10 @@ export async function runMigration({ inputPath = DEFAULT_INPUT, reportPath, base
     safeCount: 0,
     duplicateSkips: 0,
     reviewRequired: 0,
+    postSucceeded: 0,
+    readbackVerified: 0,
+    readbackMismatch: 0,
+    createdVerified: 0,
     created: 0,
     failed: 0,
     stopped: false,
@@ -234,16 +304,25 @@ export async function runMigration({ inputPath = DEFAULT_INPUT, reportPath, base
     if (!live) { report.results.push(result); continue; }
     if (!await confirmMigration()) { report.stopped = true; report.results.push({ ...result, plannedAction: 'STOPPED_NO_CONFIRMATION' }); break; }
     const response = await fetch(`${base}${INSTITUTION_PATH}`, { method: 'POST', headers: { ...buildReadHeaders({ token: client.token, cookie: client.cookie }), 'content-type': 'application/json' }, body: JSON.stringify(buildPayload(candidate)) });
-    if (!response.ok) { report.failed += 1; report.stopped = true; report.results.push({ ...result, plannedAction: 'ERROR', error: `HTTP ${response.status}` }); break; }
+    if (!response.ok) { report.failed += 1; report.stopped = true; report.results.push({ ...result, plannedAction: 'POST_FAILED', error: `HTTP ${response.status}`, postSucceeded: false }); break; }
+    report.postSucceeded += 1;
     const created = await response.json();
     const createdId = created?._id || created?.data?._id;
-    if (!createdId) { report.failed += 1; report.stopped = true; report.results.push({ ...result, plannedAction: 'ERROR', error: 'Create response had no _id' }); break; }
+    if (!createdId) { report.failed += 1; report.stopped = true; report.results.push({ ...result, plannedAction: 'POST_SUCCEEDED_NO_ID', error: 'Create response had no _id', postSucceeded: true }); break; }
     const readback = await client.get(`${INSTITUTION_PATH}/${createdId}`);
     const row = readback?.data || readback;
-    const readbackOk = row.officialName === candidate.officialName && row.slug === candidate.slug && row.institutionType === candidate.institutionType && row.countryCode === 'PK' && row.status === 'draft' && row.launchEligible === false;
-    report.results.push({ ...result, plannedAction: readbackOk ? 'CREATED_AND_READBACK_VERIFIED' : 'READBACK_MISMATCH', productionId: createdId });
-    if (!readbackOk) { report.failed += 1; report.stopped = true; break; }
+    const comparison = compareReadback(candidate, row);
+    if (!comparison.ok) {
+      report.readbackMismatch += 1;
+      report.failed += 1;
+      report.stopped = true;
+      report.results.push({ ...result, plannedAction: 'POST_SUCCEEDED_READBACK_MISMATCH', productionId: createdId, postSucceeded: true, readbackVerified: false, readbackFields: comparison.fields });
+      break;
+    }
+    report.readbackVerified += 1;
+    report.createdVerified += 1;
     report.created += 1;
+    report.results.push({ ...result, plannedAction: 'CREATED_AND_READBACK_VERIFIED', productionId: createdId, postSucceeded: true, readbackVerified: true, readbackFields: comparison.fields });
     inventory = await listAllInstitutions(client);
   }
   report.completedAt = new Date().toISOString();
