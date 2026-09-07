@@ -46,8 +46,12 @@ check(navbarEn.includes('"services": "Services"'), 'EN label: Services');
 
 check(/path: '\/scholarships'/.test(navConfig), 'Scholarships URL remains /scholarships');
 check(/path: '\/admissions'/.test(navConfig), 'Admissions URL remains /admissions');
-check(/path: '\/program-explorer'/.test(navConfig), 'Study maps to /program-explorer');
-check(/path: '\/tests'/.test(navConfig), 'Tests maps to /tests');
+check(/ROUTES\.PROGRAM_EXPLORER/.test(routes), 'Program Explorer direct route remains available');
+check(/ROUTES\.TEST_HUB/.test(routes), 'Tests direct route remains available');
+check(/ROUTES\.INTERNSHIPS/.test(routes), 'Internships direct route remains available');
+check(!/labelKey: 'navbar:studyAndInstitutions'/.test(navConfig), 'Study & Institutions absent from primary nav');
+check(!/labelKey: 'navbar:testsAndPrep'/.test(navConfig), 'Tests & Prep absent from primary nav');
+check(!/labelKey: 'navbar:internships'/.test(navConfig), 'Internships absent from primary nav');
 check(/path: '\/services'/.test(navConfig), 'Services maps to /services');
 check(/path: '\/agents'/.test(navConfig), 'Services mega includes /agents');
 check(!/navbar:more|SECONDARY_NAV_ITEMS = \[/.test(navbar), 'Navbar does not render More');

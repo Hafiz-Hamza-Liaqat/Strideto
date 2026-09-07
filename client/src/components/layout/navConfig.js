@@ -5,25 +5,6 @@ export const PRIMARY_NAV_ITEMS = [
   { labelKey: 'navbar:jobs', path: '/jobs' },
   { labelKey: 'navbar:scholarshipsAndFunding', path: '/scholarships' },
   { labelKey: 'navbar:admissionsAndIntakes', path: '/admissions' },
-  { labelKey: 'navbar:internships', path: '/internships' },
-  {
-    labelKey: 'navbar:studyAndInstitutions',
-    path: '/program-explorer',
-    mega: [
-      { labelKey: 'navbar:universitiesAndInstitutions', path: '/institutions' },
-      { labelKey: 'navbar:programExplorer', path: '/program-explorer' },
-      { labelKey: 'navbar:schoolsAndColleges', path: '/schools-and-colleges' },
-      { labelKey: 'navbar:foreignStudies', path: '/foreign-studies' },
-      { labelKey: 'navbar:intlScholarships', path: '/intl-scholarships' },
-    ],
-  },
-  {
-    labelKey: 'navbar:testsAndPrep',
-    path: '/tests',
-    mega: [
-      { labelKey: 'navbar:testHub', path: '/tests' },
-    ],
-  },
   {
     labelKey: 'navbar:services',
     path: '/services',
@@ -46,9 +27,6 @@ export const FINAL_NAV_LABELS = [
   'Jobs',
   'Scholarships & Funding',
   'Admissions & Intakes',
-  'Internships',
-  'Study & Institutions',
-  'Tests & Prep',
   'Services',
 ];
 

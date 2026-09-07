@@ -1,5 +1,5 @@
 import { useState, useEffect, Fragment, useMemo } from 'react';
-import { Link, useLocation } from 'react-router-dom';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { SeoHead } from '../../components/seo';
 import { useCollectionSeo } from '../../seo/collectionSeo';
@@ -47,6 +47,7 @@ export default function Jobs() {
   const [geoFacets, setGeoFacets] = useState({ countries: [], regions: [], cities: [] });
 
   const location = useLocation();
+  const navigate = useNavigate();
 
   useEffect(() => {
     initializeLandingAttribution();
@@ -101,6 +102,16 @@ export default function Jobs() {
   const handleSearch = (q) => {
     if (q && q.trim()) trackSearchQuery(q);
     setFilters({ search: q || undefined });
+  };
+
+  const handleOpportunityTypeChange = (value) => {
+    setFilters({ type: value || undefined });
+    const nextSearch = new URLSearchParams(location.search);
+    if (value) nextSearch.set('type', value);
+    else nextSearch.delete('type');
+    nextSearch.delete('page');
+    const query = nextSearch.toString();
+    navigate(`${ROUTES.JOBS}${query ? `?${query}` : ''}`, { replace: true });
   };
 
   const handleJobFamilyChange = (value) => {
@@ -168,6 +179,36 @@ export default function Jobs() {
         <AdHost placementId="jobs-header" className="mb-4" />
         <h1 className="text-2xl md:text-3xl font-bold text-gray-900 dark:text-white mb-2">{t('title', { ns: 'jobs' })}</h1>
         <p className="text-gray-600 dark:text-gray-400 mb-6">{t('subtitle', { ns: 'jobs' })}</p>
+
+        <div className="mb-6" data-testid="jobs-opportunity-type-selector">
+          <p className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            {t('opportunityTypeLabel', { ns: 'jobs', defaultValue: 'Opportunity type' })}
+          </p>
+          <div
+            className="inline-flex max-w-full flex-wrap rounded-xl border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 p-1"
+            role="group"
+            aria-label={t('opportunityTypeLabel', { ns: 'jobs', defaultValue: 'Opportunity type' })}
+          >
+            <button
+              type="button"
+              data-testid="jobs-opportunity-all"
+              aria-pressed={params.type !== 'internship'}
+              onClick={() => handleOpportunityTypeChange('')}
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors min-h-[44px] ${params.type !== 'internship' ? 'bg-primary text-white dark:bg-mint dark:text-gray-900' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+            >
+              {t('allJobs', { ns: 'jobs', defaultValue: 'All Jobs' })}
+            </button>
+            <button
+              type="button"
+              data-testid="jobs-opportunity-internships"
+              aria-pressed={params.type === 'internship'}
+              onClick={() => handleOpportunityTypeChange('internship')}
+              className={`rounded-lg px-4 py-2 text-sm font-medium transition-colors min-h-[44px] ${params.type === 'internship' ? 'bg-primary text-white dark:bg-mint dark:text-gray-900' : 'text-gray-700 dark:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-700'}`}
+            >
+              {t('internships', { ns: 'jobs', defaultValue: 'Internships' })}
+            </button>
+          </div>
+        </div>
 
         {studentProductEnabled && visibleRecommended.length > 0 && (
           <ScrollReveal as="section" className="mb-8 p-4 rounded-xl border border-primary/30 dark:border-mint/30 bg-mint/20 dark:bg-mint/10">
