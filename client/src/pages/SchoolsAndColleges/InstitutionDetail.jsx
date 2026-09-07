@@ -67,7 +67,7 @@ export default function InstitutionDetail() {
         {item.programs?.length > 0 && (
           <section className="mb-6">
             <h2 className="text-lg font-semibold mb-2">{t('static:schoolsPrograms')}</h2>
-            <ul className="list-disc pl-5 space-y-1">{item.programs.map((p) => <li key={p}>{p}</li>)}</ul>
+            <ul className="list-disc pl-5 space-y-1">{item.programs.map((p) => <li key={p._id || p.slug || p.name || p}>{p.name || p}</li>)}</ul>
           </section>
         )}
         {item.facilities?.length > 0 && (
@@ -82,6 +82,14 @@ export default function InstitutionDetail() {
           {item.email && <a href={`mailto:${item.email}`} className="text-primary dark:text-mint">{item.email}</a>}
           {item.website && <a href={item.website} target="_blank" rel="noopener noreferrer" className="text-primary dark:text-mint">{t('static:schoolsWebsite')}</a>}
         </div>
+
+        {item.accreditation?.length > 0 && (
+          <section className="mt-6">
+            <h2 className="font-semibold mb-2">Accreditation / board affiliation</h2>
+            <ul className="list-disc pl-5 space-y-1">{item.accreditation.map((entry) => <li key={entry.name}>{entry.name}</li>)}</ul>
+          </section>
+        )}
+        {item.establishedYear && <p className="mt-4 text-sm text-gray-600 dark:text-gray-400">Established: {item.establishedYear}</p>}
 
         {(item.related || []).length > 0 && (
           <section className="mt-10 pt-6 border-t border-gray-200 dark:border-gray-700">

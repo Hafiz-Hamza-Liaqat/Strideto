@@ -36,7 +36,7 @@ import {
 import { buildPublicJobFilter } from './jobsController.js';
 import { projectPublicJob } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 import { getRequestLocale, findLocalizedBySlug } from '../utils/localeQuery.js';
-import { PUB_STATUSES } from '../../../shared/education/taxonomy.js';
+import { PUB_STATUSES, SCHOOLS_COLLEGES_INSTITUTION_TYPES } from '../../../shared/education/taxonomy.js';
 import { VERIFICATION_STATUSES } from '../../../shared/international/verification.js';
 import {
   MARKETPLACE_PUBLICATION_STATUSES,
@@ -349,6 +349,7 @@ export const getSitemap = asyncHandler(async (_req, res) => {
   institutions.filter(hasSlug).forEach((i) => addUrl(`/schools-and-colleges/${i.slug}`, { lastmod: i.updatedAt }));
   canonicalInstitutions
     .filter((i) =>
+      !(i.countryCode === 'PK' && SCHOOLS_COLLEGES_INSTITUTION_TYPES.includes(i.institutionType)) &&
       isCanonicalInstitutionDetailEligible(i, {
         programCount: programCountByInstitutionId.get(String(i._id)) || 0,
         acceptedTestCount: acceptedTestCountByInstitutionId.get(String(i._id)) || 0,
@@ -356,6 +357,18 @@ export const getSitemap = asyncHandler(async (_req, res) => {
     )
     .forEach((i) =>
       addUrl(`/institutions/${i.slug}`, { entityType: SEO_ENTITY_TYPES.CANONICAL_INSTITUTION, doc: i })
+    );
+  canonicalInstitutions
+    .filter((i) =>
+      i.countryCode === 'PK' &&
+      SCHOOLS_COLLEGES_INSTITUTION_TYPES.includes(i.institutionType) &&
+      isCanonicalInstitutionDetailEligible(i, {
+        programCount: programCountByInstitutionId.get(String(i._id)) || 0,
+        acceptedTestCount: acceptedTestCountByInstitutionId.get(String(i._id)) || 0,
+      })
+    )
+    .forEach((i) =>
+      addUrl(`/schools-and-colleges/${i.slug}`, { entityType: SEO_ENTITY_TYPES.CANONICAL_INSTITUTION, doc: i })
     );
   canonicalScholarships.filter(isCanonicalScholarshipDetailEligible).forEach((s) =>
     addUrl(`/scholarship-intelligence/${s.slug}`, { entityType: SEO_ENTITY_TYPES.CANONICAL_SCHOLARSHIP, doc: s })

@@ -406,7 +406,7 @@ export function InstitutionExplorerDetail() {
       <SeoHead
         title={`${data.officialName || 'Institution'} | Strideto`}
         description={`Programs and accepted tests at ${data.officialName || 'this institution'}.`}
-        canonical={`${ROUTES.EDUCATION_INSTITUTIONS}/${data.slug || ''}`}
+        canonical={data.canonicalPath || `${ROUTES.EDUCATION_INSTITUTIONS}/${data.slug || ''}`}
         noindex={!detailIndexable}
         robots={detailIndexable ? 'index, follow' : 'noindex, follow'}
       />

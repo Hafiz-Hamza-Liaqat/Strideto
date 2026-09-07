@@ -23,6 +23,14 @@ const EMPTY = {
   countryCode: '',
   region: '',
   city: '',
+  description: '',
+  address: '',
+  district: '',
+  logoUrl: '',
+  phone: '',
+  email: '',
+  accreditations: [],
+  establishedYear: '',
   institutionType: '',
   officialWebsite: '',
   officialDomain: '',
@@ -43,6 +51,14 @@ function toForm(doc) {
     countryCode: doc.countryCode || '',
     region: doc.region || '',
     city: doc.city || '',
+    description: doc.description || '',
+    address: doc.address || '',
+    district: doc.district || '',
+    logoUrl: doc.logoUrl || '',
+    phone: doc.phone || '',
+    email: doc.email || '',
+    accreditations: Array.isArray(doc.accreditations) ? doc.accreditations : [],
+    establishedYear: doc.establishedYear || '',
     institutionType: doc.institutionType || '',
     officialWebsite: doc.officialWebsite || '',
     officialDomain: doc.officialDomain || '',
@@ -71,6 +87,14 @@ function buildPayload(form) {
     countryCode: form.countryCode,
     region: form.region,
     city: form.city,
+    description: form.description,
+    address: form.address,
+    district: form.district,
+    logoUrl: form.logoUrl,
+    phone: form.phone,
+    email: form.email,
+    accreditations: form.accreditations,
+    establishedYear: form.establishedYear || undefined,
     institutionType: form.institutionType,
     officialWebsite: form.officialWebsite,
     officialDomain: form.officialDomain,
@@ -368,6 +392,16 @@ export default function AdminEducationInstitutions() {
                   onChange={(e) => setForm({ ...form, city: e.target.value })}
                 />
 
+                <textarea
+                  className={adminFieldClass}
+                  placeholder={t('admin:fieldDescription', { defaultValue: 'Editorial description (optional)' })}
+                  value={form.description}
+                  onChange={(e) => setForm({ ...form, description: e.target.value })}
+                  rows={4}
+                />
+                <input className={adminFieldClass} placeholder={t('admin:fieldAddress', { defaultValue: 'Official street address' })} value={form.address} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+                <input className={adminFieldClass} placeholder={t('admin:fieldDistrict', { defaultValue: 'District' })} value={form.district} onChange={(e) => setForm({ ...form, district: e.target.value })} />
+
                 <input
                   className={adminFieldClass}
                   placeholder={t('admin:fieldOfficialWebsite', { defaultValue: 'Official website' })}
@@ -379,6 +413,20 @@ export default function AdminEducationInstitutions() {
                   placeholder={t('admin:fieldOfficialDomain', { defaultValue: 'Official domain' })}
                   value={form.officialDomain}
                   onChange={(e) => setForm({ ...form, officialDomain: e.target.value.toLowerCase() })}
+                />
+                <input className={adminFieldClass} placeholder={t('admin:fieldLogoUrl', { defaultValue: 'Official logo URL' })} value={form.logoUrl} onChange={(e) => setForm({ ...form, logoUrl: e.target.value })} />
+                <input className={adminFieldClass} placeholder={t('admin:fieldPhone', { defaultValue: 'Official phone' })} value={form.phone} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
+                <input className={adminFieldClass} type="email" placeholder={t('admin:fieldEmail', { defaultValue: 'Official email' })} value={form.email} onChange={(e) => setForm({ ...form, email: e.target.value })} />
+                <input className={adminFieldClass} type="number" min="1000" max="3000" placeholder={t('admin:fieldEstablishedYear', { defaultValue: 'Established year' })} value={form.establishedYear} onChange={(e) => setForm({ ...form, establishedYear: e.target.value })} />
+                <textarea
+                  className={adminFieldClass}
+                  placeholder={t('admin:fieldAccreditation', { defaultValue: 'Accreditation / board affiliation, one per line' })}
+                  value={form.accreditations.map((entry) => entry.name || '').join('\n')}
+                  onChange={(e) => setForm({
+                    ...form,
+                    accreditations: e.target.value.split('\n').map((name) => ({ name: name.trim(), type: '', sourceUrl: '' })).filter((entry) => entry.name),
+                  })}
+                  rows={3}
                 />
 
                 <AdminSelectBare

@@ -77,6 +77,53 @@ function normalizeIntakes(raw) {
   }));
 }
 
+function normalizeOptionalEmail(value) {
+  const email = sanitizeString(value || '').toLowerCase();
+  if (email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return { error: 'email must be valid when provided' };
+  return { value: email };
+}
+
+function normalizeAccreditations(value) {
+  if (!Array.isArray(value)) return [];
+  return value.map((entry) => ({
+    name: sanitizeString(entry?.name || ''),
+    type: sanitizeString(entry?.type || ''),
+    sourceUrl: sanitizeString(entry?.sourceUrl || ''),
+  })).filter((entry) => entry.name);
+}
+
+function applyInstitutionProfileFields(target, body) {
+  if (body.description !== undefined) target.description = sanitizeString(body.description).slice(0, 5000);
+  if (body.address !== undefined) target.address = sanitizeString(body.address).slice(0, 500);
+  if (body.district !== undefined) target.district = sanitizeString(body.district).slice(0, 150);
+  if (body.logoUrl !== undefined) {
+    const logoUrl = sanitizeString(body.logoUrl).slice(0, 2048);
+    if (logoUrl && !isValidHttpUrl(logoUrl)) return 'logoUrl must be an http(s) URL when provided';
+    target.logoUrl = logoUrl;
+  }
+  if (body.phone !== undefined) target.phone = sanitizeString(body.phone).slice(0, 80);
+  if (body.email !== undefined) {
+    const result = normalizeOptionalEmail(body.email);
+    if (result.error) return result.error;
+    target.email = result.value;
+  }
+  if (body.accreditations !== undefined) {
+    const accreditations = normalizeAccreditations(body.accreditations);
+    if (accreditations.some((entry) => entry.sourceUrl && !isValidHttpUrl(entry.sourceUrl))) {
+      return 'accreditation sourceUrl must be an http(s) URL when provided';
+    }
+    target.accreditations = accreditations;
+  }
+  if (body.establishedYear !== undefined && body.establishedYear !== null && body.establishedYear !== '') {
+    const year = Number(body.establishedYear);
+    if (!Number.isInteger(year) || year < 1000 || year > 3000) return 'establishedYear must be a valid year';
+    target.establishedYear = year;
+  } else if (body.establishedYear !== undefined) {
+    target.establishedYear = undefined;
+  }
+  return null;
+}
+
 function parseOptionalReviewDate(value) {
   if (value === undefined) return { provided: false, value: undefined };
   if (value === null || value === '') return { provided: true, value: null };
@@ -776,6 +823,9 @@ export const adminCreateInstitution = asyncHandler(async (req, res) => {
   }
 
   const slug = body.slug ? sanitizeString(body.slug) : educationSlug(officialName);
+  const profileFields = {};
+  const profileError = applyInstitutionProfileFields(profileFields, body);
+  if (profileError) return res.status(400).json({ error: profileError });
 
   // Catalog-only create — does NOT approve InstitutionClaim or OrganizationVerification.
   const doc = await CanonicalInstitution.create({
@@ -788,6 +838,7 @@ export const adminCreateInstitution = asyncHandler(async (req, res) => {
     officialDomain: sanitizeString(body.officialDomain).toLowerCase(),
     institutionType: body.institutionType,
     isPublic: body.isPublic != null ? Boolean(body.isPublic) : null,
+    ...profileFields,
     organizationId: body.organizationId || undefined,
     sources: sourcesResult.sources,
     status,
@@ -810,6 +861,9 @@ export const adminUpdateInstitution = asyncHandler(async (req, res) => {
   const existing = await CanonicalInstitution.findById(req.params.id).lean();
   if (!existing) return res.status(404).json({ error: 'Institution not found' });
   const update = {};
+
+  const profileError = applyInstitutionProfileFields(update, body);
+  if (profileError) return res.status(400).json({ error: profileError });
 
   if (body.officialName !== undefined) update.officialName = sanitizeString(body.officialName);
   if (body.countryCode !== undefined) {

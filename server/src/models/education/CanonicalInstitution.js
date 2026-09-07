@@ -28,6 +28,15 @@ const evidenceSubSchema = new mongoose.Schema(
   { _id: false }
 );
 
+const accreditationSubSchema = new mongoose.Schema(
+  {
+    name: { type: String, required: true, trim: true, maxlength: 200 },
+    type: { type: String, trim: true, maxlength: 100, default: '' },
+    sourceUrl: { type: String, trim: true, maxlength: 2048, default: '' },
+  },
+  { _id: false }
+);
+
 const canonicalInstitutionSchema = new mongoose.Schema(
   {
     officialName: { type: String, required: true, trim: true },
@@ -36,8 +45,23 @@ const canonicalInstitutionSchema = new mongoose.Schema(
     countryCode: { type: String, trim: true, uppercase: true, default: '' },
     city: { type: String, trim: true, default: '' },
     region: { type: String, trim: true, default: '' },
+    description: { type: String, trim: true, maxlength: 5000, default: '' },
+    address: { type: String, trim: true, maxlength: 500, default: '' },
+    district: { type: String, trim: true, maxlength: 150, default: '' },
     officialWebsite: { type: String, trim: true, default: '' },
     officialDomain: { type: String, trim: true, lowercase: true, default: '' },
+    logoUrl: { type: String, trim: true, maxlength: 2048, default: '' },
+    phone: { type: String, trim: true, maxlength: 80, default: '' },
+    email: {
+      type: String,
+      trim: true,
+      lowercase: true,
+      maxlength: 254,
+      match: [/^$|^[^\s@]+@[^\s@]+\.[^\s@]+$/, 'email must be valid when provided'],
+      default: '',
+    },
+    accreditations: { type: [accreditationSubSchema], default: [] },
+    establishedYear: { type: Number, min: 1000, max: 3000 },
     institutionType: {
       type: String,
       enum: Object.values(INSTITUTION_TYPES),

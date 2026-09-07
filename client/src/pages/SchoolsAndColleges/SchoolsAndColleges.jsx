@@ -53,6 +53,7 @@ export default function SchoolsAndColleges() {
             ))}
           </select>
           <input type="text" placeholder={t('static:schoolsProvince')} value={params.province || ''} onChange={(e) => setFilters({ province: e.target.value || undefined })} className="w-full sm:w-auto px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800" />
+          <input type="text" placeholder={t('static:schoolsCity', { defaultValue: 'City' })} value={params.city || ''} onChange={(e) => setFilters({ city: e.target.value || undefined })} className="w-full sm:w-auto px-3 py-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800" />
         </div>
 
         {error && <p className="text-red-600 mb-4">{error}</p>}

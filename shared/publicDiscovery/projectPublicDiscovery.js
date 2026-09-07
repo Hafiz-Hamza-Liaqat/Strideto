@@ -14,6 +14,7 @@ import {
   authorityLabel,
 } from './publicTruth.js';
 import { normalizeJobTextList } from '../jobs/jobTextLists.js';
+import { SCHOOLS_COLLEGES_INSTITUTION_TYPES } from '../education/taxonomy.js';
 
 const JOB_PUBLIC_KEYS = [
   '_id',
@@ -280,9 +281,20 @@ export function projectPublicCanonicalInstitution(doc) {
     countryCode: doc.countryCode || '',
     city: doc.city || '',
     region: doc.region || '',
+    description: doc.description || '',
+    address: doc.address || '',
+    district: doc.district || '',
     officialWebsite: publicHttpUrlOrNull(doc.officialWebsite),
     officialDomain: doc.officialDomain || '',
+    logoUrl: publicHttpUrlOrNull(doc.logoUrl),
+    phone: doc.phone || '',
+    email: doc.email || '',
+    accreditations: Array.isArray(doc.accreditations) ? doc.accreditations : [],
+    establishedYear: doc.establishedYear || null,
     institutionType: doc.institutionType,
+    canonicalPath: doc.countryCode === 'PK' && SCHOOLS_COLLEGES_INSTITUTION_TYPES.includes(doc.institutionType)
+      ? `/schools-and-colleges/${doc.slug}`
+      : `/institutions/${doc.slug}`,
     isPublic: doc.isPublic,
     status: doc.status,
     hasOrganizationManagement: !!doc.organizationId,

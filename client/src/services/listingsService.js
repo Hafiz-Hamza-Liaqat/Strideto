@@ -175,8 +175,10 @@ export const foreignStudiesApi = {
 };
 
 export const institutionsApi = {
-  list: (params) => axiosInstance.get(`/institutions${buildParams(params)}`),
-  get: (slugOrId) => axiosInstance.get(`/institutions/${encodeURIComponent(slugOrId)}`),
+  // Specialized Schools & Colleges bridge. The legacy /institutions API is
+  // intentionally left available for transition and is not used here.
+  list: (params) => axiosInstance.get(`/schools-and-colleges${buildParams(params)}`),
+  get: (slugOrId) => axiosInstance.get(`/schools-and-colleges/${encodeURIComponent(slugOrId)}`),
   filters: () => axiosInstance.get('/institutions/filters'),
 };
 

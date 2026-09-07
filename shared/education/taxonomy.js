@@ -78,6 +78,13 @@ export const INSTITUTION_TYPES = Object.freeze({
   OTHER: 'other',
 });
 
+/** Institution types included by the Pakistan-focused Schools & Colleges surface. */
+export const SCHOOLS_COLLEGES_INSTITUTION_TYPES = Object.freeze([
+  INSTITUTION_TYPES.SCHOOL,
+  INSTITUTION_TYPES.COLLEGE,
+  INSTITUTION_TYPES.INSTITUTE,
+]);
+
 // ── External resource types ──────────────────────────────────────────────────
 
 export const RESOURCE_TYPES = Object.freeze({
