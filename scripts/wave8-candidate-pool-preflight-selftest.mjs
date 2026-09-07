@@ -1,0 +1,10 @@
+import fs from 'node:fs';
+const pool=JSON.parse(fs.readFileSync('qa-artifacts/wave-008-candidate-pool.json','utf8'));
+if(!Array.isArray(pool)||pool.length!==42)throw new Error('candidate pool shape/count failed');
+if(pool.some(x=>x.productionDuplicateStatus!=='UNVERIFIED'))throw new Error('duplicate status failed');
+if(pool.some(x=>!['full-time','part-time','contract','internship'].includes(x.type)))throw new Error('type validation failed');
+const s=fs.readFileSync('scripts/migrate-real-jobs-to-production.ps1','utf8');
+const mode=s.indexOf('$candidatePoolMode = -not [string]::IsNullOrWhiteSpace($PrepareFromCandidatePool)');
+const backup=s.indexOf('$backup = Read-JsonUtf8 -Path $BackupPath');
+if(mode<0||backup<0||mode>backup||!s.includes('if (-not $candidatePoolMode) {'))throw new Error('candidate-pool control-flow failed');
+console.log('Candidate-pool offline self-test: PASS');

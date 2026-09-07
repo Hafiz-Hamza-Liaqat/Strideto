@@ -3,6 +3,8 @@ param(
   [switch]$DryRun,
   [switch]$FindProbe,
   [int]$PrepareBatch = 0,
+  [string]$PrepareFromCandidatePool = '',
+  [int]$BatchSize = 10,
   [string]$BatchFile = '',
   [string[]]$ExcludeExternalId = @(),
   [string]$ApiBase = 'https://api.strideto.com/api',
@@ -21,6 +23,12 @@ $ApiBase = $ApiBase.TrimEnd('/')
 
 if ($PrepareBatch -ne 0 -and $PrepareBatch -ne 10) {
   throw 'STRIDETO production batches are limited to exactly 10 jobs.'
+}
+if ($PrepareFromCandidatePool -and ($BatchSize -lt 1 -or $BatchSize -gt 50)) {
+  throw 'Verified candidate-pool production batches must contain between 1 and 50 jobs.'
+}
+if (-not $PrepareFromCandidatePool -and $BatchSize -ne 10) {
+  throw 'BatchSize above 10 is available only for verified candidate-pool preparation.'
 }
 
 function Get-ApiErrorBody {
@@ -100,6 +108,15 @@ function Get-NextBatchArtifactNumber {
     $reportPath = Join-Path $Directory "production-batch-$suffix-report.json"
     if ((Test-Path -LiteralPath $batchPath) -or (Test-Path -LiteralPath $reportPath)) { $next++ } else { return [pscustomobject]@{ Number = $next; BatchPath = $batchPath; ReportPath = $reportPath } }
   } while ($true)
+}
+
+function Get-FileSha256 {
+  param([Parameter(Mandatory)] [string]$Path)
+  $sha256 = [System.Security.Cryptography.SHA256]::Create()
+  try {
+    $bytes = [System.IO.File]::ReadAllBytes((Resolve-Path -LiteralPath $Path))
+    return (($sha256.ComputeHash($bytes) | ForEach-Object { $_.ToString('x2') }) -join '')
+  } finally { $sha256.Dispose() }
 }
 
 function Get-RetryAfterSeconds {
@@ -288,8 +305,30 @@ function Invoke-DuplicateNormalizationSelfTest {
   Write-Host 'Duplicate normalization self-test: PASS'
 }
 
+function Invoke-CampaignBatchPolicySelfTest {
+  $cases = @(
+    [pscustomobject]@{ Name = 'Wave #3 pool size 50'; Pool = 'qa-artifacts/wave-003-candidate-pool.json'; Size = 50; Allowed = $true },
+    [pscustomobject]@{ Name = 'Wave #4 pool size 50'; Pool = 'qa-artifacts/wave-004-candidate-pool.json'; Size = 50; Allowed = $true },
+    [pscustomobject]@{ Name = 'Future wave pool size 50'; Pool = 'qa-artifacts/wave-999-candidate-pool.json'; Size = 50; Allowed = $true },
+    [pscustomobject]@{ Name = 'Ordinary preparation size 50'; Pool = ''; Size = 50; Allowed = $false },
+    [pscustomobject]@{ Name = 'Candidate pool size 51'; Pool = 'qa-artifacts/wave-004-candidate-pool.json'; Size = 51; Allowed = $false },
+    [pscustomobject]@{ Name = 'Ordinary preparation size 10'; Pool = ''; Size = 10; Allowed = $true }
+  )
+  foreach ($case in $cases) {
+    $isPool = -not [string]::IsNullOrWhiteSpace($case.Pool)
+    $allowed = if ($isPool) {
+      $case.Size -ge 1 -and $case.Size -le 50 -and $case.Pool -match '(^|[\\/])wave-\d{3}-candidate-pool\.json$'
+    } else {
+      $case.Size -eq 10
+    }
+    if ($allowed -ne $case.Allowed) { throw "Campaign batch policy self-test failed: $($case.Name)." }
+  }
+  Write-Host 'Campaign batch policy self-test: PASS'
+}
+
 if ($SelfTest) {
   Invoke-DuplicateNormalizationSelfTest
+  Invoke-CampaignBatchPolicySelfTest
   return
 }
 
@@ -344,7 +383,11 @@ function Test-MigrationCandidate {
   $rawType = Get-PropertyValue $Candidate 'type'
   $employmentType = Normalize-EmploymentType $rawType
   if ($null -eq $employmentType) { $issues.Add('type is missing or unsupported') }
-  if (@('Government','Private','Internship') -notcontains [string](Get-PropertyValue $payload 'jobType')) { $issues.Add('jobType is unsupported') }
+  $jobType = Get-PropertyValue $payload 'jobType'
+  # Job.jobType is optional and defaults to Private server-side. Do not
+  # reject source records merely because they omit an unverified classification;
+  # reject only an explicitly supplied value outside the schema enum.
+  if ($null -ne $jobType -and -not [string]::IsNullOrWhiteSpace([string]$jobType) -and @('Government','Private','Internship') -notcontains [string]$jobType) { $issues.Add('jobType is unsupported') }
   $mode = Get-PropertyValue $payload 'workMode'
   if ($null -ne $mode -and @('remote','hybrid','on_site') -notcontains [string]$mode) { $issues.Add('workMode is unsupported') }
   $countryCode = [string](Get-PropertyValue $payload 'countryCode')
@@ -398,7 +441,9 @@ function Get-AllProductionJobs {
   return @($all)
 }
 
-if (-not (Test-Path -LiteralPath $BackupPath)) { throw "Backup file not found: $BackupPath" }
+$candidatePoolMode = -not [string]::IsNullOrWhiteSpace($PrepareFromCandidatePool)
+if (-not $candidatePoolMode -and -not (Test-Path -LiteralPath $BackupPath)) { throw "Backup file not found: $BackupPath" }
+if (-not $candidatePoolMode) {
 $backup = Read-JsonUtf8 -Path $BackupPath
 $candidates = @($backup.jobs)
 if ($candidates.Count -ne 257) { throw "Expected exactly 257 migration candidates; found $($candidates.Count)." }
@@ -423,7 +468,9 @@ foreach ($candidate in $candidates) {
     })
   }
 }
-Write-Host "Local preflight: $($candidates.Count - $preflightFailures.Count) valid, $($preflightFailures.Count) invalid."
+if (-not $BatchFile -and -not $PrepareFromCandidatePool) {
+  Write-Host "Local preflight: $($candidates.Count - $preflightFailures.Count) valid, $($preflightFailures.Count) invalid."
+}
 $eligibleCandidates = @($candidates | Where-Object {
   $check = Test-MigrationCandidate $_
   $check.Issues.Count -eq 0 -and -not (Test-MojibakeRecord $_)
@@ -466,8 +513,10 @@ if ($preflightFailures.Count -gt 0) {
     $preflightFailures | ForEach-Object { Write-Host "INVALID [$($_.index)] $($_.title) | $($_.company) | $($_.issues)" }
   }
 }
-Write-Host "Eligible migration set: $($eligibleCandidates.Count) records ($EligiblePath)."
-Write-Host "Exclusion report: $($exclusions.Count) records ($ExclusionPath)."
+if (-not $BatchFile -and -not $PrepareFromCandidatePool) {
+  Write-Host "Eligible migration set: $($eligibleCandidates.Count) records ($EligiblePath)."
+  Write-Host "Exclusion report: $($exclusions.Count) records ($ExclusionPath)."
+}
 
 if ($eligibleCandidates.Count -ne ($candidates.Count - $preflightFailures.Count)) {
   throw 'Eligible set differs from preflight-valid set; refusing production access.'
@@ -476,7 +525,39 @@ $candidates = @($eligibleCandidates)
 if (@($candidates | Where-Object { $preflight = Test-MigrationCandidate $_; $preflight.Issues.Count -gt 0 }).Count -gt 0) {
   throw 'Authoritative bulk candidate set contains an invalid record; refusing production access.'
 }
-Write-Host "Authoritative bulk candidate set: $($candidates.Count) records."
+if (-not $BatchFile -and -not $PrepareFromCandidatePool) {
+  Write-Host "Authoritative bulk candidate set: $($candidates.Count) records."
+}
+
+}
+
+if ($candidatePoolMode) {
+  if (-not (Test-Path -LiteralPath $PrepareFromCandidatePool)) { throw "Candidate pool not found: $PrepareFromCandidatePool" }
+  $poolData = Read-JsonUtf8 -Path $PrepareFromCandidatePool
+  $poolCandidates = @(Get-RecordCollection $poolData)
+  if ($poolCandidates.Count -lt 1) { throw 'Candidate pool must contain at least one record.' }
+  $poolFailures = [System.Collections.Generic.List[object]]::new()
+  for ($poolIndex = 0; $poolIndex -lt $poolCandidates.Count; $poolIndex++) {
+    $poolCandidate = $poolCandidates[$poolIndex]
+    if ($null -eq $poolCandidate) {
+      $poolFailures.Add("record $($poolIndex + 1) is null")
+      continue
+    }
+    $poolCheck = Test-MigrationCandidate $poolCandidate
+    if ($poolCheck.Issues.Count -gt 0) {
+      $poolFailures.Add("record $($poolIndex + 1): $($poolCheck.Issues -join '; ')")
+    }
+    if ([string](Get-PropertyValue $poolCandidate 'productionDuplicateStatus') -ne 'UNVERIFIED') {
+      $poolFailures.Add("record $($poolIndex + 1): productionDuplicateStatus must be UNVERIFIED")
+    }
+  }
+  if ($poolFailures.Count -gt 0) { throw "Candidate pool preflight failed: $($poolFailures[0])" }
+  $candidates = @($poolCandidates)
+  Write-Host "Candidate pool: $PrepareFromCandidatePool"
+  Write-Host "Pool candidates: $($candidates.Count)"
+  Write-Host "Pool preflight valid: $($candidates.Count)"
+  Write-Host 'Pool preflight invalid: 0'
+}
 
 if ($BatchFile) {
   if (-not (Test-Path -LiteralPath $BatchFile)) { throw "Batch file not found: $BatchFile" }
@@ -487,9 +568,35 @@ if ($BatchFile) {
   if ($batchCandidates.Count -gt 0) {
     Write-Host "First candidate externalId: $([string](Get-PropertyValue $batchCandidates[0] 'externalId'))"
   }
-  if ($batchCandidates.Count -lt 1 -or $batchCandidates.Count -gt 10) { throw "Batch file must contain between 1 and 10 candidates; found $($batchCandidates.Count)." }
-
-  $eligibleExternalIds = @($eligibleCandidates | ForEach-Object { [string](Get-PropertyValue $_ 'externalId') })
+  $batchFileFullPath = (Resolve-Path -LiteralPath $BatchFile).Path
+  $batchReportPath = Join-Path (Split-Path -Parent $batchFileFullPath) (([System.IO.Path]::GetFileNameWithoutExtension($batchFileFullPath)) + '-report.json')
+  $batchProvenance = $null
+  if (Test-Path -LiteralPath $batchReportPath) { $batchProvenance = Read-JsonUtf8 -Path $batchReportPath }
+  $batchMaximum = 10
+  if ($batchProvenance -and $batchProvenance.PSObject.Properties['sourcePool']) {
+    $requiredProvenanceFields = @('sourcePool', 'sourcePoolHash', 'campaignWave', 'batchNumber', 'preparedAt')
+    foreach ($field in $requiredProvenanceFields) {
+      if (-not $batchProvenance.PSObject.Properties[$field] -or [string]::IsNullOrWhiteSpace([string](Get-PropertyValue $batchProvenance $field))) {
+        throw "Batch provenance is incomplete: $field is required."
+      }
+    }
+    $batchMaximum = 50
+  }
+  if ($batchCandidates.Count -lt 1 -or $batchCandidates.Count -gt $batchMaximum) { throw "Batch file must contain between 1 and $batchMaximum candidates; found $($batchCandidates.Count)." }
+  $provenanceSourcePath = $EligiblePath
+  $provenanceCandidates = @($eligibleCandidates)
+  if ($batchProvenance -and $batchProvenance.PSObject.Properties['sourcePool']) {
+    $provenanceSourcePath = [string](Get-PropertyValue $batchProvenance 'sourcePool')
+    if (-not (Test-Path -LiteralPath $provenanceSourcePath)) { throw "Batch provenance source not found: $provenanceSourcePath" }
+    $provenanceCandidates = @(Get-RecordCollection (Read-JsonUtf8 -Path $provenanceSourcePath))
+    $declaredHash = [string](Get-PropertyValue $batchProvenance 'sourcePoolHash')
+    if ($declaredHash -and (Get-FileSha256 -Path $provenanceSourcePath) -ne $declaredHash) { throw 'Batch provenance source hash mismatch.' }
+  } elseif ($batchProvenance -and $batchProvenance.PSObject.Properties['candidates']) {
+    throw 'Batch report contains candidates but no sourcePool provenance.'
+  }
+  $provenanceExternalIds = @($provenanceCandidates | ForEach-Object { [string](Get-PropertyValue $_ 'externalId') } | Where-Object { $_ })
+  Write-Host "Batch provenance source: $provenanceSourcePath"
+  Write-Host 'Batch provenance: PASS'
   $outsideEligibleSet = [System.Collections.Generic.List[object]]::new()
   $batchFailures = [System.Collections.Generic.List[object]]::new()
   for ($batchIndex = 0; $batchIndex -lt $batchCandidates.Count; $batchIndex++) {
@@ -499,7 +606,7 @@ if ($BatchFile) {
       continue
     }
     $externalId = [string](Get-PropertyValue $candidate 'externalId')
-    if (-not $externalId -or $eligibleExternalIds -notcontains $externalId) {
+    if (-not $externalId -or $provenanceExternalIds -notcontains $externalId) {
       $outsideEligibleSet.Add([pscustomobject]@{ index = $batchIndex + 1; externalId = $externalId })
     }
     $check = Test-MigrationCandidate $candidate
@@ -512,12 +619,18 @@ if ($BatchFile) {
       })
     }
   }
-  if ($outsideEligibleSet.Count -gt 0) { throw "Batch contains records outside the eligible migration set: $($outsideEligibleSet[0].externalId)" }
+  if ($outsideEligibleSet.Count -gt 0) { throw "Batch contains records outside its declared provenance source: $($outsideEligibleSet[0].externalId)" }
+  $batchCandidateCount = $batchCandidates.Count
+  $batchPreflightInvalidCount = $batchFailures.Count
+  $batchPreflightValidCount = $batchCandidateCount - $batchPreflightInvalidCount
+  if (($batchPreflightValidCount + $batchPreflightInvalidCount) -ne $batchCandidateCount) {
+    throw "Batch preflight count mismatch: valid=$batchPreflightValidCount invalid=$batchPreflightInvalidCount candidates=$batchCandidateCount"
+  }
   if ($batchFailures.Count -gt 0) { throw "Batch preflight failed: $($batchFailures[0].title) | $($batchFailures[0].issues)" }
   $candidates = $batchCandidates
   Write-Host "Batch candidates: $($candidates.Count)"
-  Write-Host 'Batch preflight valid: 10'
-  Write-Host 'Batch preflight invalid: 0'
+  Write-Host "Batch preflight valid: $batchPreflightValidCount"
+  Write-Host "Batch preflight invalid: $batchPreflightInvalidCount"
   if ($ValidateBatchOnly) {
     Write-Host 'Local batch validation complete. Production authentication/writes: 0'
     return
@@ -561,6 +674,67 @@ try {
   if ($adminProbe.StatusCode -ne 200) { throw "Authenticated admin probe returned HTTP $($adminProbe.StatusCode)." }
 
   $existing = Get-AllProductionJobs -WebSession $session -Headers $headers
+
+  if ($candidatePoolMode) {
+    $poolDuplicates = 0
+    $poolSafe = [System.Collections.Generic.List[object]]::new()
+    foreach ($candidate in $candidates) {
+      $reason = Get-DuplicateReason -Candidate $candidate -Existing $existing
+      if ($reason) {
+        $poolDuplicates++
+      } else {
+        $poolSafe.Add($candidate)
+      }
+    }
+    $selectedPool = @($poolSafe | Select-Object -First $BatchSize)
+    if ($selectedPool.Count -lt 1) { throw 'No safe non-duplicate candidates remain in the candidate pool.' }
+    $poolFileName = [System.IO.Path]::GetFileName($PrepareFromCandidatePool)
+    $waveMatch = [regex]::Match($poolFileName, '^wave-(\d{3})-candidate-pool\.json$')
+    if (-not $waveMatch.Success) { throw 'Candidate-pool preparation requires a source file named wave-NNN-candidate-pool.json.' }
+    $waveNumber = [int]$waveMatch.Groups[1].Value
+    if ($BatchSize -gt 10) {
+      $waveBatchPath = Join-Path 'qa-artifacts' ("production-wave-{0:D3}-batch.json" -f $waveNumber)
+      $waveReportPath = Join-Path 'qa-artifacts' ("production-wave-{0:D3}-batch-report.json" -f $waveNumber)
+      if ((Test-Path -LiteralPath $waveBatchPath) -or (Test-Path -LiteralPath $waveReportPath)) { throw "Production wave #$waveNumber batch artifacts already exist; refusing to overwrite." }
+      $batchArtifact = [pscustomobject]@{ Number = $waveNumber; BatchPath = $waveBatchPath; ReportPath = $waveReportPath }
+    } else {
+      $batchArtifact = Get-NextBatchArtifactNumber
+    }
+    @($selectedPool | ForEach-Object { Build-MigrationPayload $_ }) | ConvertTo-Json -Depth 30 | Set-Content -LiteralPath $batchArtifact.BatchPath -Encoding utf8
+    $poolReportCandidates = @($selectedPool | ForEach-Object {
+      [pscustomobject]@{
+        title = [string](Get-PropertyValue $_ 'title')
+        company = [string](Get-PropertyValue $_ 'company')
+        country = [string](Get-PropertyValue $_ 'country')
+        externalId = [string](Get-PropertyValue $_ 'externalId')
+        duplicateCheck = 'not-duplicate-at-preparation'
+        sourceUrl = [string](Get-PropertyValue $_ 'sourceUrl')
+        applicationLink = [string](Get-PropertyValue $_ 'applicationLink')
+        type = [string](Get-PropertyValue $_ 'type')
+        jobType = [string](Get-PropertyValue $_ 'jobType')
+        workMode = [string](Get-PropertyValue $_ 'workMode')
+        targetStatus = 'draft'
+        targetApprovalStatus = 'pending'
+        targetLaunchEligible = $false
+      }
+    })
+    $poolReport = [ordered]@{
+      campaignWave = $waveNumber
+      sourcePool = $PrepareFromCandidatePool
+      sourcePoolHash = (Get-FileSha256 -Path $PrepareFromCandidatePool)
+      preparedAt = (Get-Date).ToUniversalTime().ToString('o')
+      batchNumber = $batchArtifact.Number
+      candidates = $poolReportCandidates
+    }
+    $poolReport | ConvertTo-Json -Depth 10 | Set-Content -LiteralPath $batchArtifact.ReportPath -Encoding utf8
+    Write-Host "Production duplicates: $poolDuplicates"
+    Write-Host "Safe non-duplicates: $($poolSafe.Count)"
+    Write-Host "Prepared batch: $($selectedPool.Count)"
+    Write-Host "Batch artifact: $($batchArtifact.BatchPath)"
+    Write-Host "Batch report: $($batchArtifact.ReportPath)"
+    Write-Host 'Production writes: 0'
+    return
+  }
 
   if ($PrepareBatch -gt 0) {
     $failedUaeId = 'f9fc6940-17a8-466e-a0bd-51e9e571ef8f'
