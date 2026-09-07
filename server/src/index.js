@@ -16,7 +16,7 @@ import { gbsBuyerRouter } from './routes/gbsBuyer.js';
 import { registerCareerTimelineHandlers } from './services/career/careerEventHandlers.js';
 import { registerCareerNotificationHandlers } from './services/career/careerNotificationBridge.js';
 import { registerCareerScoringHandlers } from './services/career/careerScoringBridge.js';
-import { getSitemap, getRobots } from './controllers/seoController.js';
+import { getSitemap, getApiRobots } from './controllers/seoController.js';
 import { getIndexNowKeyFile } from './controllers/indexNowController.js';
 import { stripeWebhook } from './controllers/paymentsController.js';
 import { marketplaceWebhook } from './controllers/marketplacePaymentController.js';
@@ -77,6 +77,10 @@ app.use((req, res, next) => {
     requestId: req.id,
   });
 });
+app.use('/api', (req, res, next) => {
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  next();
+});
 app.use('/api', apiLimiter);
 
 app.use('/uploads', (req, res, next) => {
@@ -94,10 +98,11 @@ app.use('/uploads', (req, res, next) => {
 
 app.get('/indexnow-key.txt', getIndexNowKeyFile);
 app.get('/sitemap.xml', getSitemap);
-app.get('/robots.txt', getRobots);
+app.get('/robots.txt', getApiRobots);
 
 // Operator-friendly probes (browsers hit these; API has no HTML UI)
 app.get('/', (_req, res) => {
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
   res.json({
     service: 'Strideto API',
     status: 'ok',
@@ -106,6 +111,7 @@ app.get('/', (_req, res) => {
   });
 });
 app.get('/api', (_req, res) => {
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
   res.json({
     service: 'Strideto API',
     status: 'ok',

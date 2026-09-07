@@ -3,6 +3,9 @@
   "framework": "vite",
   "buildCommand": "npm run build:seo",
   "outputDirectory": "dist",
+  "redirects": [
+    { "source": "/cookies", "destination": "/cookie-policy", "permanent": true }
+  ],
   "rewrites": [
     { "source": "/sitemap.xml", "destination": "https://api.strideto.com/sitemap.xml" },
     { "source": "/indexnow-key.txt", "destination": "https://api.strideto.com/indexnow-key.txt" },

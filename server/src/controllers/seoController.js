@@ -498,3 +498,10 @@ export const getRobots = (_req, res) => {
   res.setHeader('Content-Type', 'text/plain; charset=utf-8');
   res.type('text/plain').send(buildRobotsTxt(getPublicOrigin()));
 };
+
+/** API-host crawler policy: the API surface is not a search document. */
+export const getApiRobots = (_req, res) => {
+  res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+  res.setHeader('X-Robots-Tag', 'noindex, nofollow');
+  res.type('text/plain').send('User-agent: *\nDisallow: /\n');
+};

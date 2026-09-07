@@ -29,6 +29,27 @@ export const SEO_ROUTES = [
   { path: '/tests/gre', title: 'GRE General Test Guide, Preparation & Requirements | STRIDETO', description: 'Understand the GRE General Test, preparation guidance, official resources, and verified requirements on STRIDETO.', robots: 'index, follow' },
   { path: '/tests/gmat', title: 'GMAT Exam Guide, Preparation & Requirements | STRIDETO', description: 'Understand the GMAT Exam, preparation guidance, official resources, and verified requirements on STRIDETO.', robots: 'index, follow' },
   { path: '/exam-prep', title: 'Exam Preparation Archive | STRIDETO', description: 'Archived exam-preparation content from STRIDETO. Check current international Test guidance for verified resources.', robots: 'noindex, follow' },
+  {
+    path: '/privacy-policy',
+    title: 'Privacy Policy | STRIDETO',
+    description: 'Strideto privacy policy: how we collect, use, and protect your data.',
+    robots: 'index, follow',
+    contentHtml: '<article><h1>Privacy Policy</h1><p>Strideto is committed to protecting your privacy. This policy explains how we collect, use, store, and disclose information when you use our platform for jobs, scholarships, admissions, and internships.</p><h2>Information We Collect</h2><p>We collect information you provide when registering, saving listings, applying to jobs, or subscribing to updates. We also collect limited usage data such as pages visited and search queries to improve the service.</p><h2>How We Use Information</h2><p>We use information to operate the platform, support applications, provide opted-in alerts, and improve our services. Account credentials are protected and passwords are not stored in plain text.</p><h2>Your Rights</h2><p>You may access, correct, or delete account data through your profile settings. For privacy-related questions, use the Contact page.</p></article>',
+  },
+  {
+    path: '/cookie-policy',
+    title: 'Cookie Policy | STRIDETO',
+    description: 'How Strideto uses cookies and similar technologies.',
+    robots: 'index, follow',
+    contentHtml: '<article><h1>Cookie Policy</h1><p>Cookies are small text files stored on your device. Strideto also uses related browser storage for preferences, interface state, and consent-based first-party analytics.</p><h2>Strictly Necessary Storage</h2><p>Necessary storage supports authentication, security, session refresh, and cookie-consent preferences. Blocking it may prevent sign-in or secure session functionality.</p><h2>Preferences and Analytics</h2><p>Optional interface preferences and first-party analytics are used only according to the choices available in Cookie Settings.</p><h2>Third-Party Resources</h2><p>Some features may load resources such as fonts, bot protection, or payment processing when those features are used. Advertising technologies are not active unless separately configured and consented to.</p></article>',
+  },
+  {
+    path: '/refund-policy',
+    title: 'Refund Policy – STRIDETO',
+    description: 'Refund policy for paid employer services on Strideto.',
+    robots: 'index, follow',
+    contentHtml: '<article><h1>Refund Policy</h1><p>Student browsing and institution launch-plan use are free. Paid employer and professional services are charged by the payment provider when that provider is configured.</p><h2>Provider-Authoritative Payments</h2><p>Successful charges are recorded by the payment provider. A dispute, listing removal, or policy issue is not automatically a refund; any request is considered under this policy and the provider’s process.</p><h2>How to Request a Refund</h2><p>Use the public Contact form with your payment reference and account email. Approved refunds, if any, follow the payment provider and this policy.</p></article>',
+  },
 ];
 
 async function main() {

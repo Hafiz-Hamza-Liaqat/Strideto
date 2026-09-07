@@ -6,7 +6,6 @@ import {
   buildCanonicalUrl,
   resolveOgImage,
   truncateDescription,
-  buildAlternateUrls,
   formatPageTitle,
   getLocaleForLang,
 } from '../../seo/config';
@@ -57,8 +56,10 @@ export default function SeoHead({
   const resolvedTwDesc = truncateDescription(twitterDescription || ogDescription || description || defaultDescription);
   const resolvedOgImageAlt = ogImageAlt || resolvedOgTitle;
 
-  const alternates =
-    !noindex && (alternateUrls || (canonical != null ? buildAlternateUrls(canonical) : null));
+  // Emit alternates only when a caller supplies a real, independently
+  // crawlable localized URL strategy. Client-side `?lang=` preferences are
+  // not separate indexable documents.
+  const alternates = !noindex && alternateUrls;
 
   const jsonLdPayload = jsonLd
     ? Array.isArray(jsonLd)

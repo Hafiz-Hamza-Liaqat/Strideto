@@ -92,6 +92,10 @@ export function renderSeoShell(baseHtml, route) {
   html = route.robots.startsWith('index')
     ? upsertCanonical(html, `${SEO_ORIGIN}${route.path}`)
     : html.replace(/<link\b(?=[^>]*\brel=["']canonical["'])[^>]*>/gi, '');
+  if (route.contentHtml) {
+    const shell = `<main data-seo-shell="page">${route.contentHtml}</main>`;
+    html = html.replace('<div id="root"></div>', `<div id="root">${shell}</div>`);
+  }
   return html;
 }
 
