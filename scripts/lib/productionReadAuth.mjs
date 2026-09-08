@@ -64,11 +64,15 @@ export async function authenticateProductionAdmin(base, token, requestAudit, { p
   }
 }
 
-export async function createProductionReadClient({ base = DEFAULT_BASE, allowedPrefixes = ['/admin/jobs', '/jobs'] } = {}) {
+export async function createProductionReadClient({
+  base = DEFAULT_BASE,
+  allowedPrefixes = ['/admin/jobs', '/jobs'],
+  probePath = '/admin/jobs?limit=1&page=1',
+} = {}) {
   const normalizedBase = base.replace(/\/$/, '');
   let token = process.env.STRIDETO_ADMIN_TOKEN || '';
   const requestAudit = [];
-  const authentication = await authenticateProductionAdmin(normalizedBase, token, requestAudit);
+  const authentication = await authenticateProductionAdmin(normalizedBase, token, requestAudit, { probePath });
   token = authentication.token;
   const cookie = authentication.cookie;
   const get = async (path) => {
