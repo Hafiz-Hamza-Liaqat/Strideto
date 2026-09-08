@@ -4,7 +4,6 @@ import { Admission } from '../models/Admission.js';
 import { Blog } from '../models/Blog.js';
 import { Internship } from '../models/Internship.js';
 import { IntlScholarship } from '../models/IntlScholarship.js';
-import { Institution } from '../models/Institution.js';
 import { ForeignStudy } from '../models/ForeignStudy.js';
 import { Program } from '../models/education/Program.js';
 import { CanonicalInstitution } from '../models/education/CanonicalInstitution.js';
@@ -37,7 +36,6 @@ import { buildPublicJobFilter } from './jobsController.js';
 import { projectPublicJob } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 import { getRequestLocale, findLocalizedBySlug } from '../utils/localeQuery.js';
 import { PUB_STATUSES, SCHOOLS_COLLEGES_INSTITUTION_TYPES } from '../../../shared/education/taxonomy.js';
-import { isLegacyInstitutionIndexable } from '../../../shared/seo/legacyInstitutionSeoPolicy.js';
 import { VERIFICATION_STATUSES } from '../../../shared/international/verification.js';
 import {
   MARKETPLACE_PUBLICATION_STATUSES,
@@ -274,7 +272,6 @@ export const getSitemap = asyncHandler(async (_req, res) => {
     blogs,
     internships,
     intlScholarships,
-    institutions,
     foreignStudies,
     programs,
     tests,
@@ -289,7 +286,6 @@ export const getSitemap = asyncHandler(async (_req, res) => {
     Blog.find({ status: 'published', ...slugFilter }).select('slug updatedAt publishedAt').limit(2000).lean(),
     Internship.find(withFixtureExclusion({ status: 'active', ...slugFilter })).select('slug updatedAt').limit(1000).lean(),
     IntlScholarship.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(500).lean(),
-    Institution.find({ status: 'active', ...slugFilter }).select('slug updatedAt name website description country province city address programs').limit(1000).lean(),
     ForeignStudy.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(500).lean(),
     Program.find(withFixtureExclusion({ status: PUB_STATUSES.PUBLISHED, ...slugFilter }))
       .select('slug name institutionId description degreeLevels fields updatedAt status')
@@ -347,7 +343,6 @@ export const getSitemap = asyncHandler(async (_req, res) => {
   intlScholarships.filter(isIntlScholarshipDetailEligible).forEach((s) =>
     addUrl(`/intl-scholarships/${s.slug}`, { entityType: SEO_ENTITY_TYPES.INTL_SCHOLARSHIP, doc: s })
   );
-  institutions.filter(isLegacyInstitutionIndexable).forEach((i) => addUrl(`/schools-and-colleges/${i.slug}`, { lastmod: i.updatedAt }));
   canonicalInstitutions
     .filter((i) =>
       !(i.countryCode === 'PK' && SCHOOLS_COLLEGES_INSTITUTION_TYPES.includes(i.institutionType)) &&
@@ -358,18 +353,6 @@ export const getSitemap = asyncHandler(async (_req, res) => {
     )
     .forEach((i) =>
       addUrl(`/institutions/${i.slug}`, { entityType: SEO_ENTITY_TYPES.CANONICAL_INSTITUTION, doc: i })
-    );
-  canonicalInstitutions
-    .filter((i) =>
-      i.countryCode === 'PK' &&
-      SCHOOLS_COLLEGES_INSTITUTION_TYPES.includes(i.institutionType) &&
-      isCanonicalInstitutionDetailEligible(i, {
-        programCount: programCountByInstitutionId.get(String(i._id)) || 0,
-        acceptedTestCount: acceptedTestCountByInstitutionId.get(String(i._id)) || 0,
-      })
-    )
-    .forEach((i) =>
-      addUrl(`/schools-and-colleges/${i.slug}`, { entityType: SEO_ENTITY_TYPES.CANONICAL_INSTITUTION, doc: i })
     );
   canonicalScholarships.filter(isCanonicalScholarshipDetailEligible).forEach((s) =>
     addUrl(`/scholarship-intelligence/${s.slug}`, { entityType: SEO_ENTITY_TYPES.CANONICAL_SCHOLARSHIP, doc: s })

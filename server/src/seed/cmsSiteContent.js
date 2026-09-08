@@ -22,7 +22,6 @@ export function defaultHeaderItems() {
       order: 5,
       children: [
         { label: 'Program explorer', path: '/program-explorer', visible: true, order: 0 },
-        { label: 'Schools & Colleges', path: '/schools-and-colleges', visible: true, order: 1 },
         { label: 'Foreign Studies', path: '/foreign-studies', visible: true, order: 2 },
         { label: 'International Scholarships', path: '/intl-scholarships', visible: true, order: 3 },
       ],
@@ -66,7 +65,6 @@ function defaultFooterColumns() {
       title: 'Study & Prepare',
       links: [
         { label: 'Program Explorer', path: '/program-explorer' },
-        { label: 'Schools & Colleges', path: '/schools-and-colleges' },
         { label: 'Foreign Studies', path: '/foreign-studies' },
         { label: 'International Scholarships', path: '/intl-scholarships' },
         { label: 'Tests & Prep', path: '/tests' },

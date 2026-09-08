@@ -10,7 +10,6 @@ import { buildJobDiscoverySummary } from '../../../../shared/jobs/jobDiscovery.j
 import {
   projectPublicProgram,
   projectPublicIntlScholarship,
-  projectPublicLegacyInstitution,
   projectPublicCompany,
 } from '../../../../shared/publicDiscovery/projectPublicDiscovery.js';
 import { isProgramDetailIndexable } from '../../../../shared/seo/entityDetailSeoPolicy.js';
@@ -415,27 +414,10 @@ export function mapIntlScholarshipToSearchDocument(doc) {
   });
 }
 
-export function mapLegacyInstitutionToSearchDocument(doc) {
-  if (!doc || doc.status !== 'active' || !doc.slug) return null;
-  const item = projectPublicLegacyInstitution(doc);
-  return normalizeSearchDocument({
-    entityType: 'legacy-institution',
-    entityId: String(doc._id),
-    title: item.name,
-    slug: item.slug,
-    url: buildLocalizedSlugUrl('/schools-and-colleges', item.slug, docLocale(doc)),
-    summary: [item.name, item.type, item.city, item.province, item.country, item.description].filter(Boolean).join(' ').slice(0, 500),
-    keywords: [item.type, item.city, item.province, item.country].filter(Boolean),
-    category: item.type,
-    province: item.province,
-    country: item.country,
-    tags: [],
-    publishedAt: doc.createdAt,
-    updatedAt: doc.updatedAt,
-    status: 'active',
-    searchable: true,
-    locale: docLocale(doc),
-  });
+export function mapLegacyInstitutionToSearchDocument(_doc) {
+  // Legacy Schools & Colleges is retained for direct compatibility only;
+  // retired directory records must not re-enter public search discovery.
+  return null;
 }
 
 export function mapCompanyToSearchDocument(doc) {

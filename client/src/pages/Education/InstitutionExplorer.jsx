@@ -280,8 +280,7 @@ export function InstitutionExplorerList() {
           <p className="mt-4 text-xs text-gray-500">
             Also explore{' '}
             <Link to={ROUTES.PROGRAM_EXPLORER} className="text-primary underline">Program Explorer</Link>
-            {' '}and legacy{' '}
-            <Link to={ROUTES.SCHOOLS_AND_COLLEGES} className="text-primary underline">Schools & Colleges</Link>.
+            {' '}for related study options.
           </p>
 
           {loading && <p className="mt-8 text-sm text-gray-500" aria-busy="true">Loading…</p>}

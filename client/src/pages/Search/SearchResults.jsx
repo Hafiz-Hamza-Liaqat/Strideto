@@ -44,7 +44,7 @@ export default function SearchResults() {
   }, [q, type, page]);
 
   const title = q ? `Search: ${q}` : t('search');
-  const types = ['', 'job', 'scholarship', 'intl-scholarship', 'admission', 'university', 'blog', 'career-guidance', 'program', 'legacy-institution', 'company', 'test'];
+  const types = ['', 'job', 'scholarship', 'intl-scholarship', 'admission', 'university', 'blog', 'career-guidance', 'program', 'company', 'test'];
 
   return (
     <>

@@ -29,6 +29,8 @@ export default function SchoolsAndColleges() {
         title={t('static:schoolsTitle')}
         description={t('static:schoolsDescription')}
         canonical={ROUTES.SCHOOLS_AND_COLLEGES}
+        noindex
+        robots="noindex, follow"
         jsonLd={combineSchemas(
           breadcrumbSchema([
             { name: t('seo:breadcrumbHome'), url: ROUTES.HOME },

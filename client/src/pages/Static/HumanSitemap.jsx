@@ -58,7 +58,6 @@ export default function HumanSitemap() {
       icon: 'document',
       links: [
         { to: ROUTES.PROGRAM_EXPLORER, label: t('navbar:programExplorer', { defaultValue: 'Program Explorer' }) },
-        { to: ROUTES.SCHOOLS_AND_COLLEGES, label: t('navbar:schoolsAndColleges') },
         { to: ROUTES.FOREIGN_STUDIES, label: t('navbar:foreignStudies') },
         { to: ROUTES.INTL_SCHOLARSHIPS, label: t('navbar:intlScholarships') },
         { to: ROUTES.CANONICAL_SCHOLARSHIPS, label: t('navbar:scholarshipIntelligence', { defaultValue: 'Scholarship Intelligence' }) },

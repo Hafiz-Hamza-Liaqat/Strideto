@@ -76,7 +76,6 @@ export function Footer() {
 
   const studyPrepareLinks = [
     { label: t('navbar:programExplorer', { ns: 'navbar' }), path: ROUTES.PROGRAM_EXPLORER },
-    { label: t('navbar:schoolsAndColleges', { ns: 'navbar' }), path: ROUTES.SCHOOLS_AND_COLLEGES },
     { label: t('navbar:foreignStudies', { ns: 'navbar' }), path: ROUTES.FOREIGN_STUDIES },
     { label: t('navbar:intlScholarships', { ns: 'navbar' }), path: ROUTES.INTL_SCHOLARSHIPS },
     { label: t('footer:testsAndPrep'), path: ROUTES.TEST_HUB },

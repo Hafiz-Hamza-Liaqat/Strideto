@@ -25,7 +25,6 @@ export default function InstitutionAcquisition() {
           body: 'Students and families can browse institution profiles, programs, and related education content through Strideto public directories.',
           items: [
             'Explore universities and institutions in the education directory.',
-            'Browse schools and colleges with program and admissions information.',
             'Use the program explorer to compare study options.',
             'Find admissions, scholarships, and international study resources linked to institutions.',
           ],
@@ -51,7 +50,6 @@ export default function InstitutionAcquisition() {
       ]}
       resourceLinks={[
         { to: ROUTES.EDUCATION_INSTITUTIONS, label: 'Explore universities and institutions' },
-        { to: ROUTES.SCHOOLS_AND_COLLEGES, label: 'Schools and colleges' },
         { to: ROUTES.PROGRAM_EXPLORER, label: 'Program explorer' },
         { to: ROUTES.ADMISSIONS, label: 'Admissions listings' },
         { to: ROUTES.SCHOLARSHIPS, label: 'Scholarships' },
