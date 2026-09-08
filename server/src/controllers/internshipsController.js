@@ -15,8 +15,15 @@ import { clusterResourceLinks } from '../../../shared/seo/contentClusters.js';
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
 
+export function buildPublicInternshipFilter({ now = new Date() } = {}) {
+  return withFixtureExclusion({
+    status: 'active',
+    $and: [{ $or: [{ deadline: { $exists: false } }, { deadline: null }, { deadline: { $gte: now } }] }],
+  });
+}
+
 function buildQuery(q) {
-  const filter = withFixtureExclusion({ status: 'active' });
+  const filter = buildPublicInternshipFilter();
   const extraAnd = [];
   const countryCode = normalizeCountryCode(q.countryCode);
   if (countryCode) extraAnd.push({ countryCode });
@@ -70,10 +77,11 @@ export const listInternships = asyncHandler(async (req, res) => {
 export const getInternshipByIdOrSlug = asyncHandler(async (req, res) => {
   const { idOrSlug } = req.params;
   const isId = mongoose.Types.ObjectId.isValid(idOrSlug) && String(new mongoose.Types.ObjectId(idOrSlug)) === idOrSlug;
-  const doc = await Internship.findOne(isId ? { _id: idOrSlug, status: 'active' } : { slug: idOrSlug, status: 'active' }).lean();
+  const publicFilter = buildPublicInternshipFilter();
+  const doc = await Internship.findOne({ ...publicFilter, ...(isId ? { _id: idOrSlug } : { slug: idOrSlug }) }).lean();
   if (!doc) return res.status(404).json({ error: 'Internship not found' });
   const relatedCandidates = await Internship.find({
-    status: 'active',
+    ...buildPublicInternshipFilter(),
     _id: { $ne: doc._id },
   })
     .sort({ createdAt: -1 })

@@ -33,6 +33,7 @@ import {
   isProgramDetailIndexable,
 } from '../../../shared/seo/entityDetailSeoPolicy.js';
 import { buildPublicJobFilter } from './jobsController.js';
+import { buildPublicInternshipFilter } from './internshipsController.js';
 import { projectPublicJob } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 import { getRequestLocale, findLocalizedBySlug } from '../utils/localeQuery.js';
 import { PUB_STATUSES, SCHOOLS_COLLEGES_INSTITUTION_TYPES } from '../../../shared/education/taxonomy.js';
@@ -217,7 +218,7 @@ export const getSeoJobBySlug = asyncHandler(async (req, res) => {
   const job = await findLocalizedBySlug(
     Job,
     req.params.slug,
-    buildPublicJobFilter({ allowHistorical: true }),
+    buildPublicJobFilter(),
     locale,
   );
   if (!job || (job.publicationState && ['draft', 'pending_review', 'rejected', 'closed', 'expired'].includes(job.publicationState))) {
@@ -284,7 +285,7 @@ export const getSitemap = asyncHandler(async (_req, res) => {
     Scholarship.find(withFixtureExclusion({ status: 'active', ...slugFilter })).select('slug updatedAt').limit(2000).lean(),
     Admission.find(withFixtureExclusion({ status: 'active', ...slugFilter })).select('slug updatedAt').limit(2000).lean(),
     Blog.find({ status: 'published', ...slugFilter }).select('slug updatedAt publishedAt').limit(2000).lean(),
-    Internship.find(withFixtureExclusion({ status: 'active', ...slugFilter })).select('slug updatedAt').limit(1000).lean(),
+    Internship.find({ ...buildPublicInternshipFilter(), ...slugFilter }).select('slug updatedAt deadline').limit(1000).lean(),
     IntlScholarship.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(500).lean(),
     ForeignStudy.find({ status: 'active', ...slugFilter }).select('slug updatedAt').limit(500).lean(),
     Program.find(withFixtureExclusion({ status: PUB_STATUSES.PUBLISHED, ...slugFilter }))
@@ -407,7 +408,7 @@ export const getSeoJobsPage = asyncHandler(async (req, res) => {
       { location: new RegExp(slug.replace(/-/g, ' '), 'i') },
     ];
   }
-  const jobs = await Job.find(withFixtureExclusion(filter)).sort({ createdAt: -1 }).limit(limit).lean();
+  const jobs = await Job.find({ ...buildPublicJobFilter(), ...filter }).sort({ createdAt: -1 }).limit(limit).lean();
   const title = province
     ? `Latest Government & Private Jobs in ${province} 2026 | Strideto`
     : `Latest Jobs in ${slug.replace(/-/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())} 2026 | Strideto`;
@@ -425,7 +426,7 @@ export const getSeoJobsByCategory = asyncHandler(async (req, res) => {
   const jobType = SLUG_TO_JOB_TYPE[slug];
   if (!jobType) return res.status(404).json({ error: 'Invalid category' });
   const limit = Math.min(50, parseInt(req.query.limit, 10) || 24);
-  const jobs = await Job.find(withFixtureExclusion({ status: 'active', jobType })).sort({ createdAt: -1 }).limit(limit).lean();
+  const jobs = await Job.find({ ...buildPublicJobFilter(), jobType }).sort({ createdAt: -1 }).limit(limit).lean();
   const title = `Latest ${jobType} in Pakistan 2026 | Strideto`;
   const description = `Find the latest ${jobType.toLowerCase()} in Pakistan. Updated daily with verified opportunities.`;
   const base = getPublicOrigin();
@@ -441,7 +442,7 @@ export const getSeoJobsBySource = asyncHandler(async (req, res) => {
   if (!JOB_SOURCE_SLUGS.includes(source)) return res.status(404).json({ error: 'Invalid source' });
   const limit = Math.min(50, parseInt(req.query.limit, 10) || 24);
   const sourceWebsite = source.toUpperCase().replace(/-/g, ' ');
-  const jobs = await Job.find(withFixtureExclusion({ status: 'active', sourceWebsite: new RegExp(sourceWebsite, 'i') }))
+  const jobs = await Job.find({ ...buildPublicJobFilter(), sourceWebsite: new RegExp(sourceWebsite, 'i') })
     .sort({ createdAt: -1 })
     .limit(limit)
     .lean();
@@ -458,7 +459,7 @@ export const getSeoJobsBySource = asyncHandler(async (req, res) => {
 
 export const getLatestGovernmentJobs = asyncHandler(async (req, res) => {
   const limit = Math.min(50, parseInt(req.query.limit, 10) || 24);
-  const jobs = await Job.find(withFixtureExclusion({ status: 'active', jobType: 'Government' }))
+  const jobs = await Job.find({ ...buildPublicJobFilter(), jobType: 'Government' })
     .sort({ createdAt: -1 })
     .limit(limit)
     .lean();

@@ -16,6 +16,8 @@ import {
   searchCacheSet,
 } from './searchCache.js';
 import { withLaunchSearchFilter } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
+import { Job } from '../../models/Job.js';
+import { buildPublicJobMongoFilter } from '../../../../shared/publicDiscovery/publicTruth.js';
 import { resolveSearchIntent, LOCATION_ALIASES } from '../../../../shared/search/queryIntent.js';
 
 function buildMongoFilter(params) {
@@ -67,6 +69,15 @@ function buildLocationFilter(locationText, aliases = []) {
       { keywords: re },
     ],
   };
+}
+
+async function removeExpiredPublicJobDocuments(candidates, admin) {
+  if (admin) return candidates;
+  const ids = candidates.filter((doc) => doc.entityType === 'job').map((doc) => doc.entityId);
+  if (!ids.length) return candidates;
+  const visible = await Job.find({ ...buildPublicJobMongoFilter(), _id: { $in: ids } }).select('_id').lean();
+  const visibleIds = new Set(visible.map((doc) => String(doc._id)));
+  return candidates.filter((doc) => doc.entityType !== 'job' || visibleIds.has(String(doc.entityId)));
 }
 
 function toResultDto(doc, { publicProjection = true } = {}) {
@@ -142,7 +153,7 @@ export async function searchIndex(params, options = {}) {
     filter.status = { $in: ['active', 'published'] };
   }
 
-  const candidates = await SearchDocument.find(filter).limit(500).lean();
+  const candidates = await removeExpiredPublicJobDocuments(await SearchDocument.find(filter).limit(500).lean(), options.admin);
   const rankingQuery = intent?.contextual
     ? (intent.roleQuery || (params.country ? '' : intent.locationText))
     : (intent?.entityTypes ? '' : params.q);
@@ -203,7 +214,7 @@ export async function searchSuggestions(q, options = {}) {
   } else if (!intent?.entityTypes) Object.assign(filter, buildTextFilter(q));
   filter.entityType = { $in: intent?.entityTypes || (explicitTypes.length ? explicitTypes : SUGGESTION_ENTITY_TYPES) };
 
-  const candidates = await SearchDocument.find(filter).limit(100).lean();
+  const candidates = await removeExpiredPublicJobDocuments(await SearchDocument.find(filter).limit(100).lean(), false);
   const rankingQuery = intent?.contextual
     ? (intent.roleQuery || (params.country ? '' : intent.locationText))
     : (intent?.entityTypes ? '' : q);

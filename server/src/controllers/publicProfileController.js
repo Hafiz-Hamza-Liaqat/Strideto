@@ -23,6 +23,7 @@ import {
   projectPublicUniversity,
   projectPublicUniversityListItem,
 } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
+import { buildPublicJobMongoFilter, isPubliclyListableJob } from '../../../shared/publicDiscovery/publicTruth.js';
 
 // A job is publicly listable only when admin-approved. Legacy rows predating
 // the approvalStatus field (absent) are treated as approved, matching the
@@ -50,9 +51,9 @@ export const getEmployerProfile = asyncHandler(async (req, res) => {
   const ownerScope = { $or: [{ employerId: employer._id }, { company: employer.companyName }] };
 
   const [activeJobs, recentJobs, closedJobs] = await Promise.all([
-    Job.find({ employerId: employer._id, status: 'active', ...PUBLICLY_APPROVED })
+    Job.find({ ...buildPublicJobMongoFilter(), employerId: employer._id })
       .sort({ createdAt: -1 }).limit(20).lean(),
-    Job.find({ ...ownerScope, status: 'active', ...PUBLICLY_APPROVED })
+    Job.find({ ...buildPublicJobMongoFilter(), ...ownerScope })
       .sort({ createdAt: -1 }).limit(10).lean(),
     // Past positions = the employer's closed roles. These are prior openings,
     // not confirmed hires, so the client presents them as "Past positions".
@@ -60,7 +61,9 @@ export const getEmployerProfile = asyncHandler(async (req, res) => {
       .sort({ updatedAt: -1 }).limit(5).lean(),
   ]);
 
-  const allCompanyJobs = await Job.find(ownerScope).select('status approvalStatus').lean();
+  const allCompanyJobs = await Job.find(ownerScope)
+    .select('status approvalStatus publicationState visibleUntil applicationsCloseAt deadline')
+    .lean();
 
   res.json({
     profile: projectPublicEmployer(employer),
@@ -68,7 +71,7 @@ export const getEmployerProfile = asyncHandler(async (req, res) => {
       totalJobs: allCompanyJobs.length,
       // Public "active jobs" count reflects only what a visitor can actually
       // open — approved active roles — so the stat matches the listed positions.
-      activeJobs: allCompanyJobs.filter((j) => j.status === 'active' && isPubliclyApproved(j)).length,
+    activeJobs: allCompanyJobs.filter((j) => isPubliclyListableJob(j)).length,
       closedJobs: allCompanyJobs.filter((j) => j.status === 'closed').length,
     },
     activeJobs: activeJobs.map(projectPublicJobListItem),
@@ -91,7 +94,7 @@ export const getCompanyProfile = asyncHandler(async (req, res) => {
     employer = await Employer.findById(company.employerId).select('-password -email').lean();
   }
 
-  const jobs = await Job.find({ company: company.name, status: 'active' }).sort({ createdAt: -1 }).limit(20).lean();
+  const jobs = await Job.find({ ...buildPublicJobMongoFilter(), company: company.name }).sort({ createdAt: -1 }).limit(20).lean();
   const allJobs = await Job.find({ company: company.name }).select('status createdAt').lean();
 
   res.json({

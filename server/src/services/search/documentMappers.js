@@ -5,6 +5,7 @@ import { normalizeSearchDocument } from '../../../../shared/search/searchDocumen
 import { buildLocalizedSlugUrl } from '../../../../shared/localization/localeUtils.js';
 import { normalizeLocale } from '../../../../shared/localization/localeResolver.js';
 import { isPubliclyLaunchVisible } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
+import { isPubliclyListableJob } from '../../../../shared/publicDiscovery/publicTruth.js';
 import { isTestPubliclyPromotable } from '../../../../shared/education/testPublicationPolicy.js';
 import { buildJobDiscoverySummary } from '../../../../shared/jobs/jobDiscovery.js';
 import {
@@ -76,13 +77,13 @@ export function mapJobToSearchDocument(doc) {
     updatedAt: doc.updatedAt,
     featured: Boolean(doc.isFeatured),
     status: doc.status === 'active' ? 'active' : doc.status,
-    searchable: doc.status === 'active' && isPubliclyLaunchVisible(doc),
+    searchable: doc.status === 'active' && isPubliclyLaunchVisible(doc) && isPubliclyListableJob(doc),
     locale: docLocale(doc),
     metadata: {
       adminEditUrl: `/admin/jobs`,
       icon: 'job',
       company: doc.company || doc.organization,
-      launchEligible: isPubliclyLaunchVisible(doc),
+      launchEligible: isPubliclyLaunchVisible(doc) && isPubliclyListableJob(doc),
     },
   });
 }

@@ -4,6 +4,8 @@
 import { SearchDocument } from '../../models/SearchDocument.js';
 import { rankSearchResults } from '../../../../shared/search/scoring.js';
 import { withLaunchSearchFilter } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
+import { Job } from '../../models/Job.js';
+import { buildPublicJobMongoFilter } from '../../../../shared/publicDiscovery/publicTruth.js';
 
 /**
  * @param {{
@@ -37,7 +39,13 @@ export async function findRelatedContent(input) {
     $or: or,
   });
 
-  const candidates = await SearchDocument.find(filter).limit(50).lean();
+  let candidates = await SearchDocument.find(filter).limit(50).lean();
+  const jobIds = candidates.filter((doc) => doc.entityType === 'job').map((doc) => doc.entityId);
+  if (jobIds.length) {
+    const visibleJobs = await Job.find({ ...buildPublicJobMongoFilter(), _id: { $in: jobIds } }).select('_id').lean();
+    const visibleIds = new Set(visibleJobs.map((doc) => String(doc._id)));
+    candidates = candidates.filter((doc) => doc.entityType !== 'job' || visibleIds.has(String(doc.entityId)));
+  }
   const query = [source.title, source.category, ...(source.tags || [])].filter(Boolean).join(' ');
   const ranked = rankSearchResults(candidates, query, 'relevance').slice(0, limit);
 

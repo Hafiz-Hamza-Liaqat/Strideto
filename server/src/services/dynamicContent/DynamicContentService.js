@@ -10,6 +10,7 @@ import { normalizeLocale } from '../../../../shared/localization/localeResolver.
 import { buildLocalizedSlugUrl } from '../../../../shared/localization/localeUtils.js';
 import { withFixtureExclusion } from '../../../../shared/publicDiscovery/fixtureExclusion.js';
 import { resolvePublicJobLogoUrl } from '../../../../shared/publicDiscovery/projectPublicDiscovery.js';
+import { buildPublicJobMongoFilter } from '../../../../shared/publicDiscovery/publicTruth.js';
 import {
   attachEmployerLogos,
   collectEmployerIdsForLogoFallback,
@@ -28,11 +29,7 @@ function clampCount(count) {
 }
 
 function activeJobFilter(extra = {}) {
-  return withFixtureExclusion({
-    status: 'active',
-    $or: [{ approvalStatus: 'approved' }, { approvalStatus: { $exists: false } }],
-    ...extra,
-  });
+  return { ...buildPublicJobMongoFilter(), ...extra };
 }
 
 /**

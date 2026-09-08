@@ -9,6 +9,7 @@ import {
   isSlotWithinLimits,
 } from '../utils/adSlotLimits.js';
 import { scheduleAnalyticsEvent } from '../services/analytics/AnalyticsEventService.js';
+import { buildPublicJobMongoFilter } from '../../../shared/publicDiscovery/publicTruth.js';
 
 const FEATURED_LIMIT = 10;
 const SPONSORED_LIMIT = 10;
@@ -17,14 +18,14 @@ const CACHE_TTL = 300;
 export const getFeaturedJobs = asyncHandler(async (req, res) => {
   let data = await cacheGet(CACHE_KEYS.FEATURED_JOBS);
   if (!data) {
-    data = await Job.find({ status: 'active', isFeatured: true }).sort({ createdAt: -1 }).limit(FEATURED_LIMIT).lean();
+    data = await Job.find({ ...buildPublicJobMongoFilter(), isFeatured: true }).sort({ createdAt: -1 }).limit(FEATURED_LIMIT).lean();
     await cacheSet(CACHE_KEYS.FEATURED_JOBS, data, CACHE_TTL);
   }
   res.json({ data });
 });
 
 export const getSponsoredJobs = asyncHandler(async (req, res) => {
-  const data = await Job.find({ status: 'active', isSponsored: true }).sort({ createdAt: -1 }).limit(SPONSORED_LIMIT).lean();
+  const data = await Job.find({ ...buildPublicJobMongoFilter(), isSponsored: true }).sort({ createdAt: -1 }).limit(SPONSORED_LIMIT).lean();
   res.json({ data });
 });
 

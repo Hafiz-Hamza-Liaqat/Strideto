@@ -5,6 +5,7 @@ import { Scholarship } from '../models/Scholarship.js';
 import { Admission } from '../models/Admission.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { TalentProfileReadService } from '../services/career/TalentProfileReadService.js';
+import { buildPublicJobMongoFilter } from '../../../shared/publicDiscovery/publicTruth.js';
 
 const TRENDING_LIMIT = 6;
 const NOTIFICATIONS_LIMIT = 10;
@@ -40,7 +41,7 @@ export const getDashboard = asyncHandler(async (req, res) => {
   const recentlyViewedAdmissions = (user.recentlyViewedAdmissions || []).filter((a) => a && a.status === 'active').slice(-10).reverse();
 
   const [trendingJobs, trendingScholarships, trendingAdmissions, notifications] = await Promise.all([
-    Job.find({ status: 'active' }).sort({ views: -1, createdAt: -1 }).limit(TRENDING_LIMIT).lean(),
+    Job.find(buildPublicJobMongoFilter()).sort({ views: -1, createdAt: -1 }).limit(TRENDING_LIMIT).lean(),
     Scholarship.find({ status: 'active' }).sort({ views: -1, deadline: 1 }).limit(TRENDING_LIMIT).lean(),
     Admission.find({ status: 'active' }).sort({ deadline: 1, views: -1 }).limit(TRENDING_LIMIT).lean(),
     Notification.find({

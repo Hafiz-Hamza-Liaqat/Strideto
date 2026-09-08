@@ -2,7 +2,7 @@ import { useId } from 'react';
 import { useTranslation } from 'react-i18next';
 import { AdminSelectBare, adminFieldClass } from '../admin/AdminFormFields';
 
-export function AdminTableFilters({ filters, values, onChange, fields = [] }) {
+export function AdminTableFilters({ filters, values, onChange, fields = [], statusOptions }) {
   const { t } = useTranslation('admin');
   const idPrefix = useId().replace(/:/g, '');
 
@@ -68,14 +68,16 @@ export function AdminTableFilters({ filters, values, onChange, fields = [] }) {
           onChange={(e) => update('status', e.target.value)}
           className={adminFieldClass}
         >
-          <option value="">{t('filterAll')}</option>
-          <option value="draft">{t('statusDraft')}</option>
-          <option value="active">{t('statusActive')}</option>
-          <option value="closed">{t('statusClosed')}</option>
-          <option value="completed">{t('statusCompleted')}</option>
-          <option value="failed">{t('statusFailed')}</option>
-          <option value="refunded">{t('statusRefunded')}</option>
-          <option value="suspended">{t('statusSuspended')}</option>
+          {(statusOptions || [
+            { value: '', label: t('filterAll') },
+            { value: 'draft', label: t('statusDraft') },
+            { value: 'active', label: t('statusActive') },
+            { value: 'closed', label: t('statusClosed') },
+            { value: 'completed', label: t('statusCompleted') },
+            { value: 'failed', label: t('statusFailed') },
+            { value: 'refunded', label: t('statusRefunded') },
+            { value: 'suspended', label: t('statusSuspended') },
+          ]).map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
         </AdminSelectBare>
       )}
       {fields.includes('approvalStatus') && !fields.includes('status') && (

@@ -6,6 +6,7 @@ import { asyncHandler } from '../utils/asyncHandler.js';
 import { cacheGet, cacheSet } from '../config/redis.js';
 import { getTrending, setTrending } from '../utils/trendingCache.js';
 import { CACHE_KEYS } from '../utils/cacheKeys.js';
+import { buildPublicJobMongoFilter, isPubliclyListableJob } from '../../../shared/publicDiscovery/publicTruth.js';
 
 const TRENDING_LIMIT = 10;
 const CACHE_TTL = 300;
@@ -40,8 +41,9 @@ function deadlineScore(deadline) {
 export const getTrendingJobs = asyncHandler(async (req, res) => {
   let data = await cacheGet(CACHE_KEYS.TRENDING_JOBS);
   if (!data) data = getTrending('jobs');
+  if (data) data = data.filter((job) => isPubliclyListableJob(job));
   if (!data) {
-    const jobs = await Job.find({ status: 'active' }).sort({ views: -1, deadline: 1 }).limit(TRENDING_CANDIDATE_LIMIT).lean();
+    const jobs = await Job.find(buildPublicJobMongoFilter()).sort({ views: -1, deadline: 1 }).limit(TRENDING_CANDIDATE_LIMIT).lean();
     const bookmarkCounts = await getBookmarkCounts('jobs');
     const scored = jobs.map((j) => {
       const views = j.views || 0;

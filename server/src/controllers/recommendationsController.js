@@ -7,6 +7,7 @@ import { cacheGet, cacheSet } from '../config/redis.js';
 import { CACHE_KEYS } from '../utils/cacheKeys.js';
 import { TalentProfileReadService } from '../services/career/TalentProfileReadService.js';
 import { withFixtureExclusion } from '../../../shared/publicDiscovery/fixtureExclusion.js';
+import { buildPublicJobMongoFilter } from '../../../shared/publicDiscovery/publicTruth.js';
 import {
   projectPublicJobListItem,
   projectPublicCmsScholarship,
@@ -92,7 +93,7 @@ export const getRecommendations = asyncHandler(async (req, res) => {
   const excludeAdmissions = [...(user.savedAdmissions || []), ...(user.recentlyViewedAdmissions || [])].map((id) => id.toString());
 
   const [allJobs, allScholarships, allAdmissions] = await Promise.all([
-    Job.find(LAUNCH_ACTIVE).sort({ createdAt: -1 }).limit(CANDIDATE_CAP).lean(),
+    Job.find(buildPublicJobMongoFilter()).sort({ createdAt: -1 }).limit(CANDIDATE_CAP).lean(),
     Scholarship.find(LAUNCH_ACTIVE).sort({ createdAt: -1 }).limit(CANDIDATE_CAP).lean(),
     Admission.find(LAUNCH_ACTIVE).sort({ createdAt: -1 }).limit(CANDIDATE_CAP).lean(),
   ]);

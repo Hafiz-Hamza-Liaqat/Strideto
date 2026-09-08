@@ -41,10 +41,17 @@ const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 const WORK_MODES = new Set(['remote', 'hybrid', 'on_site']);
 
-function buildQuery(q) {
+export function buildQuery(q, now = new Date()) {
   const filter = {};
   const extraAnd = [employerPrivateDraftExclusion()];
-  if (q.status) filter.status = q.status;
+  if (q.status === 'expired') {
+    extraAnd.push({ deadline: { $lt: now } });
+  } else if (q.status) {
+    filter.status = q.status;
+    if (q.status === 'active') {
+      extraAnd.push({ $or: [{ deadline: { $exists: false } }, { deadline: null }, { deadline: { $gte: now } }] });
+    }
+  }
   if (q.approvalStatus) {
     filter.approvalStatus = q.approvalStatus;
     if (q.approvalStatus === 'pending') {

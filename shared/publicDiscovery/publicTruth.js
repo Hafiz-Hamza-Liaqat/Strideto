@@ -11,6 +11,7 @@ import {
 } from '../employer/openingsCount.js';
 import { FRESHNESS_STATES } from '../trust/sourceVerification.js';
 import { DATE_ONLY_RE } from '../institution/institutionPortal.js';
+import { withFixtureExclusion } from './fixtureExclusion.js';
 
 export const NOT_SPECIFIED = 'Not specified';
 export const NOT_TRACKED = 'Not tracked';
@@ -53,6 +54,33 @@ export const PUBLIC_JOB_HIDDEN_PUBLICATION_STATES = Object.freeze([
   'closed',
   'expired',
 ]);
+
+export const PUBLIC_JOB_APPROVAL_OR = Object.freeze([
+  { approvalStatus: 'approved' },
+  { approvalStatus: { $exists: false } },
+]);
+
+export const PUBLIC_JOB_PUBLICATION_OR = Object.freeze([
+  { publicationState: { $exists: false } },
+  { publicationState: 'active' },
+]);
+
+/** Mongo visibility filter shared by every public job surface. */
+export function buildPublicJobMongoFilter({ allowHistorical = false, now = new Date() } = {}) {
+  const filter = withFixtureExclusion({
+    status: 'active',
+    $and: [
+      { $or: PUBLIC_JOB_APPROVAL_OR },
+      { $or: PUBLIC_JOB_PUBLICATION_OR },
+    ],
+  });
+  if (!allowHistorical) {
+    filter.$and.push({ $or: [{ visibleUntil: { $exists: false } }, { visibleUntil: null }, { visibleUntil: { $gte: now } }] });
+    filter.$and.push({ $or: [{ applicationsCloseAt: { $exists: false } }, { applicationsCloseAt: null }, { applicationsCloseAt: { $gte: now } }] });
+    filter.$and.push({ $or: [{ deadline: { $exists: false } }, { deadline: null }, { deadline: { $gte: now } }] });
+  }
+  return filter;
+}
 
 export const FRESHNESS_PUBLIC_LABELS = Object.freeze({
   [FRESHNESS_STATES.FRESH]: 'Current',
@@ -138,11 +166,25 @@ export function isPubliclyListableJob(job = {}, now = new Date()) {
     const until = new Date(job.visibleUntil);
     if (!Number.isNaN(until.getTime()) && until < now) return false;
   }
+  for (const closeAt of [job.applicationsCloseAt, job.deadline]) {
+    if (!closeAt) continue;
+    const date = new Date(closeAt);
+    if (!Number.isNaN(date.getTime()) && date < now) return false;
+  }
   return true;
 }
 
 export function deriveJobAvailability(job = {}, now = new Date()) {
-  if (!isPubliclyListableJob(job, now)) return JOB_AVAILABILITY.UNAVAILABLE;
+  if (!isPubliclyListableJob(job, now)) {
+    const closeAt = job.applicationsCloseAt || job.deadline;
+    const closeDate = closeAt ? new Date(closeAt) : null;
+    const lifecycleOnly = { ...job, applicationsCloseAt: undefined, deadline: undefined };
+    if (
+      closeDate && !Number.isNaN(closeDate.getTime()) && closeDate < now
+      && isPubliclyListableJob(lifecycleOnly, now)
+    ) return JOB_AVAILABILITY.DEADLINE_PASSED;
+    return JOB_AVAILABILITY.UNAVAILABLE;
+  }
   if (job.status === 'closed' || job.publicationState === 'closed') return JOB_AVAILABILITY.CLOSED;
   if (job.publicationState === 'expired') return JOB_AVAILABILITY.EXPIRED;
   const closeAt = job.applicationsCloseAt || job.deadline;

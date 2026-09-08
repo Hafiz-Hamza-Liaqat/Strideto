@@ -348,6 +348,13 @@ export default function AdminContentJobs() {
           filters={filters}
           onFiltersChange={(f) => { setSelectedIds([]); setFilters(f); setPage(1); }}
           filterFields={['search', 'status', 'approvalStatus', 'country', 'province', 'city', 'category', 'employer', 'featured', 'from', 'to']}
+          statusOptions={[
+            { value: '', label: t('filterAll') },
+            { value: 'draft', label: t('statusDraft') },
+            { value: 'active', label: t('statusActive') },
+            { value: 'closed', label: t('statusClosed') },
+            { value: 'expired', label: t('statusExpired', { defaultValue: 'Expired' }) },
+          ]}
           selectable={canEdit || canModerate}
           selectedIds={selectedIds}
           onSelectionChange={setSelectedIds}

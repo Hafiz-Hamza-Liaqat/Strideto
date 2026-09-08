@@ -2,13 +2,17 @@ import { Job } from '../models/Job.js';
 import { asyncHandler } from '../utils/asyncHandler.js';
 import { listResponse, paginate } from '../utils/apiResponse.js';
 import { Employer } from '../models/Employer.js';
-import { PUBLIC_JOB_HIDDEN_PUBLICATION_STATES } from '../../../shared/publicDiscovery/publicTruth.js';
+import {
+  PUBLIC_JOB_HIDDEN_PUBLICATION_STATES,
+  buildPublicJobMongoFilter,
+  PUBLIC_JOB_APPROVAL_OR as PUBLIC_APPROVAL_OR,
+  PUBLIC_JOB_PUBLICATION_OR as PUBLIC_PUBLICATION_OR,
+} from '../../../shared/publicDiscovery/publicTruth.js';
 import {
   projectPublicJob,
   projectPublicJobListItem,
 } from '../../../shared/publicDiscovery/projectPublicDiscovery.js';
 import { normalizeCountryCode } from '../../../shared/international/country.js';
-import { withFixtureExclusion } from '../../../shared/publicDiscovery/fixtureExclusion.js';
 import { isValidJobFamily, isValidSpecialization } from '../../../shared/career/jobTaxonomy.js';
 import {
   getRequestLocale,
@@ -28,16 +32,6 @@ import { logSearchQuery } from '../services/search/SearchIndexService.js';
 
 const DEFAULT_LIMIT = 10;
 const MAX_LIMIT = 50;
-
-const PUBLIC_APPROVAL_OR = [
-  { approvalStatus: 'approved' },
-  { approvalStatus: { $exists: false } },
-];
-
-const PUBLIC_PUBLICATION_OR = [
-  { publicationState: { $exists: false } },
-  { publicationState: 'active' },
-];
 
 const JOB_SEARCH_INTENT_KEYS = Object.freeze([
   'search', 'countryCode', 'region', 'province', 'city', 'jobFamily',
@@ -61,20 +55,7 @@ export function buildJobsSearchMeasurement({ query = {}, total, responseTimeMs =
 }
 
 export function buildPublicJobFilter({ allowHistorical = false } = {}) {
-  const now = new Date();
-  const filter = withFixtureExclusion({
-    status: 'active',
-    $and: [
-      { $or: PUBLIC_APPROVAL_OR },
-      { $or: PUBLIC_PUBLICATION_OR },
-    ],
-  });
-  if (!allowHistorical) {
-    filter.$and.push({ $or: [{ visibleUntil: { $exists: false } }, { visibleUntil: null }, { visibleUntil: { $gte: now } }] });
-    filter.$and.push({ $or: [{ applicationsCloseAt: { $exists: false } }, { applicationsCloseAt: null }, { applicationsCloseAt: { $gte: now } }] });
-    filter.$and.push({ $or: [{ deadline: { $exists: false } }, { deadline: null }, { deadline: { $gte: now } }] });
-  }
-  return filter;
+  return buildPublicJobMongoFilter({ allowHistorical });
 }
 
 function safeSearchRe(value) {
@@ -245,7 +226,7 @@ export const getJobs = asyncHandler(async (req, res) => {
 export const getJobByIdOrSlug = asyncHandler(async (req, res) => {
   const { idOrSlug } = req.params;
   const locale = getRequestLocale(req);
-  const publicFilter = buildPublicJobFilter({ allowHistorical: true });
+  const publicFilter = buildPublicJobFilter();
   const job = isObjectIdParam(idOrSlug)
     ? await findLocalizedById(Job, idOrSlug, publicFilter, locale)
     : await findLocalizedBySlug(Job, idOrSlug, publicFilter, locale);

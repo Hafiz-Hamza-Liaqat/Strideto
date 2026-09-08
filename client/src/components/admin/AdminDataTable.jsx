@@ -19,6 +19,7 @@ export function AdminDataTable({
   filters,
   onFiltersChange,
   filterFields = ['search', 'status'],
+  statusOptions,
   selectable = false,
   selectedIds = [],
   onSelectionChange,
@@ -74,7 +75,7 @@ export function AdminDataTable({
   return (
     <div className="space-y-4 min-w-0">
       {filters && onFiltersChange && (
-        <AdminTableFilters filters={filters} onChange={onFiltersChange} fields={filterFields} />
+        <AdminTableFilters filters={filters} onChange={onFiltersChange} fields={filterFields} statusOptions={statusOptions} />
       )}
 
       <div className="flex flex-wrap items-center justify-between gap-2">
