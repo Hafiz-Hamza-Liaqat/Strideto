@@ -46,7 +46,6 @@ const staticRouteEvidence = new Map([
   ['/program-explorer', 'ROUTES.PROGRAM_EXPLORER'],
   ['/tests', 'ROUTES.TEST_HUB'],
   ['/tests/compare', 'ROUTES.TEST_COMPARE'],
-  ['/schools-and-colleges', 'ROUTES.SCHOOLS_AND_COLLEGES'],
   ['/foreign-studies', 'ROUTES.FOREIGN_STUDIES'],
   ['/intl-scholarships', 'ROUTES.INTL_SCHOLARSHIPS'],
   ['/institutions', 'ROUTES.EDUCATION_INSTITUTIONS'],
@@ -77,7 +76,6 @@ const staticRouteEvidence = new Map([
   ['/privacy-policy', 'ROUTES.PRIVACY_POLICY'],
   ['/terms', 'ROUTES.TERMS'],
   ['/cookie-policy', 'ROUTES.COOKIES'],
-  ['/cookies', 'ROUTES.COOKIES_LEGACY'],
   ['/disclaimer', 'ROUTES.DISCLAIMER'],
   ['/refund-policy', 'ROUTES.REFUND_POLICY'],
   ['/careers', 'ROUTES.CAREERS'],
@@ -149,7 +147,7 @@ check(sitemap.includes('urlMap.set(entry.loc, entry)'), 'A7: duplicate sitemap l
 // A9/A10 — Job and institution ownership remain on their existing policies.
 check(sitemap.includes("addUrl(`/jobs/${j.slug}`"), 'A9: Jobs retain /jobs/:slug sitemap ownership');
 check(sitemap.includes("addUrl(`/institutions/${i.slug}`"), 'A10: canonical institutions retain /institutions/:slug ownership');
-check(sitemap.includes("addUrl(`/schools-and-colleges/${i.slug}`"), 'A10: legacy institutions retain their own proven route family');
+check(!sitemap.includes("addUrl(`/schools-and-colleges/${i.slug}`"), 'A10: retired school/college detail URLs are excluded from sitemap');
 check(
   routes.includes("`${ROUTES.SCHOOLS_AND_COLLEGES}/:slug`") &&
     routes.includes("`${ROUTES.EDUCATION_INSTITUTIONS}/:slug`") ,

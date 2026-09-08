@@ -45,7 +45,7 @@ test('C3-12 through C3-15: public DTO and canonical URL contracts remain in forc
   const mappers = read('server/src/services/search/documentMappers.js');
   assert.match(service, /publicSearchMetadata\(doc\.metadata\)/);
   assert.match(service, /url: doc\.url/);
-  for (const route of ['/program-explorer', '/intl-scholarships', '/schools-and-colleges', '/company']) {
+  for (const route of ['/program-explorer', '/intl-scholarships', '/company']) {
     assert.ok(mappers.includes(route), `mapper preserves canonical route ${route}`);
   }
   assert.match(service, /slice\(params\.skip, params\.skip \+ params\.limit\)/);

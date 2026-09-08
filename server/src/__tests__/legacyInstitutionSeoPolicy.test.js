@@ -30,9 +30,9 @@ test('SEO wiring uses the shared policy and weak details are noindex-follow', as
   const sitemap = await fs.readFile(new URL('../controllers/seoController.js', import.meta.url), 'utf8');
   const detail = await fs.readFile(new URL('../../../client/src/pages/SchoolsAndColleges/InstitutionDetail.jsx', import.meta.url), 'utf8');
   const prerender = await fs.readFile(new URL('../../../scripts/prerender-seo.mjs', import.meta.url), 'utf8');
-  assert.match(sitemap, /isLegacyInstitutionIndexable/);
-  assert.match(detail, /noindex=\{item\.seoIndexable === false\}/);
-  assert.match(detail, /noindex, follow/);
-  assert.match(prerender, /path: '\/schools-and-colleges'/);
+  assert.doesNotMatch(sitemap, /addUrl\(`\/schools-and-colleges\/\$\{i\.slug\}/);
+  assert.match(detail, /noindex/);
+  assert.match(detail, /robots="noindex, follow"/);
+  assert.match(prerender, /path: '\/schools-and-colleges'[\s\S]{0,260}robots: 'noindex, follow'/);
   assert.match(prerender, /path: '\/institutions'/);
 });

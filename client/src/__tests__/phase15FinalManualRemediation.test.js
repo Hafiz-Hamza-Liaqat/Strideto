@@ -56,7 +56,7 @@ const readRoot = (rel) => readFileSync(path.join(repoRoot, rel), 'utf8');
   check(/footer:discover/.test(footer) && /footer:studyPrepare/.test(footer), 'C. Discover + Study & Prepare groups');
   check(/ROUTES\.BLOG/.test(footer) && /footer:helpCenter/.test(footer), 'C. Blog and Help Center under Resources & Support');
   check(!/ROUTES\.LICENSE/.test(footer) && !/github\.com/.test(footer) && !/\/admin/.test(footer), 'C. Footer does not expose Admin/License/GitHub');
-  check(/ROUTES\.SCHOOLS_AND_COLLEGES/.test(footer), 'C. Schools & Colleges uses the public route');
+  check(!/ROUTES\.SCHOOLS_AND_COLLEGES/.test(footer), 'C. Retired Schools & Colleges is absent from footer discovery');
 }
 
 // D. Hero search

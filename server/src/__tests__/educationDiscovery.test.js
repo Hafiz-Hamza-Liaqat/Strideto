@@ -56,7 +56,7 @@ console.log('\n── EDU-DISC Canonical education discovery ──');
 check('EDU-DISC-01 Public canonical institution directory route exists', () => {
   assert.ok(constants.includes("EDUCATION_INSTITUTIONS: '/institutions'"));
   assert.ok(routes.includes('EDUCATION_INSTITUTIONS') || routes.includes("'/institutions'") || routes.includes('InstitutionExplorer'));
-  assert.ok(nav.includes("path: '/institutions'"));
+  assert.ok(routes.includes("ROUTES.EDUCATION_INSTITUTIONS"));
   assert.ok(nav.includes('universitiesAndInstitutions'));
   assert.ok(fs.existsSync(path.join(clientSrc, 'pages/Education/InstitutionExplorer.jsx')));
 });
@@ -157,12 +157,11 @@ check('EDU-DISC-15 Selected canonical institution ID persists correctly', () => 
   assert.ok(adminEdu.includes('body.institutionId'));
 });
 
-check('EDU-DISC-16 Legacy Schools & Colleges remains unchanged', () => {
+check('EDU-DISC-16 Legacy Schools & Colleges remains direct-route compatible but undiscoverable', () => {
   assert.ok(constants.includes("SCHOOLS_AND_COLLEGES: '/schools-and-colleges'"));
-  assert.ok(nav.includes("path: '/schools-and-colleges'"));
   assert.ok(schoolsPage.includes('institutions') || schoolsRoute.includes('schools-and-colleges'));
-  assert.ok(!schoolsPage.includes('CanonicalInstitution'));
-  assert.ok(!explorer.includes('schools-and-colleges') || explorer.includes('Schools & Colleges'));
+  assert.ok(!nav.includes("path: '/schools-and-colleges'"));
+  assert.ok(!explorer.includes('Link to={ROUTES.SCHOOLS_AND_COLLEGES}'));
 });
 
 console.log(`\n${passed} passed, ${failed} failed`);

@@ -234,9 +234,9 @@ const ORIGIN = PRODUCTION_PUBLIC_ORIGIN;
   check(institutionExplorer.includes('isCanonicalInstitutionDetailEligible'), 'SEO-P3-18: institution detail uses density gate');
 }
 
-// SEO-P3-19 — duplicate institution routes do not create conflicting canonical identities
+// SEO-P3-19 — retired school/college routes remain direct-compatible but leave sitemap discovery
 {
-  check(seoController.includes('/schools-and-colleges/${i.slug}'), 'SEO-P3-19: legacy institution route preserved');
+  check(!seoController.includes('addUrl(`/schools-and-colleges/${i.slug}'), 'SEO-P3-19: retired school/college detail route absent from sitemap');
   check(seoController.includes('/institutions/${i.slug}'), 'SEO-P3-19: canonical institution route separate');
 }
 
