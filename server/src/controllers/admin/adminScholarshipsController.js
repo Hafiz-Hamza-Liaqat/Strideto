@@ -13,6 +13,7 @@ import { onContentSaved, onContentDeleted, onContentBulkDeleted, onContentBulkUp
 import { deriveCmsLaunchEligible, CMS_STATUS } from '../../../../shared/cms/launchEligible.js';
 import { freeTextCountryRegex } from '../../../../shared/international/location.js';
 import { countryDisplayName, coerceCountryCode } from '../../../../shared/international/country.js';
+import { normalizeScholarshipDeadline } from '../../../../shared/scholarships/deadline.js';
 
 const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
@@ -71,10 +72,27 @@ function applyBody(doc, body, isCreate = false) {
   const tags = parseStringArray(body.tags);
   if (tags !== undefined) doc.tags = tags;
   if (body.applicationInstructions !== undefined) doc.applicationInstructions = sanitizeString(body.applicationInstructions);
-  if (body.deadline !== undefined) doc.deadline = body.deadline ? new Date(body.deadline) : undefined;
+  if (body.deadline !== undefined || body.deadlineType !== undefined || body.deadlineText !== undefined || isCreate) {
+    const normalizedDeadline = normalizeScholarshipDeadline({
+      deadline: body.deadline,
+      deadlineType: body.deadlineType,
+      deadlineText: body.deadlineText,
+    });
+    if (!normalizedDeadline.ok) {
+      const error = new Error(normalizedDeadline.error);
+      error.statusCode = 400;
+      throw error;
+    }
+    doc.deadlineType = normalizedDeadline.deadlineType;
+    doc.deadline = normalizedDeadline.deadline;
+    doc.deadlineText = normalizedDeadline.deadlineText;
+  }
   if (body.link !== undefined || body.applicationLink !== undefined || body.applyLink !== undefined) {
     const linkVal = body.link ?? body.applicationLink ?? body.applyLink;
     doc.link = linkVal ? sanitizeString(linkVal) : '';
+  }
+  if (body.sourceUrl !== undefined || body.officialSourceUrl !== undefined) {
+    doc.sourceUrl = sanitizeString(body.sourceUrl ?? body.officialSourceUrl);
   }
   if (body.status !== undefined) doc.status = body.status;
   if (body.logoUrl !== undefined) doc.logoUrl = sanitizeString(body.logoUrl);

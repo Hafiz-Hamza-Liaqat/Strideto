@@ -12,6 +12,7 @@ import { publicHttpUrlOrNull } from './safePublicUrl.js';
 import { fundingTypeLabel } from '../education/scholarshipIntelligence.js';
 import { coerceCountryCode, countryDisplayName } from '../international/country.js';
 import { normalizeLocation } from '../international/location.js';
+import { scholarshipDeadlineDisplay } from '../scholarships/deadline.js';
 
 export const UNIFIED_SCHOLARSHIP_SOURCE = Object.freeze({
   CMS: 'cms',
@@ -208,6 +209,7 @@ export function projectCmsScholarshipDiscoveryCard(doc) {
   if (!doc) return null;
   const loc = normalizeLocation(doc);
   const countryCode = loc.countryCode || coerceCountryCode(doc.country) || '';
+  const deadlineDisplay = scholarshipDeadlineDisplay(doc);
   return {
     id: String(doc._id),
     _id: doc._id,
@@ -227,9 +229,12 @@ export function projectCmsScholarshipDiscoveryCard(doc) {
     amount: formatCmsAmount(doc.amount),
     studyLevel: doc.level || doc.degreeLevel || null,
     field: null,
-    deadline: doc.deadline || null,
+    deadline: deadlineDisplay?.kind === 'fixed' ? doc.deadline : null,
+    deadlineType: doc.deadlineType || (doc.deadline ? 'fixed' : 'not_published'),
+    deadlineText: deadlineDisplay?.kind === 'fixed' ? null : deadlineDisplay?.value || null,
     status: doc.status || null,
     detailUrl: `/scholarships/${doc.slug || doc._id}`,
+    sourceUrl: publicHttpUrlOrNull(doc.sourceUrl),
     authorityKind: AUTHORITY_KINDS.SOURCE_BACKED,
     authorityLabel: authorityLabel(AUTHORITY_KINDS.SOURCE_BACKED),
     applicabilityScope: null,

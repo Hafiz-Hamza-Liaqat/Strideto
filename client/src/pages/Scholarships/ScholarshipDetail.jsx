@@ -100,14 +100,14 @@ export default function ScholarshipDetail() {
   const canonicalPath = `${ROUTES.SCHOLARSHIPS}/${item.slug || item._id}`;
   const seoTitle = t('detailSeoTitle', { title: item.title, ns: 'scholarships' });
   const officialLink = publicHttpUrlOrNull(item.link);
-  const scholarshipSource = resolveCmsScholarshipLink(item.link);
+  const scholarshipSource = resolveCmsScholarshipLink(item.sourceUrl || item.link);
 
   const scholarshipFacts = [
     { label: t('providerLabel', { ns: 'scholarships', defaultValue: 'Provider' }), value: item.provider },
     { label: t('countryLabel', { ns: 'scholarships', defaultValue: 'Country' }), value: item.country },
     { label: t('levelLabel', { ns: 'scholarships', defaultValue: 'Study level' }), value: item.level },
     { label: t('fundingLabel', { ns: 'scholarships', defaultValue: 'Funding' }), value: item.amount },
-    { label: t('deadline', { ns: 'common' }), value: item.deadline ? formatDate(item.deadline) : null },
+    { label: t('deadline', { ns: 'common' }), value: item.deadline ? formatDate(item.deadline) : item.deadlineText || null },
   ];
 
   return (

@@ -197,7 +197,7 @@ export default function Scholarships() {
                           <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">{s.applicabilityScope.label}</p>
                         ) : null}
                         {s.amount && <p className="text-sm text-primary dark:text-mint mt-1">{s.amount}</p>}
-                        {s.deadline && <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{t('deadline', { ns: 'common' })}: {formatDate(s.deadline)}</p>}
+                        {(s.deadline || s.deadlineText) && <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">{t('deadline', { ns: 'common' })}: {s.deadline ? formatDate(s.deadline) : s.deadlineText}</p>}
                       </Link>
                       {institutionHref ? (
                         <Link to={institutionHref} className="mt-2 text-xs text-primary dark:text-mint hover:underline">

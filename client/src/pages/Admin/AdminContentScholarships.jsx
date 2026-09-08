@@ -32,7 +32,10 @@ const EMPTY = {
   description: '',
   eligibility: '',
   link: '',
+  sourceUrl: '',
   deadline: '',
+  deadlineType: 'not_published',
+  deadlineText: '',
   status: 'draft',
   logoUrl: '',
   tags: '',
@@ -73,6 +76,8 @@ export default function AdminContentScholarships() {
       eligibility: linesToText(s.eligibility),
       tags: linesToText(s.tags),
       deadline: s.deadline ? s.deadline.slice(0, 10) : '',
+      deadlineType: s.deadlineType || (s.deadline ? 'fixed' : 'not_published'),
+      deadlineText: s.deadlineText || '',
     });
     setEditingId(id);
     setFormOpen(true);
@@ -205,7 +210,17 @@ export default function AdminContentScholarships() {
                 <input className={fieldClass} placeholder={t('admin:fieldUniversity')} value={form.university} onChange={(e) => setForm({ ...form, university: e.target.value })} />
                 <input className={fieldClass} placeholder={t('admin:fieldFunding')} value={form.amount} onChange={(e) => setForm({ ...form, amount: e.target.value })} />
                 <input type="date" className={fieldClass} value={form.deadline} onChange={(e) => setForm({ ...form, deadline: e.target.value })} />
+                <AdminSelectBare className={fieldClass} value={form.deadlineType} onChange={(e) => setForm({ ...form, deadlineType: e.target.value, deadline: e.target.value === 'fixed' ? form.deadline : '' })}>
+                  <option value="fixed">Fixed date</option>
+                  <option value="course_specific">Course-specific</option>
+                  <option value="rolling">Rolling</option>
+                  <option value="multiple">Multiple deadlines</option>
+                  <option value="not_published">Not published</option>
+                  <option value="closed">Closed</option>
+                </AdminSelectBare>
+                {form.deadlineType !== 'fixed' && <input className={fieldClass} placeholder="Deadline explanation" value={form.deadlineText} onChange={(e) => setForm({ ...form, deadlineText: e.target.value })} />}
                 <input className={fieldClass} placeholder={t('admin:applyLinkPlaceholder')} value={form.link} onChange={(e) => setForm({ ...form, link: e.target.value })} />
+                <input className={fieldClass} placeholder="Official source URL" value={form.sourceUrl} onChange={(e) => setForm({ ...form, sourceUrl: e.target.value })} />
                 <textarea rows={4} className={fieldClass} placeholder={t('admin:fieldDescription')} value={form.description} onChange={(e) => setForm({ ...form, description: e.target.value })} />
                 <textarea rows={3} className={fieldClass} placeholder={t('admin:fieldEligibility')} value={form.eligibility} onChange={(e) => setForm({ ...form, eligibility: e.target.value })} />
                 <AdminSelectBare className={fieldClass} value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })}>

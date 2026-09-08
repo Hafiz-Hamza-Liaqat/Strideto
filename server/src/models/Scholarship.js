@@ -2,6 +2,7 @@ import mongoose from 'mongoose';
 import { scholarshipSlug } from '../utils/slugify.js';
 import { translationFieldDefinition, applySlugLocaleIndex, ensureTranslationGroupHook } from './mixins/translationFields.js';
 import { FIXTURE_FIELD_DEFINITION } from '../../../shared/publicDiscovery/fixtureExclusion.js';
+import { SCHOLARSHIP_DEADLINE_TYPES } from '../../../shared/scholarships/deadline.js';
 
 const scholarshipSchema = new mongoose.Schema(
   {
@@ -21,8 +22,11 @@ const scholarshipSchema = new mongoose.Schema(
     description: { type: String },
     eligibility: [{ type: String }],
     applicationInstructions: { type: String },
+    deadlineType: { type: String, enum: Object.values(SCHOLARSHIP_DEADLINE_TYPES), default: SCHOLARSHIP_DEADLINE_TYPES.NOT_PUBLISHED },
     deadline: { type: Date },
+    deadlineText: { type: String },
     link: { type: String },
+    sourceUrl: { type: String },
     status: { type: String, enum: ['draft', 'active', 'closed'], default: 'active' },
     logoUrl: { type: String },
     views: { type: Number, default: 0 },
