@@ -271,6 +271,48 @@ function Test-EqualField {
   return (Normalize-Value $Expected) -eq (Normalize-Value $Actual)
 }
 
+function Normalize-CountryCodeForComparison {
+  param([object]$Value)
+  $normalized = (Normalize-Value $Value).ToUpperInvariant()
+  if ($normalized -match '^[A-Z]{2}$') { return $normalized }
+  switch ($normalized) {
+    'UNITED STATES' { return 'US' }
+    'UNITED STATES OF AMERICA' { return 'US' }
+    'USA' { return 'US' }
+    'UNITED KINGDOM' { return 'GB' }
+    'UK' { return 'GB' }
+    'UNITED ARAB EMIRATES' { return 'AE' }
+    'UAE' { return 'AE' }
+    'PAKISTAN' { return 'PK' }
+    'CANADA' { return 'CA' }
+    'AUSTRALIA' { return 'AU' }
+    'GERMANY' { return 'DE' }
+    'CHINA' { return 'CN' }
+    'INDIA' { return 'IN' }
+    'SAUDI ARABIA' { return 'SA' }
+    default { return $null }
+  }
+}
+
+function Test-EqualCountryField {
+  param(
+    [object]$ExpectedCountry,
+    [object]$ActualCountry,
+    [object]$ExpectedCountryCode,
+    [object]$ActualCountryCode
+  )
+  $expectedCode = Normalize-CountryCodeForComparison $ExpectedCountryCode
+  $actualCode = Normalize-CountryCodeForComparison $ActualCountryCode
+  $expectedCountryCode = Normalize-CountryCodeForComparison $ExpectedCountry
+  $actualCountryCode = Normalize-CountryCodeForComparison $ActualCountry
+
+  if ($expectedCode -and $actualCode) { return $expectedCode -eq $actualCode }
+  if ($expectedCode -and $actualCountryCode) { return $expectedCode -eq $actualCountryCode }
+  if ($expectedCountryCode -and $actualCode) { return $expectedCountryCode -eq $actualCode }
+  if ($expectedCountryCode -and $actualCountryCode) { return $expectedCountryCode -eq $actualCountryCode }
+  return (Normalize-Value $ExpectedCountry) -eq (Normalize-Value $ActualCountry)
+}
+
 function Get-DuplicateReason {
   param([object]$Candidate, [object[]]$Existing)
   $externalId = Get-PropertyValue $Candidate 'externalId'
@@ -290,6 +332,37 @@ function Get-DuplicateReason {
   return $null
 }
 
+function Find-ProductionDuplicate {
+  param(
+    [object]$Candidate,
+    [object[]]$Existing,
+    [string]$Reason
+  )
+  $externalId = Get-PropertyValue $Candidate 'externalId'
+  $sourceUrl = Get-PropertyValue $Candidate 'sourceUrl'
+  $applicationLink = Get-PropertyValue $Candidate 'applicationLink'
+  $slug = Get-PropertyValue $Candidate 'slug'
+  $company = Normalize-DuplicateText (Get-PropertyValue $Candidate 'company')
+  $title = Normalize-DuplicateText (Get-PropertyValue $Candidate 'title')
+  $location = Get-DuplicateLocationKey $Candidate
+  foreach ($job in $Existing) {
+    $matches = switch ($Reason) {
+      'externalId' { $externalId -and (Normalize-Value (Get-PropertyValue $job 'externalId')) -eq (Normalize-Value $externalId) }
+      'sourceUrl' { $sourceUrl -and (Normalize-Value (Get-PropertyValue $job 'sourceUrl')) -eq (Normalize-Value $sourceUrl) }
+      'applicationLink' { $applicationLink -and (Normalize-Value (Get-PropertyValue $job 'applicationLink')) -eq (Normalize-Value $applicationLink) }
+      'slug' { $slug -and (Normalize-DuplicateSlug (Get-PropertyValue $job 'slug')) -eq (Normalize-DuplicateSlug $slug) }
+      'company-title-location' {
+        $company -and $title -and $location -eq (Get-DuplicateLocationKey $job) -and
+          $company -eq (Normalize-DuplicateText (Get-PropertyValue $job 'company')) -and
+          $title -eq (Normalize-DuplicateText (Get-PropertyValue $job 'title'))
+      }
+      default { $false }
+    }
+    if ($matches) { return $job }
+  }
+  return $null
+}
+
 function Invoke-DuplicateNormalizationSelfTest {
   $cases = @(
     [pscustomobject]@{ Name = 'repeated spaces'; Left = 'Senior Software Engineer'; Right = 'Senior  Software Engineer'; ShouldMatch = $true },
@@ -303,6 +376,30 @@ function Invoke-DuplicateNormalizationSelfTest {
     if ($matches -ne $case.ShouldMatch) { throw "Duplicate normalization self-test failed: $($case.Name)." }
   }
   Write-Host 'Duplicate normalization self-test: PASS'
+}
+
+function Invoke-CountryRoundTripSelfTest {
+  $candidate = [pscustomobject]@{
+    title = 'Backend Software Engineer - Infrastructure'
+    country = 'United Kingdom'
+    countryCode = 'GB'
+  }
+  $saved = [pscustomobject]@{
+    country = $null
+    countryCode = 'GB'
+  }
+  if (-not (Test-EqualCountryField $candidate.country $saved.country $candidate.countryCode $saved.countryCode)) {
+    throw 'Country round-trip self-test failed: GB/name representation should match.'
+  }
+  $saved.country = 'United Kingdom'
+  if (-not (Test-EqualCountryField $candidate.country $saved.country $candidate.countryCode $saved.countryCode)) {
+    throw 'Country round-trip self-test failed: canonical name should match.'
+  }
+  $saved.countryCode = 'US'
+  if (Test-EqualCountryField $candidate.country $saved.country $candidate.countryCode $saved.countryCode) {
+    throw 'Country round-trip self-test failed: different country code matched.'
+  }
+  Write-Host 'Country round-trip self-test: PASS'
 }
 
 function Invoke-CampaignBatchPolicySelfTest {
@@ -328,6 +425,7 @@ function Invoke-CampaignBatchPolicySelfTest {
 
 if ($SelfTest) {
   Invoke-DuplicateNormalizationSelfTest
+  Invoke-CountryRoundTripSelfTest
   Invoke-CampaignBatchPolicySelfTest
   return
 }
@@ -801,12 +899,31 @@ try {
 
   $duplicateCount = 0
   $planned = [System.Collections.Generic.List[object]]::new()
+  $dryRunDuplicates = [System.Collections.Generic.List[object]]::new()
+  $dryRunReady = [System.Collections.Generic.List[object]]::new()
   foreach ($candidate in $candidates) {
     $reason = Get-DuplicateReason -Candidate $candidate -Existing $existing
     if ($reason) {
       $duplicateCount++
+      $matchingJob = Find-ProductionDuplicate -Candidate $candidate -Existing $existing -Reason $reason
+      $dryRunDuplicates.Add([pscustomobject]@{
+        title = [string](Get-PropertyValue $candidate 'title')
+        company = [string](Get-PropertyValue $candidate 'company')
+        externalId = [string](Get-PropertyValue $candidate 'externalId')
+        sourceUrl = [string](Get-PropertyValue $candidate 'sourceUrl')
+        applicationLink = [string](Get-PropertyValue $candidate 'applicationLink')
+        duplicateReason = $reason
+        matchingProductionJobId = if ($matchingJob) { [string](Get-PropertyValue $matchingJob '_id') } else { $null }
+      })
     } else {
       $planned.Add($candidate)
+      $dryRunReady.Add([pscustomobject]@{
+        title = [string](Get-PropertyValue $candidate 'title')
+        company = [string](Get-PropertyValue $candidate 'company')
+        externalId = [string](Get-PropertyValue $candidate 'externalId')
+        sourceUrl = [string](Get-PropertyValue $candidate 'sourceUrl')
+        applicationLink = [string](Get-PropertyValue $candidate 'applicationLink')
+      })
     }
   }
 
@@ -825,8 +942,19 @@ try {
   Write-Host 'Target state: draft / pending / launchEligible=false'
 
   if ($DryRun) {
+    $dryRunReport = [ordered]@{
+      mode = 'dry-run'
+      candidateCount = $candidates.Count
+      duplicateCount = $duplicateCount
+      readyCount = $planned.Count
+      duplicates = @($dryRunDuplicates)
+      ready = @($dryRunReady)
+      writes = 0
+    }
+    $dryRunReport | ConvertTo-Json -Depth 20 | Set-Content -LiteralPath $LogPath -Encoding utf8
     if ($BatchFile) { Write-Host 'Batch DryRun: zero production writes performed.' }
     else { Write-Host 'DRY RUN: zero production writes performed.' }
+    Write-Host "Dry-run report: $LogPath"
     return
   }
 
@@ -858,7 +986,17 @@ try {
     } else {
       @('title','company','country','countryCode','region','city','workMode','description','responsibilities','requirements','skillsRequired','sourceUrl','applicationLink','externalId','slug','seoTitle','metaDescription','type','jobType','status','approvalStatus','launchEligible')
     }
-    $mismatches = @($fields | Where-Object { -not (Test-EqualField (Get-PropertyValue $candidate $_) (Get-PropertyValue $saved $_) $_) })
+    $mismatches = @($fields | Where-Object {
+        if ($_ -eq 'country') {
+          -not (Test-EqualCountryField `
+            (Get-PropertyValue $candidate 'country') `
+            (Get-PropertyValue $saved 'country') `
+            (Get-PropertyValue $candidate 'countryCode') `
+            (Get-PropertyValue $saved 'countryCode'))
+        } else {
+          -not (Test-EqualField (Get-PropertyValue $candidate $_) (Get-PropertyValue $saved $_) $_)
+        }
+      })
     if ($mismatches.Count -gt 0) {
       throw "Round-trip validation failed for $($candidate.title) [$productionId]: $($mismatches -join ', ')"
     }
