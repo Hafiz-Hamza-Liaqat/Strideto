@@ -5,9 +5,14 @@ export function slugify(text) {
   if (!text || typeof text !== 'string') return '';
   return text
     .trim()
+    // Keep canonical slugs ASCII and make every separator/punctuation run a
+    // separator.  In particular, `\w` includes `_`, which previously allowed
+    // underscores through this helper even though admin slug validation only
+    // accepts lowercase letters, numbers, and hyphens.
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
     .toLowerCase()
-    .replace(/\s+/g, '-')
-    .replace(/[^\w-]+/g, '')
+    .replace(/[^a-z0-9]+/g, '-')
     .replace(/-+/g, '-')
     .replace(/^-+|-+$/g, '');
 }
