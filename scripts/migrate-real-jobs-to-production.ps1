@@ -259,7 +259,20 @@ function Test-EqualField {
   if ($Field -eq 'type') {
     return (Normalize-EmploymentType $Expected) -eq (Normalize-EmploymentType $Actual)
   }
-  if ($Field -in @('responsibilities', 'requirements', 'skillsRequired')) {
+  if ($Field -in @('deadline', 'applicationsCloseAt')) {
+    $expectedText = Normalize-Value $Expected
+    $actualText = Normalize-Value $Actual
+    if (-not $expectedText -and -not $actualText) { return $true }
+    $expectedDate = $null
+    $actualDate = $null
+    try { $expectedDate = [DateTimeOffset]::Parse([string]$Expected) } catch { }
+    try { $actualDate = [DateTimeOffset]::Parse([string]$Actual) } catch { }
+    if ($expectedDate -and $actualDate) {
+      return $expectedDate.ToUniversalTime().ToString('yyyy-MM-dd') -eq $actualDate.ToUniversalTime().ToString('yyyy-MM-dd')
+    }
+    return $expectedText -eq $actualText
+  }
+  if ($Field -in @('responsibilities', 'requirements', 'skillsRequired', 'benefits', 'gallery')) {
     $expectedItems = @($Expected) | ForEach-Object { ([string]$_).Replace("`r`n", "`n").Replace("`r", "`n").Trim() } | Where-Object { $_ }
     $actualItems = @($Actual) | ForEach-Object { ([string]$_).Replace("`r`n", "`n").Replace("`r", "`n").Trim() } | Where-Object { $_ }
     if ($Field -eq 'skillsRequired') {
@@ -439,7 +452,7 @@ function Build-MigrationPayload {
     'experience','applyType','applicationLink','description','requirements',
     'salaryRange','salaryCurrency','openingsCount','benefits','locationEligibility',
     'skillsRequired','applicationInstructions','applyEmail','sourceUrl','sourceWebsite',
-    'externalId','deadline','logoUrl','isFeatured','urgent','gallery','seoTitle',
+    'externalId','deadline','applicationsCloseAt','logoUrl','isFeatured','urgent','gallery','seoTitle',
     'metaDescription'
   )
   foreach ($field in $supportedFields) {
@@ -981,11 +994,13 @@ try {
     $saved = $savedResponse.Body.job
     if (-not $saved) { $saved = $savedResponse.Body }
 
-    $fields = if ($BatchFile) {
-      @('title','company','country','countryCode','region','city','sourceUrl','applicationLink','externalId','status','approvalStatus','launchEligible')
-    } else {
-      @('title','company','country','countryCode','region','city','workMode','description','responsibilities','requirements','skillsRequired','sourceUrl','applicationLink','externalId','slug','seoTitle','metaDescription','type','jobType','status','approvalStatus','launchEligible')
-    }
+    $fields = @(
+      'title','company','country','countryCode','region','province','city','location','workMode',
+      'description','responsibilities','requirements','skillsRequired','benefits','locationEligibility',
+      'experience','educationRequirement','salaryRange','salaryCurrency','openingsCount','deadline','applicationsCloseAt',
+      'applicationLink','sourceUrl','sourceWebsite','externalId','slug','seoTitle','metaDescription',
+      'type','jobType','status','approvalStatus','launchEligible'
+    )
     $mismatches = @($fields | Where-Object {
         if ($_ -eq 'country') {
           -not (Test-EqualCountryField `
@@ -994,7 +1009,12 @@ try {
             (Get-PropertyValue $candidate 'countryCode') `
             (Get-PropertyValue $saved 'countryCode'))
         } else {
-          -not (Test-EqualField (Get-PropertyValue $candidate $_) (Get-PropertyValue $saved $_) $_)
+          # Compare the server readback with the exact normalized payload.
+          # Build-MigrationPayload supplies intentional target-state fields
+          # (draft/pending/launchEligible=false) and omits unspecified
+          # workMode; comparing the raw candidate would report false
+          # mismatches for those equivalent representations.
+          -not (Test-EqualField (Get-PropertyValue $payload $_) (Get-PropertyValue $saved $_) $_)
         }
       })
     if ($mismatches.Count -gt 0) {
