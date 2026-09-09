@@ -233,6 +233,29 @@ function Normalize-DuplicateSlug {
   return (($text -replace '[^a-z0-9]+', '-') -replace '(^-|-$)', '')
 }
 
+function Test-EqualCanonicalJobSlug {
+  param(
+    [object]$Candidate,
+    [object]$Expected,
+    [object]$Actual
+  )
+  $actualSlug = Normalize-DuplicateSlug $Actual
+  if (-not $actualSlug) { return $false }
+  $expectedSlug = Normalize-DuplicateSlug $Expected
+  if ($expectedSlug -and $actualSlug -eq $expectedSlug) { return $true }
+
+  # The admin slug service generates job slugs from title + province/region,
+  # falling back to location, and appends -N when the canonical base is used.
+  $title = [string](Get-PropertyValue $Candidate 'title')
+  $location = Get-PropertyValue $Candidate 'province'
+  if (-not $location) { $location = Get-PropertyValue $Candidate 'region' }
+  if (-not $location) { $location = Get-PropertyValue $Candidate 'location' }
+  $base = Normalize-DuplicateSlug (($title + ' ' + [string]$location).Trim())
+  if (-not $base) { return $false }
+  if ($actualSlug -eq $base) { return $true }
+  return $actualSlug -match ('^' + [regex]::Escape($base) + '-[0-9]+$')
+}
+
 function Get-DuplicateLocationKey {
   param([object]$Job)
   $city = Normalize-DuplicateText (Get-PropertyValue $Job 'city')
@@ -260,17 +283,7 @@ function Test-EqualField {
     return (Normalize-EmploymentType $Expected) -eq (Normalize-EmploymentType $Actual)
   }
   if ($Field -in @('deadline', 'applicationsCloseAt')) {
-    $expectedText = Normalize-Value $Expected
-    $actualText = Normalize-Value $Actual
-    if (-not $expectedText -and -not $actualText) { return $true }
-    $expectedDate = $null
-    $actualDate = $null
-    try { $expectedDate = [DateTimeOffset]::Parse([string]$Expected) } catch { }
-    try { $actualDate = [DateTimeOffset]::Parse([string]$Actual) } catch { }
-    if ($expectedDate -and $actualDate) {
-      return $expectedDate.ToUniversalTime().ToString('yyyy-MM-dd') -eq $actualDate.ToUniversalTime().ToString('yyyy-MM-dd')
-    }
-    return $expectedText -eq $actualText
+    return (Normalize-ComparableJobDate $Expected) -eq (Normalize-ComparableJobDate $Actual)
   }
   if ($Field -in @('responsibilities', 'requirements', 'skillsRequired', 'benefits', 'gallery')) {
     $expectedItems = @($Expected) | ForEach-Object { ([string]$_).Replace("`r`n", "`n").Replace("`r", "`n").Trim() } | Where-Object { $_ }
@@ -282,6 +295,16 @@ function Test-EqualField {
     return (@($expectedItems) -join "`n") -eq (@($actualItems) -join "`n")
   }
   return (Normalize-Value $Expected) -eq (Normalize-Value $Actual)
+}
+
+function Normalize-ComparableJobDate {
+  param([object]$Value)
+  $text = Normalize-Value $Value
+  if (-not $text) { return '' }
+  if ($text -match '^\d{4}-\d{2}-\d{2}$') { return $text }
+  $parsed = $null
+  try { $parsed = [DateTimeOffset]::Parse([string]$Value) } catch { return $text }
+  return $parsed.ToUniversalTime().ToString('yyyy-MM-dd')
 }
 
 function Normalize-CountryCodeForComparison {
@@ -1008,13 +1031,17 @@ try {
             (Get-PropertyValue $saved 'country') `
             (Get-PropertyValue $candidate 'countryCode') `
             (Get-PropertyValue $saved 'countryCode'))
-        } else {
-          # Compare the server readback with the exact normalized payload.
-          # Build-MigrationPayload supplies intentional target-state fields
-          # (draft/pending/launchEligible=false) and omits unspecified
-          # workMode; comparing the raw candidate would report false
-          # mismatches for those equivalent representations.
-          -not (Test-EqualField (Get-PropertyValue $payload $_) (Get-PropertyValue $saved $_) $_)
+      } else {
+        # Compare the server readback with the exact normalized payload.
+        # Build-MigrationPayload supplies intentional target-state fields
+        # (draft/pending/launchEligible=false) and omits unspecified
+        # workMode; comparing the raw candidate would report false
+        # mismatches for those equivalent representations.
+          if ($_ -eq 'slug') {
+            -not (Test-EqualCanonicalJobSlug $candidate (Get-PropertyValue $candidate 'slug') (Get-PropertyValue $saved 'slug'))
+          } else {
+            -not (Test-EqualField (Get-PropertyValue $payload $_) (Get-PropertyValue $saved $_) $_)
+          }
         }
       })
     if ($mismatches.Count -gt 0) {
