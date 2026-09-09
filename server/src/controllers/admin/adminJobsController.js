@@ -164,6 +164,9 @@ function applyJobBody(doc, body, isCreate = false) {
   if (body.externalId !== undefined) doc.externalId = body.externalId ? sanitizeString(body.externalId) : undefined;
   if (body.status !== undefined) doc.status = body.status;
   if (body.deadline !== undefined) doc.deadline = body.deadline ? new Date(body.deadline) : undefined;
+  if (body.applicationsCloseAt !== undefined) {
+    doc.applicationsCloseAt = body.applicationsCloseAt ? new Date(body.applicationsCloseAt) : undefined;
+  }
   if (body.logoUrl !== undefined) doc.logoUrl = sanitizeString(body.logoUrl);
   if (body.isFeatured !== undefined) doc.isFeatured = !!body.isFeatured;
   if (body.isSponsored !== undefined) doc.isSponsored = !!body.isSponsored;
