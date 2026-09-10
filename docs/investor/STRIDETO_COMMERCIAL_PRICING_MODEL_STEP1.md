@@ -3,391 +3,271 @@
 ## 1. Purpose and Status
 
 **MANAGEMENT-APPROVED COMMERCIAL MODEL**
-
 **NOT LIVE VALIDATED PRODUCTION PRICING**
-
 **FOR INVESTOR MARKET-SIZING PURPOSES**
 
-This document records the management-approved commercial model and the approved management assumptions for Step 1 ARPA modeling. It does not change product behavior, billing, payment configuration, entitlements, pricing seeds, or Free Beta policy.
+**GLOBAL CANONICAL PRICEBOOK: USD**
+
+This document records the approved commercial pricebook and management assumptions for investor market-sizing. It does not activate billing, change product behavior, alter payment configuration, modify pricing seeds, or change the Free Beta policy.
 
 ARPA means **annual revenue per paying organization**. It excludes free organizations and does not include free-to-paid conversion.
 
+There is one canonical pricebook. Customer geography may affect adoption, willingness to pay, conversion, payment success, issuer fees, and rollout timing, but it does not create a separate canonical price.
+
 ## 2. Repository Truth vs Management Model
 
-| Area | Current Repository/Product State | Approved Commercial Model | Future Implementation Required? |
+| Area | Current repository/product state | Approved commercial model | Future implementation required? |
 |---|---|---|---|
-| Employer free quota | Free Beta policy permits `maximumActiveFreeJobs: 5`; visibility is 30 days. Evidence: `server/src/config/freeBetaPublishingPolicy.js`. | One active basic job, basic profile, applicant access, organic visibility, and basic dashboard. | Yes — do not modify Free Beta in this document. |
-| Employer PAYG | Seeded USD JobPlans are Starter USD 1 / 7 days, Standard USD 2 / 30 days, and Premium USD 3 / until filled. Paid publishing is gated by `paidPublishingEnabled: false`. Evidence: `server/src/seed/jobPlans.js`; `server/src/config/freeBetaPublishingPolicy.js`. | USD and localized PKR prices defined in §3. | Yes — align plans, durations, currencies, entitlements, and activation policy later. |
-| Employer subscriptions | No live Growth/Pro subscription catalog or entitlement was found. `CommerceProduct` is schema capability only. | Growth and Pro subscriptions are base revenue. | Yes. |
-| Provider subscriptions | Provider service pricing modes and free promotion exist; paid publishing plans are explicitly not configured. Evidence: `shared/agent/constants.js`; `server/src/models/agent/AgentService.js`; `client/src/pages/Agent/AgentMarketplace.jsx`. | Education/Mobility and Business/Professional providers use subscription-first Growth and Pro plans. | Yes. |
-| Institutions | Launch plan is Free; provider state is `not_configured`. Evidence: `shared/institution/institutionPortal.js`; `client/src/pages/Institution/InstitutionBilling.jsx`. | Free initially; institution subscriptions are not modeled yet. | Deferred. |
-| Featured/sponsored | `isFeatured` and `isSponsored` fields and admin routes exist, but no paid entitlement or price is linked. Evidence: `server/src/models/Job.js`; `server/src/routes/monetization.js`. | Secondary revenue only. | Yes, if monetized later. |
-| Commission | Fee primitives exist, but `getCommissionPolicy()` returns `Commission not configured`. Evidence: `shared/commerce/contracts.js`. | Future/upside only. | Yes. |
-| Advertising | Ad slots and impression/click tracking exist; no rate card or customer billing was found. Evidence: `server/src/models/AdSlotConfig.js`; `server/src/routes/monetization.js`. | Future/upside only. | Yes. |
+| Employer Free | Free Beta permits up to 5 active free jobs. Evidence: server/src/config/freeBetaPublishingPolicy.js, maximumActiveFreeJobs: 5. | $0; future commercial entitlement is 1 active basic job, basic profile, applicant access, organic visibility, and dashboard. | Yes — do not change Free Beta in this task. |
+| Employer PAYG | server/src/seed/jobPlans.js contains placeholder-style Starter $1/7 days, Standard $2/30 days, and Premium $3/until-filled plans. Paid publishing is gated by paidPublishingEnabled: false. | $1/7 days, $2/15 days, $3/30 days. Base revenue. | Yes — add the approved 15-day product and align plan behavior later. |
+| Employer subscriptions | No live Growth/Pro subscription catalog or recurring checkout was found. CommerceProduct has future recurring schema capability. | Growth $5/month or $50/year; Pro $12/month or $120/year. | Yes — implement subscriptions and entitlements later. |
+| Education & Mobility providers | Provider plan billing is not live. | Free $0; Growth $9/month or $90/year; Pro $19/month or $190/year. Subscription-first. | Yes. |
+| Business / Professional Service providers | Provider commerce and service pricing are readiness boundaries; no live subscription billing was found. | Free $0; Growth $12/month or $120/year; Pro $29/month or $290/year. Subscription-first. | Yes. |
+| Institutions | Institution launch billing is free/not configured. | Free initially; institution subscriptions are not modeled. | Deferred. |
+| Individual users | Demand-side users remain free. | Free; treated as a demand/liquidity metric. | No paid-user model approved. |
+| Featured/sponsored listings | Capability or product concepts exist, but they are not linked to live paid billing. | Secondary revenue only. Excluded from base ARPA. | Yes, if later approved. |
+| Commissions, leads, consultations, advertising | No validated live monetization was found. | Future/upside only. Excluded from base ARPA. | Yes, if later approved. |
 
 ## 3. Employer Pricing
 
 ### Free
 
-| Market | Price | Commercial-model entitlement |
-|---|---:|---|
-| Pakistan | PKR 0 | One active basic job; basic company profile; basic applicant access; standard organic visibility; basic employer dashboard |
-| International | USD 0 | One active basic job; basic company profile; basic applicant access; standard organic visibility; basic employer dashboard |
+| Plan | Price | Future commercial entitlement | Revenue classification |
+|---|---:|---|---|
+| Employer Free | $0 | 1 active basic job; basic employer/company profile; basic applicant access; standard organic visibility; employer dashboard | Free / liquidity |
 
-The one-job limit is the approved future commercial model. Current Free Beta behavior is five active free jobs and must not be represented as already changed.
+The current Free Beta policy remains separate and currently permits 5 active free jobs. The 1-job limit is the approved future commercial model, not current product behavior.
 
 ### Pay-as-you-go — base revenue
 
-| Market | Duration | Price |
-|---|---:|---:|
-| International | 7 days | USD 1 |
-| International | 15 days | USD 2 |
-| International | 30 days | USD 3 |
-| Pakistan localized | 7 days | PKR 299 |
-| Pakistan localized | 15 days | PKR 549 |
-| Pakistan localized | 30 days | PKR 799 |
+| Duration | Price | Primary value |
+|---|---:|---|
+| 7 days | $1 | Time-limited paid job visibility |
+| 15 days | $2 | Time-limited paid job visibility |
+| 30 days | $3 | Time-limited paid job visibility |
 
-Pakistan prices are localized management prices and are not strict USD conversions.
+### Subscriptions — base revenue
 
-### Growth — base revenue
+| Plan | Monthly price | Annual price | Suggested commercial value | Likely buyer |
+|---|---:|---:|---|---|
+| Employer Growth | $5/month | $50/year | Approximately 10 active jobs; applicant dashboard; job management; branding; basic analytics; saved templates; limited team access | Growing employer |
+| Employer Pro | $12/month | $120/year | Approximately 30–50 active jobs; multiple team members; stronger analytics; candidate management; priority support; enhanced branding; promotional credits where later supported | Higher-volume employer |
 
-| Market | Monthly | Annual | Suggested commercial-model entitlement |
-|---|---:|---:|---|
-| Pakistan | PKR 999 | PKR 9,990 | Approximately 10 active jobs; applicant dashboard; job-management tools; employer branding; basic analytics; saved templates; limited team access |
-| International | USD 5 | USD 50 | Same entitlement |
-
-### Pro — base revenue
-
-| Market | Monthly | Annual | Suggested commercial-model entitlement |
-|---|---:|---:|---|
-| Pakistan | PKR 2,499 | PKR 24,990 | Approximately 30–50 active jobs; multiple team members; stronger analytics; candidate-management tools; priority support; enhanced branding; promotional credits where later supported |
-| International | USD 12 | USD 120 | Same entitlement |
-
-Enterprise pricing is not modeled.
+Enterprise pricing is not approved.
 
 ## 4. Education & Mobility Provider Pricing
 
-This segment is subscription-first. Employer PAYG mechanics do not apply.
+| Plan | Monthly price | Annual price | Model |
+|---|---:|---:|---|
+| Free | $0 | $0 | Free provider presence |
+| Growth | $9/month | $90/year | Subscription-first provider plan |
+| Pro | $19/month | $190/year | Higher-capability subscription plan |
 
-### Free
-
-| Market | Price |
-|---|---:|
-| Pakistan | PKR 0 |
-| International | USD 0 |
-
-### Growth
-
-| Market | Monthly | Annual |
-|---|---:|---:|
-| Pakistan | PKR 1,499 | PKR 14,990 |
-| International | USD 9 | USD 90 |
-
-### Pro
-
-| Market | Monthly | Annual |
-|---|---:|---:|
-| Pakistan | PKR 3,499 | PKR 34,990 |
-| International | USD 19 | USD 190 |
-
-Qualified lead fees and commissions remain future/upside revenue.
+Qualified lead fees and commissions remain future/upside and are excluded from base ARPA.
 
 ## 5. Business / Professional Service Pricing
 
-This segment is also subscription-first. Commissions and transaction revenue remain future/upside.
+| Plan | Monthly price | Annual price | Model |
+|---|---:|---:|---|
+| Free | $0 | $0 | Free provider presence |
+| Growth | $12/month | $120/year | Subscription-first provider plan |
+| Pro | $29/month | $290/year | Subscription-first provider plan |
 
-### Free
-
-| Market | Price |
-|---|---:|
-| Pakistan | PKR 0 |
-| International | USD 0 |
-
-### Growth
-
-| Market | Monthly | Annual |
-|---|---:|---:|
-| Pakistan | PKR 1,999 | PKR 19,990 |
-| International | USD 12 | USD 120 |
-
-### Pro
-
-| Market | Monthly | Annual |
-|---|---:|---:|
-| Pakistan | PKR 4,999 | PKR 49,990 |
-| International | USD 29 | USD 290 |
+Commissions and transaction revenue remain future/upside and are excluded from base ARPA.
 
 ## 6. Institutions
 
-Institutions remain free initially.
+Institutions are **FREE INITIALLY**.
 
-**Classification: DO NOT MODEL YET.**
-
-Institution subscription revenue is excluded from base TAM, SAM, SOM, and base ARPA.
+Institution subscription revenue is **DO NOT MODEL YET** and is excluded from base revenue, base ARPA, TAM, SAM, and SOM until separately approved.
 
 ## 7. Individual Users
 
-Candidates, students, professionals, entrepreneurs, and opportunity seekers remain free.
-
-They are demand-side and liquidity metrics, not the primary payer unit. The primary market-sizing unit is one unique paying organization.
+Candidates, students, job seekers, and other opportunity seekers remain free. They are demand-side liquidity users, not the primary payer unit and not part of paying-organization ARPA.
 
 ## 8. Revenue Stream Classification
 
-| Revenue Stream | Classification | Included in Base ARPA? | Current Product State | Commercial Intent |
+| Revenue stream | Classification | Included in base ARPA? | Current product state | Commercial intent |
 |---|---|---:|---|---|
-| Organization subscriptions | BASE REVENUE | Yes | Subscription schemas exist; approved plans are not live. | Primary recurring revenue |
-| Employer PAYG | BASE REVENUE | Yes | Employer checkout scaffold exists but is gated off; current seeds are placeholders. | Primary usage revenue |
-| Featured listing | SECONDARY REVENUE | No | Featured fields and admin controls exist; paid linkage is absent. | Future add-on |
-| Sponsored listing | SECONDARY REVENUE | No | Sponsored fields and admin controls exist; paid linkage is absent. | Future add-on |
-| Qualified lead fee | FUTURE / UPSIDE | No | Lead workflows exist; fee is not configured. | Future variable revenue |
-| Paid consultation facilitation | FUTURE / UPSIDE | No | Consultation/payment states exist; commercial facilitation is not established. | Future variable revenue |
-| Marketplace commission | FUTURE / UPSIDE | No | Commission policy is explicitly unconfigured. | Future variable revenue |
-| Advertising / sponsorship | FUTURE / UPSIDE | No | Ad slots and tracking exist; price and billing are absent. | Future variable revenue |
-| Institution subscriptions | DO NOT MODEL YET | No | Institution launch plan is Free and not configured for paid billing. | Deferred |
+| Organization subscriptions | BASE REVENUE | Yes | Not live validated production billing | Core recurring revenue |
+| Employer PAYG | BASE REVENUE | Yes | Stripe checkout path exists but paid publishing is disabled | Core usage revenue |
+| Featured listings | SECONDARY REVENUE | No | Not linked to paid billing | Optional promotion revenue |
+| Sponsored listings | SECONDARY REVENUE | No | Not linked to paid billing | Optional promotion revenue |
+| Qualified lead fees | FUTURE / UPSIDE | No | Not configured as validated billing | Future variable revenue |
+| Paid consultation facilitation | FUTURE / UPSIDE | No | Not configured as validated billing | Future variable revenue |
+| Marketplace commission | FUTURE / UPSIDE | No | Commission architecture is not active commercial billing | Future transaction revenue |
+| Advertising/sponsorship | FUTURE / UPSIDE | No | Not found as validated revenue | Future revenue |
+| Institution subscriptions | DO NOT MODEL YET | No | Institutions launch free/not configured | Deferred monetization |
 
-Future and secondary revenue is not included in base ARPA.
+Secondary and future revenue are excluded from base ARPA.
 
 ## 9. ARPA Assumptions
 
-All assumptions in this section are **MANAGEMENT ASSUMPTIONS**, not historical production metrics.
+All items in this section are **MANAGEMENT ASSUMPTIONS**, not historical production facts.
 
-| Scenario | PAYG posts per paying PAYG employer/year | PAYG duration mix (7 / 15 / 30 days) | Employer mix (PAYG / Growth / Pro) | Provider mix (Growth / Pro) | Billing mix (monthly / annual) | Geography mix (Pakistan / International) | Free-to-paid conversion |
-|---|---:|---|---|---|---|---|---:|
-| Conservative | 2 | 50% / 35% / 15% | 65% / 30% / 5% | 85% / 15% | 80% / 20% | 85% / 15% | 2% |
-| Base | 4 | 30% / 40% / 30% | 50% / 40% / 10% | 75% / 25% | 65% / 35% | 70% / 30% | 5% |
-| Upside | 6 | 20% / 30% / 50% | 35% / 45% / 20% | 60% / 40% | 50% / 50% | 50% / 50% | 10% |
+Geography is no longer a pricebook distinction. Geographic mix may be used later as an adoption, conversion, payment-success, or rollout scenario—not as a different canonical price.
 
-ARPA is annual revenue per paying organization. Free-to-paid conversion is documented separately and is not multiplied into ARPA.
+| Scenario | PAYG posts per paying PAYG employer/year | PAYG duration mix (7 / 15 / 30 days) | Employer mix (PAYG / Growth / Pro) | Provider mix (Growth / Pro) | Billing mix (monthly / annual) | Free-to-paid conversion |
+|---|---:|---|---|---|---|---:|
+| Conservative | 2 | 50% / 35% / 15% | 65% / 30% / 5% | 85% / 15% | 80% / 20% | 2% |
+| Base | 4 | 30% / 40% / 30% | 50% / 40% / 10% | 75% / 25% | 65% / 35% | 5% |
+| Upside | 6 | 20% / 30% / 50% | 35% / 45% / 20% | 60% / 40% | 50% / 50% | 10% |
 
-## 10. Pakistan ARPA
+ARPA is annual revenue per paying organization. Free-to-paid conversion is documented separately and is not multiplied into paying-customer ARPA.
 
-All Pakistan figures below are in PKR per paying organization per year.
+## 10. Global USD ARPA
 
-| Segment | Conservative | Base | Upside |
-|---|---:|---:|---:|
-| Employer | PKR 5,525.89 | PKR 8,437.35 | PKR 11,753.25 |
-| Education & Mobility Provider | PKR 20,868.40 | PKR 22,588.70 | PKR 25,289.00 |
-| Business / Professional Service Provider | PKR 28,408.40 | PKR 31,063.70 | PKR 35,189.00 |
-
-## 11. International ARPA
-
-All International figures below are in USD per paying organization per year.
+All values below are calculated management-model outputs, in USD per paying organization per year. They are not historical revenue and do not include free organizations.
 
 | Segment | Conservative | Base | Upside |
 |---|---:|---:|---:|
-| Employer | USD 26.05 | USD 40.16 | USD 55.98 |
-| Education & Mobility Provider | USD 121.80 | USD 129.95 | USD 143.00 |
-| Business / Professional Service Provider | USD 168.78 | USD 183.63 | USD 206.80 |
+| Employer | **$26.51** | **$40.16** | **$55.98** |
+| Education & Mobility Provider | **$121.80** | **$129.95** | **$143.00** |
+| Business / Professional Service Provider | **$168.78** | **$183.63** | **$206.80** |
 
-## 12. Optional Blended ARPA
-
-The geographic mix is calculated as a weighted contribution in each native currency. No single PKR/USD blended number is presented because no FX assumption was approved.
-
-| Segment | Conservative | Base | Upside |
-|---|---|---|---|
-| Employer | 85% × PKR 5,525.89 + 15% × USD 26.05 = **PKR 4,697.01 + USD 3.91** | 70% × PKR 8,437.35 + 30% × USD 40.16 = **PKR 5,906.15 + USD 12.05** | 50% × PKR 11,753.25 + 50% × USD 55.98 = **PKR 5,876.63 + USD 27.99** |
-| Education & Mobility Provider | 85% × PKR 20,868.40 + 15% × USD 121.80 = **PKR 17,738.14 + USD 18.27** | 70% × PKR 22,588.70 + 30% × USD 129.95 = **PKR 15,812.09 + USD 38.99** | 50% × PKR 25,289.00 + 50% × USD 143.00 = **PKR 12,644.50 + USD 71.50** |
-| Business / Professional Service Provider | 85% × PKR 28,408.40 + 15% × USD 168.78 = **PKR 24,147.14 + USD 25.32** | 70% × PKR 31,063.70 + 30% × USD 183.63 = **PKR 21,744.59 + USD 55.09** | 50% × PKR 35,189.00 + 50% × USD 206.80 = **PKR 17,594.50 + USD 103.40** |
-
-These are calculated management-model contributions, not historical revenue. A single USD blended ARPA requires an approved FX methodology and dated exchange-rate source.
-
-## 13. Calculation Detail
+## 11. Calculation Detail
 
 ### Employer PAYG
 
-```text
-Pakistan PAYG annual revenue
-= PAYG posts/year × weighted average post price
-```
+| Scenario | Weighted post-price calculation | Weighted price | Posts/year | PAYG annual revenue |
+|---|---|---:|---:|---:|
+| Conservative | (50% × $1) + (35% × $2) + (15% × $3) | $1.65 | 2 | $3.30 |
+| Base | (30% × $1) + (40% × $2) + (30% × $3) | $2.00 | 4 | $8.00 |
+| Upside | (20% × $1) + (30% × $2) + (50% × $3) | $2.30 | 6 | $13.80 |
 
-| Scenario | Pakistan weighted post price | Posts/year | Pakistan PAYG annual revenue |
-|---|---:|---:|---:|
-| Conservative | (50% × 299) + (35% × 549) + (15% × 799) = PKR 461.50 | 2 | PKR 923.00 |
-| Base | (30% × 299) + (40% × 549) + (30% × 799) = PKR 549.00 | 4 | PKR 2,196.00 |
-| Upside | (20% × 299) + (30% × 549) + (50% × 799) = PKR 624.00 | 6 | PKR 3,744.00 |
+Growth annualized revenue = monthly share × ($5 × 12) + annual share × $50. Pro annualized revenue = monthly share × ($12 × 12) + annual share × $120.
 
-```text
-International PAYG annual revenue
-= PAYG posts/year × weighted average post price
-```
+| Scenario | Growth annualized revenue | Pro annualized revenue | Employer ARPA formula | Employer ARPA |
+|---|---:|---:|---|---:|
+| Conservative | $58.00 | $139.20 | (65% × $3.30) + (30% × $58.00) + (5% × $139.20) | **$26.51** |
+| Base | $56.50 | $135.60 | (50% × $8.00) + (40% × $56.50) + (10% × $135.60) | **$40.16** |
+| Upside | $55.00 | $132.00 | (35% × $13.80) + (45% × $55.00) + (20% × $132.00) | **$55.98** |
 
-| Scenario | International weighted post price | Posts/year | International PAYG annual revenue |
-|---|---:|---:|---:|
-| Conservative | (50% × 1) + (35% × 2) + (15% × 3) = USD 1.30 | 2 | USD 2.60 |
-| Base | (30% × 1) + (40% × 2) + (30% × 3) = USD 2.00 | 4 | USD 8.00 |
-| Upside | (20% × 1) + (30% × 2) + (50% × 3) = USD 2.30 | 6 | USD 13.80 |
+### Education & Mobility Provider ARPA
 
-### Subscription annual revenue
+Growth annualized revenue uses $9/month and $90/year. Pro annualized revenue uses $19/month and $190/year.
 
-```text
-Annual plan revenue per subscriber
-= monthly price × 12 × monthly billing mix
-  + annual price × annual billing mix
-```
+| Scenario | Growth annualized revenue | Pro annualized revenue | Provider ARPA formula | ARPA |
+|---|---:|---:|---|---:|
+| Conservative | $104.40 | $220.40 | (85% × $104.40) + (15% × $220.40) | **$121.80** |
+| Base | $101.70 | $214.70 | (75% × $101.70) + (25% × $214.70) | **$129.95** |
+| Upside | $99.00 | $209.00 | (60% × $99.00) + (40% × $209.00) | **$143.00** |
 
-For example, Pakistan Employer Growth in the Base scenario:
+### Business / Professional Service Provider ARPA
 
-```text
-=(PKR 999 × 12 × 65%) + (PKR 9,990 × 35%)
-=PKR 11,288.70
-```
+Growth annualized revenue uses $12/month and $120/year. Pro annualized revenue uses $29/month and $290/year.
 
-### Employer ARPA
+| Scenario | Growth annualized revenue | Pro annualized revenue | Provider ARPA formula | ARPA |
+|---|---:|---:|---|---:|
+| Conservative | $139.20 | $336.40 | (85% × $139.20) + (15% × $336.40) | **$168.78** |
+| Base | $135.60 | $327.70 | (75% × $135.60) + (25% × $327.70) | **$183.63** |
+| Upside | $132.00 | $319.00 | (60% × $132.00) + (40% × $319.00) | **$206.80** |
 
-```text
-Employer ARPA
-= PAYG customer share × PAYG annual revenue
-  + Growth customer share × Growth annual subscription revenue
-  + Pro customer share × Pro annual subscription revenue
-```
+## 12. Geographic Adoption Scenarios
 
-Employer cohort shares total 100% in each scenario.
+The pricebook is global and USD-denominated. Geography may still be modeled separately for free-to-paid conversion, customer mix, adoption, willingness to pay, payment success, card and banking access, rollout timing, retention, and churn.
 
-Pakistan Employer calculations:
+These factors do not change the canonical list price. No geography-specific pricebook ARPA or FX conversion is calculated here.
 
-```text
-Conservative
-= (65% × PKR 923.00)
-  + (30% × PKR 11,588.40)
-  + (5% × PKR 28,988.40)
-= PKR 5,525.89
+## 13. Free-to-Paid Assumptions
 
-Base
-= (50% × PKR 2,196.00)
-  + (40% × PKR 11,288.70)
-  + (10% × PKR 28,238.70)
-= PKR 8,437.35
+Free-to-paid conversion remains a separate management assumption:
 
-Upside
-= (35% × PKR 3,744.00)
-  + (45% × PKR 10,989.00)
-  + (20% × PKR 27,489.00)
-= PKR 11,753.25
-```
+- Conservative: 2%
+- Base: 5%
+- Upside: 10%
 
-International Employer calculations:
+It is **not part of paying-organization ARPA**. It belongs later in SOM, revenue forecasting, customer acquisition modeling, and conversion analysis.
 
-```text
-Conservative
-= (65% × USD 2.60) + (30% × USD 58.00) + (5% × USD 139.20)
-= USD 26.05
+## 14. Customer Payment Experience
 
-Base
-= (50% × USD 8.00) + (40% × USD 56.50) + (10% × USD 135.60)
-= USD 40.16
+Conceptual future experience:
 
-Upside
-= (35% × USD 13.80) + (45% × USD 55.00) + (20% × USD 132.00)
-= USD 55.98
-```
+- Displayed price: USD 1.00
+- Checkout submission: USD 1.00
+- A customer may use a card or account denominated in another currency.
+- Examples include accounts denominated in PKR, GBP, AED, or CAD.
+- The customer’s bank, card issuer, or payment network may convert the USD charge at the applicable rate.
+- The issuer or network may apply separate foreign-transaction, conversion, or other fees.
+- Those fees are not STRIDETO revenue.
 
-### Provider ARPA
+Investor-safe disclosure:
 
-```text
-Provider ARPA
-= Growth plan share × Growth annual subscription revenue
-  + Pro plan share × Pro annual subscription revenue
-```
+> STRIDETO’s canonical prices are denominated in USD. Customers using cards or accounts denominated in another currency may have the charge converted by their bank, card issuer, or payment network at the applicable rate and may incur separate conversion or transaction fees.
 
-The same provider formula is applied separately to Education/Mobility and Business/Professional Services, using their approved plan prices and the scenario-specific billing and plan mixes.
+STRIDETO does not calculate or guarantee the conversion rate.
 
-Provider plan shares total 100% in each scenario.
+## 15. Tax Status
 
-Provider subscription intermediate values:
+Tax is not implemented and is not approved as part of this documentation revision.
 
-| Segment / market | Scenario | Growth annual revenue | Pro annual revenue | Provider ARPA formula | ARPA |
-|---|---|---:|---:|---|---:|
-| Education/Mobility — Pakistan | Conservative | (PKR 1,499 × 12 × 80%) + (PKR 14,990 × 20%) = PKR 17,388.40 | (PKR 3,499 × 12 × 80%) + (PKR 34,990 × 20%) = PKR 40,588.40 | (85% × PKR 17,388.40) + (15% × PKR 40,588.40) | PKR 20,868.40 |
-| Education/Mobility — Pakistan | Base | (PKR 1,499 × 12 × 65%) + (PKR 14,990 × 35%) = PKR 16,938.70 | (PKR 3,499 × 12 × 65%) + (PKR 34,990 × 35%) = PKR 39,538.70 | (75% × PKR 16,938.70) + (25% × PKR 39,538.70) | PKR 22,588.70 |
-| Education/Mobility — Pakistan | Upside | (PKR 1,499 × 12 × 50%) + (PKR 14,990 × 50%) = PKR 16,489.00 | (PKR 3,499 × 12 × 50%) + (PKR 34,990 × 50%) = PKR 38,489.00 | (60% × PKR 16,489.00) + (40% × PKR 38,489.00) | PKR 25,289.00 |
-| Education/Mobility — International | Conservative | (USD 9 × 12 × 80%) + (USD 90 × 20%) = USD 104.40 | (USD 19 × 12 × 80%) + (USD 190 × 20%) = USD 220.40 | (85% × USD 104.40) + (15% × USD 220.40) | USD 121.80 |
-| Education/Mobility — International | Base | (USD 9 × 12 × 65%) + (USD 90 × 35%) = USD 101.70 | (USD 19 × 12 × 65%) + (USD 190 × 35%) = USD 214.70 | (75% × USD 101.70) + (25% × USD 214.70) | USD 129.95 |
-| Education/Mobility — International | Upside | (USD 9 × 12 × 50%) + (USD 90 × 50%) = USD 99.00 | (USD 19 × 12 × 50%) + (USD 190 × 50%) = USD 209.00 | (60% × USD 99.00) + (40% × USD 209.00) | USD 143.00 |
-| Business/Professional — Pakistan | Conservative | (PKR 1,999 × 12 × 80%) + (PKR 19,990 × 20%) = PKR 23,188.40 | (PKR 4,999 × 12 × 80%) + (PKR 49,990 × 20%) = PKR 57,988.40 | (85% × PKR 23,188.40) + (15% × PKR 57,988.40) | PKR 28,408.40 |
-| Business/Professional — Pakistan | Base | (PKR 1,999 × 12 × 65%) + (PKR 19,990 × 35%) = PKR 22,588.70 | (PKR 4,999 × 12 × 65%) + (PKR 49,990 × 35%) = PKR 56,488.70 | (75% × PKR 22,588.70) + (25% × PKR 56,488.70) | PKR 31,063.70 |
-| Business/Professional — Pakistan | Upside | (PKR 1,999 × 12 × 50%) + (PKR 19,990 × 50%) = PKR 21,989.00 | (PKR 4,999 × 12 × 50%) + (PKR 49,990 × 50%) = PKR 54,989.00 | (60% × PKR 21,989.00) + (40% × PKR 54,989.00) | PKR 35,189.00 |
-| Business/Professional — International | Conservative | (USD 12 × 12 × 80%) + (USD 120 × 20%) = USD 139.20 | (USD 29 × 12 × 80%) + (USD 290 × 20%) = USD 336.40 | (85% × USD 139.20) + (15% × USD 336.40) | USD 168.78 |
-| Business/Professional — International | Base | (USD 12 × 12 × 65%) + (USD 120 × 35%) = USD 135.60 | (USD 29 × 12 × 65%) + (USD 290 × 35%) = USD 327.70 | (75% × USD 135.60) + (25% × USD 327.70) | USD 183.63 |
-| Business/Professional — International | Upside | (USD 12 × 12 × 50%) + (USD 120 × 50%) = USD 132.00 | (USD 29 × 12 × 50%) + (USD 290 × 50%) = USD 319.00 | (60% × USD 132.00) + (40% × USD 319.00) | USD 206.80 |
+Approved wording:
 
-## 14. Free-to-Paid Assumptions
+> Applicable taxes may be added where required.
 
-Free-to-paid conversion is **not part of paying-customer ARPA**.
+No tax percentage, tax treatment, VAT/GST assumption, or tax engine behavior is defined here. Tax remains a **FUTURE LEGAL / COMMERCIAL IMPLEMENTATION DECISION**.
 
-It is documented for later use in:
+## 16. Payment Architecture Note
 
-- SOM modeling;
-- revenue forecasting;
-- free-user conversion modeling;
-- customer acquisition scenarios.
+Current repository behavior:
 
-| Scenario | Free-to-paid conversion |
-|---|---:|
-| Conservative | 2% |
-| Base | 5% |
-| Upside | 10% |
+- employer checkout is Stripe-specific;
+- the employer checkout path uses USD;
+- employer paid publishing is disabled;
+- no automatic FX engine exists;
+- no tax engine exists;
+- no alternate payment gateway is implemented;
+- generic Commerce contracts support ISO currencies, but they do not constitute live billing.
 
-The ARPA calculations above use only paying-organization cohort shares. They do not multiply ARPA by free-to-paid conversion.
+Future merchant and gateway selection is separate from the canonical USD pricebook. No alternate gateway is selected by this document.
 
-## 15. Risks / Validation Needed
+## 17. Risks / Validation Needed
 
-The following assumptions require later validation and are not repository facts:
+The management model requires future validation of willingness to pay, free-to-paid conversion, PAYG posting frequency, duration preference, Growth/Pro mix, monthly/annual billing mix, churn, retention, payment success by geography, card and banking access, subscription adoption, tax/legal requirements, and provider/employer entitlement limits.
 
-- willingness to pay;
-- PAYG posting frequency;
-- preferred PAYG duration;
-- Growth/Pro mix;
-- monthly/annual billing mix;
-- Pakistan/international paying-organization mix;
-- free-to-paid conversion;
-- churn and retention;
-- discounting and refunds;
-- plan entitlement limits;
-- provider subscription adoption;
-- FX methodology for combined USD reporting.
+The ARPA values above are management-model outputs, not historical or validated production revenue.
 
-The current product still requires separate implementation work for paid publishing, 15-day PAYG, PKR routing, employer/provider subscriptions, entitlements, Stripe activation, taxes, refunds, renewals, cancellation, and proration.
+## 18. Approved Management Decisions
 
-## 16. Approved Management Decisions
+The following decisions are **APPROVED**:
 
-The following decisions are recorded as **APPROVED MANAGEMENT DECISIONS** for market-sizing work:
-
+- one global USD-only canonical pricebook;
+- Employer PAYG is base revenue;
 - organization subscriptions are base revenue;
-- employer PAYG is base revenue;
 - provider subscriptions are subscription-first;
-- individual users remain free;
+- featured and sponsored listings are secondary revenue;
+- qualified leads, consultations, commissions, advertising, and sponsorship are future/upside;
 - institutions remain free initially and are not modeled yet;
-- featured listings are secondary revenue;
-- sponsored listings are secondary revenue;
-- qualified lead fees are future/upside;
-- paid consultation facilitation is future/upside;
-- marketplace commission is future/upside;
-- advertising/sponsorship is future/upside;
+- individual users remain free;
+- the primary market-sizing payer unit is one unique paying organization;
+- PAYG and subscription employers must not be double-counted;
 - future variable revenue is excluded from base ARPA;
-- the primary payer unit is one unique paying organization;
-- PAYG and subscription employers must not be counted twice.
+- free-to-paid conversion is not multiplied into paying-organization ARPA;
+- no Enterprise plan is priced at this stage.
 
-## 17. Product Implementation Decisions Deferred
+## 19. Product Implementation Decisions Deferred
 
-These decisions require a separate future implementation phase and are intentionally not changed here:
+The following require a separate future implementation phase:
 
-- changing Free Beta active-job capacity from 5 to 1;
-- replacing existing JobPlan seed data;
-- adding the 15-day PAYG plan;
-- adding PKR pricing and currency routing;
-- enabling paid publishing;
-- implementing employer subscriptions;
-- implementing provider subscription entitlements;
-- activating Stripe or Stripe Connect in production;
-- defining taxes;
-- defining refunds;
-- implementing renewals;
-- implementing cancellation and proration;
-- linking featured or sponsored status to paid entitlements;
-- configuring commissions or transaction fees.
+- change the Free Beta commercial limit from 5 active jobs to 1 if and when launch policy is approved;
+- replace placeholder JobPlan seed values;
+- add the approved 15-day PAYG product;
+- implement Growth and Pro subscriptions;
+- define employer and provider entitlements;
+- implement payment-provider selection or abstraction;
+- activate paid publishing;
+- implement tax handling;
+- implement refunds and failed-payment handling;
+- implement renewals, cancellation, and proration;
+- define merchant settlement and provider payout strategy;
+- define production billing operations and compliance controls.
 
-## 18. Step 1 Final Status
+No separate country-specific canonical pricebook is planned in this model.
+
+## 20. Step 1 Final Status
+
+The global USD pricebook and USD-only ARPA calculations are internally consistent for documentation and investor market-sizing purposes. They are management-model outputs, not live production pricing or historical revenue.
 
 **STEP 1 STATUS: READY FOR STEP 2**
 
-The management-approved pricing model is internally consistent for documentation and ARPA modeling. The calculated ARPAs are management-model outputs, not historical or validated production revenue. No product, billing, payment, seed, Free Beta, configuration, or UI behavior was changed.
+No product, billing, payment, seed, Free Beta, configuration, database, or UI behavior was changed by this document revision.
