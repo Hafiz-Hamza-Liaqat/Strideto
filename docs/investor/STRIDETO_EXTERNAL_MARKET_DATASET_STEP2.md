@@ -695,6 +695,295 @@ Therefore:
 | ONS 3.2 million local units | HIGH | LOW / local-unit proxy |
 | Companies House 5,479,045 total register | HIGH | LOW / registered-company proxy |
 
+## Global Market Framework
+
+This section establishes the international-standard framework for future market sizing. It does not create a global organization total, TAM, SAM, SOM, market value, ARPA multiplication, penetration rate, or eligible-customer estimate.
+
+### Global Employer Population
+
+**Repository and research conclusion:** a single authoritative worldwide count of unique active employer organizations was **NOT FOUND**. Global sources measure different universes and must not be added together.
+
+The recommended framework is a controlled multi-source aggregation:
+
+1. Use comparable enterprise/employer series from OECD Structural and Demographic Business Statistics where countries are covered. The OECD database provides enterprise counts by activity and size class, but its enterprise universe can include both employers and non-employers; employer status and size definitions must be filtered explicitly. See the [OECD business-demography data explorer](https://data-explorer.oecd.org/vis?df%5Bag%5D=OECD.SDD.TPS&df%5Bds%5D=dsDisseminateFinalDMZ&df%5Bid%5D=DSD_SDBSBD_ISIC4%40DF_BD&df%5Bvs%5D=1.0&snb=23&tm=elderly) and [OECD structural business statistics](https://data-explorer.oecd.org/s/42g).
+2. Use national employer-business or enterprise references for priority countries not covered consistently by the OECD series. Pakistan, the United States, and the United Kingdom are already documented in this file; Canada, UAE, Saudi Arabia, Australia, and Singapore are validation anchors for later waves.
+3. Use World Bank Enterprise Surveys as a comparable formal-private-sector benchmark, not as a count. The survey targets registered private firms with five or more employees and is establishment-level representative sample data. See the [World Bank Enterprise Surveys collection](https://microdata.worldbank.org/collections/enterprise_surveys) and [official methodology](https://documents1.worldbank.org/curated/en/099021625220536458/pdf/P178118-d08968cd-5a94-4eb2-8ebf-d5f56be6791a.pdf).
+4. Use ILOSTAT for employment-size, labour-market, and regional context. ILOSTAT is not a unique-organization register and must not be used as a worldwide employer denominator. See the [ILOSTAT data catalogue](https://ilostat.ilo.org/data/) and [bulk data framework](https://ilostat.ilo.org/data/bulk/).
+
+The global employer source types are classified as follows:
+
+| Source type | Organization unit | Employer requirement | Global use | Suitability |
+|---|---|---|---|---|
+| OECD enterprise/business-demography tables | Enterprise, with official size/activity dimensions | Must filter to employer-relevant series/size classes | Comparable multi-country aggregation | HIGH where employer filter and coverage are clear |
+| National employer-business or enterprise counts | Country-defined enterprise/business | Varies by source; definition must be recorded | Priority-country validation and gap filling | HIGH to MEDIUM depending on definition |
+| World Bank Enterprise Surveys | Formal private-sector establishment sample | Registered firm; generally 5+ employees | Definition and size-band benchmark, not total count | MEDIUM / sample framework |
+| ILOSTAT | Labour and employment indicators | Not an organization count | Regional context and size/employment validation | LOW for payer denominator |
+| OECD SME indicators | SME/business-demography framework | Varies; not a global employer stock | Regional benchmark/context | MEDIUM for context, not denominator |
+
+No global employer count is presented here as a verified total. The future aggregation must choose one non-overlapping country/region universe, preserve enterprise versus establishment definitions, and avoid adding global, regional, and country totals that cover the same organizations.
+
+### OECD Actual Extraction Result
+
+The OECD Data Explorer was inspected for the actual business-demography and structural-business-statistics series. The strongest comparable series for an employer-led model is:
+
+| Field | Extracted result |
+|---|---|
+| Dataset name | **Employer business demography by size class and economic activity (ISIC Rev. 4)**, OECD Structural and Demographic Business Statistics (SDBS), dataflow `DSD_SDBSBD_ISIC4@DF_BD_EMP` |
+| Measure name | **Enterprises**; active employer enterprises by economic activity and employment-size class |
+| Latest common year | **2022** for the 39-country comparison selection inspected in the OECD table; later country observations exist but are not common to every selected country |
+| Countries covered | OECD members, accession and partner countries, ESS countries supplying Eurostat data, and participants in OECD regional initiatives. The inspected 39-area selection included AUT, BEL, CAN, CHE, CRI, CZE, DEU, DNK, ESP, EST, FIN, FRA, GBR, GRC, HRV, HUN, IRL, ISL, ISR, ITA, LTU, LUX, LVA, MLT, MKD, NLD, NOR, POL, PRT, ROU, SRB, SVK, SVN, SWE, TUR, ALB, BIH, BGR and CYP. Coverage is not universal and must be checked by country/year. |
+| Unit | Number of enterprises; enterprise size classes based on persons employed: total/all sizes, 1–9, 10–49, 50–249, and 250 or more where reported |
+| Employer-only | **YES**, for the `DF_BD_EMP` employer-business-demography flow. The parallel `DF_BD` flow is all enterprises and includes employers and non-employers. |
+| Enterprise-level | **YES** |
+| Active enterprise | **YES**; the OECD/Eurostat business-demography convention defines active employer enterprises as enterprises with at least one employee, with the all-enterprise population separately including non-employers |
+| Source URL | [OECD employer business demography by size class](https://data-explorer.oecd.org/vis?df%5Bag%5D=OECD.SDD.TPS&df%5Bds%5D=dsDisseminateFinalDMZ&df%5Bid%5D=DSD_SDBSBD_ISIC4%40DF_BD_EMP&lc=en), [OECD structural business statistics by size class](https://data-explorer.oecd.org/s/42g), and [Eurostat-OECD business-demography manual](https://www.oecd.org/content/dam/oecd/en/publications/reports/2008/01/eurostat-oecd-manual-on-business-demography-statistics_g1gh8b54/9789264041882-en.pdf) |
+| Market-sizing suitability | **HIGH as the multi-country employer-enterprise framework; not a worldwide total.** Use country/year cells only after checking coverage, sector scope, and overlap with national anchors. |
+
+The OECD definition distinguishes: `N` = active enterprises including employers and non-employers; `N1` = active employer enterprises with at least one employee; `N2` = active employer enterprises with at least two employees; and `N(0)` = active non-employer enterprises. This resolves the prior ambiguity: OECD does provide an employer-only enterprise series, but it is a country/year table rather than a single globally complete population. The separate structural-business-statistics flow provides enterprise counts by activity and employment-size class, with the OECD table exposing the standard total, 1–9, 10–49, 50–249, and 250+ bands. See the [OECD all-enterprise dataflow](https://data-explorer.oecd.org/vis?df%5Bag%5D=OECD.SDD.TPS&df%5Bds%5D=dsDisseminateFinalDMZ&df%5Bid%5D=DSD_SDBSBD_ISIC4%40DF_BD&df%5Bvs%5D=1.0&snb=23&tm=elderly), [OECD employer dataflow](https://data-explorer.oecd.org/vis?df%5Bag%5D=OECD.SDD.TPS&df%5Bds%5D=dsDisseminateFinalDMZ&df%5Bid%5D=DSD_SDBSBD_ISIC4%40DF_BD_EMP&lc=en), and [OECD structural-size table](https://data-explorer.oecd.org/s/42g).
+
+### International Anchor Extraction — Canada, UAE, Saudi Arabia, Australia, Singapore
+
+These are validation anchors, not additive global totals.
+
+#### Canada actual result
+
+**CANADA PRIMARY EMPLOYER REFERENCE:** **approximately 1.37 million employer businesses**; **December 2025**; **active employer businesses counted by the statistical concept of location**. Statistics Canada defines employer businesses through payroll-deduction remittances and identifies businesses as active on the Business Register. The companion non-employer population with annual revenue above $30,000 was approximately 3.67 million. The location unit is not identical to a unique enterprise, so this is a strong employer-location anchor and not a clean legal-enterprise denominator. The 2023 Entrepreneurship Indicators release separately reports **1,197,980 active enterprises with one or more employees**, which is the stronger enterprise-level cross-check but is older. Sources: [Canadian business counts, December 2025](https://www150.statcan.gc.ca/n1/daily-quotidien/260213/dq260213c-eng.htm), [Entrepreneurship indicators of Canadian enterprises, 2023](https://www150.statcan.gc.ca/n1/daily-quotidien/251112/dq251112c-eng.htm), and [Canadian Business Counts with employees, December 2023](https://www150.statcan.gc.ca/n1/en/catalogue/3310080601).
+
+#### UAE actual result
+
+**UAE PRIMARY EMPLOYER/BUSINESS REFERENCE:** **1.5 million active and cancelled commercial licences**; **1 October 2024**; **National Economic Registry (NER) licence records across the seven emirates**. This is the strongest official national proxy located. It is not an employer-only count, and the published figure combines active and cancelled licences. NER uses the federal unified economic number to integrate federal and local licensing data and distinguishes a national registry from separate emirate registers. It may include establishments, branches, and licence records; the public release does not provide a deduplicated active-enterprise or employee filter. Do not combine it with emirate counts or describe it as 1.5 million employers. Source: [UAE Ministry of Economy — National Economic Registry Growth](https://www.moec.gov.ae/en/-/ministry-of-economy-launches-national-economic-registry-growth-to-support-the-uae-s-efforts-in-providing-proactive-government-services).
+
+#### Saudi Arabia actual result
+
+**SAUDI PRIMARY EMPLOYER/BUSINESS REFERENCE:** **1.019 million active enterprises**; **2023**; **enterprise-level business-demography population covering all 13 administrative regions**. GASTAT reports active enterprises by ISIC Rev. 4 and separately reports new and closed enterprises. The statistical unit is enterprise, which is materially stronger than a commercial-registration count. The public headline does not state that every active enterprise has an employee, so employer-only status is **PARTIAL / NOT VERIFIED**; use the OECD-style active-enterprise measure as the primary business anchor and retain employment-size data separately. Monsha’at’s **1.6 million commercial registrations** in Q4 2024 is a registry cross-check, not an enterprise or employer count. Sources: [GASTAT Business Demography Statistics 2023](https://www.stats.gov.sa/documents/d/guest/business-demography-2023-en-1-pdf), [GASTAT business-demography methodology](https://www.stats.gov.sa/en/w/methodology-and-quality-report-for-business-demography-statistics), and [Monsha’at Q4 2024 commercial-registration release](https://www.monshaat.gov.sa/en/node/274250).
+
+#### Australia actual result
+
+**AUSTRALIA PRIMARY EMPLOYER REFERENCE:** **999,161 employing businesses**; **30 June 2024**; **actively trading market-sector businesses with employment**. ABS reports 2,662,998 actively trading businesses in total, including 999,161 employing and therefore approximately 1,663,837 non-employing businesses. The ABS frame is built from the ABS Business Register, ABN/ATO administrative data, and excludes general government, the Reserve Bank of Australia, and non-profit institutions serving households. Reported employment-size counts include **693,558 businesses with 1–4 employees**, **68,214 with 20–199**, and **5,189 with 200+**; the remaining 5–19 band is available in the ABS data cube but is not needed to establish the headline employer count. Source: [ABS Counts of Australian Businesses, July 2020–June 2024](https://www.abs.gov.au/statistics/economy/business-indicators/counts-australian-businesses-including-entries-and-exits/jul2020-jun2024).
+
+#### Singapore actual result
+
+**SINGAPORE PRIMARY EMPLOYER REFERENCE:** **NOT VERIFIED as employer-only.** The strongest official enterprise proxy located is **345,100 enterprises in 2023**, excluding the public sector. Singapore DOS defines enterprises as incorporated or registered entities with revenue or employment in the reference period; ministries, statutory boards, and government/government-aided schools are excluded. This is an enterprise-level active/revenue-or-employment population, not an employee-only population. ACRA’s **609,422 live entities as at 31 March 2025** is kept separate as a live-register count. MOM reports **356,600 SMEs with fewer than 200 workers in 2024**, including employment bands, but that is an SME subset defined by revenue or employment and is not the full employer population. Sources: [Singapore DOS Enterprise Landscape 2023](https://www.singstat.gov.sg/-/media/files/visualising_data/infographics/industry/singapores-enterprise-landscape.ashx), [ACRA FY2024-25 annual report](https://www.acra.gov.sg/docs/default-source/default-document-library/training-and-resources/publications/reports/acra-annual-reports/acra-fy2024-25-annual-report_high-res.pdf?sfvrsn=2221dec1_2), and [MOM SME employment-size answer](https://www.mom.gov.sg/newsroom/parliament-questions-and-replies/2026/0303-written-answer-to-pq-on-distribution-of-smes).
+
+### Normalized Eight-Country Validation Table
+
+| Country | Primary count | Year | Unit | Employer-only? | Enterprise-level? | Official source | Headline suitability | Notes |
+|---|---:|---:|---|---|---|---|---|---|
+| Pakistan | 7,142,941 | 2023 | Establishments | NO | NO | PBS Economic Census Table 1 | Proxy only | Broad official establishment frame; preserve existing treatment and do not call it unique employers. |
+| United States | 5,934,950 | 2023 | Employer companies/firms | YES, source-defined | YES | U.S. Census Annual Business Survey | High | Paid-employee firms in the ABS scope; preserve existing exclusions and methodology. |
+| United Kingdom | 1,417,730 | 2025 | Private-sector employer businesses | YES | Business unit | DBT Business Population Estimates Table C | High | Direct employer reference; official statistics in development caveat preserved. |
+| Canada | ~1,370,000 | Dec. 2025 | Active employer business locations | YES | NO / location | Statistics Canada Canadian business counts | High with unit caveat | Strong employer anchor; use 2023 active-enterprise count as enterprise-level cross-check. |
+| UAE | 1,500,000 | 2024 | Active and cancelled commercial licences | NO | NO / licence record | UAE Ministry of Economy NER | Proxy only | National seven-emirate proxy; do not treat licences, branches, and establishments as unique employers. |
+| Saudi Arabia | 1,019,000 | 2023 | Active enterprises | PARTIAL / NOT VERIFIED | YES | GASTAT Business Demography | Medium / proxy | Enterprise-level active population; employer filter not stated in public headline. |
+| Australia | 999,161 | Jun. 2024 | Employing actively trading businesses | YES | Business-level | Australian Bureau of Statistics CABEE | High | Preferred Australian employer count; total active businesses and size bands retained separately. |
+| Singapore | 345,100 | 2023 | Active/revenue-or-employment enterprises | NO | YES | Singapore Department of Statistics | Medium / proxy | Employer-only count not verified; ACRA live entities remain a separate registry cross-check. |
+
+Counts in this table are not summed. The table validates country coverage and unit quality only; it is not TAM, SAM, SOM, or a global total.
+
+### Provider Decisions
+
+**Education & Mobility: PROXY ONLY.** No defensible internationally comparable organization dataset was found for the full study-abroad, education-agent, immigration/mobility, and relocation payer universe. Use regulator-backed national registers as lower-bound proxies, keep employment promoters separate from education agents, and do not present association or registry unions as a complete global population.
+
+**Business / Professional Services: PROXY ONLY.** OECD activity tables and national business registers can frame relevant enterprises, but no single deduplicated international dataset was found for the exact corporate-services, company-formation, accounting/corporate-secretarial, and advisory payer universe. Regulator-backed registers such as SECP intermediaries and ACRA registered filing agents are defensible lower-bound subsets only.
+
+### Calculation Readiness
+
+**EMPLOYER TAM POPULATION: READY** for a controlled multi-country calculation using the OECD employer-enterprise flow where populated and the eight documented national anchors/proxies with explicit unit flags. This does not authorize a calculation in Step 2 and does not imply the country figures may be added without overlap reconciliation.
+
+**EDUCATION & MOBILITY: PROXY ONLY**
+
+**BUSINESS SERVICES: PROXY ONLY**
+
+**GLOBAL REGIONAL VALIDATION: ADEQUATE** for Step 2 validation coverage. UAE, Saudi Arabia, and Singapore remain proxy/partial employer measures, but each now has an inspected official source, a stated unit, a year, and an explicit limitation; no unsupported count is presented as an employer fact.
+
+### Global SME / Enterprise References
+
+The OECD reports that SMEs represent approximately 99% of businesses in the OECD area, but this is a share/context indicator rather than a global organization count. See [OECD SME indicators and benchmarking](https://www.oecd.org/en/topics/sme-indicators-benchmarking-and-monitoring.html) and [OECD SME productivity/inclusive-growth context](https://www.oecd.org/en/publications/strengthening-smes-and-entrepreneurship-for-productivity-and-inclusive-growth_c19b6f97-en/full-report/component-3.html).
+
+The IFC describes MSMEs as more than 90% of firms worldwide and provides finance-gap estimates, including a formal MSME finance-gap study. Those figures are broad context or credit-constrained subsets, not a validated unique employer denominator. See [IFC MSME finance](https://www.ifc.org/en/what-we-do/sector-expertise/financial-institutions/msme-finance) and the [IFC MSME finance-gap report](https://www.ifc.org/content/dam/ifc/doclink/2018/msme-finance-gap-report.pdf).
+
+Accordingly:
+
+- **DIRECT EMPLOYER REFERENCE:** country/regional employer-enterprise series after definition filtering.
+- **BROAD ENTERPRISE REFERENCE:** OECD and national enterprise totals where employer status is mixed.
+- **SME REFERENCE:** OECD/IFC shares and size frameworks; not a count for the base model.
+- **ESTABLISHMENT PROXY:** census, CBP, local-unit, or survey establishment series.
+- **NONEMPLOYER-INCLUSIVE:** all-enterprise or SME totals unless the source explicitly separates employers.
+- **UNSUITABLE:** repeated marketing figures without an authoritative source, definition, year, and coverage statement.
+
+The frequently repeated “hundreds of millions of MSMEs” claims are not used as a STRIDETO denominator unless the underlying source, universe, year, and employer treatment can be reproduced.
+
+### Regional Employer Coverage
+
+The international framework uses regions as coverage and reconciliation dimensions, not as additional populations to be added to country totals:
+
+| Region | Validation anchors | Framework sources | Current status |
+|---|---|---|---|
+| North America | United States and Canada | National employer/enterprise series; OECD where covered; World Bank/ILO context | United States and Canada extracted; Canada location/enterprise distinction disclosed |
+| Europe | United Kingdom and EU/Eurostat | UK BPE/ONS; Eurostat/OECD enterprise tables | United Kingdom complete; EU regional extraction planned |
+| GCC / Middle East | UAE and Saudi Arabia, with other GCC only if data quality justifies it | National statistical/regulator sources; OECD/ILO/World Bank context where available | UAE official licence proxy and Saudi active-enterprise anchor extracted; no aggregate invented |
+| South Asia | Pakistan, with India/Bangladesh/Sri Lanka only where an authoritative comparable series exists | Pakistan completed; OECD/World Bank/ILO and national sources | Pakistan complete with disclosed gaps |
+| Asia-Pacific | Australia and Singapore, with New Zealand/Malaysia only if useful | OECD, national statistical/business registers, UIS/ILO context | Australia employer count extracted; Singapore enterprise proxy and employer gap disclosed |
+| Other global markets | Region-level coverage only where a comparable official series exists | World Bank/OECD/ILO/UN regional datasets | Do not force country-by-country research |
+
+This framework is sufficient to stop treating every country as a separate research requirement. Individual-country research remains necessary only for priority-market validation, legal/serviceability decisions, and material definition gaps.
+
+### Education & Mobility Provider Coverage
+
+**GLOBAL DIRECT COUNT: NOT FOUND IN REPOSITORY OR OFFICIAL GLOBAL SOURCES REVIEWED.** No single internationally comparable register of study-abroad consultancies, education agents, student-recruitment organizations, migration/mobility consultancies, and relocation providers was identified.
+
+The defensible future approach is a tagged lower-bound proxy:
+
+- collect official government, regulator, university-sector, or destination-country agent registers that identify Pakistan-based or other origin-country provider organizations;
+- normalize organization names, domains, addresses, and legal identifiers where available;
+- deduplicate one organization across education advising, student recruitment, visa assistance, immigration, and relocation categories;
+- retain source-by-source coverage and do not present the union as a complete global population;
+- label the result **OFFICIAL LOWER-BOUND PROVIDER PROXY** unless national coverage and inclusion rules are demonstrated.
+
+Association directories and commercial directories may support discovery, but they are not headline totals. Student or international-mobility counts from UNESCO or OECD measure demand, not provider organizations.
+
+The [OECD international student mobility indicator](https://www.oecd.org/en/data/indicators/international-student-mobility.html) and UNESCO UIS international education indicators are appropriate demand-side context, not a provider denominator.
+
+### Business Services Provider Coverage
+
+**GLOBAL DIRECT COUNT: NOT FOUND.** No single global registry was found that counts the exact STRIDETO payer universe of corporate-service, company-formation, accounting/corporate-secretarial, and business-advisory organizations.
+
+The future provider methodology is:
+
+1. define the included activity taxonomy before counting (company formation/corporate services, company secretarial, accounting or tax practice where the official register identifies firms, and relevant business advisory services);
+2. use OECD structural business statistics or national statistical business registers to identify enterprise populations in the relevant activities where available;
+3. use regulator-backed firm registers as lower-bound validation subsets;
+4. keep individual professionals separate from firms and do not add accountants, lawyers, consultants, and company agents without an explicit service-relevance rule;
+5. deduplicate across overlapping activity registers before any aggregation.
+
+OECD structural business statistics are suitable for a broad activity-based enterprise frame, but they are not automatically a count of STRIDETO providers. National regulator registers remain necessary for precise provider classification.
+
+### Institution Reference Population
+
+Institutions remain **NON-MONETIZED / DO NOT MODEL AS BASE REVENUE**. They are supply-side/reference data only.
+
+The preferred global reference is the [UNESCO Institute for Statistics Data Browser](https://databrowser.uis.unesco.org/) and its [February 2026 bulk data release](https://databrowser.uis.unesco.org/resources/bulk). UIS is UNESCO’s official statistical agency and provides internationally comparable education statistics; its formal-education data are collected from official administrative sources and cover colleges, universities, and other tertiary institutions. See the [UIS data methodology](https://uis.unesco.org/en/methodology/communication-et-information) and [background information on education statistics](https://uis.unesco.org/sites/default/files/documents/background-information-education-statistics-uis-database-en-2025.pdf).
+
+UIS indicators and national registers must preserve separate dimensions for institution, campus, local unit, and education level. Enrollment and institution counts are not interchangeable, and campuses must not be added to university/DAI organizations unless the source defines them as the same unit. No institution count is multiplied by ARPA in the base model.
+
+### Demand-Side Reference Population
+
+Individual users are free and are **DEMAND / LIQUIDITY METRICS**, not payer units. Future demand-side context may use:
+
+- ILOSTAT global/regional labour-force, employment, and job-seeker indicators;
+- UNESCO UIS tertiary enrolment, international mobility, and education-participation indicators;
+- World Bank population and labour-market indicators where definitions are explicit;
+- OECD international student mobility for destination-market context.
+
+These sources may support product-liquidity and adoption narratives, but they must not be converted into paying-organization counts or revenue.
+
+### Country Validation Anchors
+
+The existing priority anchors are retained:
+
+- **Pakistan:** PBS establishment/workforce references, SECP company stock/flow, HEC/Pakistan Economic Survey/NAVTTC institutional references, with disclosed provider gaps.
+- **United States:** Census ABS employer-firm reference, Economic Census company-level context, CBP establishment cross-check, and BDS size-series framework.
+- **United Kingdom:** DBT BPE employer-business reference, ONS enterprise/local-unit cross-check, and Companies House legal-register cross-check.
+- **Canada, UAE, Saudi Arabia, Australia, Singapore:** official national anchors/proxies extracted above with explicit employer, enterprise, establishment, licence, and registry distinctions.
+
+Country anchors validate definitions and serviceability; they are not added to a global aggregate if the global/regional source already covers the same organizations.
+
+### Source Normalization Rules
+
+Every retained source record must normalize:
+
+`country_or_region | source | dataset | year | reported_count | unit | employer_required | formal_only | active_status | enterprise_or_establishment | source_authority | source_type | confidence | TAM_suitability | SAM_suitability | headline_suitability | deduplication_notes | limitations`
+
+The existing CSV schema is preserved. The expanded fields are represented in its existing columns: `unit_definition`, `geographic_scope`, `source_tier`, `confidence`, `verified_status`, `deduplication_notes`, `eligibility_use`, `limitations`, and `notes`.
+
+Required status labels remain:
+
+- `VERIFIED_EXTERNAL_FACT`
+- `PROXY`
+- `COUNT_NOT_VERIFIED`
+
+Authority and suitability are separate. An official source can still be a low-suitability proxy when it measures establishments, legal registrations, non-employers, survey samples, campuses, or register rows rather than unique payer organizations.
+
+### Global Deduplication Rules
+
+The canonical payer unit is **ONE UNIQUE ORGANIZATION**.
+
+- Prefer an enterprise/legal organization identifier over a branch, establishment, local unit, job location, or staff account.
+- Do not add global, regional, and country datasets covering overlapping populations.
+- Keep subsidiaries separate only when the source defines them as separate enterprises and the model intentionally counts them as separate paying organizations.
+- Count a multi-service education/mobility provider once across study-abroad, visa, immigration, and relocation categories.
+- Count a business-services firm once across incorporation, accounting, tax, company-secretarial, and corporate-advisory categories when the same organization is identified.
+- Keep institution, campus, school, and local-unit dimensions separate.
+- Where deduplication is impossible, label the result as `REGISTER ROWS`, `ESTABLISHMENT PROXY`, `LOCAL-UNIT PROXY`, `LEGAL-ENTITY STOCK`, or `OFFICIAL LOWER-BOUND PROVIDER PROXY`.
+
+### Future TAM Methodology
+
+TAM will later be structured as:
+
+`unique eligible employer organizations × global USD employer ARPA`
+
+`+ unique eligible education/mobility provider organizations × global USD provider ARPA`
+
+`+ unique eligible business/professional service organizations × global USD provider ARPA`
+
+Only after the organization universe, coverage, and eligibility filters are locked. Institutions are excluded from base revenue because they are free initially. Individual users are excluded because they are free demand-side users. Featured/sponsored listings, qualified leads, consultations, commissions, and advertising remain secondary/future revenue and are excluded from base ARPA.
+
+### Future SAM Methodology
+
+SAM will apply explicit serviceability filters to the unique organization universe, including:
+
+- legal and regulatory ability to serve the market;
+- supported language and product availability;
+- payment accessibility and USD checkout feasibility;
+- operational/onboarding coverage;
+- relevant employer/provider vertical availability;
+- launch-country and near-term rollout scope.
+
+SAM must not be created by applying an arbitrary global percentage. Each excluded geography or segment must have a documented reason, and technically available countries must not be treated as commercially serviceable without product and operating evidence.
+
+### Future SOM Methodology
+
+SOM will later use launch geographies and operating constraints, including:
+
+- sales and onboarding capacity;
+- acquisition budget and channel capacity;
+- free-to-paid conversion;
+- employer/provider activation;
+- rollout timing and country sequencing;
+- retention/churn;
+- global USD ARPA;
+- CAC, sales cycle, and realistic time horizon.
+
+Conservative, Base, and Upside scenarios may be created only after management approves the operating assumptions. No SOM percentage or dollar value is created here.
+
+### Top-Down Cross-Check Policy
+
+Industry data for online recruitment, HR technology, education services, international student recruitment, and professional/business-services marketplaces may be used later as **TOP-DOWN CONTEXT / CROSS-CHECK** only.
+
+Such market reports must not replace STRIDETO’s bottom-up payer model unless the measured market maps directly to STRIDETO’s monetizable organization units, geographies, and revenue mechanism. “Global recruitment market = $X” is not STRIDETO TAM by itself. Preferred investor wording is:
+
+`unique paying organizations × annual global USD ARPA`,
+
+with any broader industry market size presented separately and clearly labelled as context.
+
+### Remaining Data Gaps
+
+- No single authoritative global unique active employer-organization total.
+- OECD country/year coverage still requires overlap reconciliation before any multi-country calculation; the actual employer flow and definitions are now identified.
+- UAE is a licence-record proxy, Saudi Arabia is an active-enterprise measure with employer status not stated in the public headline, and Singapore has no verified employer-only total; these are disclosed limitations, not unrecorded gaps.
+- No globally comparable direct education/mobility-provider organization count.
+- No globally comparable direct business/professional-service-provider organization count.
+- Provider organization crosswalks and regulator-register deduplication are not yet complete.
+- Institution sources provide comparable education indicators, but institution-versus-campus organization counts require source-specific treatment.
+- Legal-entity crosswalks between country business registers and international enterprise datasets are generally not public as a universal table.
+- SAM serviceability, payment, language, legal, and rollout decisions require management inputs beyond source counts.
+
+### Global Readiness Assessment
+
+**GLOBAL STEP 2 STATUS: READY FOR MARKET-SIZE CALCULATION**
+
+The OECD/multi-country employer framework has been inspected, all eight validation anchors are documented, provider segments have explicit PROXY ONLY decisions, and remaining unit limitations are disclosed. A later calculation must still select a non-overlapping country/region universe and apply the approved ARPA inputs; this document does not calculate TAM, SAM, or SOM.
+
 ## 14. Step 2 Wave 2 Status
 
 **WAVE 2 STATUS: COMPLETE**
@@ -710,3 +999,16 @@ No TAM, SAM, SOM, market value, ARPA multiplication, penetration percentage, or 
 Pakistan research now has a defensible official reference or explicitly documented proxy path for each segment. Perfect unique-organization counts are not publicly available for every segment; those gaps are disclosed and no proxy is presented as a verified total.
 
 No TAM, SAM, SOM, market value, ARPA multiplication, or unsupported percentage assumption was created.
+
+## 16. Final Validation Checklist
+
+```text
+TAM = NO
+SAM = NO
+SOM = NO
+Production auth requested = NO
+Production API calls = 0
+Production writes = 0
+```
+
+Only the two intended Step 2 files were edited in this pass. Step 1, product code, staging, commits, and pushes were not performed. Existing Pakistan, United States, and United Kingdom data were preserved.
