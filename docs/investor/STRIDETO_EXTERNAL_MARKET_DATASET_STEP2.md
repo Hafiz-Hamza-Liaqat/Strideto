@@ -506,7 +506,204 @@ Before researching international markets:
 3. Business Services: use the SECP 110-row intermediary register as the narrowest regulator-backed proxy, supplemented separately by ICMAP’s approximate public-practice subset. Do not combine them without organization-level overlap removal.
 4. Institutions: use HEC’s reported 262 HEIs and the separate 150 campus reference only as non-monetized supply-side context.
 
-## 14. Step 2 Wave 1 Status
+## United States — Employers
+
+### Official Sources
+
+The following official U.S. sources were reviewed:
+
+- [U.S. Census Bureau 2022 Economic Census first-look results](https://www.census.gov/library/stories/2024/06/economic-census-annual-business-survey-results.html)
+- [U.S. Census Bureau 2023 Annual Business Survey company summary](https://data.census.gov/table/ABSCS2023.AB2300CSA01)
+- [U.S. Census Bureau 2023 County Business Patterns](https://www.census.gov/data/datasets/2023/econ/cbp/2023-cbp.html)
+- [U.S. Census Bureau 2023 Business Dynamics Statistics](https://www.census.gov/data/datasets/time-series/econ/bds/bds-datasets.html)
+- [U.S. Census Bureau BDS API variables and size definitions](https://api.census.gov/data/timeseries/bds/variables.html)
+- [U.S. Census Bureau 2022 Economic Census firm-size table](https://data.census.gov/table/ECNSIZE2022.EC2200SIZEEMPFIRM)
+
+### Primary Employer Reference
+
+The strongest broad U.S. organization-level reference located is the 2022 Economic Census first-look total of approximately **6.2 million firms at the company level**. The same release reports approximately 8.0 million establishments and 140.0 million employees. The firm count is closer to STRIDETO’s canonical organization unit than the establishment count because a company or firm may operate one or more establishments.
+
+The latest exact direct employer-firm count located is the 2023 Annual Business Survey: **5,934,950 employer firms**. The ABS universe requires firms to have paid employees, to have operated for at least part of the reference year, to have at least $1,000 in annual receipts, and to fall within 19 in-scope sectors. The ABS reports companies/firms rather than establishments and counts a multi-establishment firm once in the U.S. all-sector total.
+
+For this dataset:
+
+- **PRIMARY EMPLOYER REFERENCE:** 2022 Economic Census, approximately 6.2 million company-level firms.
+- **CONSERVATIVE PROXY:** 2023 ABS, 5,934,950 employer firms, because its narrower sector and receipt scope is explicitly defined and directly organization-level.
+- **CROSS-CHECK:** 2022 Economic Census approximately 8.0 million employer establishments; 2023 CBP establishment data; 2023 BDS firm series.
+- **UNSUITABLE AS UNIQUE ORGANIZATION COUNT:** CBP establishment totals, QCEW establishments, and nonemployer businesses.
+
+These are official population references only. No hiring, digital-reachability, willingness-to-pay, or STRIDETO eligibility percentage is applied.
+
+### U.S. Source Comparison
+
+| Source | Data year | Reported count | Unit | Employer? | Unique organization? | National? | Recommended role | Limitations |
+|---|---:|---:|---|---|---|---|---|---|
+| 2022 Economic Census first-look | 2022 | Approx. 6.2 million | Firms at company level | Yes, paid-employer universe | Yes, company/firm unit | Yes, broad 19-sector scope | Primary broad employer reference | First-look aggregate; count is approximate; detailed firm-size extraction remains separate |
+| 2022 Economic Census first-look | 2022 | Approx. 8.0 million | Employer establishments/locations | Yes | No | Yes | Cross-check only | One organization may own multiple establishments |
+| 2023 Annual Business Survey | 2023 reference year | 5,934,950 | Employer firms/companies | Yes | Yes within ABS scope | Yes | Conservative direct organization proxy | Excludes specified sectors and firms below $1,000 annual receipts; exact survey universe differs from Economic Census |
+| 2023 County Business Patterns | 2023 | COUNT NOT VERIFIED in this pass | Employer establishments | Yes | No | Yes | Establishment cross-check | Establishment unit; not a company/enterprise count |
+| 2023 Business Dynamics Statistics | 2023 | COUNT NOT VERIFIED in this pass | Firms and establishments by dynamics/size | Yes | Firm series is organization-oriented | Yes, 50 states and D.C. | Size and activity cross-check | Public size files/API require separate extraction; not used as a headline total here |
+| Nonemployer Statistics | Latest reviewed source family | NOT USED | Nonemployer businesses | No | Not suitable for employer denominator | Yes | Rejected contrast | Nonemployers have no paid employees and must not be added to employer firms |
+
+### Size Distribution
+
+The U.S. official sources support firm-size analysis, but the published category systems are not identical to STRIDETO’s requested bands. The BDS categorical size framework exposes firm-size categories including:
+
+- 1–4 employees;
+- 5–9;
+- 10–19;
+- 20–49;
+- 50–99;
+- 100–249;
+- 250–499;
+- 500–999;
+- 1,000 or more.
+
+The ABS has an employment-size-of-firm table for employer firms, and the 2022 Economic Census has an employment-size-of-firms table. Their national size counts were not transcribed into this pass because the official interactive/download endpoints expose separate table extraction requirements. The size-band sources are retained for the next structured extraction rather than silently re-binning or estimating counts.
+
+No exact U.S. conservative/base/upside eligible population is created.
+
+### Establishment vs Firm Treatment
+
+The U.S. Census Bureau defines an establishment as a single physical location. A company or firm may contain one or more establishments operating under common ownership or control. Accordingly:
+
+- employer firms are the preferred organization unit;
+- establishments are operating-location units;
+- CBP and QCEW establishment totals must not be treated as unique employers;
+- multi-state firms must be counted once in a national firm total;
+- branches, stores, plants, offices, and job locations are not additional paying organizations;
+- subsidiaries remain separate only where the source’s firm definition treats them as separate organizations.
+
+### State-Level Research Readiness
+
+**NATIONAL TAM DATA: READY**
+
+The U.S. has a sufficiently strong national official employer-firm reference for later TAM work without immediately researching all 50 states.
+
+**STATE-LEVEL SAM RESEARCH: REQUIRED LATER**
+
+State-level research should occur after STRIDETO management defines the initial U.S. launch scope. The Census ABS, CBP, BDS, and SBA state-profile ecosystems can support state analysis, but a final state list is not selected in this wave. State selection requires a separate product, rollout, and commercial decision.
+
+### Data Gaps
+
+- The 6.2 million Economic Census figure is an approximate first-look aggregate.
+- The 5,934,950 ABS figure has narrower sector and receipts coverage.
+- A single fully reconciled current U.S. unique active employer-organization count across all source universes was not produced.
+- Exact national size-band counts require a separate extraction from the ABS/Economic Census/BDS tables.
+- Legal-entity deduplication across federal source universes is not publicly exposed as a single crosswalk.
+
+### Confidence
+
+| Finding | Source quality | Market-sizing suitability |
+|---|---|---|
+| Economic Census 6.2 million company-level firms | HIGH | HIGH with scope note |
+| ABS 5,934,950 employer firms | HIGH | HIGH as a narrower organization proxy |
+| CBP establishment data | HIGH | MEDIUM / establishment proxy |
+| BDS firm and size series | HIGH | MEDIUM until exact table extraction |
+| Nonemployer data | HIGH | LOW for employer market sizing |
+
+## United Kingdom — Employers
+
+### Official Sources
+
+The following official U.K. sources were reviewed:
+
+- [Department for Business and Trade — Business Population Estimates 2025](https://www.gov.uk/government/statistics/business-population-estimates-2025/business-population-estimates-for-the-uk-and-regions-2025-statistical-release)
+- [Office for National Statistics — UK business: activity, size and location 2025](https://www.ons.gov.uk/releases/ukbusinessactivitysizeandlocation2025)
+- [ONS 2025 enterprise/local-unit dataset](https://www.ons.gov.uk/businessindustryandtrade/business/activitysizeandlocation/datasets/ukbusinessactivitysizeandlocation/2025)
+- [Companies House — Companies register activities, April 2025 to March 2026](https://www.gov.uk/government/statistics/companies-register-activities-statistical-release-april-2025-to-march-2026/companies-register-activities-statistical-release-april-2025-to-march-2026)
+- [Companies House statistics and definitions](https://www.gov.uk/government/organisations/companies-house/about/statistics)
+
+### Primary Employer Reference
+
+The strongest direct U.K. employer organization reference is the Department for Business and Trade’s Business Population Estimates 2025:
+
+> **1,417,730 private-sector businesses with employees at the start of 2025.**
+
+The BPE table defines this as the employer population with one or more employees. The publication also reports 4,272,535 non-employing businesses and 5,690,265 total private-sector businesses. These must not be combined.
+
+For this dataset:
+
+- **PRIMARY EMPLOYER REFERENCE:** BPE 2025, 1,417,730 employers.
+- **CONSERVATIVE PROXY:** BPE 2025 employer count, because it directly separates employers from non-employers and provides the requested size bands.
+- **CROSS-CHECK:** ONS 2025 IDBR-based VAT/PAYE business population and local-unit statistics.
+- **UNSUITABLE AS EMPLOYER ORGANIZATION COUNT:** Companies House total/effective register stock and ONS local-unit totals.
+
+The BPE 2025 publication is official statistics in development, so its official source quality is HIGH but its statistical-status caveat is disclosed.
+
+### U.K. Source Comparison
+
+| Source | Data year/as-of date | Reported count | Unit | Employer? | Unique organization? | National? | Recommended role | Limitations |
+|---|---:|---:|---|---|---|---|---|---|
+| DBT Business Population Estimates | Start of 2025 | 1,417,730 | Private-sector employer businesses | Yes | Yes, business-level estimate | Yes | Primary employer reference | Official statistics in development; methodology estimates the wider private sector |
+| DBT Business Population Estimates | Start of 2025 | 5,690,265 | All private-sector businesses | Mixed | Yes, business-level estimate | Yes | Total-population cross-check only | Includes 4,272,535 non-employers |
+| ONS UK Business: Activity, Size and Location | March 2025 | 2.73 million | VAT and/or PAYE businesses | Mixed | Enterprise-based, but not employer-only | Yes | Registered-business cross-check | Includes businesses without an employee-size restriction in the headline |
+| ONS UK Business: Activity, Size and Location | March 2025 | Approx. 3.2 million | Local units/sites | Mixed | No | Yes | Local-unit cross-check only | Sites/local units can duplicate one enterprise |
+| Companies House register activities | 31 March 2026 | 5,479,045 | Companies/corporate bodies on total register | No | Legal register unit, not employer unit | Yes | Registered-company cross-check only | Includes companies regardless of whether they actively trade; includes corporate forms beyond ordinary employer businesses |
+
+### Size Distribution
+
+The BPE 2025 employer distribution is:
+
+| Official band | Businesses |
+|---|---:|
+| 1–9 employees | 1,150,875 |
+| 10–49 employees | 220,085 |
+| 50–249 employees | 38,435 |
+| 250 or more employees | 8,335 |
+| Total employers | 1,417,730 |
+
+The BPE publication also reports:
+
+- 5,643,495 businesses with 0–49 employees;
+- 5,681,930 SMEs with 0–249 employees;
+- 4,272,535 non-employing businesses;
+- 5,690,265 total private-sector businesses.
+
+The requested micro/small/medium/large mapping is preserved using the official U.K. thresholds. No additional eligibility or penetration percentage is applied.
+
+### Enterprise vs Local Unit Treatment
+
+ONS states that its 2025 dataset contains both enterprises and local units from an Inter-Departmental Business Register snapshot dated 14 March 2025. An enterprise is the organization-level unit; a local unit is a site/location associated with an enterprise.
+
+Companies House is a legal registration system, not a trading/employer census. Companies House explicitly states that registered companies may not actively trade. The total register also includes companies in liquidation, dissolution, or other non-operating states; its effective register is still not equivalent to employer organizations.
+
+Therefore:
+
+- use BPE employers as the primary U.K. organization reference;
+- do not use ONS local units as unique organizations;
+- do not use Companies House total register as an employer denominator;
+- do not add BPE employers to Companies House companies;
+- deduplicate branches and trading locations to the enterprise/legal organization;
+- preserve subsidiaries separately only when they are separate source-defined enterprises.
+
+### Data Gaps
+
+- BPE is an estimate and its 2025 status is official statistics in development.
+- BPE’s “no employees” category treats companies with only one employee as having no employees when that employee is assumed to be a working proprietor.
+- ONS enterprise/local-unit data and BPE business-population data use different source universes and should not be added.
+- Companies House registered-company stock does not prove active trading, employees, or hiring.
+- A legal-entity crosswalk between Companies House, IDBR enterprises, and BPE businesses is not provided as one public national table.
+
+### Confidence
+
+| Finding | Source quality | Market-sizing suitability |
+|---|---|---|
+| BPE 1,417,730 employers | HIGH, with official-statistics-in-development caveat | HIGH |
+| BPE size-band counts | HIGH, with methodology caveat | HIGH |
+| ONS 2.73 million VAT/PAYE businesses | HIGH | MEDIUM / registered-business cross-check |
+| ONS 3.2 million local units | HIGH | LOW / local-unit proxy |
+| Companies House 5,479,045 total register | HIGH | LOW / registered-company proxy |
+
+## 14. Step 2 Wave 2 Status
+
+**WAVE 2 STATUS: COMPLETE**
+
+The United States and United Kingdom now have official national employer references, explicit organization-versus-location treatment, documented size-band sources, and disclosed limitations. Exact U.S. firm-size values remain a follow-on extraction item, but the official source and category framework are identified without estimating or re-binning.
+
+No TAM, SAM, SOM, market value, ARPA multiplication, penetration percentage, or final STRIDETO eligible-customer count was created.
+
+## 15. Step 2 Wave 1 Status
 
 **WAVE 1 STATUS: COMPLETE WITH DISCLOSED DATA GAPS**
 
