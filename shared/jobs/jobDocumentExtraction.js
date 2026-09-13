@@ -254,9 +254,13 @@ function nextNonEmptyLine(lines, startIdx) {
 }
 
 const FIELD_INSTRUCTION_RE = /^(?:one\s+per\s+line|one\s+item\s+per\s+line|separate\s+(?:items|entries)\s+by\s+line|enter\s+one\s+per\s+line)\.?$/i;
+const FIELD_INSTRUCTION_WRAPPER_RE = /[()\[\]{}:;,\-–—]/g;
 
 function isFieldInstruction(value) {
-  return FIELD_INSTRUCTION_RE.test(String(value || '').trim());
+  const raw = String(value || '').trim();
+  if (FIELD_INSTRUCTION_RE.test(raw)) return true;
+  const normalized = raw.replace(FIELD_INSTRUCTION_WRAPPER_RE, ' ').replace(/\s+/g, ' ').trim();
+  return FIELD_INSTRUCTION_RE.test(normalized);
 }
 
 function nextFieldContentLine(lines, startIdx) {

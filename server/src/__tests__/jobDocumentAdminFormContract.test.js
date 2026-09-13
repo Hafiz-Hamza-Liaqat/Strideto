@@ -272,4 +272,21 @@ const invalidCurrency = adminFormFromDocument('Currency: NOT');
 assert.equal(invalidCurrency.result.form.salaryCurrency, '');
 assert.equal(invalidCurrency.suggestions.salaryCurrency, undefined);
 
+const cambiumLikeRequirements = [
+  'Validate financial data', 'Prepare monthly reports', 'Support forecasting activities',
+];
+const cambiumLikeSkills = ['Excel', 'SQL', 'Financial modelling'];
+const cambiumLike = adminFormFromDocument([
+  'Requirements — one per line',
+  ...cambiumLikeRequirements.map((item) => `\u2022 ${item}`),
+  'Preferred Qualifications:',
+  '\u2022 MBA or equivalent',
+  'Skills Required (one per line)',
+  ...cambiumLikeSkills.map((item) => `\u2022 ${item}`),
+].join('\n'));
+assert.deepEqual(cambiumLike.result.form.requirements.split('\n'), cambiumLikeRequirements);
+assert.deepEqual(cambiumLike.result.form.skillsRequired.split(', '), cambiumLikeSkills);
+assert(!cambiumLike.result.form.requirements.includes('MBA or equivalent'));
+assert(!cambiumLike.result.form.skillsRequired.includes('MBA or equivalent'));
+
 console.log('JOB-AUTOFILL-ADMIN: ordered/unordered form contract passed');
