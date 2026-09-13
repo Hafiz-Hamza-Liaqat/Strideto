@@ -3,6 +3,7 @@
  * Pipeline: normalize text → label/section parse → candidate precedence → validate → suggestions.
  */
 import { coerceCountryCode, normalizeCountryCode } from '../international/country.js';
+import { normalizeCurrency } from '../international/currency.js';
 import { normalizeProvinceLabel } from '../constants/pakistan.js';
 import {
   JOB_FAMILIES,
@@ -252,6 +253,21 @@ function nextNonEmptyLine(lines, startIdx) {
   return null;
 }
 
+const FIELD_INSTRUCTION_RE = /^(?:one\s+per\s+line|one\s+item\s+per\s+line|separate\s+(?:items|entries)\s+by\s+line|enter\s+one\s+per\s+line)\.?$/i;
+
+function isFieldInstruction(value) {
+  return FIELD_INSTRUCTION_RE.test(String(value || '').trim());
+}
+
+function nextFieldContentLine(lines, startIdx) {
+  for (let i = startIdx; i < lines.length; i += 1) {
+    const line = lines[i].trim();
+    if (!line || isFieldInstruction(line)) continue;
+    return { line, index: i };
+  }
+  return null;
+}
+
 /** Bare aliases that require an explicit colon to avoid prose false positives (e.g. "Experience integrating…"). */
 const STRICT_COLON_FIELDS = Object.freeze({
   experience: 'experience',
@@ -285,7 +301,7 @@ function matchLabelLine(line) {
           && new RegExp(`^${escapeRegExp(alias)}$`, 'i').test(trimmed);
         if (!bareExact) continue;
       }
-      const re = new RegExp(`^${escapeRegExp(alias)}\\s*:?\\s*(.*)$`, 'i');
+      const re = new RegExp(`^${escapeRegExp(alias)}\\s*\\*?\\s*:?\\s*(.*)$`, 'i');
       const m = trimmed.match(re);
       if (!m) continue;
       const matchLen = alias.length;
@@ -554,10 +570,11 @@ function parseOpeningsFromText(raw) {
 
 function parseSalaryCurrency(raw) {
   const s = String(raw || '').trim().toUpperCase();
-  if (/^[A-Z]{3}$/.test(s)) return s;
+  const code = normalizeCurrency(s);
+  if (code) return code;
   const sym = { $: 'USD', '€': 'EUR', '£': 'GBP', '₨': 'PKR', RS: 'PKR' };
   for (const [k, v] of Object.entries(sym)) {
-    if (s.includes(k)) return v;
+    if (s.includes(k)) return normalizeCurrency(v);
   }
   return null;
 }
@@ -905,14 +922,15 @@ function extractFromLabels(lines, store, mode) {
     const match = matchLabelLine(line);
     if (!match) continue;
 
-    const { field, inlineValue, raw } = match;
+    const { field, raw } = match;
+    const inlineValue = isFieldInstruction(match.inlineValue) ? '' : match.inlineValue;
     if (mode === 'employer' && ADMIN_EXTRA_FIELDS.includes(field)) continue;
 
     let value = inlineValue;
     let evidence = raw;
 
     if (!value) {
-      const next = nextNonEmptyLine(lines, i + 1);
+      const next = nextFieldContentLine(lines, i + 1);
       if (next && !matchLabelLine(next.line) && !isLabelOnlyLine(next.line)) {
         if (SECTION_FIELDS.has(field)) {
           if (field === 'description' || field === 'locationEligibility') {
@@ -930,7 +948,7 @@ function extractFromLabels(lines, store, mode) {
         }
       }
     } else if (SECTION_FIELDS.has(field) && (!inlineValue || inlineValue.length < 3)) {
-      const next = nextNonEmptyLine(lines, i + 1);
+      const next = nextFieldContentLine(lines, i + 1);
       if (next) {
         if (field === 'description' || field === 'locationEligibility') {
           const { text, nextIdx } = parseParagraphBlock(lines, next.index);
@@ -973,7 +991,7 @@ function extractFromSections(lines, store) {
 
     if (match.inlineValue) continue;
 
-    const next = nextNonEmptyLine(lines, i + 1);
+    const next = nextFieldContentLine(lines, i + 1);
     if (!next) continue;
 
     if (match.field === 'description' || match.field === 'locationEligibility') {

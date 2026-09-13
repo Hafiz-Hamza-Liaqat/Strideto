@@ -41,6 +41,15 @@ const DEFAULT_LIMIT = 20;
 const MAX_LIMIT = 100;
 const WORK_MODES = new Set(['remote', 'hybrid', 'on_site']);
 
+function sendMongooseValidationError(res, err) {
+  if (err?.name !== 'ValidationError') return false;
+  const details = Object.fromEntries(
+    Object.entries(err.errors || {}).map(([field, item]) => [field, item?.message || 'Invalid value'])
+  );
+  res.status(400).json({ error: 'Validation failed', details });
+  return true;
+}
+
 export function buildQuery(q, now = new Date()) {
   const filter = {};
   const extraAnd = [employerPrivateDraftExclusion()];
@@ -288,7 +297,12 @@ export const create = asyncHandler(async (req, res) => {
   syncJobLaunchEligible(doc);
   const slugErr = await applyResolvedSlug('job', doc, body, true);
   if (slugErr) return slugErrorResponse(res, slugErr);
-  await doc.save();
+  try {
+    await doc.save();
+  } catch (err) {
+    if (sendMongooseValidationError(res, err)) return;
+    throw err;
+  }
   if (doc.status === 'active' && doc.approvalStatus === 'approved') {
     scheduleCanonicalEvent({ eventType: ACQUISITION_EVENTS.jobPublished, eventId: `${ACQUISITION_EVENTS.jobPublished}:${String(doc._id)}:v1`, schemaVersion: '3', entityType: 'job', entityId: String(doc._id), metadata: { conversion: ACQUISITION_EVENTS.jobPublished, employerId: doc.employerId ? String(doc.employerId) : null } });
     if (doc.employerId) void evaluateEmployerActivation(doc.employerId).catch(() => {});
@@ -327,7 +341,12 @@ export const update = asyncHandler(async (req, res) => {
   syncJobLaunchEligible(doc, before);
   const slugErr = await applyResolvedSlug('job', doc, body, false);
   if (slugErr) return slugErrorResponse(res, slugErr);
-  await doc.save();
+  try {
+    await doc.save();
+  } catch (err) {
+    if (sendMongooseValidationError(res, err)) return;
+    throw err;
+  }
   if (!(before.status === 'active' && before.approvalStatus === 'approved') && doc.status === 'active' && doc.approvalStatus === 'approved') {
     scheduleCanonicalEvent({ eventType: ACQUISITION_EVENTS.jobPublished, eventId: `${ACQUISITION_EVENTS.jobPublished}:${String(doc._id)}:v1`, schemaVersion: '3', entityType: 'job', entityId: String(doc._id), metadata: { conversion: ACQUISITION_EVENTS.jobPublished, employerId: doc.employerId ? String(doc.employerId) : null } });
     if (doc.employerId) void evaluateEmployerActivation(doc.employerId).catch(() => {});

@@ -1,3 +1,5 @@
+import { normalizeCurrency } from '../international/currency.js';
+
 /**
  * JOB-AUTOFILL-P2 — deterministic field contracts for job document extraction.
  * Each validator returns { status: 'accepted'|'review'|'rejected', value?, reason? }.
@@ -153,6 +155,12 @@ export function validateSalaryCandidate(value, _context = {}) {
   return result(CANDIDATE_STATUS.ACCEPTED, s);
 }
 
+export function validateSalaryCurrencyCandidate(value, _context = {}) {
+  const code = normalizeCurrency(value);
+  if (!code) return result(CANDIDATE_STATUS.REJECTED, null, 'invalid_currency');
+  return result(CANDIDATE_STATUS.ACCEPTED, code);
+}
+
 export function validateApplicationUrlCandidate(value, _context = {}) {
   const url = String(value || '').trim().replace(/[.,;)]+$/, '');
   if (!/^https?:\/\//i.test(url)) return result(CANDIDATE_STATUS.REJECTED, null, 'invalid_scheme');
@@ -269,6 +277,7 @@ export const FIELD_CONTRACT_VALIDATORS = Object.freeze({
   deadline: validateDeadlineCandidate,
   openingsCount: validateOpeningsCandidate,
   salaryRange: validateSalaryCandidate,
+  salaryCurrency: validateSalaryCurrencyCandidate,
   applicationLink: validateApplicationUrlCandidate,
   applyEmail: validateEmailCandidate,
   externalId: validateExternalJobIdCandidate,

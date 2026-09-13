@@ -233,4 +233,43 @@ for (const [raw, value, remote, hybrid] of modes) {
   assert.equal(result.form.hybrid, hybrid, `hybrid flag ${raw}`);
 }
 
+const endpointRequirements = [
+  'Support production systems', 'Investigate incidents', 'Document root causes',
+  'Collaborate with engineering', 'Follow release procedures', 'Monitor service health',
+  'Communicate status clearly', 'Maintain operational records', 'Participate in on-call support',
+];
+const endpointSkills = [
+  'Incident management', 'Troubleshooting', 'Technical documentation', 'Service monitoring',
+  'Root cause analysis', 'Customer communication', 'SQL', 'Linux', 'Jira', 'ITIL', 'English',
+];
+const endpointText = [
+  'Title *\tAssociate Production Support Analyst',
+  'Company *\tEndpoint Clinical',
+  'Country *\tIndia',
+  'City\tBengaluru',
+  'Employment Type\tFull Time',
+  'Job Type\tPrivate',
+  'Category\tCustomer Support',
+  'Currency\tNOT PROVIDED',
+  'Requirements one per line',
+  ...endpointRequirements.map((item) => `- ${item}`),
+  'Skills required one per line',
+  ...endpointSkills.map((item) => `- ${item}`),
+].join('\n');
+const endpointResult = adminFormFromDocument(endpointText);
+assert.equal(endpointResult.result.form.title, 'Associate Production Support Analyst');
+assert.equal(endpointResult.result.form.company, 'Endpoint Clinical');
+assert.equal(endpointResult.result.form.countryCode, 'IN');
+assert.equal(endpointResult.result.form.city, 'Bengaluru');
+assert.equal(endpointResult.result.form.type, 'full-time');
+assert.equal(endpointResult.result.form.jobType, 'Private');
+assert.equal(endpointResult.result.form.category, 'Customer Support & Success');
+assert.equal(endpointResult.result.form.salaryCurrency, '');
+assert.deepEqual(endpointResult.result.form.requirements.split('\n'), endpointRequirements);
+assert.deepEqual(endpointResult.result.form.skillsRequired.split(', '), endpointSkills);
+
+const invalidCurrency = adminFormFromDocument('Currency: NOT');
+assert.equal(invalidCurrency.result.form.salaryCurrency, '');
+assert.equal(invalidCurrency.suggestions.salaryCurrency, undefined);
+
 console.log('JOB-AUTOFILL-ADMIN: ordered/unordered form contract passed');

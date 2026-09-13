@@ -68,6 +68,18 @@ const EMPTY_JOB = {
   metaDescription: '',
 };
 
+function getJobSaveError(err) {
+  const data = err?.response?.data || {};
+  if (data.details && typeof data.details === 'object') {
+    const detailText = Object.entries(data.details)
+      .map(([field, message]) => `${field}: ${typeof message === 'string' ? message : message?.message || 'Invalid value'}`)
+      .join('; ');
+    if (detailText) return detailText;
+  }
+  if (data.field && data.error) return `${data.field}: ${data.error}`;
+  return data.error || null;
+}
+
 export default function AdminContentJobs() {
   const { t } = useTranslation(['admin', 'common']);
   const { toast } = useToast();
@@ -174,7 +186,7 @@ export default function AdminContentJobs() {
       setFormOpen(false);
       refetch();
     } catch (err) {
-      toast.error(err.response?.data?.error || t('admin:saveFailed'));
+      toast.error(getJobSaveError(err) || t('admin:saveFailed'));
     } finally {
       setSaving(false);
     }
